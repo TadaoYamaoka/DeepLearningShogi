@@ -14,7 +14,6 @@ import random
 import copy
 
 import logging
-logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description='Deep Learning Shogi')
 parser.add_argument('train_kifu_list', type=str, help='train kifu list')
@@ -23,7 +22,10 @@ parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of po
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
+parser.add_argument('--log', default=None, help='Resume the optimization from snapshot')
 args = parser.parse_args()
+
+logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 
 k = 256
 class MyChain(Chain):

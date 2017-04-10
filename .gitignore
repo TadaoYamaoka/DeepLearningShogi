@@ -248,3 +248,5 @@ ModelManifest.xml
 /train/ryuo_test.txt
 /train/kifu_train.txt
 /train/kifu_test.txt
+/train/state
+/train/model
