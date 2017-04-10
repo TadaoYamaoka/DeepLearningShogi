@@ -12,6 +12,9 @@
     <OutputPath>.</OutputPath>
     <Name>train</Name>
     <RootNamespace>train</RootNamespace>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <CommandLineArguments>testdata_train.txt testdata_test.txt</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +25,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="prepare_kifu_list.py" />
     <Compile Include="train.py" />
   </ItemGroup>
   <PropertyGroup>

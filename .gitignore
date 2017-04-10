@@ -240,3 +240,11 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+/log
+/testdata
+/train/testdata_train.txt
+/train/testdata_test.txt
+/train/ryuo_train.txt
+/train/ryuo_test.txt
+/train/kifu_train.txt
+/train/kifu_test.txt
