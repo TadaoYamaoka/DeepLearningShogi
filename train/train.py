@@ -78,6 +78,25 @@ if args.resume:
     print('Load optimizer state from', args.resume)
     serializers.load_npz(args.resume, optimizer)
 
+# rotate 180degree
+SQUARES_R180 = [
+    shogi.I1, shogi.I2, shogi.I3, shogi.I4, shogi.I5, shogi.I6, shogi.I7, shogi.I8, shogi.I9,
+    shogi.H1, shogi.H2, shogi.H3, shogi.H4, shogi.H5, shogi.H6, shogi.H7, shogi.H8, shogi.H9,
+    shogi.G1, shogi.G2, shogi.G3, shogi.G4, shogi.G5, shogi.G6, shogi.G7, shogi.G8, shogi.G9,
+    shogi.F1, shogi.F2, shogi.F3, shogi.F4, shogi.F5, shogi.F6, shogi.F7, shogi.F8, shogi.F9,
+    shogi.E1, shogi.E2, shogi.E3, shogi.E4, shogi.E5, shogi.E6, shogi.E7, shogi.E8, shogi.E9,
+    shogi.D1, shogi.D2, shogi.D3, shogi.D4, shogi.D5, shogi.D6, shogi.D7, shogi.D8, shogi.D9,
+    shogi.C1, shogi.C2, shogi.C3, shogi.C4, shogi.C5, shogi.C6, shogi.C7, shogi.C8, shogi.C9,
+    shogi.B1, shogi.B2, shogi.B3, shogi.B4, shogi.B5, shogi.B6, shogi.B7, shogi.B8, shogi.B9,
+    shogi.A1, shogi.A2, shogi.A3, shogi.A4, shogi.A5, shogi.A6, shogi.A7, shogi.A8, shogi.A9,
+]
+def bb_rotate_180(bb):
+    bb_r180 = 0
+    for pos in shogi.SQUARES:
+        if bb & shogi.BB_SQUARES[pos] > 0:
+            bb_r180 += 1 << SQUARES_R180[pos]
+    return bb_r180
+
 # read all kifu
 def read_kifu(kifu_list_file):
     f = open(kifu_list_file, 'r')
@@ -87,22 +106,26 @@ def read_kifu(kifu_list_file):
         kifu = shogi.CSA.Parser.parse_file(filepath, encoding='utf-8')[0]
         board = shogi.Board()
         for move in kifu['moves']:
-            if board.turn == shogi.BLACK:
-                occupied = (board.occupied[shogi.BLACK], board.occupied[shogi.WHITE])
-                pieces_in_hand = (board.pieces_in_hand[shogi.BLACK], board.pieces_in_hand[shogi.WHITE])
-            else:
-                occupied = (board.occupied[shogi.WHITE], board.occupied[shogi.BLACK])
-                pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
-            move_from = move[0:2]
-            move_to = move[2:4]
-            if move_from[1] == '*':
-                move_piece = shogi.Piece.from_symbol(move_from[0]).piece_type
+            move_to = shogi.SQUARE_NAMES.index(move[2:4])
+            if move[1] == '*':
+                move_piece = shogi.Piece.from_symbol(move[0]).piece_type
                 if len(move) == 5 and move[4] == '+':
                     move_piece = shogi.PIECE_PROMOTED.index(move_piece)
             else:
-                move_piece = board.piece_at(shogi.SQUARE_NAMES.index(move_from)).piece_type
-            move_label = 9 * 9 * (move_piece - 1) + shogi.SQUARE_NAMES.index(move_to)
-            positions.append(copy.deepcopy((board.piece_bb, occupied, pieces_in_hand, move_label)))
+                move_piece = board.piece_at(shogi.SQUARE_NAMES.index(move[0:2])).piece_type
+
+            if board.turn == shogi.BLACK:
+                piece_bb = board.piece_bb
+                occupied = (board.occupied[shogi.BLACK], board.occupied[shogi.WHITE])
+                pieces_in_hand = (board.pieces_in_hand[shogi.BLACK], board.pieces_in_hand[shogi.WHITE])
+            else:
+                piece_bb = [bb_rotate_180(bb) for bb in board.piece_bb]
+                occupied = (bb_rotate_180(board.occupied[shogi.WHITE]), bb_rotate_180(board.occupied[shogi.BLACK]))
+                pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
+                move_to = SQUARES_R180[move_to]
+
+            move_label = 9 * 9 * (move_piece - 1) + move_to
+            positions.append(copy.deepcopy((piece_bb, occupied, pieces_in_hand, move_label)))
             board.push_usi(move)
     f.close()
     return positions
