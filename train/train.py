@@ -162,7 +162,7 @@ def make_features(position):
     # empty
     feature = np.zeros(9*9)
     for pos in shogi.SQUARES:
-        if bb & shogi.BB_SQUARES[pos] == 0:
+        if board.piece_type_at(pos):
             feature[pos] = 1
     features.append(feature.reshape((9, 9)))
 
