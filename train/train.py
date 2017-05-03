@@ -31,7 +31,8 @@ k = 256
 class MyChain(Chain):
     def __init__(self):
         super(MyChain, self).__init__(
-            l1=L.Convolution2D(in_channels = None, out_channels = k, ksize = 3, pad = 1),
+            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = 3, pad = 1),
+            l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
@@ -47,8 +48,10 @@ class MyChain(Chain):
             l13_2=L.Bias(shape=(9*9*len(shogi.PIECE_TYPES)))
         )
 
-    def __call__(self, x):
-        h1 = F.relu(self.l1(x))
+    def __call__(self, x1, x2):
+        u1_1 = self.l1_1(x1)
+        u1_2 = self.l1_2(x2)
+        h1 = F.relu(u1_1 + u1_2)
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))
         h4 = F.relu(self.l4(h3))
@@ -140,7 +143,8 @@ logging.info('test position num = {}'.format(len(positions_test)))
 
 def make_features(position):
     piece_bb, occupied, pieces_in_hand, move = position
-    features = []
+    features1 = []
+    features2 = []
     for color in shogi.COLORS:
         # board pieces
         for piece_type in shogi.PIECE_TYPES_WITH_NONE[1:]:
@@ -149,7 +153,7 @@ def make_features(position):
             for pos in shogi.SQUARES:
                 if bb & shogi.BB_SQUARES[pos] > 0:
                     feature[pos] = 1
-            features.append(feature.reshape((9, 9)))
+            features1.append(feature.reshape((9, 9)))
 
         # pieces in hand
         for piece_type in range(1, 8):
@@ -158,36 +162,40 @@ def make_features(position):
                     feature = np.ones(9*9)
                 else:
                     feature = np.zeros(9*9)
-                features.append(feature.reshape((9, 9)))
+                features2.append(feature.reshape((9, 9)))
     # empty
     feature = np.zeros(9*9)
     for pos in shogi.SQUARES:
         if bb & shogi.BB_SQUARES[pos] == 0:
             feature[pos] = 1
-    features.append(feature.reshape((9, 9)))
+    features1.append(feature.reshape((9, 9)))
 
-    return (features, move)
+    return (features1, features2, move)
 
 # mini batch
 def mini_batch(positions, i):
-    mini_batch_data = []
+    mini_batch_data1 = []
+    mini_batch_data2 = []
     mini_batch_move = []
     for b in range(args.batchsize):
-        features, move = make_features(positions[i + b])
-        mini_batch_data.append(features)
+        features1, features2, move = make_features(positions[i + b])
+        mini_batch_data1.append(features1)
+        mini_batch_data2.append(features2)
         mini_batch_move.append(move)
 
-    return (Variable(cuda.to_gpu(np.array(mini_batch_data, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
+    return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
 
 def mini_batch_for_test(positions):
-    mini_batch_data = []
+    mini_batch_data1 = []
+    mini_batch_data2 = []
     mini_batch_move = []
     for b in range(64):
-        features, move = make_features(random.choice(positions))
-        mini_batch_data.append(features)
+        features1, features2, move = make_features(random.choice(positions))
+        mini_batch_data1.append(features1)
+        mini_batch_data2.append(features2)
         mini_batch_move.append(move)
 
-    return (Variable(cuda.to_gpu(np.array(mini_batch_data, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
+    return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
 
 # train
 itr = 0
@@ -197,8 +205,8 @@ for e in range(args.epoch):
     positions_train_shuffled = random.sample(positions_train, len(positions_train))
 
     for i in range(0, len(positions_train_shuffled) - args.batchsize, args.batchsize):
-        x, t = mini_batch(positions_train_shuffled, i)
-        y = model(x)
+        x1, x2, t = mini_batch(positions_train_shuffled, i)
+        y = model(x1, x2)
 
         model.cleargrads()
         loss = F.softmax_cross_entropy(y, t)
@@ -210,8 +218,8 @@ for e in range(args.epoch):
 
         # eval test data
         if itr % eval_interval == 0:
-            x, t = mini_batch_for_test(positions_test)
-            y = model(x)
+            x1, x2, t = mini_batch_for_test(positions_test)
+            y = model(x1, x2)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
             sum_loss = 0
 
