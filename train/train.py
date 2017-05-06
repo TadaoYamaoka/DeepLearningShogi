@@ -45,21 +45,30 @@ class MyChain(Chain):
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l13=L.Convolution2D(in_channels = k, out_channels = len(shogi.PIECE_TYPES), ksize = 1, nobias = True),
-            l13_2=L.Bias(shape=(9*9*len(shogi.PIECE_TYPES)))
+            l13_2=L.Bias(shape=(9*9*len(shogi.PIECE_TYPES))),
+            norm1=L.BatchNormalization(256),
+            norm2=L.BatchNormalization(256),
+            norm3=L.BatchNormalization(256),
+            norm4=L.BatchNormalization(256),
+            norm5=L.BatchNormalization(256),
+            norm6=L.BatchNormalization(256),
+            norm7=L.BatchNormalization(256),
+            norm8=L.BatchNormalization(256),
+            norm9=L.BatchNormalization(256)
         )
 
-    def __call__(self, x1, x2):
+    def __call__(self, x1, x2, test=False):
         u1_1 = self.l1_1(x1)
         u1_2 = self.l1_2(x2)
-        h1 = F.relu(u1_1 + u1_2)
-        h2 = F.relu(self.l2(h1))
-        h3 = F.relu(self.l3(h2))
-        h4 = F.relu(self.l4(h3))
-        h5 = F.relu(self.l5(h4))
-        h6 = F.relu(self.l6(h5))
-        h7 = F.relu(self.l7(h6))
-        h8 = F.relu(self.l8(h7))
-        h9 = F.relu(self.l9(h8))
+        h1 = F.relu(self.norm1(u1_1 + u1_2, test))
+        h2 = F.relu(self.norm2(self.l2(h1), test))
+        h3 = F.relu(self.norm3(self.l3(h2), test))
+        h4 = F.relu(self.norm4(self.l4(h3), test))
+        h5 = F.relu(self.norm5(self.l5(h4), test))
+        h6 = F.relu(self.norm6(self.l6(h5), test))
+        h7 = F.relu(self.norm7(self.l7(h6), test))
+        h8 = F.relu(self.norm8(self.l8(h7), test))
+        h9 = F.relu(self.norm9(self.l9(h8), test))
         h10 = F.relu(self.l10(h9))
         h11 = F.relu(self.l11(h10))
         h12 = F.relu(self.l12(h11))
@@ -219,7 +228,7 @@ for e in range(args.epoch):
         # eval test data
         if itr % eval_interval == 0:
             x1, x2, t = mini_batch_for_test(positions_test)
-            y = model(x1, x2)
+            y = model(x1, x2, test=True)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
             sum_loss = 0
 
