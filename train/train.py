@@ -78,7 +78,7 @@ class MyChain(Chain):
 model = MyChain()
 model.to_gpu()
 
-optimizer = optimizers.AdaGrad()
+optimizer = optimizers.SGD()
 optimizer.use_cleargrads()
 optimizer.setup(model)
 
