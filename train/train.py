@@ -27,6 +27,79 @@ args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 
+# move direction
+MOVE_DIRECTION = [
+    UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT,
+    UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE,
+    HAND
+] = range(17)
+
+MOVE_DIRECTION_PROMOTED = [
+    UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT
+]
+
+PAWN_MOVE_DIRECTION = [UP, UP_PROMOTE, HAND]
+LANCE_MOVE_DIRECTION = [UP, UP_PROMOTE, HAND]
+KNIGHT_MOVE_DIRECTION = [UP_LEFT, UP_RIGHT,
+                         UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE,
+                         HAND]
+SILVER_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, DOWN_LEFT, DOWN_RIGHT,
+                         UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE,
+                         HAND]
+GOLD_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN,
+                       UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN,
+                       HAND]
+BISHOP_MOVE_DIRECTION = [UP_LEFT, UP_RIGHT, DOWN_LEFT, DOWN_RIGHT,
+                         UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE,
+                         HAND]
+ROOK_MOVE_DIRECTION = [UP, LEFT, RIGHT, DOWN,
+                       UP_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE,
+                       HAND]
+KING_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT]
+PROM_PAWN_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN]
+PROM_LANCE_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN]
+PROM_KNIGHT_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN]
+PROM_SILVER_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN]
+PROM_BISHOP_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT]
+PROM_ROOK_MOVE_DIRECTION = [UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT]
+
+PIECE_MOVE_DIRECTION = [
+    None,
+    PAWN_MOVE_DIRECTION, LANCE_MOVE_DIRECTION, KNIGHT_MOVE_DIRECTION, SILVER_MOVE_DIRECTION,
+    GOLD_MOVE_DIRECTION,
+    BISHOP_MOVE_DIRECTION, ROOK_MOVE_DIRECTION,
+    KING_MOVE_DIRECTION,
+    PROM_PAWN_MOVE_DIRECTION, PROM_LANCE_MOVE_DIRECTION, PROM_KNIGHT_MOVE_DIRECTION, PROM_SILVER_MOVE_DIRECTION,
+    PROM_BISHOP_MOVE_DIRECTION, PROM_ROOK_MOVE_DIRECTION
+]
+
+# classification label
+PAWN_MOVE_DIRECTION_LABEL = 0
+LANCE_MOVE_DIRECTION_LABEL = len(PAWN_MOVE_DIRECTION)
+KNIGHT_MOVE_DIRECTION_LABEL = LANCE_MOVE_DIRECTION_LABEL + len(LANCE_MOVE_DIRECTION)
+SILVER_MOVE_DIRECTION_LABEL = KNIGHT_MOVE_DIRECTION_LABEL + len(KNIGHT_MOVE_DIRECTION)
+GOLD_MOVE_DIRECTION_LABEL = SILVER_MOVE_DIRECTION_LABEL + len(SILVER_MOVE_DIRECTION)
+BISHOP_MOVE_DIRECTION_LABEL = GOLD_MOVE_DIRECTION_LABEL + len(GOLD_MOVE_DIRECTION)
+ROOK_MOVE_DIRECTION_LABEL = BISHOP_MOVE_DIRECTION_LABEL + len(BISHOP_MOVE_DIRECTION)
+KING_MOVE_DIRECTION_LABEL = ROOK_MOVE_DIRECTION_LABEL + len(ROOK_MOVE_DIRECTION)
+PROM_PAWN_MOVE_DIRECTION_LABEL = KING_MOVE_DIRECTION_LABEL + len(KING_MOVE_DIRECTION)
+PROM_LANCE_MOVE_DIRECTION_LABEL = PROM_PAWN_MOVE_DIRECTION_LABEL + len(PROM_PAWN_MOVE_DIRECTION)
+PROM_KNIGHT_MOVE_DIRECTION_LABEL = PROM_LANCE_MOVE_DIRECTION_LABEL + len(PROM_LANCE_MOVE_DIRECTION)
+PROM_SILVER_MOVE_DIRECTION_LABEL = PROM_KNIGHT_MOVE_DIRECTION_LABEL + len(PROM_KNIGHT_MOVE_DIRECTION)
+PROM_BISHOP_MOVE_DIRECTION_LABEL = PROM_SILVER_MOVE_DIRECTION_LABEL + len(PROM_SILVER_MOVE_DIRECTION)
+PROM_ROOK_MOVE_DIRECTION_LABEL = PROM_BISHOP_MOVE_DIRECTION_LABEL + len(PROM_BISHOP_MOVE_DIRECTION)
+MOVE_DIRECTION_LABEL_NUM = PROM_ROOK_MOVE_DIRECTION_LABEL + len(PROM_ROOK_MOVE_DIRECTION)
+
+PIECE_MOVE_DIRECTION_LABEL = [
+    None,
+    PAWN_MOVE_DIRECTION_LABEL, LANCE_MOVE_DIRECTION_LABEL, KNIGHT_MOVE_DIRECTION_LABEL, SILVER_MOVE_DIRECTION_LABEL,
+    GOLD_MOVE_DIRECTION_LABEL,
+    BISHOP_MOVE_DIRECTION_LABEL, ROOK_MOVE_DIRECTION_LABEL,
+    KING_MOVE_DIRECTION_LABEL,
+    PROM_PAWN_MOVE_DIRECTION_LABEL, PROM_LANCE_MOVE_DIRECTION_LABEL, PROM_KNIGHT_MOVE_DIRECTION_LABEL, PROM_SILVER_MOVE_DIRECTION_LABEL,
+    PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
+]
+
 k = 256
 class MyChain(Chain):
     def __init__(self):
@@ -44,8 +117,8 @@ class MyChain(Chain):
             l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l13=L.Convolution2D(in_channels = k, out_channels = len(shogi.PIECE_TYPES), ksize = 1, nobias = True),
-            l13_2=L.Bias(shape=(9*9*len(shogi.PIECE_TYPES))),
+            l13=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
+            l13_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
             norm1=L.BatchNormalization(256),
             norm2=L.BatchNormalization(256),
             norm3=L.BatchNormalization(256),
@@ -73,7 +146,7 @@ class MyChain(Chain):
         h11 = F.relu(self.l11(h10))
         h12 = F.relu(self.l12(h11))
         h13 = self.l13(h12)
-        return self.l13_2(F.reshape(h13, (len(h13.data), 9*9*len(shogi.PIECE_TYPES))))
+        return self.l13_2(F.reshape(h13, (len(h13.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
 
 model = MyChain()
 model.to_gpu()
@@ -120,10 +193,11 @@ def read_kifu(kifu_list_file):
         for move in kifu['moves']:
             move_to = shogi.SQUARE_NAMES.index(move[2:4])
             if move[1] == '*':
+                # in hand
                 move_piece = shogi.Piece.from_symbol(move[0]).piece_type
-                if len(move) == 5 and move[4] == '+':
-                    move_piece = shogi.PIECE_PROMOTED.index(move_piece)
+                move_direction = HAND
             else:
+                move_from = shogi.SQUARE_NAMES.index(move[0:2])
                 move_piece = board.piece_at(shogi.SQUARE_NAMES.index(move[0:2])).piece_type
 
             if board.turn == shogi.BLACK:
@@ -135,8 +209,40 @@ def read_kifu(kifu_list_file):
                 occupied = (bb_rotate_180(board.occupied[shogi.WHITE]), bb_rotate_180(board.occupied[shogi.BLACK]))
                 pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
                 move_to = SQUARES_R180[move_to]
+                if move[1] != '*':
+                    move_from = SQUARES_R180[move_from]
 
-            move_label = 9 * 9 * (move_piece - 1) + move_to
+            # move direction
+            if move[1] != '*':
+                to_x = move_to % 9
+                to_y = int(move_to / 9)
+                from_x = move_from % 9
+                from_y = int(move_from / 9)
+                dir_x = to_x - from_x
+                dir_y = to_y - from_y
+                if dir_y < 0 and dir_x == 0:
+                    move_direction = UP
+                elif dir_y < 0 and dir_x < 0:
+                    move_direction = UP_LEFT
+                elif dir_y < 0 and dir_x > 0:
+                    move_direction = UP_RIGHT
+                elif dir_y == 0 and dir_x < 0:
+                    move_direction = LEFT
+                elif dir_y == 0 and dir_x > 0:
+                    move_direction = RIGHT
+                elif dir_y > 0 and dir_x == 0:
+                    move_direction = DOWN
+                elif dir_y > 0 and dir_x < 0:
+                    move_direction = DOWN_LEFT
+                elif dir_y > 0 and dir_x > 0:
+                    move_direction = DOWN_RIGHT
+
+                # promote
+                if len(move) == 5 and move[4] == '+':
+                    move_direction = MOVE_DIRECTION_PROMOTED[move_direction]
+
+            move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION[move_piece].index(move_direction)
+            move_label = 9 * 9 * move_direction_label + move_to
             positions.append(copy.deepcopy((piece_bb, occupied, pieces_in_hand, move_label)))
             board.push_usi(move)
     f.close()
@@ -198,7 +304,7 @@ def mini_batch_for_test(positions):
     mini_batch_data1 = []
     mini_batch_data2 = []
     mini_batch_move = []
-    for b in range(64):
+    for b in range(640):
         features1, features2, move = make_features(random.choice(positions))
         mini_batch_data1.append(features1)
         mini_batch_data2.append(features2)
@@ -209,7 +315,7 @@ def mini_batch_for_test(positions):
 # train
 itr = 0
 sum_loss = 0
-eval_interval = 100
+eval_interval = 1000
 for e in range(args.epoch):
     positions_train_shuffled = random.sample(positions_train, len(positions_train))
 
@@ -226,7 +332,7 @@ for e in range(args.epoch):
         sum_loss += loss.data
 
         # eval test data
-        if itr % eval_interval == 0:
+        if itr % eval_interval == 0 or (itr + eval_interval >= len(positions_train_shuffled) * args.epoch):
             x1, x2, t = mini_batch_for_test(positions_test)
             y = model(x1, x2, test=True)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
