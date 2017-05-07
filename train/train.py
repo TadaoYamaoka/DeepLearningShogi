@@ -243,7 +243,7 @@ def read_kifu(kifu_list_file):
 
             move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION[move_piece].index(move_direction)
             move_label = 9 * 9 * move_direction_label + move_to
-            positions.append(copy.deepcopy((piece_bb, occupied, pieces_in_hand, move_label)))
+            positions.append(copy.deepcopy((piece_bb, occupied, pieces_in_hand, board.is_check(), move_label)))
             board.push_usi(move)
     f.close()
     return positions
@@ -257,7 +257,7 @@ logging.info('train position num = {}'.format(len(positions_train)))
 logging.info('test position num = {}'.format(len(positions_test)))
 
 def make_features(position):
-    piece_bb, occupied, pieces_in_hand, move = position
+    piece_bb, occupied, pieces_in_hand, is_check, move = position
     features1 = []
     features2 = []
     for color in shogi.COLORS:
@@ -284,6 +284,13 @@ def make_features(position):
         if bb & shogi.BB_SQUARES[pos] == 0:
             feature[pos] = 1
     features1.append(feature.reshape((9, 9)))
+
+    # is check
+    if is_check:
+        feature = np.ones(9*9)
+    else:
+        feature = np.zeros(9*9)
+    features2.append(feature.reshape((9, 9)))
 
     return (features1, features2, move)
 
