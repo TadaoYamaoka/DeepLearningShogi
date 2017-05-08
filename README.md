@@ -8,5 +8,10 @@
 
 http://tadaoyamaoka.hatenablog.com/
 
+## 使用ライブラリ
+* [python-shogi](https://github.com/gunyarakun/python-shogi)  
+文字コードを指定して棋譜ファイルを読み込めるようにForkして修正しています。
+https://github.com/TadaoYamaoka/python-shogi
+
 ## ライセンス
 ライセンスはMITライセンスとします。
