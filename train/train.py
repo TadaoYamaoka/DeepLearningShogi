@@ -278,13 +278,6 @@ def make_features(position):
                 else:
                     feature = np.zeros(9*9)
                 features2.append(feature.reshape((9, 9)))
-    # empty
-    feature = np.zeros(9*9)
-    bb = occupied[0] & occupied[1]
-    for pos in shogi.SQUARES:
-        if bb & shogi.BB_SQUARES[pos] == 0:
-            feature[pos] = 1
-    features1.append(feature.reshape((9, 9)))
 
     # is check
     if is_check:
