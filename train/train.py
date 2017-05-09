@@ -1,11 +1,12 @@
 import numpy as np
+from keras import backend as K
 from keras.models import Sequential
-from keras.layers.merge import Add
 from keras.layers.convolutional import Conv2D
 from keras.layers.normalization import BatchNormalization
-from keras.layers import Activation, Flatten
+from keras.layers import Input, Activation, Flatten
 from keras.engine.topology import Layer
 from keras.callbacks import ModelCheckpoint
+from keras.utils.np_utils import to_categorical
 
 import shogi
 import shogi.CSA
@@ -194,8 +195,7 @@ logging.info('test position num = {}'.format(len(positions_test)))
 
 def make_features(position):
     piece_bb, occupied, pieces_in_hand, is_check, move = position
-    features1 = []
-    features2 = []
+    features = []
     for color in shogi.COLORS:
         # board pieces
         for piece_type in shogi.PIECE_TYPES_WITH_NONE[1:]:
@@ -204,7 +204,7 @@ def make_features(position):
             for pos in shogi.SQUARES:
                 if bb & shogi.BB_SQUARES[pos] > 0:
                     feature[pos] = 1
-            features1.append(feature.reshape((9, 9)))
+            features.append(feature.reshape((9, 9)))
 
         # pieces in hand
         for piece_type in range(1, 8):
@@ -213,36 +213,35 @@ def make_features(position):
                     feature = np.ones(9*9)
                 else:
                     feature = np.zeros(9*9)
-                features2.append(feature.reshape((9, 9)))
+                features.append(feature.reshape((9, 9)))
 
     # is check
     if is_check:
         feature = np.ones(9*9)
     else:
         feature = np.zeros(9*9)
-    features2.append(feature.reshape((9, 9)))
+    features.append(feature.reshape((9, 9)))
 
-    return (features1, features2, move)
+    return (features, move)
 
 # mini batch
 def mini_batch(positions, i):
-    mini_batch_data1 = []
-    mini_batch_data2 = []
+    mini_batch_data = []
     mini_batch_move = []
     for b in range(args.batchsize):
-        features1, features2, move = make_features(positions[i + b])
-        mini_batch_data1.append(features1)
-        mini_batch_data2.append(features2)
+        features, move = make_features(positions[i + b])
+        mini_batch_data.append(features)
         mini_batch_move.append(move)
 
-    return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
+    return (np.array(mini_batch_data, dtype=np.float32),
+            to_categorical(mini_batch_move, num_classes=MOVE_DIRECTION_LABEL_NUM*9*9))
 
 # data generator
 def datagen(positions):
     positions_shuffled = random.sample(positions, len(positions))
     for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(positions_train_shuffled, i)
-        yield [x1, x2], t
+        x, t = mini_batch(positions_shuffled, i)
+        yield x, t
 
 class Bias(Layer):
     """Custom keras layer that simply adds a scalar bias to each location in the input
@@ -264,15 +263,18 @@ class Bias(Layer):
 
 k = 256
 model = Sequential()
-model.add(Add([Conv2D(k, (3, 3), padding='same'), Conv2D(k, (1, 1), padding='same')]))
-model.add(BatchNormalization())
+# layer1
+model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
+model.add(BatchNormalization(axis=1))
 model.add(Activation('relu'))
+# layer2 - 12
 for i in range(11):
-    model.add(Conv2D(k, (3, 3), padding='same'))
-    if i < 9:
-        model.add(BatchNormalization())
+    model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first'))
+    if i < 8:
+        model.add(BatchNormalization(axis=1))
     model.add(Activation('relu'))
-model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, 1, 1, use_bias=False))
+# layer13
+model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
 model.add(Flatten())
 model.add(Bias())
 
