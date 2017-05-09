@@ -1,10 +1,11 @@
 import numpy as np
-import chainer
-from chainer import cuda, Variable
-from chainer import optimizers, serializers
-from chainer import Chain
-import chainer.functions as F
-import chainer.links as L
+from keras.models import Sequential
+from keras.layers.merge import Add
+from keras.layers.convolutional import Conv2D
+from keras.layers.normalization import BatchNormalization
+from keras.layers import Activation, Flatten
+from keras.engine.topology import Layer
+from keras.callbacks import ModelCheckpoint
 
 import shogi
 import shogi.CSA
@@ -20,9 +21,7 @@ parser.add_argument('train_kifu_list', type=str, help='train kifu list')
 parser.add_argument('test_kifu_list', type=str, help='test kifu list')
 parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
-parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
-parser.add_argument('--log', default=None, help='Resume the optimization from snapshot')
+parser.add_argument('--log', default=None, help='log file path')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -99,69 +98,6 @@ PIECE_MOVE_DIRECTION_LABEL = [
     PROM_PAWN_MOVE_DIRECTION_LABEL, PROM_LANCE_MOVE_DIRECTION_LABEL, PROM_KNIGHT_MOVE_DIRECTION_LABEL, PROM_SILVER_MOVE_DIRECTION_LABEL,
     PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 ]
-
-k = 256
-class MyChain(Chain):
-    def __init__(self):
-        super(MyChain, self).__init__(
-            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = 3, pad = 1),
-            l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1), # pieces_in_hand
-            l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l5=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l6=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l7=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l8=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
-            l13=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
-            l13_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
-            norm1=L.BatchNormalization(256),
-            norm2=L.BatchNormalization(256),
-            norm3=L.BatchNormalization(256),
-            norm4=L.BatchNormalization(256),
-            norm5=L.BatchNormalization(256),
-            norm6=L.BatchNormalization(256),
-            norm7=L.BatchNormalization(256),
-            norm8=L.BatchNormalization(256),
-            norm9=L.BatchNormalization(256)
-        )
-
-    def __call__(self, x1, x2, test=False):
-        u1_1 = self.l1_1(x1)
-        u1_2 = self.l1_2(x2)
-        h1 = F.relu(self.norm1(u1_1 + u1_2, test))
-        h2 = F.relu(self.norm2(self.l2(h1), test))
-        h3 = F.relu(self.norm3(self.l3(h2), test))
-        h4 = F.relu(self.norm4(self.l4(h3), test))
-        h5 = F.relu(self.norm5(self.l5(h4), test))
-        h6 = F.relu(self.norm6(self.l6(h5), test))
-        h7 = F.relu(self.norm7(self.l7(h6), test))
-        h8 = F.relu(self.norm8(self.l8(h7), test))
-        h9 = F.relu(self.norm9(self.l9(h8), test))
-        h10 = F.relu(self.l10(h9))
-        h11 = F.relu(self.l11(h10))
-        h12 = F.relu(self.l12(h11))
-        h13 = self.l13(h12)
-        return self.l13_2(F.reshape(h13, (len(h13.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
-
-model = MyChain()
-model.to_gpu()
-
-optimizer = optimizers.SGD()
-optimizer.use_cleargrads()
-optimizer.setup(model)
-
-# Init/Resume
-if args.initmodel:
-    print('Load model from', args.initmodel)
-    serializers.load_npz(args.initmodel, model)
-if args.resume:
-    print('Load optimizer state from', args.resume)
-    serializers.load_npz(args.resume, optimizer)
 
 # rotate 180degree
 SQUARES_R180 = [
@@ -301,46 +237,56 @@ def mini_batch(positions, i):
 
     return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
 
-def mini_batch_for_test(positions):
-    mini_batch_data1 = []
-    mini_batch_data2 = []
-    mini_batch_move = []
-    for b in range(640):
-        features1, features2, move = make_features(random.choice(positions))
-        mini_batch_data1.append(features1)
-        mini_batch_data2.append(features2)
-        mini_batch_move.append(move)
-
-    return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))), Variable(cuda.to_gpu(np.array(mini_batch_move, dtype=np.int32))))
-
-# train
-itr = 0
-sum_loss = 0
-eval_interval = 1000
-for e in range(args.epoch):
-    positions_train_shuffled = random.sample(positions_train, len(positions_train))
-
-    for i in range(0, len(positions_train_shuffled) - args.batchsize, args.batchsize):
+# data generator
+def datagen(positions):
+    positions_shuffled = random.sample(positions, len(positions))
+    for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
         x1, x2, t = mini_batch(positions_train_shuffled, i)
-        y = model(x1, x2)
+        yield [x1, x2], t
 
-        model.cleargrads()
-        loss = F.softmax_cross_entropy(y, t)
-        loss.backward()
-        optimizer.update()
+class Bias(Layer):
+    """Custom keras layer that simply adds a scalar bias to each location in the input
+    Largely copied from the keras docs:
+    http://keras.io/layers/writing-your-own-keras-layers/#writing-your-own-keras-layers
 
-        itr += 1
-        sum_loss += loss.data
+    See https://github.com/Rochester-NRT/RocAlphaGo/blob/develop/AlphaGo/models/nn_util.py
+    """
 
-        # eval test data
-        if itr % eval_interval == 0 or (itr + eval_interval >= len(positions_train_shuffled) * args.epoch):
-            x1, x2, t = mini_batch_for_test(positions_test)
-            y = model(x1, x2, test=True)
-            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
-            sum_loss = 0
+    def __init__(self, **kwargs):
+        super(Bias, self).__init__(**kwargs)
 
+    def build(self, input_shape):
+        self.W = K.zeros(input_shape[1:])
+        self.trainable_weights = [self.W]
 
-print('save the model')
-serializers.save_npz('model', model)
-print('save the optimizer')
-serializers.save_npz('state', optimizer)
+    def call(self, x, mask=None):
+        return x + self.W
+
+k = 256
+model = Sequential()
+model.add(Add([Conv2D(k, (3, 3), padding='same'), Conv2D(k, (1, 1), padding='same')]))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+for i in range(11):
+    model.add(Conv2D(k, (3, 3), padding='same'))
+    if i < 9:
+        model.add(BatchNormalization())
+    model.add(Activation('relu'))
+model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, 1, 1, use_bias=False))
+model.add(Flatten())
+model.add(Bias())
+
+model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+
+logging.info('Training...')
+checkpoint = ModelCheckpoint('model-best.hdf5', verbose=1, save_best_only=True)
+model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
+          epochs=args.epoch,
+          validation_data=datagen(positions_test), validation_steps=int(len(positions_test) / args.batchsize),
+          callbacks=[checkpoint])
+
+model.save_weights('model-final.hdf5')
+with open('model.json', 'w') as fjson:
+    fjson.write(model.to_json())
+
+import gc; gc.collect()
