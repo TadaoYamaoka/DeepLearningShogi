@@ -238,10 +238,11 @@ def mini_batch(positions, i):
 
 # data generator
 def datagen(positions):
-    positions_shuffled = random.sample(positions, len(positions))
-    for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
-        x, t = mini_batch(positions_shuffled, i)
-        yield x, t
+    while True:
+        positions_shuffled = random.sample(positions, len(positions))
+        for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
+            x, t = mini_batch(positions_shuffled, i)
+            yield x, t
 
 class Bias(Layer):
     """Custom keras layer that simply adds a scalar bias to each location in the input
@@ -277,18 +278,22 @@ for i in range(11):
 model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
 model.add(Flatten())
 model.add(Bias())
+model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
-logging.info('Training...')
 checkpoint = ModelCheckpoint('model-best.hdf5', verbose=1, save_best_only=True)
+
+logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
           epochs=args.epoch,
           validation_data=datagen(positions_test), validation_steps=int(len(positions_test) / args.batchsize),
           callbacks=[checkpoint])
+logging.info('Training end')
 
 model.save_weights('model-final.hdf5')
 with open('model.json', 'w') as fjson:
     fjson.write(model.to_json())
 
 import gc; gc.collect()
+logging.info('Done')
