@@ -22,7 +22,7 @@ parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of po
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
-parser.add_argument('--log', default=None, help='Resume the optimization from snapshot')
+parser.add_argument('--log', default=None, help='log file path')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -119,15 +119,15 @@ class MyChain(Chain):
             l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1),
             l13=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
             l13_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
-            norm1=L.BatchNormalization(256),
-            norm2=L.BatchNormalization(256),
-            norm3=L.BatchNormalization(256),
-            norm4=L.BatchNormalization(256),
-            norm5=L.BatchNormalization(256),
-            norm6=L.BatchNormalization(256),
-            norm7=L.BatchNormalization(256),
-            norm8=L.BatchNormalization(256),
-            norm9=L.BatchNormalization(256)
+            norm1=L.BatchNormalization(k),
+            norm2=L.BatchNormalization(k),
+            norm3=L.BatchNormalization(k),
+            norm4=L.BatchNormalization(k),
+            norm5=L.BatchNormalization(k),
+            norm6=L.BatchNormalization(k),
+            norm7=L.BatchNormalization(k),
+            norm8=L.BatchNormalization(k),
+            norm9=L.BatchNormalization(k)
         )
 
     def __call__(self, x1, x2, test=False):
