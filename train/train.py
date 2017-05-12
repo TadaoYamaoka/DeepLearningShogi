@@ -18,11 +18,13 @@ import logging
 parser = argparse.ArgumentParser(description='Deep Learning Shogi')
 parser.add_argument('train_kifu_list', type=str, help='train kifu list')
 parser.add_argument('test_kifu_list', type=str, help='test kifu list')
-parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of positions in each mini-batch')
+parser.add_argument('--batchsize', '-b', type=int, default=32, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
+parser.add_argument('--filters', '-k', type=int, default=192, help='filter size')
+parser.add_argument('--kernelsize', '-w', type=int, default=3, help='kernel size')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -100,12 +102,13 @@ PIECE_MOVE_DIRECTION_LABEL = [
     PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 ]
 
-k = 256
+k = args.filters
+w = args.kernelsize
 dropout_ratio = 0.1
 class MyChain(Chain):
     def __init__(self):
         super(MyChain, self).__init__(
-            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
             l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
@@ -127,7 +130,8 @@ class MyChain(Chain):
             norm6=L.BatchNormalization(k),
             norm7=L.BatchNormalization(k),
             norm8=L.BatchNormalization(k),
-            norm9=L.BatchNormalization(k)
+            norm9=L.BatchNormalization(k),
+            norm10=L.BatchNormalization(k)
         )
 
     def __call__(self, x1, x2, test=False):
@@ -152,7 +156,7 @@ class MyChain(Chain):
         u9 = self.l9(h8) + u7
         # Residual block
         h9 = F.relu(self.norm9(u9, test))
-        h10 = F.dropout(F.relu(self.l10(h9)), ratio=dropout_ratio, train=not test)
+        h10 = F.dropout(F.relu(self.norm10(self.l10(h9), test)), ratio=dropout_ratio, train=not test)
         u11 = self.l11(h10) + u9
         # output
         h12 = self.l12(u11)
@@ -342,12 +346,22 @@ for e in range(args.epoch):
         itr += 1
         sum_loss += loss.data
 
-        # eval test data
-        if itr % eval_interval == 0 or (itr + eval_interval >= len(positions_train_shuffled) * args.epoch):
+        # print train loss and test accuracy
+        if itr % eval_interval == 0:
             x1, x2, t = mini_batch_for_test(positions_test)
             y = model(x1, x2, test=True)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
             sum_loss = 0
+
+    # validate test data
+    itr_test = 0
+    sum_test_accuracy = 0
+    for i in range(0, len(positions_test) - args.batchsize, args.batchsize):
+        x1, x2, t = mini_batch(positions_test, i)
+        y = model(x1, x2, test=True)
+        itr_test += 1
+        sum_test_accuracy += F.accuracy(y, t).data
+    logging.info('epoch = {}, test accuracy = {}'.format(e + 1, sum_test_accuracy / itr_test))
 
 
 print('save the model')
