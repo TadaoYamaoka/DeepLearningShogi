@@ -25,6 +25,7 @@ parser.add_argument('--resume', '-r', default='', help='Resume the optimization 
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--filters', '-k', type=int, default=192, help='filter size')
 parser.add_argument('--kernelsize', '-w', type=int, default=3, help='kernel size')
+parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -165,7 +166,7 @@ class MyChain(Chain):
 model = MyChain()
 model.to_gpu()
 
-optimizer = optimizers.SGD()
+optimizer = optimizers.SGD(lr=args.lr)
 optimizer.use_cleargrads()
 optimizer.setup(model)
 
@@ -334,6 +335,8 @@ eval_interval = 1000
 for e in range(args.epoch):
     positions_train_shuffled = random.sample(positions_train, len(positions_train))
 
+    itr_epoch = 0
+    sum_loss_epoch = 0
     for i in range(0, len(positions_train_shuffled) - args.batchsize, args.batchsize):
         x1, x2, t = mini_batch(positions_train_shuffled, i)
         y = model(x1, x2)
@@ -345,12 +348,15 @@ for e in range(args.epoch):
 
         itr += 1
         sum_loss += loss.data
+        itr_epoch += 1
+        sum_loss_epoch += loss.data
 
         # print train loss and test accuracy
-        if itr % eval_interval == 0:
+        if optimizer.t % eval_interval == 0:
             x1, x2, t = mini_batch_for_test(positions_test)
             y = model(x1, x2, test=True)
-            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(e + 1, itr, sum_loss / eval_interval, F.accuracy(y, t).data))
+            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.accuracy(y, t).data))
+            itr = 0
             sum_loss = 0
 
     # validate test data
@@ -361,8 +367,9 @@ for e in range(args.epoch):
         y = model(x1, x2, test=True)
         itr_test += 1
         sum_test_accuracy += F.accuracy(y, t).data
-    logging.info('epoch = {}, test accuracy = {}'.format(e + 1, sum_test_accuracy / itr_test))
-
+    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_accuracy / itr_test))
+    
+    optimizer.new_epoch()
 
 print('save the model')
 serializers.save_npz('model', model)

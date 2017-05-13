@@ -31,3 +31,6 @@ for path in shuffled[train_num:]:
 
 f_train.close()
 f_test.close()
+
+print('train kifu num:', train_num)
+print('test kifu num:', len(file_list) - train_num)
