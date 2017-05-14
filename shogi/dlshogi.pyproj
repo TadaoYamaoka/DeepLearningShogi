@@ -11,7 +11,7 @@
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>shogi</Name>
+    <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
     <CommandLineArguments>testdata_train.txt testdata_test.txt</CommandLineArguments>
@@ -28,7 +28,13 @@
   <ItemGroup>
     <Compile Include="prepare_kifu_list.py" />
     <Compile Include="policy_network.py" />
+    <Compile Include="usi.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="train_sl_policy.py" />
+    <Compile Include="__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
