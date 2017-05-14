@@ -5,8 +5,8 @@ def main():
         line = input()
 
         if line == 'usi':
-            print('id name test')
-            print('id author test')
+            print('id name dlshogi')
+            print('id author Tadao Yamaoka')
             print('usiok')
         elif line == 'isready':
             print('readyok')
