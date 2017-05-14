@@ -6,7 +6,7 @@ from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
 
-from policy_network import *
+from dlshogi.policy_network import *
 
 import shogi
 import shogi.CSA
@@ -137,38 +137,6 @@ logging.debug('read kifu end')
 
 logging.info('train position num = {}'.format(len(positions_train)))
 logging.info('test position num = {}'.format(len(positions_test)))
-
-def make_features(position):
-    piece_bb, occupied, pieces_in_hand, is_check, move = position
-    features1 = []
-    features2 = []
-    for color in shogi.COLORS:
-        # board pieces
-        for piece_type in shogi.PIECE_TYPES_WITH_NONE[1:]:
-            bb = piece_bb[piece_type] & occupied[color]
-            feature = np.zeros(9*9)
-            for pos in shogi.SQUARES:
-                if bb & shogi.BB_SQUARES[pos] > 0:
-                    feature[pos] = 1
-            features1.append(feature.reshape((9, 9)))
-
-        # pieces in hand
-        for piece_type in range(1, 8):
-            for n in range(shogi.MAX_PIECES_IN_HAND[piece_type]):
-                if piece_type in pieces_in_hand[color] and n < pieces_in_hand[color][piece_type]:
-                    feature = np.ones(9*9)
-                else:
-                    feature = np.zeros(9*9)
-                features2.append(feature.reshape((9, 9)))
-
-    # is check
-    if is_check:
-        feature = np.ones(9*9)
-    else:
-        feature = np.zeros(9*9)
-    features2.append(feature.reshape((9, 9)))
-
-    return (features1, features2, move)
 
 # mini batch
 def mini_batch(positions, i):

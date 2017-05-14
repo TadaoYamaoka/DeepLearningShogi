@@ -16,7 +16,7 @@ MOVE_DIRECTION = [
 ] = range(17)
 
 MOVE_DIRECTION_PROMOTED = [
-    UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT
+    UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE
 ]
 
 PAWN_MOVE_DIRECTION = [UP, UP_PROMOTE, HAND]
@@ -78,7 +78,8 @@ PIECE_MOVE_DIRECTION_LABEL = [
     BISHOP_MOVE_DIRECTION_LABEL, ROOK_MOVE_DIRECTION_LABEL,
     KING_MOVE_DIRECTION_LABEL,
     PROM_PAWN_MOVE_DIRECTION_LABEL, PROM_LANCE_MOVE_DIRECTION_LABEL, PROM_KNIGHT_MOVE_DIRECTION_LABEL, PROM_SILVER_MOVE_DIRECTION_LABEL,
-    PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
+    PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL,
+    MOVE_DIRECTION_LABEL_NUM
 ]
 
 k = 192
@@ -140,3 +141,35 @@ class PolicyNetwork(Chain):
         # output
         h12 = self.l12(u11)
         return self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
+
+def make_features(position):
+    piece_bb, occupied, pieces_in_hand, is_check, move = position
+    features1 = []
+    features2 = []
+    for color in shogi.COLORS:
+        # board pieces
+        for piece_type in shogi.PIECE_TYPES_WITH_NONE[1:]:
+            bb = piece_bb[piece_type] & occupied[color]
+            feature = np.zeros(9*9)
+            for pos in shogi.SQUARES:
+                if bb & shogi.BB_SQUARES[pos] > 0:
+                    feature[pos] = 1
+            features1.append(feature.reshape((9, 9)))
+
+        # pieces in hand
+        for piece_type in range(1, 8):
+            for n in range(shogi.MAX_PIECES_IN_HAND[piece_type]):
+                if piece_type in pieces_in_hand[color] and n < pieces_in_hand[color][piece_type]:
+                    feature = np.ones(9*9)
+                else:
+                    feature = np.zeros(9*9)
+                features2.append(feature.reshape((9, 9)))
+
+    # is check
+    if is_check:
+        feature = np.ones(9*9)
+    else:
+        feature = np.zeros(9*9)
+    features2.append(feature.reshape((9, 9)))
+
+    return (features1, features2, move)
