@@ -9,6 +9,7 @@
 http://tadaoyamaoka.hatenablog.com/
 
 ## 使用ライブラリ
+* [Chainer](http://chainer.org/) 1.18.0
 * [python-shogi](https://github.com/gunyarakun/python-shogi)  
 文字コードを指定して棋譜ファイルを読み込めるようにForkして修正しています。
 https://github.com/TadaoYamaoka/python-shogi
