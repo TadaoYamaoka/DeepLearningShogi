@@ -248,3 +248,4 @@ ModelManifest.xml
 /dlshogi/floodgate_train.txt
 /dlshogi/floodgate_test.txt
 /dlshogi/__pycache__
+/dlshogi.egg-info
