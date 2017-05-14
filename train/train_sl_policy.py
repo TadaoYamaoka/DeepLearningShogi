@@ -6,7 +6,7 @@ from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
 
-from policy_network import *
+from models.policy_network import *
 
 import shogi
 import shogi.CSA
