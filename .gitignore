@@ -242,9 +242,9 @@ ModelManifest.xml
 .fake/
 /log
 /testdata
-/shogi/*.txt
-/shogi/state*
-/shogi/model*
-/shogi/floodgate_train.txt
-/shogi/floodgate_test.txt
-/shogi/__pycache__
+/dlshogi/*.txt
+/dlshogi/state*
+/dlshogi/model*
+/dlshogi/floodgate_train.txt
+/dlshogi/floodgate_test.txt
+/dlshogi/__pycache__
