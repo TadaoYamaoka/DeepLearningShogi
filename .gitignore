@@ -253,3 +253,4 @@ ModelManifest.xml
 /train/result
 /train/floodgate_train.txt
 /train/floodgate_test.txt
+/train/__pycache__
