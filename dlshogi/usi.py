@@ -1,6 +1,42 @@
 import shogi
 from dlshogi.policy_network import *
 from chainer import serializers
+import subprocess
+import os.path
+
+modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_epoch10'
+usiengine = r'E:/game/shogi/YaneuraOu/YaneuraOu-2017-early-sse42.exe'
+usiengine_options = [
+    ('USI_Ponder', 'true'),
+    ('USI_Hash', '256'),
+    ('Threads', '4'),
+    ('Hash', '16'),
+    ('MultiPV', '1'),
+    ('WriteDebugLog', 'false'),
+    ('NetworkDelay', '120'),
+    ('NetworkDelay2', '1120'),
+    ('MinimumThinkingTime', '2000'),
+    ('MaxMovesToDraw', '0'),
+    ('Contempt', '0'),
+    ('EnteringKingRule', 'CSARule27'),
+    ('EvalDir', 'eval'),
+    ('EvalShare', 'true'),
+    ('NarrowBook', 'false'),
+    ('BookMoves', '16'),
+    ('BookFile', 'no_book'),
+    ('BookEvalDiff', '30'),
+    ('BookEvalBlackLimit', '0'),
+    ('BookEvalWhiteLimit', '-140'),
+    ('BookDepthLimit', '16'),
+    ('BookOnTheFly', 'false'),
+    ('ConsiderBookMoveCount', 'false'),
+    ('PvInterval', '300'),
+    ('ResignValue', '99999'),
+    ('nodestime', '0'),
+    ('Param1', '0'),
+    ('Param2', '0'),
+    ('EvalSaveDir', 'evalsave'),
+]
 
 MOVE_FROM_DIRECTION = [
     # (dx, dy, promote)
@@ -24,22 +60,43 @@ MOVE_FROM_DIRECTION = [
 
 def main():
     while True:
-        cmd = input().split(' ', 1)
+        cmd_line = input()
+        cmd = cmd_line.split(' ', 1)
         print('info string', cmd)
 
         if cmd[0] == 'usi':
+            # start usi engine
+            proc_usiengine = subprocess.Popen(usiengine, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, cwd=os.path.dirname(usiengine))
+            proc_usiengine.stdin.write('usi\n')
+            proc_usiengine.stdin.flush()
+            while proc_usiengine.stdout.readline().strip() != 'usiok':
+                pass
+
             print('id name dlshogi')
             print('id author Tadao Yamaoka')
             print('usiok')
         elif cmd[0] == 'isready':
+            # init usi engine
+            for (name, value) in usiengine_options:
+                proc_usiengine.stdin.write('setoption name ' + name + ' value ' + value + '\n')
+                proc_usiengine.stdin.flush()
+            proc_usiengine.stdin.write('isready\n')
+            proc_usiengine.stdin.flush()
+            while proc_usiengine.stdout.readline().strip() != 'readyok':
+                pass
+
             board = shogi.Board()
             model = PolicyNetwork()
             model.to_gpu()
-            serializers.load_npz(r'H:\src\DeepLearningShogi\dlshogi\model_epoch11', model)
+            serializers.load_npz(modelfile, model)
             print('readyok')
         elif cmd[0] == 'usinewgame':
             continue
         elif cmd[0] == 'position':
+            # usi engine
+            proc_usiengine.stdin.write(cmd_line + '\n')
+            proc_usiengine.stdin.flush()
+
             moves = cmd[1].split(' ')
             if moves[0] == 'startpos':
                 board.reset()
@@ -47,6 +104,10 @@ def main():
                     board.push_usi(move)
             print('info string', board.sfen())
         elif cmd[0] == 'go':
+            # usi engine
+            proc_usiengine.stdin.write(cmd_line + '\n')
+            proc_usiengine.stdin.flush()
+
             if board.turn == shogi.BLACK:
                 piece_bb = board.piece_bb
                 occupied = (board.occupied[shogi.BLACK], board.occupied[shogi.WHITE])
@@ -77,11 +138,12 @@ def main():
 
                 move_direction = PIECE_MOVE_DIRECTION[piece_type][move_direction_index]
 
-                print('info string', 'move_idx', move_idx)
-                print('info string', 'piece_type', shogi.PIECE_SYMBOLS[piece_type])
-                print('info string', 'move_to', shogi.SQUARE_NAMES[move_to])
-                print('info string', 'move_direction', move_direction)
-                print('info string', 'y', y_data[label])
+                print('info string',
+                      'move_idx', move_idx,
+                      'piece_type', shogi.PIECE_SYMBOLS[piece_type],
+                      'move_to', shogi.SQUARE_NAMES[move_to],
+                      'move_direction', move_direction,
+                      'y', y_data[label])
 
                 # move from hand
                 if move_direction == HAND:
@@ -137,6 +199,17 @@ def main():
             if board.turn == shogi.WHITE:
                 move_to = SQUARES_R180[move_to]
 
+            # usi engine
+            while True:
+                usiengine_line = proc_usiengine.stdout.readline().strip()
+                usiengine_cmd = usiengine_line.split(' ', 1)
+                if usiengine_cmd[0] == 'bestmove':
+                    break
+                elif usiengine_cmd[0] == 'info':
+                    usiengine_last_info = usiengine_cmd[1]
+
+            print('info', usiengine_last_info)
+
             if move_from_hand:
                 print('bestmove', shogi.Move(None, move_to, drop_piece_type=piece_type).usi())
             elif move_from:
@@ -146,6 +219,10 @@ def main():
             else:
                 print('bestmove resign')
         elif cmd[0] == 'quit':
+            # terminate usi engine
+            proc_usiengine.stdin.write('quit\n')
+            proc_usiengine.stdin.flush()
+
             break
 
 if __name__ == '__main__':
