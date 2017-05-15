@@ -1,5 +1,7 @@
 import shogi
 from dlshogi.policy_network import *
+from dlshogi.common import *
+
 from chainer import serializers
 import subprocess
 import os.path
