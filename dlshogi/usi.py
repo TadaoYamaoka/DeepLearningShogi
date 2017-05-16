@@ -5,11 +5,12 @@ from dlshogi.common import *
 from chainer import serializers
 import subprocess
 import os.path
+import re
 
 modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_epoch10'
 usiengine = r'E:/game/shogi/YaneuraOu/YaneuraOu-2017-early-sse42.exe'
 usiengine_options = [
-    ('USI_Ponder', 'true'),
+    ('USI_Ponder', 'false'),
     ('USI_Hash', '256'),
     ('Threads', '4'),
     ('Hash', '16'),
@@ -61,6 +62,7 @@ MOVE_FROM_DIRECTION = [
 ]
 
 def main():
+    ptn_score = re.compile(r'score (cp|mate) (-{0,1}\d+)')
     while True:
         cmd_line = input()
         cmd = cmd_line.split(' ', 1)
@@ -127,9 +129,9 @@ def main():
 
             y_data = cuda.to_cpu(y.data)[0]
             
-            move_from = None
-            move_from_hand = False
             for move_idx, label in enumerate(np.argsort(y_data)[::-1]):
+                move_from = None
+                move_from_hand = False
                 move_direction_label, move_to = divmod(label, 81)
 
                 for i in range(1, len(PIECE_MOVE_DIRECTION_LABEL) - 1):
@@ -147,59 +149,67 @@ def main():
                       'move_direction', move_direction,
                       'y', y_data[label])
 
-                # move from hand
                 if move_direction == HAND:
+                    # move from hand
                     if piece_type in pieces_in_hand[0]:
                         move_from_hand = True
-                        break
-                    continue
-
-                # move from
-                (dx, dy, promote) = MOVE_FROM_DIRECTION[move_direction]
-                if piece_type == shogi.PAWN:
-                    pos = move_to + 9
-                    if pos < 81 and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
-                        move_from = pos
-                        break
-                elif piece_type == shogi.KNIGHT:
-                    move_to_y, move_to_x = divmod(move_to, 9)
-                    x = move_to_x + dx
-                    y = move_to_y + 2
-                    pos = x + y * 9
-                    if x in range(0, 9) and y < 9 and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
-                        move_from = pos
-                        break
-                elif piece_type in [shogi.SILVER, shogi.GOLD, shogi.KING, shogi.PROM_PAWN, shogi.PROM_LANCE, shogi.PROM_KNIGHT, shogi.PROM_SILVER]:
-                    move_to_y, move_to_x = divmod(move_to, 9)
-                    x = move_to_x + dx
-                    y = move_to_y + dy
-                    pos = x + y * 9
-                    if x in range(0, 9) and y in range(0, 9) and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
-                        move_from = pos
-                        break
-                elif piece_type in [shogi.LANCE, shogi.BISHOP, shogi.ROOK, shogi.PROM_BISHOP, shogi.PROM_ROOK]:
-                    move_to_y, move_to_x = divmod(move_to, 9)
-                    x = move_to_x
-                    y = move_to_y
-                    while True:
-                        x += dx
-                        y += dy
-                        if not x in range(0, 9) or not y in range(0, 9):
-                            break
-
+                    else:
+                        continue
+                else:
+                    # move from
+                    (dx, dy, promote) = MOVE_FROM_DIRECTION[move_direction]
+                    if piece_type == shogi.PAWN:
+                        pos = move_to + 9
+                        if pos < 81 and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
+                            move_from = pos
+                    elif piece_type == shogi.KNIGHT:
+                        move_to_y, move_to_x = divmod(move_to, 9)
+                        x = move_to_x + dx
+                        y = move_to_y + 2
                         pos = x + y * 9
-                        if occupied[1] & shogi.BB_SQUARES[pos] > 0:
-                            break
-                        if occupied[0] & shogi.BB_SQUARES[pos] > 0:
-                            if piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
-                                move_from = pos
-                            break
+                        if x in range(0, 9) and y < 9 and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
+                            move_from = pos
+                    elif piece_type in [shogi.SILVER, shogi.GOLD, shogi.KING, shogi.PROM_PAWN, shogi.PROM_LANCE, shogi.PROM_KNIGHT, shogi.PROM_SILVER]:
+                        move_to_y, move_to_x = divmod(move_to, 9)
+                        x = move_to_x + dx
+                        y = move_to_y + dy
+                        pos = x + y * 9
+                        if x in range(0, 9) and y in range(0, 9) and occupied[0] & piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
+                            move_from = pos
+                    elif piece_type in [shogi.LANCE, shogi.BISHOP, shogi.ROOK, shogi.PROM_BISHOP, shogi.PROM_ROOK]:
+                        move_to_y, move_to_x = divmod(move_to, 9)
+                        x = move_to_x
+                        y = move_to_y
+                        while True:
+                            x += dx
+                            y += dy
+                            if not x in range(0, 9) or not y in range(0, 9):
+                                break
 
-                if move_from:
-                    break
+                            pos = x + y * 9
+                            if occupied[1] & shogi.BB_SQUARES[pos] > 0:
+                                break
+                            if occupied[0] & shogi.BB_SQUARES[pos] > 0:
+                                if piece_bb[piece_type] & shogi.BB_SQUARES[pos] > 0:
+                                    move_from = pos
+                                break
 
-            if board.turn == shogi.WHITE:
-                move_to = SQUARES_R180[move_to]
+                if move_from or move_from_hand:
+                    # rotate if white
+                    if board.turn == shogi.WHITE:
+                        move_to = SQUARES_R180[move_to]
+
+                    if move_from_hand:
+                        bestmove = shogi.Move(None, move_to, drop_piece_type=piece_type)
+                    else:
+                        # rotate if white
+                        if board.turn == shogi.WHITE:
+                            move_from = SQUARES_R180[move_from]
+                        bestmove = shogi.Move(move_from, move_to, promote)
+
+                    # is legal
+                    if board.is_legal(bestmove):
+                        break
 
             # usi engine
             while True:
@@ -212,14 +222,23 @@ def main():
 
             print('info', usiengine_last_info)
 
-            if move_from_hand:
-                print('bestmove', shogi.Move(None, move_to, drop_piece_type=piece_type).usi())
-            elif move_from:
-                if board.turn == shogi.WHITE:
-                    move_from = SQUARES_R180[move_from]
-                print('bestmove', shogi.Move(move_from, move_to, promote).usi())
-            else:
-                print('bestmove resign')
+            # check score
+            m = ptn_score.search(usiengine_last_info)
+            if m:
+                kind = m.group(1)
+                score = int(m.group(2))
+                if kind == 'mate':
+                    if score >= 0:
+                        print(usiengine_line)
+                    else:
+                        print('bestmove resign')
+                    continue
+                else:
+                    if score < -3000:
+                        print('bestmove resign')
+                        continue
+
+            print('bestmove', bestmove.usi())
         elif cmd[0] == 'quit':
             # terminate usi engine
             proc_usiengine.stdin.write('quit\n')
