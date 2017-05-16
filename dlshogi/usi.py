@@ -229,7 +229,7 @@ def main():
                 score = int(m.group(2))
                 if kind == 'mate':
                     if score >= 0:
-                        print(usiengine_line)
+                        print('bestmove', usiengine_cmd[1].split(' ', 1)[0])
                     else:
                         print('bestmove resign')
                     continue
