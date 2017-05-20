@@ -42,7 +42,7 @@ class ProbabilisticPolicyPlayer(object):
         log_probabilities = nn_output[move_labels]
         return zip(moves, move_labels, log_probabilities)
     
-    def batch_eval_state(self, states, moves_lists=None):
+    def batch_eval_state(self, states, moves_lists):
         """Given a list of states, evaluates them all at once to make best use of GPU
         batching capabilities.
         Analogous to [eval_state(s) for s in states]
@@ -67,7 +67,6 @@ class ProbabilisticPolicyPlayer(object):
         y = self.model(x1, x2, test=True)
         network_output = cuda.to_cpu(y.data)
         # default move lists to all legal moves
-        moves_lists = moves_lists or [st.get_legal_moves() for st in states]
         results = [None] * n_states
         for i, st in enumerate(states):
             results[i] = self._select_moves(network_output[i], st, moves_lists[i])
@@ -76,8 +75,7 @@ class ProbabilisticPolicyPlayer(object):
     def get_moves(self, states):
         """Batch version of get_move. A list of moves is returned (one per state)
         """
-        sensible_move_lists = [[move for move in st.legal_moves]
-                               for st in states]
+        sensible_move_lists = [list(st.legal_moves) for st in states]
         all_moves_distributions = self.batch_eval_state(states, sensible_move_lists)
         move_list = [None] * len(states)
         label_list = [None] * len(states)
