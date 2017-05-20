@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_sl_policy.py</StartupFile>
+    <StartupFile>train_rl_policy.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>testdata_train.txt testdata_test.txt</CommandLineArguments>
+    <CommandLineArguments>model_epoch20 opponent_models -i 1 -b 1</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -26,11 +26,17 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ai.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="prepare_kifu_list.py" />
     <Compile Include="policy_network.py" />
+    <Compile Include="train_rl_policy.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="usi.py">
       <SubType>Code</SubType>
     </Compile>

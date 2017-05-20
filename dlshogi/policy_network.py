@@ -8,6 +8,8 @@ import chainer.links as L
 import shogi
 import shogi.CSA
 
+from dlshogi.common import *
+
 # move direction
 MOVE_DIRECTION = [
     UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT,
@@ -142,8 +144,7 @@ class PolicyNetwork(Chain):
         h12 = self.l12(u11)
         return self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
 
-def make_features(position):
-    piece_bb, occupied, pieces_in_hand, is_check, move = position
+def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
     features1 = []
     features2 = []
     for color in shogi.COLORS:
@@ -172,4 +173,68 @@ def make_features(position):
         feature = np.zeros(9*9)
     features2.append(feature.reshape((9, 9)))
 
+    return features1, features2
+
+def make_features(position):
+    piece_bb, occupied, pieces_in_hand, is_check, move = position
+    features1, features2 = make_input_features(piece_bb, occupied, pieces_in_hand, is_check)
+
     return (features1, features2, move)
+
+def make_input_features_from_board(board):
+    if board.turn == shogi.BLACK:
+        piece_bb = board.piece_bb
+        occupied = (board.occupied[shogi.BLACK], board.occupied[shogi.WHITE])
+        pieces_in_hand = (board.pieces_in_hand[shogi.BLACK], board.pieces_in_hand[shogi.WHITE])
+    else:
+        piece_bb = [bb_rotate_180(bb) for bb in board.piece_bb]
+        occupied = (bb_rotate_180(board.occupied[shogi.WHITE]), bb_rotate_180(board.occupied[shogi.BLACK]))
+        pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
+    return make_input_features(piece_bb, occupied, pieces_in_hand, board.is_check())
+
+def make_output_label(board, move):
+    move_to = move.to_square
+    move_from = move.from_square
+    if move_from is None:
+        # in hand
+        move_piece = move.drop_piece_type
+        move_direction = HAND
+    else:
+        move_piece = board.piece_at(move.from_square).piece_type
+
+    if board.turn == shogi.WHITE:
+        move_to = SQUARES_R180[move_to]
+        if move_from is not None:
+            move_from = SQUARES_R180[move_from]
+
+    # move direction
+    if move_from is not None:
+        to_y, to_x = divmod(move_to, 9)
+        from_y, from_x = divmod(move_from, 9)
+        dir_x = to_x - from_x
+        dir_y = to_y - from_y
+        if dir_y < 0 and dir_x == 0:
+            move_direction = UP
+        elif dir_y < 0 and dir_x < 0:
+            move_direction = UP_LEFT
+        elif dir_y < 0 and dir_x > 0:
+            move_direction = UP_RIGHT
+        elif dir_y == 0 and dir_x < 0:
+            move_direction = LEFT
+        elif dir_y == 0 and dir_x > 0:
+            move_direction = RIGHT
+        elif dir_y > 0 and dir_x == 0:
+            move_direction = DOWN
+        elif dir_y > 0 and dir_x < 0:
+            move_direction = DOWN_LEFT
+        elif dir_y > 0 and dir_x > 0:
+            move_direction = DOWN_RIGHT
+
+        # promote
+        if move.promotion:
+            move_direction = MOVE_DIRECTION_PROMOTED[move_direction]
+
+    move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION[move_piece].index(move_direction)
+    move_label = 9 * 9 * move_direction_label + move_to
+
+    return move_label

@@ -57,15 +57,6 @@ def read_kifu(kifu_list_file):
         kifu = shogi.CSA.Parser.parse_file(filepath, encoding='utf-8')[0]
         board = shogi.Board()
         for move in kifu['moves']:
-            move_to = shogi.SQUARE_NAMES.index(move[2:4])
-            if move[1] == '*':
-                # in hand
-                move_piece = shogi.Piece.from_symbol(move[0]).piece_type
-                move_direction = HAND
-            else:
-                move_from = shogi.SQUARE_NAMES.index(move[0:2])
-                move_piece = board.piece_at(shogi.SQUARE_NAMES.index(move[0:2])).piece_type
-
             if board.turn == shogi.BLACK:
                 piece_bb = board.piece_bb
                 occupied = (board.occupied[shogi.BLACK], board.occupied[shogi.WHITE])
@@ -74,41 +65,10 @@ def read_kifu(kifu_list_file):
                 piece_bb = [bb_rotate_180(bb) for bb in board.piece_bb]
                 occupied = (bb_rotate_180(board.occupied[shogi.WHITE]), bb_rotate_180(board.occupied[shogi.BLACK]))
                 pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
-                move_to = SQUARES_R180[move_to]
-                if move[1] != '*':
-                    move_from = SQUARES_R180[move_from]
 
-            # move direction
-            if move[1] != '*':
-                to_x = move_to % 9
-                to_y = int(move_to / 9)
-                from_x = move_from % 9
-                from_y = int(move_from / 9)
-                dir_x = to_x - from_x
-                dir_y = to_y - from_y
-                if dir_y < 0 and dir_x == 0:
-                    move_direction = UP
-                elif dir_y < 0 and dir_x < 0:
-                    move_direction = UP_LEFT
-                elif dir_y < 0 and dir_x > 0:
-                    move_direction = UP_RIGHT
-                elif dir_y == 0 and dir_x < 0:
-                    move_direction = LEFT
-                elif dir_y == 0 and dir_x > 0:
-                    move_direction = RIGHT
-                elif dir_y > 0 and dir_x == 0:
-                    move_direction = DOWN
-                elif dir_y > 0 and dir_x < 0:
-                    move_direction = DOWN_LEFT
-                elif dir_y > 0 and dir_x > 0:
-                    move_direction = DOWN_RIGHT
+            # move label
+            move_label = make_output_label(board, shogi.Move.from_usi(move))
 
-                # promote
-                if len(move) == 5 and move[4] == '+':
-                    move_direction = MOVE_DIRECTION_PROMOTED[move_direction]
-
-            move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION[move_piece].index(move_direction)
-            move_label = 9 * 9 * move_direction_label + move_to
             positions.append(copy.deepcopy((piece_bb, occupied, pieces_in_hand, board.is_check(), move_label)))
             board.push_usi(move)
     f.close()
