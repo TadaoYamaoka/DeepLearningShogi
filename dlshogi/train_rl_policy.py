@@ -175,7 +175,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
             value = state_value(state)
 
             if abs(value) > 0.70:
-                learner_won[idx] = value * 1.0 if current is learner else -1.0
+                learner_won[idx] = value * (1.0 if current is learner else -1.0)
                 just_finished.append(idx)
                 #print(idx, state.move_number, state.turn, learner_won[idx])
                 move_number_sum += state.move_number
