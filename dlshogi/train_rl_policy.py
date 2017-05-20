@@ -65,7 +65,7 @@ parser.add_argument('--model', type=str, default='model_rl', help='model file na
 parser.add_argument('--state', type=str, default='state_rl', help='state file name')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--save-every', help='Save policy as a new opponent every n batches', type=int, default=500)
 args = parser.parse_args()
 
@@ -170,10 +170,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
                 just_finished.append(idx)
                 continue
 
-            if state.move_number > 15:
-                value = state_value(state)
-            else:
-                value = 0.0
+            value = state_value(state)
 
             if abs(value) > 0.70:
                 learner_won[idx] = value * 1.0 if current is learner else -1.0
@@ -199,19 +196,18 @@ def run_n_games(optimizer, learner, opponent, num_games):
     # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
     # games where the learner lost.
     for st_tensor1, st_tensor2, label_tensor, won in zip(feature1_tensors, feature2_tensors, label_tensors, learner_won):
-        if won > 0:
-            x1 = Variable(cuda.to_gpu(np.array(st_tensor1, dtype=np.float32)))
-            x2 = Variable(cuda.to_gpu(np.array(st_tensor2, dtype=np.float32)))
-            t = Variable(cuda.to_gpu(np.array(label_tensor, dtype=np.int32)))
+        x1 = Variable(cuda.to_gpu(np.array(st_tensor1, dtype=np.float32)))
+        x2 = Variable(cuda.to_gpu(np.array(st_tensor2, dtype=np.float32)))
+        t = Variable(cuda.to_gpu(np.array(label_tensor, dtype=np.int32)))
 
-            y = model(x1, x2)
+        y = model(x1, x2)
 
-            model.cleargrads()
-            loss = F.softmax_cross_entropy(y, t)
-            loss.backward()
+        model.cleargrads()
+        loss = F.softmax_cross_entropy(y, t)
+        loss.backward()
 
-            optimizer.lr = alpha * won
-            optimizer.update()
+        optimizer.lr = alpha * won
+        optimizer.update()
 
     # Return the win ratio.
     return float(win_count) / num_games       
@@ -243,12 +239,14 @@ for i_iter in range(1, args.iterations + 1):
     # Run games (and learn from results). Keep track of the win ratio vs each opponent over
     # time.
     win_ratio = run_n_games(optimizer, player, opponent, args.game_batch)
-    logging.info('iterations = {}, games = {}, win_ratio = {}'.format(i_iter, optimizer.t, win_ratio))
+    logging.info('iterations = {}, games = {}, win_ratio = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio))
+
+    optimizer.new_epoch()
 
     # Add player to batch of oppenents once in a while.
     if i_iter % args.save_every == 0:
         # Save models.
-        player_model_path = os.path.join(args.out_directory, "model.%05d" % optimizer.t)
+        player_model_path = os.path.join(args.out_directory, "model.%05d" % optimizer.epoch)
         serializers.save_npz(player_model_path, model)
 
         opponents.append(player_model_path)
@@ -256,9 +254,9 @@ for i_iter in range(1, args.iterations + 1):
 logging.info('end training')
 
 print('save the model')
-serializers.save_npz(args.model + ".%05d" % optimizer.t, model)
+serializers.save_npz(args.model + ".%05d" % optimizer.epoch, model)
 print('save the optimizer')
-serializers.save_npz(args.state + ".%05d" % optimizer.t, optimizer)
+serializers.save_npz(args.state + ".%05d" % optimizer.epoch, optimizer)
 
 # terminate usi engine
 proc_usiengine.stdin.write('quit\n')

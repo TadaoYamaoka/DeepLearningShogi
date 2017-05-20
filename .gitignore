@@ -249,3 +249,4 @@ ModelManifest.xml
 /dlshogi/floodgate_test.txt
 /dlshogi/__pycache__
 /dlshogi.egg-info
+/dlshogi/opponent_models
