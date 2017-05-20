@@ -158,6 +158,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
     other = opponent
     idxs_to_unfinished_states = {i: states[i] for i in range(num_games)}
     win_count = 0
+    move_number_sum = 0
     while len(idxs_to_unfinished_states) > 0:
         # Get next moves by current player for all unfinished states.
         moves, labels = current.get_moves(list(idxs_to_unfinished_states.values()))
@@ -168,6 +169,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
             # updating it with do_move.
             if mv is None:
                 just_finished.append(idx)
+                move_number_sum += state.move_number
                 continue
 
             value = state_value(state)
@@ -176,6 +178,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
                 learner_won[idx] = value * 1.0 if current is learner else -1.0
                 just_finished.append(idx)
                 #print(idx, state.move_number, state.turn, learner_won[idx])
+                move_number_sum += state.move_number
                 if learner_won[idx] > 0:
                     win_count += 1
             else:
@@ -196,21 +199,22 @@ def run_n_games(optimizer, learner, opponent, num_games):
     # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
     # games where the learner lost.
     for st_tensor1, st_tensor2, label_tensor, won in zip(feature1_tensors, feature2_tensors, label_tensors, learner_won):
-        x1 = Variable(cuda.to_gpu(np.array(st_tensor1, dtype=np.float32)))
-        x2 = Variable(cuda.to_gpu(np.array(st_tensor2, dtype=np.float32)))
-        t = Variable(cuda.to_gpu(np.array(label_tensor, dtype=np.int32)))
+        if won is not None:
+            x1 = Variable(cuda.to_gpu(np.array(st_tensor1, dtype=np.float32)))
+            x2 = Variable(cuda.to_gpu(np.array(st_tensor2, dtype=np.float32)))
+            t = Variable(cuda.to_gpu(np.array(label_tensor, dtype=np.int32)))
 
-        y = model(x1, x2)
+            y = model(x1, x2)
 
-        model.cleargrads()
-        loss = F.softmax_cross_entropy(y, t)
-        loss.backward()
+            model.cleargrads()
+            loss = F.softmax_cross_entropy(y, t)
+            loss.backward()
 
-        optimizer.lr = alpha * won
-        optimizer.update()
+            optimizer.lr = alpha * won
+            optimizer.update()
 
     # Return the win ratio.
-    return float(win_count) / num_games       
+    return float(win_count) / num_games, float(move_number_sum) / num_games
 
 # list opponents
 opponents = []
@@ -238,8 +242,8 @@ for i_iter in range(1, args.iterations + 1):
 
     # Run games (and learn from results). Keep track of the win ratio vs each opponent over
     # time.
-    win_ratio = run_n_games(optimizer, player, opponent, args.game_batch)
-    logging.info('iterations = {}, games = {}, win_ratio = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio))
+    win_ratio, avr_move = run_n_games(optimizer, player, opponent, args.game_batch)
+    logging.info('iterations = {}, games = {}, win_ratio = {}, avr_move = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio, avr_move))
 
     optimizer.new_epoch()
 
