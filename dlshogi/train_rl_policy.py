@@ -67,9 +67,12 @@ parser.add_argument('--resume', '-r', default='', help='Resume the optimization 
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--save-every', help='Save policy as a new opponent every n batches', type=int, default=500)
+parser.add_argument('--score-threshold', help='Game terminating score threshold', type=float, default=0.7)
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+
+score_threshold = args.score_threshold
 
 model = PolicyNetwork()
 model.to_gpu()
@@ -174,7 +177,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
 
             value = state_value(state)
 
-            if abs(value) > 0.70:
+            if abs(value) > score_threshold:
                 learner_won[idx] = value * (1.0 if current is learner else -1.0)
                 just_finished.append(idx)
                 #print(idx, state.move_number, state.turn, learner_won[idx])
