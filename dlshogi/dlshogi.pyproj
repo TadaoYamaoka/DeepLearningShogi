@@ -32,6 +32,9 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="teacher_data.py" />
+    <Compile Include="train_val_network.py" />
+    <Compile Include="value_network.py" />
     <Compile Include="prepare_kifu_list.py" />
     <Compile Include="policy_network.py" />
     <Compile Include="train_rl_policy.py">

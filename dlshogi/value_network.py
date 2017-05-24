@@ -13,9 +13,10 @@ from dlshogi.common import *
 k = 192
 w = 3
 dropout_ratio = 0.1
-class PolicyNetwork(Chain):
+fcl = 256 # fully connected layers
+class ValueNetwork(Chain):
     def __init__(self):
-        super(PolicyNetwork, self).__init__(
+        super(ValueNetwork, self).__init__(
             l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
             l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
@@ -30,6 +31,8 @@ class PolicyNetwork(Chain):
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l12=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
             l12_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
+            l13=L.Linear(9*9*MOVE_DIRECTION_LABEL_NUM, fcl),
+            l14=L.Linear(fcl, 1),
             norm1=L.BatchNormalization(k),
             norm2=L.BatchNormalization(k),
             norm3=L.BatchNormalization(k),
@@ -68,57 +71,6 @@ class PolicyNetwork(Chain):
         u11 = self.l11(h10) + u9
         # output
         h12 = self.l12(u11)
-        return self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
-
-def make_features(position):
-    piece_bb, occupied, pieces_in_hand, is_check, move = position
-    features1, features2 = make_input_features(piece_bb, occupied, pieces_in_hand, is_check)
-
-    return (features1, features2, move)
-
-def make_output_label(board, move):
-    move_to = move.to_square
-    move_from = move.from_square
-    if move_from is None:
-        # in hand
-        move_piece = move.drop_piece_type
-        move_direction = HAND
-    else:
-        move_piece = board.piece_at(move.from_square).piece_type
-
-    if board.turn == shogi.WHITE:
-        move_to = SQUARES_R180[move_to]
-        if move_from is not None:
-            move_from = SQUARES_R180[move_from]
-
-    # move direction
-    if move_from is not None:
-        to_y, to_x = divmod(move_to, 9)
-        from_y, from_x = divmod(move_from, 9)
-        dir_x = to_x - from_x
-        dir_y = to_y - from_y
-        if dir_y < 0 and dir_x == 0:
-            move_direction = UP
-        elif dir_y < 0 and dir_x < 0:
-            move_direction = UP_LEFT
-        elif dir_y < 0 and dir_x > 0:
-            move_direction = UP_RIGHT
-        elif dir_y == 0 and dir_x < 0:
-            move_direction = LEFT
-        elif dir_y == 0 and dir_x > 0:
-            move_direction = RIGHT
-        elif dir_y > 0 and dir_x == 0:
-            move_direction = DOWN
-        elif dir_y > 0 and dir_x < 0:
-            move_direction = DOWN_LEFT
-        elif dir_y > 0 and dir_x > 0:
-            move_direction = DOWN_RIGHT
-
-        # promote
-        if move.promotion:
-            move_direction = MOVE_DIRECTION_PROMOTED[move_direction]
-
-    move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION[move_piece].index(move_direction)
-    move_label = 9 * 9 * move_direction_label + move_to
-
-    return move_label
+        h12_2 = F.relu(self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM))))
+        h13 = F.relu(self.l13(h12_2))
+        return F.tanh(self.l14(h13))
