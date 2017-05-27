@@ -95,7 +95,7 @@ PIECE_MOVE_DIRECTION_LABEL = [
 ]
 
 MAX_PIECES_IN_HAND = list(shogi.MAX_PIECES_IN_HAND)
-MAX_PIECES_IN_HAND[shogi.PAWN] = 8 # 歩の持ち駒が8以上でも8にする
+MAX_PIECES_IN_HAND[shogi.PAWN] = 8 # 歩の持ち駒の上限
 
 def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
     features1 = []
