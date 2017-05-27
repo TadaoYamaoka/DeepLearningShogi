@@ -94,6 +94,9 @@ PIECE_MOVE_DIRECTION_LABEL = [
     MOVE_DIRECTION_LABEL_NUM
 ]
 
+MAX_PIECES_IN_HAND = list(shogi.MAX_PIECES_IN_HAND)
+MAX_PIECES_IN_HAND[shogi.PAWN] = 8 # 歩の持ち駒が8以上でも8にする
+
 def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
     features1 = []
     features2 = []
@@ -109,7 +112,7 @@ def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
 
         # pieces in hand
         for piece_type in range(1, 8):
-            for n in range(shogi.MAX_PIECES_IN_HAND[piece_type]):
+            for n in range(MAX_PIECES_IN_HAND[piece_type]):
                 if piece_type in pieces_in_hand[color] and n < pieces_in_hand[color][piece_type]:
                     feature = np.ones(9*9)
                 else:
