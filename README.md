@@ -13,6 +13,9 @@ http://tadaoyamaoka.hatenablog.com/
 * [python-shogi](https://github.com/gunyarakun/python-shogi)  
 文字コードを指定して棋譜ファイルを読み込めるようにForkして修正しています。
 https://github.com/TadaoYamaoka/python-shogi
+* [elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)
 
 ## ライセンス
 ライセンスはMITライセンスとします。
+
+cppshogiは[elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)のソースを流用しているため、GPLライセンスとします。
