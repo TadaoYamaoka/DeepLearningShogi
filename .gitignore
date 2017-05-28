@@ -250,3 +250,4 @@ ModelManifest.xml
 /dlshogi/__pycache__
 /dlshogi.egg-info
 /dlshogi/opponent_models
+/dlshogi/cppshogi.pyd
