@@ -96,6 +96,7 @@ PIECE_MOVE_DIRECTION_LABEL = [
 
 MAX_PIECES_IN_HAND = list(shogi.MAX_PIECES_IN_HAND)
 MAX_PIECES_IN_HAND[shogi.PAWN] = 8 # 歩の持ち駒の上限
+MAX_PIECES_IN_HAND_SUM = sum(MAX_PIECES_IN_HAND)
 
 def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
     features1 = []
@@ -138,3 +139,11 @@ def make_input_features_from_board(board):
         occupied = (bb_rotate_180(board.occupied[shogi.WHITE]), bb_rotate_180(board.occupied[shogi.BLACK]))
         pieces_in_hand = (board.pieces_in_hand[shogi.WHITE], board.pieces_in_hand[shogi.BLACK])
     return make_input_features(piece_bb, occupied, pieces_in_hand, board.is_check())
+
+HuffmanCodedPosAndEval = np.dtype([
+    ('hcp', np.uint8, 32),
+    ('eval', np.int16),
+    ('bestMove16', np.uint16),
+    ('gameResult', np.uint8),
+    ('dummy', np.uint8),
+    ])

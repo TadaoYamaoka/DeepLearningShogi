@@ -8,10 +8,8 @@ import chainer.links as L
 
 from dlshogi.value_network import *
 from dlshogi.common import *
-from dlshogi.teacher_data import *
 
-import shogi
-import shogi.CSA
+import cppshogi
 
 import argparse
 import random
@@ -50,40 +48,25 @@ if args.resume:
     print('Load optimizer state from', args.resume)
     serializers.load_npz(args.resume, optimizer)
 
-# read teacher data
-def read_teacher_data(path):
-    hcpevec = []
-    with open(path, 'rb') as f:
-        filesize = os.fstat(f.fileno()).st_size
-        while f.tell() < filesize:
-            hcpe = HuffmanCodedPosAndEval()
-            f.readinto(hcpe)
-            hcpevec.append(hcpe)
-    return hcpevec
-
 logging.debug('read teacher data start')
-train_data = read_teacher_data(args.train_data)
-test_data = read_teacher_data(args.test_data)
+train_data = np.fromfile(args.train_data, dtype=HuffmanCodedPosAndEval)
+test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 logging.debug('read teacher data end')
 
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
-def mini_batch(hcpevec, i):
-    mini_batch_data1 = []
-    mini_batch_data2 = []
-    mini_batch_val = []
-    for b in range(args.batchsize):
-        board, eval, bestMove, win = decode_hcpe(hcpevec[i + b])
-        features1, features2 = make_input_features_from_board(board)
-        mini_batch_data1.append(features1)
-        mini_batch_data2.append(features2)
-        mini_batch_val.append(win)
+def mini_batch(hcpevec):
+    features1 = np.empty((len(hcpevec), 2 * 14, 9, 9), dtype=np.float32)
+    features2 = np.empty((len(hcpevec), 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
+    result = np.empty((len(hcpevec), 1), dtype=np.float32)
 
-    return (Variable(cuda.to_gpu(np.array(mini_batch_data1, dtype=np.float32))),
-            Variable(cuda.to_gpu(np.array(mini_batch_data2, dtype=np.float32))),
-            Variable(cuda.to_gpu(np.array(mini_batch_val, dtype=np.float32).reshape((len(mini_batch_val), 1))))
+    cppshogi.hcpe_decode_with_result(hcpevec, features1, features2, result)
+
+    return (Variable(cuda.to_gpu(features1)),
+            Variable(cuda.to_gpu(features2)),
+            Variable(cuda.to_gpu(result))
             )
 
 # train
@@ -91,12 +74,12 @@ itr = 0
 sum_loss = 0
 eval_interval = 1000
 for e in range(args.epoch):
-    train_data_shuffled = random.sample(train_data, len(train_data))
+    np.random.shuffle(train_data)
 
     itr_epoch = 0
     sum_loss_epoch = 0
-    for i in range(0, len(train_data_shuffled) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(train_data_shuffled, i)
+    for i in range(0, len(train_data) - args.batchsize, args.batchsize):
+        x1, x2, t = mini_batch(train_data[i:i+args.batchsize])
         y = model(x1, x2)
 
         model.cleargrads()
@@ -119,7 +102,7 @@ for e in range(args.epoch):
     itr_test = 0
     sum_test_loss = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(test_data, i)
+        x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
         y = model(x1, x2, test=True)
         itr_test += 1
         sum_test_loss += F.mean_squared_error(y, t).data
