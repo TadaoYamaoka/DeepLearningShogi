@@ -1,4 +1,7 @@
+#define TMP_DEBUG _DEBUG
+#undef _DEBUG
 #include<Python.h>
+#define _DEBUG TMP_DEBUG
 
 int main()
 {

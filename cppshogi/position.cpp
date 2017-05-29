@@ -323,9 +323,9 @@ template bool Position::moveIsPseudoLegal<false>(const Move move) const;
 #if !defined NDEBUG
 // 過去(又は現在)に生成した指し手が現在の局面でも有効か判定。
 // あまり速度が要求される場面で使ってはいけない。
-/*bool Position::moveIsLegal(const Move move) const {
+bool Position::moveIsLegal(const Move move) const {
     return MoveList<LegalAll>(*this).contains(move);
-}*/
+}
 #endif
 
 // 局面の更新

@@ -28,8 +28,8 @@ class PolicyNetwork(Chain):
             l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l12=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
-            l12_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
+            l12=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
+            l12_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
             norm1=L.BatchNormalization(k),
             norm2=L.BatchNormalization(k),
             norm3=L.BatchNormalization(k),
@@ -68,7 +68,7 @@ class PolicyNetwork(Chain):
         u11 = self.l11(h10) + u9
         # output
         h12 = self.l12(u11)
-        return self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM)))
+        return self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM)))
 
 def make_features(position):
     piece_bb, occupied, pieces_in_hand, is_check, move = position

@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy.py</StartupFile>
+    <StartupFile>usi.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,8 +14,9 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>model_epoch20 opponent_models -i 1 -b 1</CommandLineArguments>
-    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <CommandLineArguments>
+    </CommandLineArguments>
+    <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

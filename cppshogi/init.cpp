@@ -22,9 +22,9 @@
 #include "common.hpp"
 #include "init.hpp"
 #include "mt64bit.hpp"
-//#include "evaluate.hpp"
+#include "evaluate.hpp"
 //#include "book.hpp"
-//#include "search.hpp"
+#include "search.hpp"
 
 namespace {
     // square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
@@ -364,8 +364,8 @@ void initTable() {
     initNeighbor5x5();
     initSquareDistance();
 
-    /*Book::init();
-    initSearchTable();*/
+    //Book::init();
+    initSearchTable();
 }
 
 #if defined FIND_MAGIC
