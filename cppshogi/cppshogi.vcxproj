@@ -106,6 +106,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;CPPSHOGI_EXPORTS;HAVE_SSE4;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -142,6 +143,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;HAVE_SSE4;HAVE_BMI2;HAVE_AVX2;_USRDLL;CPPSHOGI_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -155,30 +157,49 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
+    <ClCompile Include="common.cpp" />
     <ClCompile Include="cppshogi.cpp" />
+    <ClCompile Include="evalList.cpp" />
+    <ClCompile Include="evaluate.cpp" />
+    <ClCompile Include="generateMoves.cpp" />
     <ClCompile Include="hand.cpp" />
     <ClCompile Include="init.cpp" />
     <ClCompile Include="move.cpp" />
+    <ClCompile Include="movePicker.cpp" />
     <ClCompile Include="mt64bit.cpp" />
     <ClCompile Include="pieceScore.cpp" />
     <ClCompile Include="position.cpp" />
+    <ClCompile Include="search.cpp" />
     <ClCompile Include="square.cpp" />
+    <ClCompile Include="thread.cpp" />
+    <ClCompile Include="timeManager.cpp" />
+    <ClCompile Include="tt.cpp" />
+    <ClCompile Include="usi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.hpp" />
     <ClInclude Include="color.hpp" />
     <ClInclude Include="common.hpp" />
+    <ClInclude Include="evalList.hpp" />
+    <ClInclude Include="evaluate.hpp" />
+    <ClInclude Include="generateMoves.hpp" />
     <ClInclude Include="hand.hpp" />
     <ClInclude Include="ifdef.hpp" />
     <ClInclude Include="init.hpp" />
     <ClInclude Include="move.hpp" />
+    <ClInclude Include="movePicker.hpp" />
     <ClInclude Include="mt64bit.hpp" />
     <ClInclude Include="overloadEnumOperators.hpp" />
     <ClInclude Include="piece.hpp" />
     <ClInclude Include="pieceScore.hpp" />
     <ClInclude Include="position.hpp" />
     <ClInclude Include="score.hpp" />
+    <ClInclude Include="search.hpp" />
     <ClInclude Include="square.hpp" />
+    <ClInclude Include="thread.hpp" />
+    <ClInclude Include="timeManager.hpp" />
+    <ClInclude Include="tt.hpp" />
+    <ClInclude Include="usi.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

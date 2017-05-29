@@ -27,7 +27,7 @@
 #include "hand.hpp"
 #include "bitboard.hpp"
 #include "pieceScore.hpp"
-//#include "evalList.hpp"
+#include "evalList.hpp"
 #include <stack>
 #include <memory>
 
@@ -332,7 +332,7 @@ public:
     void doMove(const Move move, StateInfo& newSt);
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
     void undoMove(const Move move);
-    //template <bool DO> void doNullMove(StateInfo& backUpSt);
+    template <bool DO> void doNullMove(StateInfo& backUpSt);
 
     Score see(const Move move, const int asymmThreshold = 0) const;
     Score seeSign(const Move move) const;
@@ -364,7 +364,7 @@ public:
 
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
 
-    /*static constexpr int nlist() { return EvalList::ListSize; }
+    static constexpr int nlist() { return EvalList::ListSize; }
     int list0(const int index) const { return evalList_.list0[index]; }
     int list1(const int index) const { return evalList_.list1[index]; }
     int squareHandToList(const Square sq) const { return evalList_.squareHandToList[sq]; }
@@ -373,7 +373,7 @@ public:
     int* plist1() { return &evalList_.list1[0]; }
     const int* cplist0() const { return &evalList_.list0[0]; }
     const int* cplist1() const { return &evalList_.list1[0]; }
-    const ChangedLists& cl() const { return st_->cl; }*/
+    const ChangedLists& cl() const { return st_->cl; }
 
     const Searcher* csearcher() const { return searcher_; }
     Searcher* searcher() const { return searcher_; }
@@ -464,7 +464,7 @@ private:
 #if !defined NDEBUG
     int debugSetEvalList() const;
 #endif
-    //void setEvalList() { evalList_.set(*this); }
+    void setEvalList() { evalList_.set(*this); }
 
     Key computeBoardKey() const;
     Key computeHandKey() const;
@@ -490,7 +490,7 @@ private:
     Hand hand_[ColorNum];
     Color turn_;
 
-    //EvalList evalList_;
+    EvalList evalList_;
 
     StateInfo startState_;
     StateInfo* st_;
