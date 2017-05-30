@@ -361,6 +361,7 @@ public:
 
 		if (!evalTableIsRead) {
 			std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
+			evalTableIsRead = true;
 		}
 		m_searcher->init();
 		const std::string options[] = {
