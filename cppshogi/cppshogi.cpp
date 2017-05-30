@@ -337,67 +337,6 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
-Searcher *g_searcher;
-Position *g_position;
-void usi_init(const char* eval_dir) {
-	g_searcher = new Searcher();
-	g_position = new Position(g_searcher);
-
-	std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
-	g_searcher->init();
-	const std::string options[] = {
-		"name Threads value 1",
-		"name MultiPV value 1",
-		"name USI_Hash value 256",
-		"name OwnBook value false",
-		"name Max_Random_Score_Diff value 0" };
-	for (auto& str : options) {
-		std::istringstream is(str);
-		g_searcher->setOption(is);
-	}
-}
-
-void usi_position(const char* cmd) {
-	std::istringstream ssCmd(cmd);
-	setPosition(*g_position, ssCmd);
-	//g_position->print();
-}
-
-py::list usi_go() {
-	g_position->searcher()->alpha = -ScoreMaxEvaluate;
-	g_position->searcher()->beta = ScoreMaxEvaluate;
-
-	// go
-	LimitsType limits;
-	limits.depth = static_cast<Depth>(6);
-	g_position->searcher()->threads.startThinking(*g_position, limits, g_position->searcher()->states);
-	g_position->searcher()->threads.main()->waitForSearchFinished();
-
-	const Score score = g_position->searcher()->threads.main()->rootMoves[0].score;
-	const Move bestMove = g_position->searcher()->threads.main()->rootMoves[0].pv[0];
-
-	std::cout << "info score cp " << score << " pv " << bestMove.toUSI() << std::endl;
-
-	py::list ret;
-	ret.append(bestMove.toUSI());
-	ret.append((int)score);
-	return ret;
-}
-
-int usi_make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
-	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
-	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
-
-	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum, 0.0f);
-	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
-
-	// input features
-	make_input_features(*g_position, features1, features2);
-
-	return (int)g_position->turn();
-}
-
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
 void softmax_tempature(std::vector<float> &log_probabilities) {
@@ -410,44 +349,113 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	}
 }
 
-const std::string usi_select_move(np::ndarray ndlogits) {
-	float *logits = reinterpret_cast<float*>(ndlogits.get_data());
+class Engine {
+private:
+	Searcher *m_searcher;
+	Position *m_position;
+	static bool evalTableIsRead;
+public:
+	void init(const char* eval_dir) {
+		m_searcher = new Searcher();
+		m_position = new Position(m_searcher);
 
-	// 合法手一覧
-	std::vector<Move> legal_moves;
-	std::vector<float> legal_move_probabilities;
-	for (MoveList<Legal> ml(*g_position); !ml.end(); ++ml) {
-		const Move move = ml.move();
-
-		const int move_label = make_move_label((u16)move.proFromAndTo(), *g_position);
-
-		legal_moves.emplace_back(move);
-		legal_move_probabilities.emplace_back(logits[move_label]);
+		if (!evalTableIsRead) {
+			std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
+		}
+		m_searcher->init();
+		const std::string options[] = {
+			"name Threads value 1",
+			"name MultiPV value 1",
+			"name USI_Hash value 256",
+			"name OwnBook value false",
+			"name Max_Random_Score_Diff value 0" };
+		for (auto& str : options) {
+			std::istringstream is(str);
+			m_searcher->setOption(is);
+		}
 	}
 
-	/*for (int i = 0; i < legal_move_probabilities.size(); i++) {
+	void position(const char* cmd) {
+		std::istringstream ssCmd(cmd);
+		setPosition(*m_position, ssCmd);
+		//g_position->print();
+	}
+
+	py::list go() {
+		m_position->searcher()->alpha = -ScoreMaxEvaluate;
+		m_position->searcher()->beta = ScoreMaxEvaluate;
+
+		// go
+		LimitsType limits;
+		limits.depth = static_cast<Depth>(6);
+		m_position->searcher()->threads.startThinking(*m_position, limits, m_position->searcher()->states);
+		m_position->searcher()->threads.main()->waitForSearchFinished();
+
+		const Score score = m_position->searcher()->threads.main()->rootMoves[0].score;
+		const Move bestMove = m_position->searcher()->threads.main()->rootMoves[0].pv[0];
+
+		std::cout << "info score cp " << score << " pv " << bestMove.toUSI() << std::endl;
+
+		py::list ret;
+		ret.append(bestMove.toUSI());
+		ret.append((int)score);
+		return ret;
+	}
+
+	int make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
+		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+
+		// set all zero
+		std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum, 0.0f);
+		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+
+		// input features
+		::make_input_features(*m_position, features1, features2);
+
+		return (int)m_position->turn();
+	}
+
+	const std::string select_move(np::ndarray ndlogits) {
+		float *logits = reinterpret_cast<float*>(ndlogits.get_data());
+
+		// 合法手一覧
+		std::vector<Move> legal_moves;
+		std::vector<float> legal_move_probabilities;
+		for (MoveList<Legal> ml(*m_position); !ml.end(); ++ml) {
+			const Move move = ml.move();
+
+			const int move_label = make_move_label((u16)move.proFromAndTo(), *m_position);
+
+			legal_moves.emplace_back(move);
+			legal_move_probabilities.emplace_back(logits[move_label]);
+		}
+
+		/*for (int i = 0; i < legal_move_probabilities.size(); i++) {
 		std::cout << "info string i:" << i << " move:" << legal_moves[i].toUSI() << " p:" << legal_move_probabilities[i] << std::endl;
-	}*/
+		}*/
 
-	// Boltzmann distribution
-	softmax_tempature(legal_move_probabilities);
+		// Boltzmann distribution
+		softmax_tempature(legal_move_probabilities);
 
-	for (int i = 0; i < legal_move_probabilities.size(); i++) {
-		std::cout << "info string i:" << i << " move:" << legal_moves[i].toUSI() << " temp_p:" << legal_move_probabilities[i] << std::endl;
+		for (int i = 0; i < legal_move_probabilities.size(); i++) {
+			std::cout << "info string i:" << i << " move:" << legal_moves[i].toUSI() << " temp_p:" << legal_move_probabilities[i] << std::endl;
+		}
+
+		// 確率に応じて手を選択
+		std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
+		int move_idx = distribution(g_randomTimeSeed);
+
+		// greedy
+		//int move_idx = std::distance(legal_move_probabilities.begin(), std::max_element(legal_move_probabilities.begin(), legal_move_probabilities.end()));
+
+		Move move = legal_moves[move_idx];
+
+		// ラベルからusiに変換
+		return move.toUSI();
 	}
-
-	// 確率に応じて手を選択
-	std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
-	int move_idx = distribution(g_randomTimeSeed);
-
-	// greedy
-	//int move_idx = std::distance(legal_move_probabilities.begin(), std::max_element(legal_move_probabilities.begin(), legal_move_probabilities.end()));
-
-	Move move = legal_moves[move_idx];
-
-	// ラベルからusiに変換
-	return move.toUSI();
-}
+};
+bool Engine::evalTableIsRead = false;
 
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
@@ -461,9 +469,10 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
 
-	py::def("usi_init", usi_init);
-	py::def("usi_position", usi_position);
-	py::def("usi_go", usi_go);
-	py::def("usi_make_input_features", usi_make_input_features);
-	py::def("usi_select_move", usi_select_move);
+	py::class_<Engine>("Engine")
+		.def("init", &Engine::init)
+		.def("position", &Engine::position)
+		.def("go", &Engine::go)
+		.def("make_input_features", &Engine::make_input_features)
+		.def("select_move", &Engine::select_move);
 }

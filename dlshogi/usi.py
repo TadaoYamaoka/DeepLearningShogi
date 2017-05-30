@@ -5,7 +5,7 @@ import cppshogi
 
 from chainer import serializers
 
-modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000'
+modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000-005'
 eval_dir = r'H:\src\elmo_for_learn\bin\20161007'
 
 def main():
@@ -20,7 +20,8 @@ def main():
             print('usiok')
         elif cmd[0] == 'isready':
             # init cppshogi
-            cppshogi.usi_init(eval_dir)
+            engine = cppshogi.Engine()
+            engine.init(eval_dir)
 
             model = PolicyNetwork()
             model.to_gpu()
@@ -30,15 +31,15 @@ def main():
             continue
         elif cmd[0] == 'position':
             # cppshogi
-            cppshogi.usi_position(cmd[1])
+            engine.position(cmd[1])
         elif cmd[0] == 'go':
             # cppshogi
-            usi_move, usi_score = cppshogi.usi_go()
+            usi_move, usi_score = engine.go()
             #print(usi_move, usi_score)
 
             features1 = np.empty((1, 2 * 14, 9, 9), dtype=np.float32)
             features2 = np.empty((1, 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
-            turn = cppshogi.usi_make_input_features(features1, features2)
+            turn = engine.make_input_features(features1, features2)
 
             x1 = Variable(cuda.to_gpu(features1))
             x2 = Variable(cuda.to_gpu(features2))
@@ -47,7 +48,7 @@ def main():
 
             y_data = cuda.to_cpu(y.data)
 
-            move = cppshogi.usi_select_move(y_data)
+            move = engine.select_move(y_data)
             
             # check score
             if usi_score >= 3000:
