@@ -20,8 +20,8 @@ def main():
             print('usiok')
         elif cmd[0] == 'isready':
             # init cppshogi
+            cppshogi.setup_eval_dir(eval_dir)
             engine = cppshogi.Engine()
-            engine.init(eval_dir)
 
             model = PolicyNetwork()
             model.to_gpu()

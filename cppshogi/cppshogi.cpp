@@ -353,16 +353,13 @@ class Engine {
 private:
 	Searcher *m_searcher;
 	Position *m_position;
-	static bool evalTableIsRead;
 public:
-	void init(const char* eval_dir) {
+	static void setup_eval_dir(const char* eval_dir);
+
+	Engine() {
 		m_searcher = new Searcher();
 		m_position = new Position(m_searcher);
 
-		if (!evalTableIsRead) {
-			std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
-			evalTableIsRead = true;
-		}
 		m_searcher->init();
 		const std::string options[] = {
 			"name Threads value 1",
@@ -456,7 +453,9 @@ public:
 		return move.toUSI();
 	}
 };
-bool Engine::evalTableIsRead = false;
+void Engine::setup_eval_dir(const char* eval_dir) {
+	std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
+}
 
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
@@ -470,8 +469,8 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
 
+	py::def("setup_eval_dir", Engine::setup_eval_dir);
 	py::class_<Engine>("Engine")
-		.def("init", &Engine::init)
 		.def("position", &Engine::position)
 		.def("go", &Engine::go)
 		.def("make_input_features", &Engine::make_input_features)
