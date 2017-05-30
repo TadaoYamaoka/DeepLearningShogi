@@ -158,17 +158,17 @@ inline void make_input_features(const Position& position, float(*features1)[Colo
 }
 
 // make result
-inline void make_result(const GameResult gameResult, const Position& position, float *result) {
+inline float make_result(const GameResult gameResult, const Position& position) {
 	if (gameResult == Draw) {
-		*result = 0.0f;
+		return 0.0f;
 	}
 	else {
 		if (position.turn() == Black && gameResult == WhiteWin ||
 			position.turn() == White && gameResult == BlackWin) {
-			*result = -1.0f;
+			return -1.0f;
 		}
 		else {
-			*result = 1.0f;
+			return 1.0f;
 		}
 	}
 }
@@ -279,7 +279,7 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 		make_input_features(position, features1, features2);
 
 		// game result
-		make_result(hcpe->gameResult, position, result);
+		*result = make_result(hcpe->gameResult, position);
 	}
 }
 
@@ -333,7 +333,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 		*move = make_move_label(hcpe->bestMove16, position);
 
 		// game result
-		make_result(hcpe->gameResult, position, result);
+		*result = make_result(hcpe->gameResult, position);
 	}
 }
 
@@ -404,24 +404,9 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	//const float tempature = 0.67;
 	const float tempature = 0.3;
 	const float beta = 1.0f / tempature;
-	float max = log_probabilities[0];
 	// apply beta exponent to probabilities(in log space)
 	for (float& x : log_probabilities) {
-		x *= beta;
-		if (x > max) {
-			max = x;
-		}
-	}
-	float sum = 0.0f;
-	for (float& x : log_probabilities) {
-		// scale probabilities to a more numerically stable range(in log space)
-		// convert back from log space
-		x = expf(x - max);
-		sum += x;
-	}
-	// normalize the distribution
-	for (float& x : log_probabilities) {
-		x /= sum;
+		x = expf(x * beta);
 	}
 }
 
