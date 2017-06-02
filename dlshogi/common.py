@@ -92,6 +92,9 @@ MAX_PIECES_IN_HAND = list(shogi.MAX_PIECES_IN_HAND)
 MAX_PIECES_IN_HAND[shogi.PAWN] = 8 # 歩の持ち駒の上限
 MAX_PIECES_IN_HAND_SUM = sum(MAX_PIECES_IN_HAND)
 
+# color
+[BLACK, WHITE] = range(2)
+
 def make_input_features(piece_bb, occupied, pieces_in_hand, is_check):
     features1 = []
     features2 = []

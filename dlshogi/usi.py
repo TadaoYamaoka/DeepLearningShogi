@@ -5,7 +5,7 @@ import cppshogi
 
 from chainer import serializers
 
-modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000-005'
+modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000-009'
 eval_dir = r'H:\src\elmo_for_learn\bin\20161007'
 
 def main():

@@ -103,6 +103,7 @@ const int PROM_SILVER_MOVE_DIRECTION_LABEL = PROM_KNIGHT_MOVE_DIRECTION_LABEL + 
 const int PROM_BISHOP_MOVE_DIRECTION_LABEL = PROM_SILVER_MOVE_DIRECTION_LABEL + LEN(PROM_SILVER_MOVE_DIRECTION);
 const int PROM_ROOK_MOVE_DIRECTION_LABEL = PROM_BISHOP_MOVE_DIRECTION_LABEL + LEN(PROM_BISHOP_MOVE_DIRECTION);
 const int MOVE_DIRECTION_LABEL_NUM = PROM_ROOK_MOVE_DIRECTION_LABEL + LEN(PROM_ROOK_MOVE_DIRECTION);
+const int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_LABEL_NUM + HandPieceNum;
 
 const int PIECE_MOVE_DIRECTION_LABEL[] = {
 	0,
@@ -340,8 +341,8 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
 void softmax_tempature(std::vector<float> &log_probabilities) {
-	//const float tempature = 0.67;
-	const float tempature = 0.3;
+	const float tempature = 0.67;
+	//const float tempature = 0.3;
 	const float beta = 1.0f / tempature;
 	// apply beta exponent to probabilities(in log space)
 	for (float& x : log_probabilities) {
@@ -349,14 +350,20 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	}
 }
 
+inline float score_to_value(const Score score) {
+	return 1.0f / (1.0f + expf(- (float)score * 0.00132566f));
+}
+
 class Engine {
 private:
 	Searcher *m_searcher;
 	Position *m_position;
+	std::deque<StateInfo> states;
+	Ply ply;
 public:
 	static void setup_eval_dir(const char* eval_dir);
 
-	Engine() {
+	Engine() : states(1) {
 		m_searcher = new Searcher();
 		m_position = new Position(m_searcher);
 
@@ -379,7 +386,7 @@ public:
 		//g_position->print();
 	}
 
-	py::list go() {
+	Move eval(Score* score) {
 		m_position->searcher()->alpha = -ScoreMaxEvaluate;
 		m_position->searcher()->beta = ScoreMaxEvaluate;
 
@@ -389,8 +396,13 @@ public:
 		m_position->searcher()->threads.startThinking(*m_position, limits, m_position->searcher()->states);
 		m_position->searcher()->threads.main()->waitForSearchFinished();
 
-		const Score score = m_position->searcher()->threads.main()->rootMoves[0].score;
-		const Move bestMove = m_position->searcher()->threads.main()->rootMoves[0].pv[0];
+		*score = m_position->searcher()->threads.main()->rootMoves[0].score;
+		return m_position->searcher()->threads.main()->rootMoves[0].pv[0];
+	}
+
+	py::list go() {
+		Score score;
+		const Move bestMove = eval(&score);
 
 		std::cout << "info score cp " << score << " pv " << bestMove.toUSI() << std::endl;
 
@@ -400,23 +412,26 @@ public:
 		return ret;
 	}
 
-	int make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
-		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
-		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
-
+	void make_input_features_inner(float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 		// set all zero
 		std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum, 0.0f);
 		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
 
 		// input features
 		::make_input_features(*m_position, features1, features2);
+	}
+
+	int make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
+		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+
+		// input features
+		make_input_features_inner(features1, features2);
 
 		return (int)m_position->turn();
 	}
 
-	const std::string select_move(np::ndarray ndlogits) {
-		float *logits = reinterpret_cast<float*>(ndlogits.get_data());
-
+	const Move select_move_inner(float *logits) {
 		// 合法手一覧
 		std::vector<Move> legal_moves;
 		std::vector<float> legal_move_probabilities;
@@ -436,9 +451,9 @@ public:
 		// Boltzmann distribution
 		softmax_tempature(legal_move_probabilities);
 
-		for (int i = 0; i < legal_move_probabilities.size(); i++) {
+		/*for (int i = 0; i < legal_move_probabilities.size(); i++) {
 			std::cout << "info string i:" << i << " move:" << legal_moves[i].toUSI() << " temp_p:" << legal_move_probabilities[i] << std::endl;
-		}
+		}*/
 
 		// 確率に応じて手を選択
 		std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
@@ -447,15 +462,179 @@ public:
 		// greedy
 		//int move_idx = std::distance(legal_move_probabilities.begin(), std::max_element(legal_move_probabilities.begin(), legal_move_probabilities.end()));
 
-		Move move = legal_moves[move_idx];
+		return legal_moves[move_idx];
+	}
+
+	const std::string select_move(np::ndarray ndlogits) {
+		float *logits = reinterpret_cast<float*>(ndlogits.get_data());
+
+		Move move = select_move_inner(logits);
 
 		// ラベルからusiに変換
 		return move.toUSI();
+	}
+
+	void default_start_position() {
+		m_position->set(DefaultStartPositionSFEN, m_searcher->threads.main());
+		states.clear();
+		ply = m_position->gamePly();
+	}
+
+	const Position& get_position() const { return *m_position; }
+
+	void do_move(const Move& move) {
+		states.push_back(StateInfo());
+		m_position->doMove(move, states.back());
+		ply++;
+	}
+
+	const int get_ply() const { return ply; }
+
+	void print() {
+		std::cout << ply << std::endl;
+		m_position->print();
 	}
 };
 void Engine::setup_eval_dir(const char* eval_dir) {
 	std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
 }
+
+class States {
+private:
+	std::vector<Engine> engines;
+	std::vector<bool> unfinished;
+	int unfinished_states_num;
+	std::vector<float> wons;
+	std::vector<Score> prev_score;
+
+public:
+	States(const int num) {
+		for (int i = 0; i < num; i++) {
+			engines.emplace_back();
+			unfinished.emplace_back(true);
+			wons.emplace_back();
+		}
+	}
+
+	void default_start_position() {
+		for (int i = 0; i < engines.size(); i++) {
+			engines[i].default_start_position();
+			unfinished[i] = true;
+		}
+		unfinished_states_num = unfinished.size();
+		prev_score.clear();
+	}
+
+	void make_odd_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
+		const int len = engines.size() / 2;
+		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+
+		// set all zero
+		std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+
+		// input features
+		for (int i = 0; i < len; i++, features1++, features2++) {
+			::make_input_features(engines[i * 2 + 1].get_position(), features1, features2);
+		}
+	}
+
+	void do_odd_moves(np::ndarray ndlogits) {
+		const int len = engines.size() / 2;
+		float (*logits)[MAX_MOVE_LABEL_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM][SquareNum]>(ndlogits.get_data());
+
+		for (int i = 0; i < len; i++, logits++) {
+			Move move = engines[i * 2 + 1].select_move_inner((float*)logits);
+			engines[i * 2 + 1].do_move(move);
+		}
+	}
+
+	py::list make_unfinished_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
+		const int len = engines.size();
+		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+
+		py::list ret;
+
+		// input features
+		for (int i = 0; i < len; i++) {
+			if (unfinished[i]) {
+				engines[i].make_input_features_inner(features1, features2);
+				ret.append(i);
+
+				features1++;
+				features2++;
+			}
+		}
+
+		return ret;
+	}
+
+	int do_unfinished_moves_and_eval(const bool is_learner, np::ndarray ndlogits, np::ndarray ndlabels, np::ndarray ndvalues) {
+		const int len = (int)ndlogits.shape(0);
+		float(*logits)[MAX_MOVE_LABEL_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM][SquareNum]>(ndlogits.get_data());
+		int *labels = reinterpret_cast<int*>(ndlabels.get_data());
+		float *values = reinterpret_cast<float*>(ndvalues.get_data());
+
+		// 初期局面の評価
+		if (prev_score.size() == 0) {
+			for (int i = 0; i < engines.size(); i++) {
+				// eval
+				Score score;
+				engines[i].eval(&score);
+				prev_score.emplace_back(score);
+			}
+		}
+
+		for (int i = 0; i < engines.size(); i++) {
+			if (unfinished[i]) {
+				// select move
+				Move move = engines[i].select_move_inner((float*)logits);
+				*labels = make_move_label((u16)move.proFromAndTo(), engines[i].get_position());
+
+				// 現在の局面の評価値は前のmoveの後で評価済み
+				*values = score_to_value(is_learner ? -prev_score[i] : prev_score[i]);
+
+				engines[i].do_move(move);
+
+				// Move後の評価
+				Score score;
+				const Move bestMove = engines[i].eval(&score);
+
+				// 終局判定
+				if (abs(score) > 3000) {
+					unfinished[i] = false;
+					wons[i] = is_learner ? 1.0f : 0.0f;
+					unfinished_states_num--;
+				}
+				else if (engines[i].get_ply() > 255) {
+					// 引き分け
+					unfinished[i] = false;
+					wons[i] = 0.0f;
+					unfinished_states_num--;
+				}
+				else {
+					// 評価値を保存
+					prev_score[i] = score;
+				}
+
+				logits++;
+				labels++;
+				values++;
+			}
+		}
+
+		return unfinished_states_num;
+	}
+
+	void get_learner_wons(np::ndarray ndwons) {
+		float *wons = reinterpret_cast<float*>(ndwons.get_data());
+		for (int i = 0; i < this->wons.size(); i++, wons++) {
+			*wons = this->wons[i];
+		}
+	}
+};
 
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
@@ -474,5 +653,14 @@ BOOST_PYTHON_MODULE(cppshogi) {
 		.def("position", &Engine::position)
 		.def("go", &Engine::go)
 		.def("make_input_features", &Engine::make_input_features)
-		.def("select_move", &Engine::select_move);
+		.def("select_move", &Engine::select_move)
+		;
+	py::class_<States>("States", py::init<const int>())
+		.def("default_start_position", &States::default_start_position)
+		.def("make_odd_input_features", &States::make_odd_input_features)
+		.def("do_odd_moves", &States::do_odd_moves)
+		.def("make_unfinished_input_features", &States::make_unfinished_input_features)
+		.def("do_unfinished_moves_and_eval", &States::do_unfinished_moves_and_eval)
+		.def("get_learner_wons", &States::get_learner_wons)
+		;
 }
