@@ -60,7 +60,6 @@ states = cppshogi.States(args.game_batch)
 # see: https://github.com/Rochester-NRT/RocAlphaGo/blob/develop/AlphaGo/training/reinforcement_policy_trainer.py
 def run_n_games(optimizer, learner, opponent, num_games):
     states.default_start_position()
-    learner_net = learner
 
     # Create one list of features (aka state tensors) and one of moves for each game being played.
     features1_tensors = [[] for _ in range(num_games)]
