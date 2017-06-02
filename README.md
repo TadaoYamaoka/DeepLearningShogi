@@ -10,10 +10,9 @@ http://tadaoyamaoka.hatenablog.com/
 
 ## 使用ライブラリ
 * [Chainer](http://chainer.org/) 1.24.0
-* [python-shogi](https://github.com/gunyarakun/python-shogi)  
-文字コードを指定して棋譜ファイルを読み込めるようにForkして修正しています。
-https://github.com/TadaoYamaoka/python-shogi
 * [elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)
+
+※2017/06/02 高速化のため [python-shogi](https://github.com/gunyarakun/python-shogi)  の使用はやめました。
 
 ## ビルド環境
 * Windows 10 64bit
