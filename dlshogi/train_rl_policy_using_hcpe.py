@@ -26,7 +26,7 @@ parser.add_argument('--state', type=str, default='state_rl_hcpe', help='state fi
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
+parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -58,15 +58,17 @@ def mini_batch(hcpevec):
     features1 = np.empty((len(hcpevec), 2 * 14, 9, 9), dtype=np.float32)
     features2 = np.empty((len(hcpevec), 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
     move = np.empty((len(hcpevec)), dtype=np.int32)
-    result = np.empty((len(hcpevec)), dtype=np.float32)
+    result = np.empty((len(hcpevec)), dtype=np.int32)
     value = np.empty((len(hcpevec)), dtype=np.float32)
 
     cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
 
+    z = result.astype(np.float32) - value
+
     return (Variable(cuda.to_gpu(features1)),
             Variable(cuda.to_gpu(features2)),
             Variable(cuda.to_gpu(move)),
-            cuda.to_gpu(result - value)
+            Variable(cuda.to_gpu(z))
             )
 
 # train
@@ -83,7 +85,7 @@ for e in range(args.epoch):
         y = model(x1, x2)
 
         model.cleargrads()
-        loss = softmax_cross_entropy_with_weight(y, t, z)
+        loss = F.mean(F.softmax_cross_entropy(y, t, reduce='no') * z)
         loss.backward()
         optimizer.update()
 

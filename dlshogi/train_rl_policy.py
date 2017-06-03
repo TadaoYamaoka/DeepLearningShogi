@@ -27,7 +27,7 @@ parser.add_argument('--model', type=str, default='model_rl', help='model file na
 parser.add_argument('--state', type=str, default='state_rl', help='state file name')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
+parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--save-every', help='Save policy as a new opponent every n batches', type=int, default=500)
 parser.add_argument('--eval_dir', help='apery eval dir', type=str, default=r'H:\src\elmo_for_learn\bin\20161007')
 args = parser.parse_args()
@@ -111,24 +111,32 @@ def run_n_games(optimizer, learner, opponent, num_games):
     learner_won = np.empty(num_games, dtype=np.int32)
     states.get_learner_wons(learner_won)
         
-    # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
-    # games where the learner lost.
-    for features1_tensor, features2_tensor, labels_tensor, values_tensor, won in zip(features1_tensors, features2_tensors, labels_tensors, values_tensors, learner_won):
-        x1 = Variable(cuda.to_gpu(np.array(features1_tensor, dtype=np.float32)))
-        x2 = Variable(cuda.to_gpu(np.array(features2_tensor, dtype=np.float32)))
-        t = Variable(cuda.to_gpu(np.array(labels_tensor, dtype=np.int32)))
-        z = cuda.to_gpu(won - np.array(values_tensor, dtype=np.float32))
+    # Train on all game's results
+    features1_tensor_all = []
+    features2_tensor_all = []
+    labels_tensor_all = []
+    rewards_tensor_all = []
+    for features1_tensor, features2_tensor, labels_tensor, values_tensor, won in zip(features1_tensors, features2_tensors, labels_tensors, values_tensors, learner_won.astype(np.float32)):
+        features1_tensor_all.extend(features1_tensor)
+        features2_tensor_all.extend(features2_tensor)
+        labels_tensor_all.extend(labels_tensor)
+        rewards_tensor_all.extend(list(won - np.array(values_tensor, dtype=np.float32)))
 
-        y = learner(x1, x2)
+    x1 = Variable(cuda.to_gpu(np.array(features1_tensor_all, dtype=np.float32)))
+    x2 = Variable(cuda.to_gpu(np.array(features2_tensor_all, dtype=np.float32)))
+    t = Variable(cuda.to_gpu(np.array(labels_tensor_all, dtype=np.int32)))
+    z = Variable(cuda.to_gpu(np.array(rewards_tensor_all, dtype=np.float32)))
 
-        learner.cleargrads()
-        loss = softmax_cross_entropy_with_weight(y, t, z)
-        loss.backward()
+    y = learner(x1, x2)
 
-        optimizer.update()
+    learner.cleargrads()
+    loss = F.mean(F.softmax_cross_entropy(y, t, reduce='no') * z)
+    loss.backward()
+
+    optimizer.update()
 
     # Return the win ratio.
-    return np.average(learner_won), float(move_number_sum) / num_games
+    return np.average(learner_won), float(move_number_sum) / num_games, loss.data
 
 # list opponents
 opponents = []
@@ -153,8 +161,8 @@ for i_iter in range(1, args.iterations + 1):
 
     # Run games (and learn from results). Keep track of the win ratio vs each opponent over
     # time.
-    win_ratio, avr_move = run_n_games(optimizer, model, opponent, args.game_batch)
-    logging.info('iterations = {}, games = {}, win_ratio = {}, avr_move = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio, avr_move))
+    win_ratio, avr_move, loss = run_n_games(optimizer, model, opponent, args.game_batch)
+    logging.info('iterations = {}, games = {}, win_ratio = {}, avr_move = {}, loss = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio, avr_move, loss))
 
     optimizer.new_epoch()
 

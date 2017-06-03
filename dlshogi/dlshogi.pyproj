@@ -29,7 +29,6 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="softmax_cross_entropy_with_weight.py" />
     <Compile Include="teacher_data.py" />
     <Compile Include="train_rl_policy_using_hcpe.py" />
     <Compile Include="train_val_network.py" />
