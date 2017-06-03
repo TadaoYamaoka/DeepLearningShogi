@@ -59,7 +59,7 @@ logging.info('test position num = {}'.format(len(test_data)))
 def mini_batch(hcpevec):
     features1 = np.empty((len(hcpevec), 2 * 14, 9, 9), dtype=np.float32)
     features2 = np.empty((len(hcpevec), 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
-    result = np.empty((len(hcpevec), 1), dtype=np.float32)
+    result = np.empty((len(hcpevec), 1), dtype=np.int32)
 
     cppshogi.hcpe_decode_with_result(hcpevec, features1, features2, result)
 
@@ -82,7 +82,7 @@ for e in range(args.epoch):
         y = model(x1, x2)
 
         model.cleargrads()
-        loss = F.mean_squared_error(y, t)
+        loss = F.sigmoid_cross_entropy(y, t)
         loss.backward()
         optimizer.update()
 
@@ -104,7 +104,7 @@ for e in range(args.epoch):
         x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
         y = model(x1, x2, test=True)
         itr_test += 1
-        sum_test_loss += F.mean_squared_error(y, t).data
+        sum_test_loss += F.sigmoid_cross_entropy(y, t).data
     logging.info('epoch = {}, iteration = {}, train loss avr = {}, test loss = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_loss / itr_test))
     
     optimizer.new_epoch()

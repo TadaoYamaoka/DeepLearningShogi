@@ -73,4 +73,4 @@ class ValueNetwork(Chain):
         h12 = self.l12(u11)
         h12_2 = F.relu(self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM))))
         h13 = F.relu(self.l13(h12_2))
-        return F.tanh(self.l14(h13))
+        return self.l14(h13)
