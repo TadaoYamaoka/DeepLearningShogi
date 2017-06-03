@@ -5,7 +5,6 @@ from chainer import optimizers, serializers
 from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
-from softmax_cross_entropy_with_weight import *
 
 from dlshogi.policy_network import *
 from dlshogi.common import *
