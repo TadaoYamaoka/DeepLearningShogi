@@ -5,10 +5,11 @@ import cppshogi
 
 from chainer import serializers
 
-modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000-009'
-eval_dir = r'H:\src\elmo_for_learn\bin\20161007'
-
 def main():
+    # default option value
+    modelfile = r'H:\src\DeepLearningShogi\dlshogi\model_sl_elmo1000-009'
+    evaldir = r'H:\src\elmo_for_learn\bin\20161007'
+
     while True:
         cmd_line = input()
         cmd = cmd_line.split(' ', 1)
@@ -17,10 +18,20 @@ def main():
         if cmd[0] == 'usi':
             print('id name dlshogi')
             print('id author Tadao Yamaoka')
+            print('option name modelfile type filename default', modelfile)
+            print('option name evaldir type string default', evaldir)
             print('usiok')
+        elif cmd[0] == 'setoption':
+            opt = cmd[1].split(' ')
+            if opt[1] == 'modelfile':
+                modelfile = opt[3]
+                print('info string', modelfile)
+            elif opt[1] == 'evaldir':
+                evaldir = opt[3]
+                print('info string', evaldir)
         elif cmd[0] == 'isready':
             # init cppshogi
-            cppshogi.setup_eval_dir(eval_dir)
+            cppshogi.setup_eval_dir(evaldir)
             engine = cppshogi.Engine()
 
             model = PolicyNetwork()
