@@ -115,6 +115,12 @@ const int PIECE_MOVE_DIRECTION_LABEL[] = {
 	PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 };
 
+// 評価値から価値(勝率)に変換
+// スケールパラメータは、elmo_for_learnの勝率から調査した値
+inline float score_to_value(const Score score) {
+	return 1.0f / (1.0f + expf(-(float)score * 0.00132566f));
+}
+
 // make input features
 inline void make_input_features(const Position& position, float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 	float(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
@@ -166,7 +172,7 @@ inline float make_result(const GameResult gameResult, const Position& position) 
 	else {
 		if (position.turn() == Black && gameResult == WhiteWin ||
 			position.turn() == White && gameResult == BlackWin) {
-			return -1.0f;
+			return 0.0f;
 		}
 		else {
 			return 1.0f;
@@ -307,14 +313,14 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 	}
 }
 
-void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndvalue, np::ndarray ndmove, np::ndarray ndresult) {
+void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
 	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
-	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
+	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
 	// set all zero
 	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
@@ -327,14 +333,14 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 		// input features
 		make_input_features(position, features1, features2);
 
-		// eval
-		*value = tanh((float)hcpe->eval * 0.00067492f);
-
 		// move
 		*move = make_move_label(hcpe->bestMove16, position);
 
 		// game result
 		*result = make_result(hcpe->gameResult, position);
+
+		// eval
+		*value = score_to_value((Score)hcpe->eval);
 	}
 }
 
@@ -348,10 +354,6 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	for (float& x : log_probabilities) {
 		x = expf(x * beta);
 	}
-}
-
-inline float score_to_value(const Score score) {
-	return 1.0f / (1.0f + expf(- (float)score * 0.00132566f));
 }
 
 class Engine {
