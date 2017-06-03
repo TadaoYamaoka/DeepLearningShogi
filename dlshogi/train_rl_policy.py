@@ -162,7 +162,7 @@ for i_iter in range(1, args.iterations + 1):
     # Run games (and learn from results). Keep track of the win ratio vs each opponent over
     # time.
     win_ratio, avr_move, loss = run_n_games(optimizer, model, opponent, args.game_batch)
-    logging.info('iterations = {}, games = {}, win_ratio = {}, avr_move = {}, loss = {}'.format(optimizer.epoch + 1, optimizer.t, win_ratio, avr_move, loss))
+    logging.info('iterations = {}, win_ratio = {}, avr_move = {}, loss = {}'.format(optimizer.epoch + 1, win_ratio, avr_move, loss))
 
     optimizer.new_epoch()
 
