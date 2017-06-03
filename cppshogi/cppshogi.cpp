@@ -165,18 +165,13 @@ inline void make_input_features(const Position& position, float(*features1)[Colo
 }
 
 // make result
-inline float make_result(const GameResult gameResult, const Position& position) {
-	if (gameResult == Draw) {
-		return 0.0f;
+inline int make_result(const GameResult gameResult, const Position& position) {
+	if (position.turn() == Black && gameResult == BlackWin ||
+		position.turn() == White && gameResult == WhiteWin) {
+		return 1;
 	}
 	else {
-		if (position.turn() == Black && gameResult == WhiteWin ||
-			position.turn() == White && gameResult == BlackWin) {
-			return 0.0f;
-		}
-		else {
-			return 1.0f;
-		}
+		return 0;
 	}
 }
 
@@ -272,7 +267,7 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	float (*features1)[ColorNum][PieceTypeNum-1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum-1][SquareNum]>(ndfeatures1.get_data());
 	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
-	float *result = reinterpret_cast<float *>(ndresult.get_data());
+	int *result = reinterpret_cast<int *>(ndresult.get_data());
 
 	// set all zero
 	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum-1) * (int)SquareNum * len, 0.0f);
@@ -319,7 +314,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
 	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
-	float *result = reinterpret_cast<float *>(ndresult.get_data());
+	int *result = reinterpret_cast<int *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
 	// set all zero
@@ -506,7 +501,7 @@ private:
 	std::vector<Engine> engines;
 	std::vector<bool> unfinished;
 	int unfinished_states_num;
-	std::vector<float> wons;
+	std::vector<int> wons;
 	std::vector<Score> prev_score;
 
 public:
@@ -607,13 +602,13 @@ public:
 				// 終局判定
 				if (abs(score) > 3000) {
 					unfinished[i] = false;
-					wons[i] = is_learner ? 1.0f : 0.0f;
+					wons[i] = is_learner ? 1 : 0;
 					unfinished_states_num--;
 				}
 				else if (engines[i].get_ply() > 255) {
 					// 引き分け
 					unfinished[i] = false;
-					wons[i] = 0.0f;
+					wons[i] = 0;
 					unfinished_states_num--;
 				}
 				else {
@@ -631,7 +626,7 @@ public:
 	}
 
 	void get_learner_wons(np::ndarray ndwons) {
-		float *wons = reinterpret_cast<float*>(ndwons.get_data());
+		int *wons = reinterpret_cast<int*>(ndwons.get_data());
 		for (int i = 0; i < this->wons.size(); i++, wons++) {
 			*wons = this->wons[i];
 		}
