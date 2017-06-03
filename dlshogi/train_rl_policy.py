@@ -27,7 +27,7 @@ parser.add_argument('--model', type=str, default='model_rl', help='model file na
 parser.add_argument('--state', type=str, default='state_rl', help='state file name')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
+parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
 parser.add_argument('--save-every', help='Save policy as a new opponent every n batches', type=int, default=500)
 parser.add_argument('--eval_dir', help='apery eval dir', type=str, default=r'H:\src\elmo_for_learn\bin\20161007')
 args = parser.parse_args()
@@ -108,7 +108,7 @@ def run_n_games(optimizer, learner, opponent, num_games):
         # Swap 'current' and 'other' for next turn.
         current, other = other, current
 
-    learner_won = np.empty(num_games, dtype=np.float32)
+    learner_won = np.empty(num_games, dtype=np.int32)
     states.get_learner_wons(learner_won)
         
     # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
