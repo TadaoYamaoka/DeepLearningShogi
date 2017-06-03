@@ -13,7 +13,6 @@ import cppshogi
 
 import argparse
 import random
-import copy
 import os
 
 import logging

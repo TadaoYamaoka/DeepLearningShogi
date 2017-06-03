@@ -14,10 +14,6 @@ import cppshogi
 
 import argparse
 import random
-import copy
-import subprocess
-import re
-import math
 import os
 
 import logging
