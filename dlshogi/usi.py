@@ -48,6 +48,14 @@ def main():
             usi_move, usi_score = engine.go()
             #print(usi_move, usi_score)
 
+            # check score
+            if usi_score >= 3000:
+                print('bestmove', usi_move)
+                continue
+            elif usi_score < -3000:
+                print('bestmove resign')
+                continue
+
             features1 = np.empty((1, 2 * 14, 9, 9), dtype=np.float32)
             features2 = np.empty((1, 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
             turn = engine.make_input_features(features1, features2)
@@ -61,14 +69,6 @@ def main():
 
             move = engine.select_move(y_data)
             
-            # check score
-            if usi_score >= 3000:
-                print('bestmove', usi_move)
-                continue
-            elif usi_score < -3000:
-                print('bestmove resign')
-                continue
-
             print('bestmove', move)
         elif cmd[0] == 'quit':
             break
