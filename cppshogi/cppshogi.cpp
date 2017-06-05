@@ -341,13 +341,22 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
+float beta = 1.0f / 0.67f;
+void set_softmax_tempature(const float tempature) {
+	beta = 1.0f / tempature;
+}
 void softmax_tempature(std::vector<float> &log_probabilities) {
-	const float tempature = 0.67;
-	//const float tempature = 0.3;
-	const float beta = 1.0f / tempature;
 	// apply beta exponent to probabilities(in log space)
+	float max = 0.0f;
 	for (float& x : log_probabilities) {
-		x = expf(x * beta);
+		x *= beta;
+		if (x > max) {
+			max = x;
+		}
+	}
+	// オーバーフローを防止するため最大値で引く
+	for (float& x : log_probabilities) {
+		x = expf(x - max);
 	}
 }
 
@@ -646,6 +655,7 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
 
 	py::def("setup_eval_dir", Engine::setup_eval_dir);
+	py::def("set_softmax_tempature", set_softmax_tempature);
 	py::class_<Engine>("Engine")
 		.def("position", &Engine::position)
 		.def("go", &Engine::go)

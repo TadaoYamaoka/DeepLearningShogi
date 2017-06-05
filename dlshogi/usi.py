@@ -20,6 +20,7 @@ def main():
             print('id author Tadao Yamaoka')
             print('option name modelfile type filename default', modelfile)
             print('option name evaldir type string default', evaldir)
+            print('option name softmax_tempature type string default', '0.67')
             print('usiok')
         elif cmd[0] == 'setoption':
             opt = cmd[1].split(' ')
@@ -29,6 +30,10 @@ def main():
             elif opt[1] == 'evaldir':
                 evaldir = opt[3]
                 print('info string', evaldir)
+            elif opt[1] == 'softmax_tempature':
+                tempature = float(opt[3])
+                print('info string', tempature)
+                cppshogi.set_softmax_tempature(tempature)
         elif cmd[0] == 'isready':
             # init cppshogi
             cppshogi.setup_eval_dir(evaldir)
