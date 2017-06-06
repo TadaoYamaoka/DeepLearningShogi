@@ -20,7 +20,7 @@ def main():
             print('id author Tadao Yamaoka')
             print('option name modelfile type filename default', modelfile)
             print('option name evaldir type string default', evaldir)
-            print('option name softmax_tempature type string default', '0.67')
+            print('option name softmax_tempature type string default', '0.1')
             print('usiok')
         elif cmd[0] == 'setoption':
             opt = cmd[1].split(' ')
