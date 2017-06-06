@@ -37,10 +37,12 @@ int main() {
 
 	// Pythonƒ‚ƒWƒ…[ƒ‹“Ç‚İ‚İ
 	py::object dlshogi_test_ns = py::import("dlshogi.test").attr("__dict__");
-	py::object dlshogi_test_predict = dlshogi_test_ns["predict"];
 
+	py::object dlshogi_test_load_model = dlshogi_test_ns["load_model"];
+	dlshogi_test_load_model("H:\\src\\DeepLearningShogi\\dlshogi\\model_sl_elmo1000-009");
 
 	// Python‚ÌŠÖ”Às
+	py::object dlshogi_test_predict = dlshogi_test_ns["predict"];
 	const int max = 1000;
 	auto start = std::chrono::system_clock::now();
 
