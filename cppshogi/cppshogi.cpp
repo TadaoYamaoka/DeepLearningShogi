@@ -199,6 +199,33 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 	}
 }
 
+void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult) {
+	const int len = (int)ndhcpe.shape(0);
+	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
+	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+	int *move = reinterpret_cast<int *>(ndmove.get_data());
+	int *result = reinterpret_cast<int *>(ndresult.get_data());
+
+	// set all zero
+	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+
+	Position position;
+	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, move++, result++) {
+		position.set(hcpe->hcp, nullptr);
+
+		// input features
+		make_input_features(position, features1, features2);
+
+		// move
+		*move = make_move_label(hcpe->bestMove16, position);
+
+		// game result
+		*result = make_result(hcpe->gameResult, position);
+	}
+}
+
 void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
@@ -543,6 +570,7 @@ BOOST_PYTHON_MODULE(cppshogi) {
 
 	py::def("hcpe_decode_with_result", hcpe_decode_with_result);
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
+	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
 
 	py::def("setup_eval_dir", Engine::setup_eval_dir);
