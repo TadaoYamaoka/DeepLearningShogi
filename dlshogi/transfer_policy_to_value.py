@@ -1,10 +1,4 @@
-import numpy as np
-import chainer
-from chainer import cuda, Variable
-from chainer import optimizers, serializers
-from chainer import Chain
-import chainer.functions as F
-import chainer.links as L
+from chainer import serializers
 
 from dlshogi.policy_network import *
 from dlshogi.value_network import *
