@@ -61,8 +61,8 @@ def main():
                 print('bestmove resign')
                 continue
 
-            features1 = np.empty((1, 2 * 14, 9, 9), dtype=np.float32)
-            features2 = np.empty((1, 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
+            features1 = np.empty((1, FEATURES1_NUM, 9, 9), dtype=np.float32)
+            features2 = np.empty((1, FEATURES2_NUM, 9, 9), dtype=np.float32)
             turn = engine.make_input_features(features1, features2)
 
             x1 = Variable(cuda.to_gpu(features1))

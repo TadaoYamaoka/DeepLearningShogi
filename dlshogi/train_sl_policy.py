@@ -56,8 +56,8 @@ logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
 def mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), 2 * 14, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
+    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
+    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     move = np.empty((len(hcpevec)), dtype=np.int32)
 
     cppshogi.hcpe_decode_with_move(hcpevec, features1, features2, move)

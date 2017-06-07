@@ -13,8 +13,8 @@ dropout_ratio = 0.1
 class PolicyNetwork(Chain):
     def __init__(self):
         super(PolicyNetwork, self).__init__(
-            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
-            l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
+            l1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
+            l1_2=L.Convolution2D(in_channels = FEATURES2_NUM, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),

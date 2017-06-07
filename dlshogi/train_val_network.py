@@ -57,8 +57,8 @@ logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
 def mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), 2 * 14, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
+    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
+    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     result = np.empty((len(hcpevec), 1), dtype=np.int32)
 
     cppshogi.hcpe_decode_with_result(hcpevec, features1, features2, result)
@@ -93,19 +93,21 @@ for e in range(args.epoch):
 
         # print train loss and test accuracy
         if optimizer.t % eval_interval == 0:
-            logging.info('epoch = {}, iteration = {}, loss = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr))
+            x1, x2, t = mini_batch(np.random.choice(test_data, 640))
+            y = model(x1, x2, test=True)
+            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.binary_accuracy(y, t).data))
             itr = 0
             sum_loss = 0
 
     # validate test data
     itr_test = 0
-    sum_test_loss = 0
+    sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
         x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
         y = model(x1, x2, test=True)
         itr_test += 1
-        sum_test_loss += F.sigmoid_cross_entropy(y, t).data
-    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test loss = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_loss / itr_test))
+        sum_test_accuracy += F.binary_accuracy(y, t).data
+    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_accuracy / itr_test))
     
     optimizer.new_epoch()
 

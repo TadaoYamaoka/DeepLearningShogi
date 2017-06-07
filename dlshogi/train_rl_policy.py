@@ -84,8 +84,8 @@ def run_n_games(optimizer, learner, opponent, num_games):
         move_number_sum += unfinished_states_num
 
         # Get next moves by current player for all unfinished states.
-        features1 = np.empty((unfinished_states_num, 2 * 14, 9, 9), dtype=np.float32)
-        features2 = np.empty((unfinished_states_num, 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
+        features1 = np.empty((unfinished_states_num, FEATURES1_NUM, 9, 9), dtype=np.float32)
+        features2 = np.empty((unfinished_states_num, FEATURES2_NUM, 9, 9), dtype=np.float32)
         unfinished_list = states.make_unfinished_input_features(features1, features2)
         x1 = Variable(cuda.to_gpu(features1))
         x2 = Variable(cuda.to_gpu(features2))
