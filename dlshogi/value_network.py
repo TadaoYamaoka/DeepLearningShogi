@@ -17,8 +17,8 @@ fcl = 256 # fully connected layers
 class ValueNetwork(Chain):
     def __init__(self):
         super(ValueNetwork, self).__init__(
-            l1_1=L.Convolution2D(in_channels = None, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
-            l1_2=L.Convolution2D(in_channels = None, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
+            l1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
+            l1_2=L.Convolution2D(in_channels = FEATURES2_NUM, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
@@ -29,9 +29,9 @@ class ValueNetwork(Chain):
             l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l12=L.Convolution2D(in_channels = k, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True),
-            l12_2=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM)),
-            l13=L.Linear(9*9*MOVE_DIRECTION_LABEL_NUM, fcl),
+            l12=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
+            l12_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
+            l13=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
             l14=L.Linear(fcl, 1),
             norm1=L.BatchNormalization(k),
             norm2=L.BatchNormalization(k),
@@ -71,6 +71,6 @@ class ValueNetwork(Chain):
         u11 = self.l11(h10) + u9
         # output
         h12 = self.l12(u11)
-        h12_2 = F.relu(self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MOVE_DIRECTION_LABEL_NUM))))
+        h12_2 = F.relu(self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM))))
         h13 = F.relu(self.l13(h12_2))
         return self.l14(h13)

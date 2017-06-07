@@ -68,6 +68,10 @@ MAX_PIECES_IN_HAND_SUM = sum(MAX_PIECES_IN_HAND)
 # color
 [BLACK, WHITE] = range(2)
 
+# number of features
+FEATURES1_NUM = 2 * 14
+FEATURES2_NUM = 2 * MAX_PIECES_IN_HAND_SUM + 1
+
 HuffmanCodedPosAndEval = np.dtype([
     ('hcp', np.uint8, 32),
     ('eval', np.int16),
