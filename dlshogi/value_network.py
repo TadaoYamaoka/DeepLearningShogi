@@ -5,9 +5,6 @@ from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
 
-import shogi
-import shogi.CSA
-
 from dlshogi.common import *
 
 k = 192
