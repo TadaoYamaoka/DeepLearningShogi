@@ -54,10 +54,10 @@ def main():
             #print(usi_move, usi_score)
 
             # check score
-            if usi_score >= 3000:
+            if usi_score >= 30000:
                 print('bestmove', usi_move)
                 continue
-            elif usi_score < -3000:
+            elif usi_score < -30000:
                 print('bestmove resign')
                 continue
 
