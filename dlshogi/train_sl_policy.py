@@ -55,16 +55,16 @@ logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
-def mini_batch(hcpevec):
+def mini_batch(hcpevec, volatile=False):
     features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
     features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     move = np.empty((len(hcpevec)), dtype=np.int32)
 
     cppshogi.hcpe_decode_with_move(hcpevec, features1, features2, move)
 
-    return (Variable(cuda.to_gpu(features1)),
-            Variable(cuda.to_gpu(features2)),
-            Variable(cuda.to_gpu(move))
+    return (Variable(cuda.to_gpu(features1), volatile),
+            Variable(cuda.to_gpu(features2), volatile),
+            Variable(cuda.to_gpu(move), volatile)
             )
 
 # train
@@ -92,7 +92,7 @@ for e in range(args.epoch):
 
         # print train loss and test accuracy
         if optimizer.t % eval_interval == 0:
-            x1, x2, t = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t = mini_batch(np.random.choice(test_data, 640), volatile=True)
             y = model(x1, x2, test=True)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.accuracy(y, t).data))
             itr = 0
@@ -102,7 +102,7 @@ for e in range(args.epoch):
     itr_test = 0
     sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
+        x1, x2, t = mini_batch(test_data[i:i+args.batchsize], volatile=True)
         y = model(x1, x2, test=True)
         itr_test += 1
         sum_test_accuracy += F.accuracy(y, t).data
