@@ -32,6 +32,7 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train_rl_policy_with_value.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
     <Compile Include="train_rl_policy_using_hcpe.py" />
     <Compile Include="train_sl_policy_with_value.py" />
