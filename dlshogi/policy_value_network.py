@@ -28,6 +28,9 @@ class PolicyValueNetwork(Chain):
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l12=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
             l12_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
+            # value network
+            l12_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
+            l12_2_v=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
             l13=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
             l14=L.Linear(fcl, 1),
             norm1=L.BatchNormalization(k),
@@ -69,6 +72,9 @@ class PolicyValueNetwork(Chain):
         # output
         h12 = self.l12(u11)
         h12_1 = self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM)))
-        h12_2 = F.relu(h12_1)
+        # value network
+        h12_v = self.l12_v(u11)
+        h12_1_v = self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM)))
+        h12_2 = F.relu(h12_1_v)
         h13 = F.relu(self.l13(h12_2))
         return h12_1, self.l14(h13)
