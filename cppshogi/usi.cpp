@@ -87,13 +87,13 @@ void OptionsMap::init(Searcher* s) {
     const int MaxHashMB = 1024 * 1024;
     (*this)["USI_Hash"]                    = USIOption(256, 1, MaxHashMB, onHashSize, s);
     (*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
-    (*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
+    //(*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
     (*this)["Eval_Dir"]                    = USIOption("20161007");
-    (*this)["Best_Book_Move"]              = USIOption(false);
-    (*this)["OwnBook"]                     = USIOption(true);
-    (*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    (*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
+    //(*this)["Best_Book_Move"]              = USIOption(false);
+    //(*this)["OwnBook"]                     = USIOption(true);
+    //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
+    //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
+    //(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(4500, 0, INT_MAX);
@@ -109,9 +109,9 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
     (*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
 #ifdef NDEBUG
-    (*this)["Engine_Name"]                 = USIOption("elmo");
+    (*this)["Engine_Name"]                 = USIOption("dlshogi");
 #else
-    (*this)["Engine_Name"]                 = USIOption("elmo Debug Build");
+    (*this)["Engine_Name"]                 = USIOption("dlshogi Debug Build");
 #endif
 }
 

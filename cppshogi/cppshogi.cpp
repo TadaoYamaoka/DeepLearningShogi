@@ -141,6 +141,77 @@ int make_move_label(const u16 move16, const Position& position) {
 	return 9 * 9 * move_direction_label + to_sq;
 }
 
+int make_move_label(const u16 move16, const PieceType move_piece, const Color color) {
+	// see: move.hpp : 30
+	// xxxxxxxx x1111111  移動先
+	// xx111111 1xxxxxxx  移動元。駒打ちの際には、PieceType + SquareNum - 1
+	// x1xxxxxx xxxxxxxx  1 なら成り
+	u16 to_sq = move16 & 0b1111111;
+	u16 from_sq = (move16 >> 7) & 0b1111111;
+
+	// move direction
+	int move_direction_label;
+	if (from_sq < SquareNum) {
+		// 白の場合、盤面を180度回転
+		if (color == White) {
+			to_sq = (u16)SQ99 - to_sq;
+			from_sq = (u16)SQ99 - from_sq;
+		}
+
+		const div_t to_d = div(to_sq, 9);
+		const int to_x = to_d.quot;
+		const int to_y = to_d.rem;
+		const div_t from_d = div(from_sq, 9);
+		const int from_x = from_d.quot;
+		const int from_y = from_d.rem;
+		const int dir_x = from_x - to_x;
+		const int dir_y = to_y - from_y;
+
+		MOVE_DIRECTION move_direction;
+		if (dir_y < 0 && dir_x == 0) {
+			move_direction = UP;
+		}
+		else if (dir_y < 0 && dir_x < 0) {
+			move_direction = UP_LEFT;
+		}
+		else if (dir_y < 0 && dir_x > 0) {
+			move_direction = UP_RIGHT;
+		}
+		else if (dir_y == 0 && dir_x < 0) {
+			move_direction = LEFT;
+		}
+		else if (dir_y == 0 && dir_x > 0) {
+			move_direction = RIGHT;
+		}
+		else if (dir_y > 0 && dir_x == 0) {
+			move_direction = DOWN;
+		}
+		else if (dir_y > 0 && dir_x < 0) {
+			move_direction = DOWN_LEFT;
+		}
+		else if (dir_y > 0 && dir_x > 0) {
+			move_direction = DOWN_RIGHT;
+		}
+
+		// promote
+		if ((move16 & 0b100000000000000) > 0) {
+			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
+		}
+		move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION_INDEX[move_piece][move_direction];
+	}
+	// 持ち駒の場合
+	else {
+		// 白の場合、盤面を180度回転
+		if (color == White) {
+			to_sq = (u16)SQ99 - to_sq;
+		}
+		const int hand_piece = from_sq - (int)SquareNum;
+		move_direction_label = MOVE_DIRECTION_LABEL_NUM + hand_piece;
+	}
+
+	return 9 * 9 * move_direction_label + to_sq;
+}
+
 /*
 	HuffmanCodedPosAndEvalの配列からpolicy networkの入力ミニバッチに変換する。
 	ndhcpe : Python側で以下の構造体を定義して、その配列を入力する。
@@ -275,6 +346,27 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	// オーバーフローを防止するため最大値で引く
 	for (float& x : log_probabilities) {
 		x = expf(x - max);
+	}
+}
+
+void softmax_tempature_with_normalize(std::vector<float> &log_probabilities) {
+	// apply beta exponent to probabilities(in log space)
+	float max = 0.0f;
+	for (float& x : log_probabilities) {
+		x *= beta;
+		if (x > max) {
+			max = x;
+		}
+	}
+	// オーバーフローを防止するため最大値で引く
+	float sum = 0.0f;
+	for (float& x : log_probabilities) {
+		x = expf(x - max);
+		sum += x;
+	}
+	// normalize
+	for (float& x : log_probabilities) {
+		x /= sum;
 	}
 }
 

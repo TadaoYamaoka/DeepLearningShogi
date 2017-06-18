@@ -114,3 +114,5 @@ const int PIECE_MOVE_DIRECTION_LABEL[] = {
 
 void make_input_features(const Position& position, float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]);
 int make_move_label(const u16 move16, const Position& position);
+int make_move_label(const u16 move16, const PieceType move_piece, const Color color);
+void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
