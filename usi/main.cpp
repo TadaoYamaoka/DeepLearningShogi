@@ -141,21 +141,13 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	pos.searcher()->beta = ScoreMaxEvaluate;
 	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);*/
 
-	// 詰みのチェック
-	Move mateMove = pos.mateMoveIn1Ply();
-	if (mateMove != Move::moveNone()) {
-		std::cout << "info score mate 1" << std::endl;
-		std::cout << "bestmove " << mateMove.toUSI() << std::endl;
+	// UCTによる探索
+	Move move = UctSearchGenmove(&pos);
+	if (move == Move::moveNone()) {
+		std::cout << "bestmove resign" << std::endl;
 	}
 	else {
-		// UCTによる探索
-		Move move = UctSearchGenmove(&pos);
-		if (move == Move::moveNone()) {
-			std::cout << "bestmove resign" << std::endl;
-		}
-		else {
-			std::cout << "bestmove " << move.toUSI() << std::endl;
-		}
+		std::cout << "bestmove " << move.toUSI() << std::endl;
 	}
 
 	// 探索待ち

@@ -414,6 +414,7 @@ UctSearchGenmove(const Position *pos)
 	}
 	else {
 		move = uct_child[select_index].move;
+		cout << "info score cp " << int(-logf(1.0f / best_wp - 1.0f) * 754.3) << " pv " << move.toUSI() << endl;
 	}
 
 	// 最善応手列を出力
@@ -524,28 +525,23 @@ ExpandNode(Position *pos, int current, const std::vector<int>& path)
 	uct_node[index].evaled = false;
 	uct_child = uct_node[index].child;
 
-	// 詰みかチェック
-	const Move mateMove = pos->mateMoveIn1Ply();
-	if (mateMove != Move::moveNone()) {
-		InitializeCandidate(&uct_child[0], mateMove);
-		uct_child[0].win = 0.0f;
-		uct_child[0].nnrate = 1.0f;
-		uct_node[index].evaled = true;
-		uct_node[index].child_num = 1;
+	// 候補手の展開
+	int child_num = 0;
+	for (MoveList<Legal> ml(*pos); !ml.end(); ++ml) {
+		InitializeCandidate(&uct_child[child_num], ml.move());
+		child_num++;
+	}
+
+	// 子ノードの個数を設定
+	uct_node[index].child_num = child_num;
+
+	// 候補手のレーティング
+	if (child_num > 0) {
+		QueuingNode(pos, index);
 	}
 	else {
-		// 候補手の展開
-		int child_num = 0;
-		for (MoveList<Legal> ml(*pos); !ml.end(); ++ml) {
-			InitializeCandidate(&uct_child[child_num], ml.move());
-			child_num++;
-		}
-
-		// 子ノードの個数を設定
-		uct_node[index].child_num = child_num;
-
-		// 候補手のレーティング
-		QueuingNode(pos, index);
+		uct_node[index].value_win = 0.0f;
+		uct_node[index].evaled = true;
 	}
 
 	return index;
@@ -687,6 +683,11 @@ ParallelUctSearch(thread_arg_t *arg)
 static float
 UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 {
+	// 詰みのチェック
+	if (uct_node[current].child_num == 0) {
+		return 1.0f;
+	}
+
 	float result;
 	int next_index;
 	double score;
@@ -730,14 +731,8 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
-		// 詰みのチェック
-		if (uct_node[current].child_num == 1) {
-			result = 1.0f;
-		}
-		else {
-			// 手番を入れ替えて1手深く読む
-			result = UctSearch(pos, mt, uct_child[next_index].index, path);
-		}
+		// 手番を入れ替えて1手深く読む
+		result = UctSearch(pos, mt, uct_child[next_index].index, path);
 	}
 
 	// 探索結果の反映
