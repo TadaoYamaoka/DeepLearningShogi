@@ -108,7 +108,7 @@ static int current_policy_value_batch_index = 0;
 py::object dlshogi_predict;
 
 // ランダム
-uniform_int_distribution<int> rnd100(0, 99);
+uniform_int_distribution<int> rnd(0, 999);
 
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
@@ -814,7 +814,7 @@ SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を1にする
-		if (rnd100(*mt) == 0) {
+		if (rnd(*mt) == 0) {
 			rate = 1.0f;
 		}
 
