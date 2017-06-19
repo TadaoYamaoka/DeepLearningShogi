@@ -418,7 +418,14 @@ UctSearchGenmove(const Position *pos)
 	else {
 		move = uct_child[select_index].move;
 		
-		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << int(-logf(1.0f / best_wp - 1.0f) * 754.3) << " pv " << move.toUSI() << endl;
+		int cp;
+		if (best_wp == 1.0f) {
+			cp = 30000;
+		}
+		else {
+			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3);
+		}
+		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << move.toUSI() << endl;
 	}
 
 	// 最善応手列を出力
