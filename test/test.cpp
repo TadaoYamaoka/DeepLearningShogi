@@ -6,6 +6,7 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
+#if 1
 int main() {
 	// Boost.PythonÇ∆Boost.NumpyÇÃèâä˙âª
 	Py_Initialize();
@@ -93,3 +94,29 @@ int main() {
 
 	return 0;
 }
+#else
+
+int main() {
+	initTable();
+	Position pos;
+	pos.set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+
+	Bitboard occupied = pos.occupiedBB();
+	occupied.printBoard();
+
+	pos.bbOf(Black).printBoard();
+	pos.bbOf(White).printBoard();
+
+	for (Square sq = SQ11; sq < SquareNum; sq++) {
+		Bitboard bb = pos.attackersTo(Black, sq, occupied);
+		std::cout << sq << ":" << bb.popCount() << std::endl;
+		bb.printBoard();
+	}
+	for (Square sq = SQ11; sq < SquareNum; sq++) {
+		Bitboard bb = pos.attackersTo(White, sq, occupied);
+		std::cout << sq << ":" << bb.popCount() << std::endl;
+		bb.printBoard();
+	}
+}
+
+#endif
