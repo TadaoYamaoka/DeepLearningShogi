@@ -97,7 +97,7 @@ static bool live_best_sequence = false;
 ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = 16; // スレッド数以上確保する
+const int policy_value_batch_maxsize = THREAD_MAX; // スレッド数以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][PieceTypeNum - 1][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 static int policy_value_hash_index[2][policy_value_batch_maxsize];
@@ -106,6 +106,9 @@ static int current_policy_value_batch_index = 0;
 
 // 予測関数
 py::object dlshogi_predict;
+
+// ランダム
+uniform_int_distribution<int> rnd100(0, 99);
 
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
@@ -154,7 +157,7 @@ static void ParallelUctSearch(thread_arg_t *arg);
 static void QueuingNode(const Position *pos, int index);
 
 // UCB値が最大の子ノードを返す
-static int SelectMaxUcbChild(const Position *pos, int current);
+static int SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt);
 
 // UCT探索(1回の呼び出しにつき, 1回の探索)
 static float UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path);
@@ -697,7 +700,7 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 	// 現在見ているノードをロック
 	LOCK_NODE(current);
 	// UCB値最大の手を求める
-	next_index = SelectMaxUcbChild(pos, current);
+	next_index = SelectMaxUcbChild(pos, current, mt);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
@@ -771,7 +774,7 @@ UpdateResult(child_node_t *child, float result, int current)
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 static int
-SelectMaxUcbChild(const Position *pos, int current)
+SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
 {
 	child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
@@ -810,6 +813,11 @@ SelectMaxUcbChild(const Position *pos, int current)
 		}
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
+		// ランダムに確率を1にする
+		if (rnd100(*mt) == 0) {
+			rate = 1.0f;
+		}
+
 		ucb_value = q + c_puct * u * rate;
 
 		/*if (debug) {
