@@ -98,7 +98,7 @@ ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
 const int policy_value_batch_maxsize = THREAD_MAX; // スレッド数以上確保する
-static float features1[2][policy_value_batch_maxsize][ColorNum][PieceTypeNum - 1][SquareNum];
+static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 static int policy_value_hash_index[2][policy_value_batch_maxsize];
 static int current_policy_value_queue_index = 0;
@@ -569,7 +569,7 @@ QueuingNode(const Position *pos, int index)
 	//cout << pos->toSFEN() << endl;
 
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum, 0.0f);
+	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
 	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_queue_index][current_policy_value_batch_index], &features2[current_policy_value_queue_index][current_policy_value_batch_index]);
@@ -931,8 +931,8 @@ void EvalNode() {
 			np::ndarray ndfeatures1 = np::from_data(
 				features1[policy_value_queue_index],
 				np::dtype::get_builtin<float>(),
-				py::make_tuple(policy_value_batch_size, (int)ColorNum * ((int)PieceTypeNum - 1), 9, 9),
-				py::make_tuple(sizeof(float)*(int)ColorNum*((int)PieceTypeNum - 1) * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+				py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
+				py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
 				py::object());
 
 			np::ndarray ndfeatures2 = np::from_data(

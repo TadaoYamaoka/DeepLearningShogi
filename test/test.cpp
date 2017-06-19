@@ -14,14 +14,14 @@ int main() {
 
 	// ì¸óÕÉfÅ[É^çÏê¨
 	const int batchsize = 1;
-	float features1[batchsize][ColorNum][PieceTypeNum - 1][SquareNum];
+	float features1[batchsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 	float features2[batchsize][MAX_FEATURES2_NUM][SquareNum];
 
 	np::ndarray ndfeatures1 = np::from_data(
 		features1,
 		np::dtype::get_builtin<float>(),
-		py::make_tuple(batchsize, (int)ColorNum * ((int)PieceTypeNum - 1), 9, 9),
-		py::make_tuple(sizeof(float)*(int)ColorNum*((int)PieceTypeNum - 1) * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+		py::make_tuple(batchsize, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
+		py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
 		py::object());
 
 	np::ndarray ndfeatures2 = np::from_data(

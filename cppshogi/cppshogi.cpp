@@ -13,7 +13,7 @@ inline float score_to_value(const Score score) {
 }
 
 // make input features
-void make_input_features(const Position& position, float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
+void make_input_features(const Position& position, float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 	float(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
 	for (Color c = Black; c < ColorNum; ++c) {
 		// 白の場合、色を反転
@@ -250,12 +250,12 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+	float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
 	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
 
 	Position position;
@@ -273,13 +273,13 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+	float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
 	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
 
 	Position position;
@@ -300,14 +300,14 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+	float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 	float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
 	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
 
 	Position position;
@@ -428,9 +428,9 @@ public:
 		return ret;
 	}
 
-	void make_input_features_inner(float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
+	void make_input_features_inner(float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 		// set all zero
-		std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum, 0.0f);
+		std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
 		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
 
 		// input features
@@ -438,7 +438,7 @@ public:
 	}
 
 	int make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
-		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 
 		// input features
@@ -543,11 +543,11 @@ public:
 
 	void make_odd_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
 		const int len = engines.size() / 2;
-		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 
 		// set all zero
-		std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
+		std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
 		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
 
 		// input features
@@ -568,7 +568,7 @@ public:
 
 	py::list make_unfinished_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
 		const int len = engines.size();
-		float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum - 1][SquareNum]>(ndfeatures1.get_data());
+		float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 		float(*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 
 		py::list ret;

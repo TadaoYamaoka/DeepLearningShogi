@@ -30,6 +30,8 @@ const u32 MAX_PIECES_IN_HAND[] = {
 };
 const u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
 const u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
+
+const u32 MAX_FEATURES1_NUM = (PieceTypeNum - 1)/*ãÓêî*/;
 const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*â§éË*/;
 
 // à⁄ìÆÇÃíËêî
@@ -112,7 +114,7 @@ const int PIECE_MOVE_DIRECTION_LABEL[] = {
 	PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 };
 
-void make_input_features(const Position& position, float(*features1)[ColorNum][PieceTypeNum - 1][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]);
+void make_input_features(const Position& position, float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]);
 int make_move_label(const u16 move16, const Position& position);
 int make_move_label(const u16 move16, const PieceType move_piece, const Color color);
 void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
