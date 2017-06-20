@@ -30,6 +30,8 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			bb[pt] = position.bbOf(pt, c);
 		}
 
+		CheckInfo checkInfo(position, c);
+
 		for (Square sq = SQ11; sq < SquareNum; ++sq) {
 			// 白の場合、盤面を180度回転
 			Square sq2 = sq;
@@ -48,6 +50,14 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
 			for (int k = 0; k < num; k++) {
 				(*features1)[c2][PIECETYPE_NUM + k][sq2] = 1.0f;
+			}
+
+			// 王手情報
+			if (checkInfo.dcBB.isSet(sq)) {
+				(*features1)[c2][PIECETYPE_NUM + MAX_ATTACK_NUM + 0][sq2] = 1.0f;
+			}
+			if (checkInfo.pinned.isSet(sq)) {
+				(*features1)[c2][PIECETYPE_NUM + MAX_ATTACK_NUM + 1][sq2] = 1.0f;
 			}
 		}
 

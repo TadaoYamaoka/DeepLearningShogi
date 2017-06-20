@@ -98,30 +98,32 @@ namespace {
     }
 }
 
-CheckInfo::CheckInfo(const Position& pos) {
-    const Color them = oppositeColor(pos.turn());
-    const Square ksq = pos.kingSquare(them);
+CheckInfo::CheckInfo(const Position& pos, const Color turn) {
+	const Color them = oppositeColor(turn);
+	const Square ksq = pos.kingSquare(them);
 
-    pinned = pos.pinnedBB();
-    dcBB = pos.discoveredCheckBB();
+	pinned = pos.pinnedBB();
+	dcBB = pos.discoveredCheckBB();
 
-    checkBB[Pawn     ] = pos.attacksFrom<Pawn  >(them, ksq);
-    checkBB[Lance    ] = pos.attacksFrom<Lance >(them, ksq);
-    checkBB[Knight   ] = pos.attacksFrom<Knight>(them, ksq);
-    checkBB[Silver   ] = pos.attacksFrom<Silver>(them, ksq);
-    checkBB[Bishop   ] = pos.attacksFrom<Bishop>(ksq);
-    checkBB[Rook     ] = pos.attacksFrom<Rook  >(ksq);
-    checkBB[Gold     ] = pos.attacksFrom<Gold  >(them, ksq);
-    checkBB[King     ] = allZeroBB();
-    // todo: ここで AVX2 使えそう。
-    //       checkBB のreadアクセスは switch (pt) で場合分けして、余計なコピー減らした方が良いかも。
-    checkBB[ProPawn  ] = checkBB[Gold];
-    checkBB[ProLance ] = checkBB[Gold];
-    checkBB[ProKnight] = checkBB[Gold];
-    checkBB[ProSilver] = checkBB[Gold];
-    checkBB[Horse    ] = checkBB[Bishop] | pos.attacksFrom<King>(ksq);
-    checkBB[Dragon   ] = checkBB[Rook  ] | pos.attacksFrom<King>(ksq);
+	checkBB[Pawn] = pos.attacksFrom<Pawn  >(them, ksq);
+	checkBB[Lance] = pos.attacksFrom<Lance >(them, ksq);
+	checkBB[Knight] = pos.attacksFrom<Knight>(them, ksq);
+	checkBB[Silver] = pos.attacksFrom<Silver>(them, ksq);
+	checkBB[Bishop] = pos.attacksFrom<Bishop>(ksq);
+	checkBB[Rook] = pos.attacksFrom<Rook  >(ksq);
+	checkBB[Gold] = pos.attacksFrom<Gold  >(them, ksq);
+	checkBB[King] = allZeroBB();
+	// todo: ここで AVX2 使えそう。
+	//       checkBB のreadアクセスは switch (pt) で場合分けして、余計なコピー減らした方が良いかも。
+	checkBB[ProPawn] = checkBB[Gold];
+	checkBB[ProLance] = checkBB[Gold];
+	checkBB[ProKnight] = checkBB[Gold];
+	checkBB[ProSilver] = checkBB[Gold];
+	checkBB[Horse] = checkBB[Bishop] | pos.attacksFrom<King>(ksq);
+	checkBB[Dragon] = checkBB[Rook] | pos.attacksFrom<King>(ksq);
 }
+
+CheckInfo::CheckInfo(const Position& pos) : CheckInfo::CheckInfo(pos, pos.turn()) {}
 
 Bitboard Position::attacksFrom(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied) {
     switch (pt) {

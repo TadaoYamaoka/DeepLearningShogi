@@ -99,7 +99,9 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
-	pos.set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+	//pos.set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+	//pos.set("lnsgkg1nl/1r7/p1pppp1sp/6pP1/1p6B/2P6/PP1PPPP1P/7R1/LNSGKGSNL b Pb 1", nullptr); // dcBB
+	pos.set("lnsgkg1nl/1r5s1/pppppp1pp/6p2/b8/2P6/PPNPPPPPP/7R1/L1SGKGSNL b B 1", nullptr); // pinned
 
 	Bitboard occupied = pos.occupiedBB();
 	occupied.printBoard();
@@ -117,7 +119,7 @@ int main() {
 	}*/
 
 	// ãÓÇÃóòÇ´(ãÓéÌÇ≈É}Å[ÉW)
-	Bitboard attacks[ColorNum][PieceTypeNum] = {
+	/*Bitboard attacks[ColorNum][PieceTypeNum] = {
 		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
 		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
 	};
@@ -137,7 +139,15 @@ int main() {
 			std::cout << c << ":" << pt << std::endl;
 			attacks[c][pt].printBoard();
 		}
-	}
+	}*/
+
+	// â§éËèÓïÒ
+	std::cout << pos.inCheck() << std::endl;
+	CheckInfo checkInfo(pos);
+	std::cout << "dcBB" << std::endl;
+	checkInfo.dcBB.printBoard();
+	std::cout << "pinned" << std::endl;
+	checkInfo.pinned.printBoard();
 	
 }
 
