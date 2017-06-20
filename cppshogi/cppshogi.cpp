@@ -227,7 +227,7 @@ int make_move_label(const u16 move16, const PieceType move_piece, const Color co
 void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndresult) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	float (*features1)[ColorNum][PieceTypeNum-1][SquareNum] = reinterpret_cast<float(*)[ColorNum][PieceTypeNum-1][SquareNum]>(ndfeatures1.get_data());
+	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
 	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 
