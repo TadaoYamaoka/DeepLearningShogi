@@ -33,7 +33,8 @@ const u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 
 const int PIECETYPE_NUM = 14; // 駒の種類
 const int MAX_ATTACK_NUM = 3; // 利き数の最大値
-const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
+const int PAWN_RANK_NUM = 1; // 歩のある筋
+const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/ + PAWN_RANK_NUM/*歩のある筋*/;
 const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
 
 // 移動の定数

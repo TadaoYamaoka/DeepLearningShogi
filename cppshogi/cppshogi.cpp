@@ -51,6 +51,26 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			}
 		}
 
+		// 歩のある筋
+		for (int i = 0; i < FileNum; ++i) {
+			// 白の場合、盤面を180度回転
+			int i2 = i;
+			if (position.turn() == White) {
+				i2 = FileNum - i;
+			}
+			for (int j = 0; j < RankNum; ++j) {
+				Square sq = makeSquare(File(i), Rank(j));
+				Piece p = position.piece(sq);
+				if (pieceToPieceType(p) == Pawn && pieceToColor(p) == c) {
+					for (int k = 0; k < RankNum; ++k) {
+						Square sq2 = makeSquare(File(i2), Rank(k));
+						(*features1)[c2][PIECETYPE_NUM + MAX_ATTACK_NUM][sq2] = 1.0f;
+					}
+					break;
+				}
+			}
+		}
+
 		// hand
 		Hand hand = position.hand(c);
 		int p = 0;
