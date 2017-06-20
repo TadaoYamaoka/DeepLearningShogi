@@ -6,7 +6,7 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
-#if 1
+#if 0
 int main() {
 	// Boost.Python‚ÆBoost.Numpy‚Ì‰Šú‰»
 	Py_Initialize();
@@ -107,16 +107,38 @@ int main() {
 	pos.bbOf(Black).printBoard();
 	pos.bbOf(White).printBoard();
 
+	// ‹î‚Ì—˜‚«
+	/*for (Color c = Black; c < ColorNum; ++c) {
+		for (Square sq = SQ11; sq < SquareNum; sq++) {
+			Bitboard bb = pos.attackersTo(Black, sq, occupied);
+			std::cout << sq << ":" << bb.popCount() << std::endl;
+			bb.printBoard();
+		}
+	}*/
+
+	// ‹î‚Ì—˜‚«(‹îí‚Åƒ}[ƒW)
+	Bitboard attacks[ColorNum][PieceTypeNum] = {
+		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
+		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
+	};
+
 	for (Square sq = SQ11; sq < SquareNum; sq++) {
-		Bitboard bb = pos.attackersTo(Black, sq, occupied);
-		std::cout << sq << ":" << bb.popCount() << std::endl;
-		bb.printBoard();
+		Piece p = pos.piece(sq);
+		if (p != Empty) {
+			Color pc = pieceToColor(p);
+			PieceType pt = pieceToPieceType(p);
+			Bitboard bb = pos.attacksFrom(pt, pc, sq, occupied);
+			attacks[pc][pt] |= bb;
+		}
 	}
-	for (Square sq = SQ11; sq < SquareNum; sq++) {
-		Bitboard bb = pos.attackersTo(White, sq, occupied);
-		std::cout << sq << ":" << bb.popCount() << std::endl;
-		bb.printBoard();
+
+	for (Color c = Black; c < ColorNum; ++c) {
+		for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
+			std::cout << c << ":" << pt << std::endl;
+			attacks[c][pt].printBoard();
+		}
 	}
+	
 }
 
 #endif
