@@ -47,7 +47,7 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			// 利き数
 			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
 			for (int k = 0; k < num; k++) {
-				(*features1)[c2][PieceTypeNum - 1 + k][sq2] = 1.0f;
+				(*features1)[c2][PIECETYPE_NUM + k][sq2] = 1.0f;
 			}
 		}
 
