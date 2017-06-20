@@ -15,6 +15,9 @@ inline float score_to_value(const Score score) {
 // make input features
 void make_input_features(const Position& position, float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 	float(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
+
+	const Bitboard occupied_bb = position.occupiedBB();
+
 	for (Color c = Black; c < ColorNum; ++c) {
 		// 白の場合、色を反転
 		Color c2 = c;
@@ -22,20 +25,32 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			c2 = oppositeColor(c);
 		}
 
+		Bitboard bb[PieceTypeNum];
 		for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
-			Bitboard bb = position.bbOf(pt, c);
-			for (Square sq = SQ11; sq < SquareNum; ++sq) {
-				// 白の場合、盤面を180度回転
-				Square sq2 = sq;
-				if (position.turn() == White) {
-					sq2 = SQ99 - sq;
-				}
+			bb[pt] = position.bbOf(pt, c);
+		}
 
-				if (bb.isSet(sq)) {
+		for (Square sq = SQ11; sq < SquareNum; ++sq) {
+			// 白の場合、盤面を180度回転
+			Square sq2 = sq;
+			if (position.turn() == White) {
+				sq2 = SQ99 - sq;
+			}
+
+			// 駒の配置
+			for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
+				if (bb[pt].isSet(sq)) {
 					(*features1)[c2][pt - 1][sq2] = 1.0f;
 				}
 			}
+
+			// 利き数
+			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
+			for (int k = 0; k < num; k++) {
+				(*features1)[c2][PieceTypeNum - 1 + k][sq2] = 1.0f;
+			}
 		}
+
 		// hand
 		Hand hand = position.hand(c);
 		int p = 0;
