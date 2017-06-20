@@ -43,8 +43,7 @@ enum RepetitionType {
 };
 
 struct CheckInfo {
-	explicit CheckInfo(const Position&);
-	explicit CheckInfo(const Position&, const Color);
+    explicit CheckInfo(const Position&);
     Bitboard dcBB; // discoverd check candidates bitboard
     Bitboard pinned;
     Bitboard checkBB[PieceTypeNum];
