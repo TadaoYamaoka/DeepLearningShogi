@@ -18,6 +18,21 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 
 	const Bitboard occupied_bb = position.occupiedBB();
 
+	// 駒の利き(駒種でマージ)
+	Bitboard attacks[ColorNum][PieceTypeNum] = {
+		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
+		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
+	};
+	for (Square sq = SQ11; sq < SquareNum; sq++) {
+		Piece p = position.piece(sq);
+		if (p != Empty) {
+			Color pc = pieceToColor(p);
+			PieceType pt = pieceToPieceType(p);
+			Bitboard bb = position.attacksFrom(pt, pc, sq, occupied_bb);
+			attacks[pc][pt] |= bb;
+		}
+	}
+
 	for (Color c = Black; c < ColorNum; ++c) {
 		// 白の場合、色を反転
 		Color c2 = c;
@@ -25,6 +40,7 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 			c2 = oppositeColor(c);
 		}
 
+		// 駒の配置
 		Bitboard bb[PieceTypeNum];
 		for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
 			bb[pt] = position.bbOf(pt, c);
@@ -37,17 +53,22 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 				sq2 = SQ99 - sq;
 			}
 
-			// 駒の配置
 			for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
+				// 駒の配置
 				if (bb[pt].isSet(sq)) {
 					(*features1)[c2][pt - 1][sq2] = 1.0f;
+				}
+
+				// 駒の利き
+				if (attacks[c][pt].isSet(sq)) {
+					(*features1)[c2][PIECETYPE_NUM + pt - 1][sq2] = 1.0f;
 				}
 			}
 
 			// 利き数
 			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
 			for (int k = 0; k < num; k++) {
-				(*features1)[c2][PIECETYPE_NUM + k][sq2] = 1.0f;
+				(*features1)[c2][PIECETYPE_NUM + PIECETYPE_NUM + k][sq2] = 1.0f;
 			}
 		}
 
