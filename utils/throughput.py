@@ -37,7 +37,9 @@ def run(engine):
         x1 = Variable(cuda.to_gpu(features1))
         x2 = Variable(cuda.to_gpu(features2))
 
-        y = model(x1, x2, test=True)
+        with chainer.no_backprop_mode():
+            with chainer.using_config('train', False):
+                y = model(x1, x2)
 
         y_data = cuda.to_cpu(y.data)
 

@@ -36,7 +36,6 @@ model.to_gpu()
 
 alpha = args.lr
 optimizer = optimizers.SGD(lr=alpha)
-optimizer.use_cleargrads()
 optimizer.setup(model)
 
 # Init/Resume
@@ -56,7 +55,7 @@ logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
-def mini_batch(hcpevec, volatile=False):
+def mini_batch(hcpevec):
     features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
     features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     move = np.empty((len(hcpevec)), dtype=np.int32)
@@ -67,11 +66,11 @@ def mini_batch(hcpevec, volatile=False):
 
     z = result.astype(np.float32) - value + 0.5
 
-    return (Variable(cuda.to_gpu(features1), volatile),
-            Variable(cuda.to_gpu(features2), volatile),
-            Variable(cuda.to_gpu(move), volatile),
-            Variable(cuda.to_gpu(result.reshape((len(hcpevec), 1))), volatile),
-            Variable(cuda.to_gpu(z), volatile)
+    return (Variable(cuda.to_gpu(features1)),
+            Variable(cuda.to_gpu(features2)),
+            Variable(cuda.to_gpu(move)),
+            Variable(cuda.to_gpu(result.reshape((len(hcpevec), 1)))),
+            Variable(cuda.to_gpu(z))
             )
 
 # train
@@ -101,8 +100,10 @@ for e in range(args.epoch):
 
         # print train loss
         if optimizer.t % eval_interval == 0:
-            x1, x2, t1, t2, z = mini_batch(np.random.choice(test_data, 640), volatile=True)
-            y1, y2 = model(x1, x2, test=True)
+            x1, x2, t1, t2, z = mini_batch(np.random.choice(test_data, 640))
+            with chainer.no_backprop_mode():
+                with chainer.using_config('train', False):
+                    y1, y2 = model(x1, x2)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy1 = {}, accuracy2 = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.accuracy(y1, t1).data, F.binary_accuracy(y2, t2).data))
             itr = 0
             sum_loss = 0
@@ -112,8 +113,10 @@ for e in range(args.epoch):
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t1, t2, z = mini_batch(test_data[i:i+args.batchsize], volatile=True)
-        y1, y2 = model(x1, x2, test=True)
+        x1, x2, t1, t2, z = mini_batch(test_data[i:i+args.batchsize])
+        with chainer.no_backprop_mode():
+            with chainer.using_config('train', False):
+                y1, y2 = model(x1, x2)
         itr_test += 1
         sum_test_accuracy1 += F.accuracy(y1, t1).data
         sum_test_accuracy2 += F.binary_accuracy(y2, t2).data

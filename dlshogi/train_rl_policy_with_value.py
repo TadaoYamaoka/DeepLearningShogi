@@ -38,7 +38,6 @@ model.to_gpu()
 
 alpha = args.lr
 optimizer = optimizers.SGD(lr=alpha)
-optimizer.use_cleargrads()
 optimizer.setup(model)
 
 # Init/Resume
@@ -70,9 +69,11 @@ def run_n_games(optimizer, learner, opponent, num_games):
     odd_features1 = np.empty((num_games, 2 * 14, 9, 9), dtype=np.float32)
     odd_features2 = np.empty((num_games, 2 * MAX_PIECES_IN_HAND_SUM + 1, 9, 9), dtype=np.float32)
     states.make_odd_input_features(odd_features1, odd_features2)
-    x1 = Variable(cuda.to_gpu(odd_features1), volatile=True)
-    x2 = Variable(cuda.to_gpu(odd_features2), volatile=True)
-    y1, y2 = opponent(x1, x2, test=True)
+    x1 = Variable(cuda.to_gpu(odd_features1))
+    x2 = Variable(cuda.to_gpu(odd_features2))
+    with chainer.no_backprop_mode():
+        with chainer.using_config('train', False):
+            y1, y2 = opponent(x1, x2)
     y_data = cuda.to_cpu(y1.data)
     states.do_odd_moves(y_data)
 
@@ -87,9 +88,11 @@ def run_n_games(optimizer, learner, opponent, num_games):
         features1 = np.empty((unfinished_states_num, FEATURES1_NUM, 9, 9), dtype=np.float32)
         features2 = np.empty((unfinished_states_num, FEATURES2_NUM, 9, 9), dtype=np.float32)
         unfinished_list = states.make_unfinished_input_features(features1, features2)
-        x1 = Variable(cuda.to_gpu(features1), volatile=True)
-        x2 = Variable(cuda.to_gpu(features2), volatile=True)
-        y1, y2 = current(x1, x2, test=True)
+        x1 = Variable(cuda.to_gpu(features1))
+        x2 = Variable(cuda.to_gpu(features2))
+        with chainer.no_backprop_mode():
+            with chainer.using_config('train', False):
+                y1, y2 = current(x1, x2)
         y_data = cuda.to_cpu(y1.data)
 
         labels = np.empty((unfinished_states_num), dtype=np.int32)

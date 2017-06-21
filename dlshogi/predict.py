@@ -14,6 +14,8 @@ def predict(features1, features2):
     x1 = Variable(cuda.to_gpu(features1))
     x2 = Variable(cuda.to_gpu(features2))
 
-    y1, y2 = model(x1, x2, test=True)
+    with chainer.no_backprop_mode():
+        with chainer.using_config('train', False):
+            y1, y2 = model(x1, x2)
 
     return cuda.to_cpu(y1.data), cuda.to_cpu(F.sigmoid(y2).data)

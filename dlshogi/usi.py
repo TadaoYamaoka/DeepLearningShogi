@@ -65,10 +65,12 @@ def main():
             features2 = np.empty((1, FEATURES2_NUM, 9, 9), dtype=np.float32)
             turn = engine.make_input_features(features1, features2)
 
-            x1 = Variable(cuda.to_gpu(features1), volatile=True)
-            x2 = Variable(cuda.to_gpu(features2), volatile=True)
+            x1 = Variable(cuda.to_gpu(features1))
+            x2 = Variable(cuda.to_gpu(features2))
 
-            y = model(x1, x2, test=True)
+            with chainer.no_backprop_mode():
+                with chainer.using_config('train', False):
+                    y = model(x1, x2)
 
             y_data = cuda.to_cpu(y.data)
 

@@ -35,7 +35,6 @@ model.to_gpu()
 
 alpha = args.lr
 optimizer = optimizers.SGD(lr=alpha)
-optimizer.use_cleargrads()
 optimizer.setup(model)
 
 # Init/Resume

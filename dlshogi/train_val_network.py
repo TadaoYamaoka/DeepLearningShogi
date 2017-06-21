@@ -36,7 +36,6 @@ model = ValueNetwork()
 model.to_gpu()
 
 optimizer = optimizers.SGD(lr=args.lr)
-optimizer.use_cleargrads()
 optimizer.setup(model)
 
 # Init/Resume
@@ -56,16 +55,16 @@ logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
 # mini batch
-def mini_batch(hcpevec, volatile=False):
+def mini_batch(hcpevec):
     features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
     features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     result = np.empty((len(hcpevec), 1), dtype=np.int32)
 
     cppshogi.hcpe_decode_with_result(hcpevec, features1, features2, result)
 
-    return (Variable(cuda.to_gpu(features1), volatile),
-            Variable(cuda.to_gpu(features2), volatile),
-            Variable(cuda.to_gpu(result), volatile)
+    return (Variable(cuda.to_gpu(features1)),
+            Variable(cuda.to_gpu(features2)),
+            Variable(cuda.to_gpu(result))
             )
 
 # train
@@ -93,8 +92,10 @@ for e in range(args.epoch):
 
         # print train loss and test accuracy
         if optimizer.t % eval_interval == 0:
-            x1, x2, t = mini_batch(np.random.choice(test_data, 640), volatile=True)
-            y = model(x1, x2, test=True)
+            x1, x2, t = mini_batch(np.random.choice(test_data, 640))
+            with chainer.no_backprop_mode():
+                with chainer.using_config('train', False):
+                    y = model(x1, x2)
             logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.binary_accuracy(y, t).data))
             itr = 0
             sum_loss = 0
@@ -103,8 +104,10 @@ for e in range(args.epoch):
     itr_test = 0
     sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(test_data[i:i+args.batchsize], volatile=True)
-        y = model(x1, x2, test=True)
+        x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
+        with chainer.no_backprop_mode():
+            with chainer.using_config('train', False):
+                y = model(x1, x2)
         itr_test += 1
         sum_test_accuracy += F.binary_accuracy(y, t).data
     logging.info('epoch = {}, iteration = {}, train loss avr = {}, test accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_accuracy / itr_test))
