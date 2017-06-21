@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define BOOST_PYTHON_STATIC_LIB
 #define BOOST_NUMPY_STATIC_LIB
@@ -11,7 +11,7 @@
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
 
-const int MAX_HPAWN_NUM = 8; // ���̎�����̏��
+const int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
 const int MAX_HLANCE_NUM = 4;
 const int MAX_HKNIGHT_NUM = 4;
 const int MAX_HSILVER_NUM = 4;
@@ -31,12 +31,12 @@ const u32 MAX_PIECES_IN_HAND[] = {
 const u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
 const u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 
-const int PIECETYPE_NUM = 14; // ��̎��
-const int MAX_ATTACK_NUM = 3; // �������̍ő�l
-const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*��̔z�u*/ + PIECETYPE_NUM/*��̗���*/ + MAX_ATTACK_NUM/*������*/;
-const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*����*/;
+const int PIECETYPE_NUM = 14; // 駒の種類
+const int MAX_ATTACK_NUM = 3; // 利き数の最大値
+const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
+const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
 
-// �ړ��̒萔
+// 移動の定数
 enum MOVE_DIRECTION {
 	UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT,
 	UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE
