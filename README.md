@@ -9,8 +9,9 @@
 http://tadaoyamaoka.hatenablog.com/
 
 ## 使用ライブラリ
-* [Chainer](http://chainer.org/) 1.24.0
+* [Chainer](http://chainer.org/) 2.0.0
 * [elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)
+* [Ray+Rn](https://github.com/zakki/Ray)
 
 ※2017/06/02 高速化のため [python-shogi](https://github.com/gunyarakun/python-shogi)  の使用はやめました。
 
