@@ -96,12 +96,23 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}*/
 
 			// 各種初期化
-			SetPlayout(options["UCT_Playout"]);
 			SetThread(options["UCT_Threads"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
 			InitializeUctSearch();
-			InitializeSearchSetting();
 			InitializeUctHash();
+
+			// 初回探索をキャッシュ
+			Position pos_tmp;
+			pos_tmp.set(DefaultStartPositionSFEN, nullptr);
+			enum SEARCH_MODE mode_tmp = GetMode();
+			SetMode(CONST_PLAYOUT_MODE);
+			SetPlayout(1000);
+			InitializeSearchSetting();
+			UctSearchGenmove(&pos_tmp);
+
+			SetMode(mode_tmp);
+			SetPlayout(options["UCT_Playout"]);
+			InitializeSearchSetting();
 
 			std::cout << "readyok" << std::endl;
 		}
@@ -133,8 +144,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 				limits.searchmoves.push_back(usiToMove(pos, token));
 		}
 	}
-	if (limits.moveTime != 0)
+	if (limits.moveTime != 0) {
 		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+		SetByoyomi(limits.moveTime / 1000.0);
+	}
 	else if (pos.searcher()->options["Time_Margin"] != 0)
 		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
 

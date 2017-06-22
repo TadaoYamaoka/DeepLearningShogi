@@ -95,7 +95,7 @@ void OptionsMap::init(Searcher* s) {
     //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     //(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
-    (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
+    (*this)["Byoyomi_Margin"]              = USIOption(100, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(4500, 0, INT_MAX);
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
     (*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);

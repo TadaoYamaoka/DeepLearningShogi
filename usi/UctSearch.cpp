@@ -65,7 +65,7 @@ mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 						  // 探索の設定
-enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
+enum SEARCH_MODE mode = CONST_TIME_MODE;
 // 使用するスレッド数
 int threads = 16;
 // 1手あたりの試行時間
@@ -170,6 +170,11 @@ static void UpdateResult(child_node_t *child, float result, int current);
 ////////////////////////
 //  探索モードの指定  //
 ////////////////////////
+enum SEARCH_MODE
+GetMode()
+{
+	return mode;
+}
 void
 SetMode(enum SEARCH_MODE new_mode)
 {
@@ -214,6 +219,15 @@ void
 SetTime(double time)
 {
 	default_remaining_time = time;
+}
+
+//////////////////////
+//  秒読みの設定  //
+//////////////////////
+void
+SetByoyomi(double time)
+{
+	time_limit = time;
 }
 
 
