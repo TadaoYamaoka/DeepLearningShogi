@@ -65,7 +65,7 @@ mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 						  // 探索の設定
-enum SEARCH_MODE mode = CONST_PLAYOUT_MODE;
+enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
 // 使用するスレッド数
 int threads = 16;
 // 1手あたりの試行時間
@@ -431,7 +431,7 @@ UctSearchGenmove(const Position *pos)
 	// 最善応手列を出力
 	//PrintBestSequence(pos, uct_node, current_root);
 	// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
-	//PrintPlayoutInformation(&uct_node[current_root], &po_info, finish_time, pre_simulated);
+	PrintPlayoutInformation(&uct_node[current_root], &po_info, finish_time, pre_simulated);
 	// 次の探索でのプレイアウト回数の算出
 	CalculateNextPlayouts(pos, best_wp, finish_time);
 

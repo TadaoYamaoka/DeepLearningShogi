@@ -33,6 +33,25 @@ GetDebugMessageMode()
 	return debug_message;
 }
 
+///////////////////////
+//  探索の情報の表示  //
+///////////////////////
+void
+PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const double finish_time, const int pre_simulated)
+{
+	double winning_percentage = (double)root->win / root->move_count;
+
+	if (!debug_message) return;
+
+	cerr << "All Playouts       :  " << setw(7) << root->move_count << endl;
+	cerr << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
+	cerr << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
+	cerr << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
+	if (finish_time != 0.0) {
+		cerr << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
+	}
+}
+
 //////////////////////
 //  探索時間の出力  //
 /////////////////////
