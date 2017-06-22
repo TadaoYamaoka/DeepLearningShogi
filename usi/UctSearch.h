@@ -150,8 +150,5 @@ Move UctSearchGenmove(const Position *pos);
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);
 
-
-void SetUseNN(bool flag);
-
-void SetDeviceId(int id);
-
+// モデルパスの設定
+void SetModelPath(const char* path);

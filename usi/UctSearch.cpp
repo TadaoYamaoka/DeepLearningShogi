@@ -881,6 +881,11 @@ CalculateNextPlayouts(const Position *pos, double best_wp, double finish_time)
 	}
 }
 
+string model_path;
+void SetModelPath(const char* path)
+{
+	model_path = path;
+}
 
 void
 ReadWeights()
@@ -894,7 +899,7 @@ ReadWeights()
 
 	// modelロード
 	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_003_2");
+	dlshogi_load_model(model_path.c_str());
 
 	// 予測関数取得
 	dlshogi_predict = dlshogi_ns["predict"];

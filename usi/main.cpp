@@ -42,11 +42,6 @@ int main(int argc, char* argv[]) {
 	Position::initZobrist();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
-	// 各種初期化
-	InitializeUctSearch();
-	InitializeSearchSetting();
-	InitializeUctHash();
-
 	s->init();
 	s->doUSICommandLoop(argc, argv);
 	s->threads.exit();
@@ -100,12 +95,20 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				evalTableIsRead = true;
 			}*/
 
+			// 各種初期化
+			SetPlayout(options["UCT_Playout"]);
+			SetThread(options["UCT_Threads"]);
+			SetModelPath(std::string(options["DNN_Model"]).c_str());
+			InitializeUctSearch();
+			InitializeSearchSetting();
+			InitializeUctHash();
+
 			std::cout << "readyok" << std::endl;
 		}
 		else if (token == "setoption") setOption(ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	threads.main()->waitForSearchFinished();
+	//threads.main()->waitForSearchFinished();
 }
 
 void go_uct(Position& pos, std::istringstream& ssCmd) {
