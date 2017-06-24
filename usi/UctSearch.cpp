@@ -376,6 +376,11 @@ UctSearchGenmove(const Position *pos)
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
 
+	// 詰みのチェック
+	if (uct_node[current_root].child_num == 0) {
+		return Move::moveNone();
+	}
+
 	// 前回から持ち込んだ探索回数を記録
 	pre_simulated = uct_node[current_root].move_count;
 
