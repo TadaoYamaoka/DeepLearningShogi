@@ -96,12 +96,17 @@ for e in range(args.epoch):
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y = model(x1, x2)
-            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.binary_accuracy(y, t).data))
+            loss = F.sigmoid_cross_entropy(y, t)
+            logging.info('epoch = {}, iteration = {}, train loss = {}, test loss = {}, test accuracy = {}'.format(
+                optimizer.epoch + 1, optimizer.t, sum_loss / itr,
+                loss.data,
+                F.binary_accuracy(y, t).data))
             itr = 0
             sum_loss = 0
 
     # validate test data
     itr_test = 0
+    sum_test_loss = 0
     sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
         x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
@@ -109,8 +114,12 @@ for e in range(args.epoch):
             with chainer.using_config('train', False):
                 y = model(x1, x2)
         itr_test += 1
+        sum_test_loss += F.sigmoid_cross_entropy(y, t).data
         sum_test_accuracy += F.binary_accuracy(y, t).data
-    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test accuracy = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_accuracy / itr_test))
+    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test loss = {}, test accuracy = {}'.format(
+        optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch,
+        sum_test_loss / itr_test,
+        sum_test_accuracy / itr_test))
     
     optimizer.new_epoch()
 
