@@ -26,8 +26,8 @@ class ValueNetwork(Chain):
             l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l12=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
-            l12_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
+            l12_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
+            l12_2_v=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
             l13=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
             l14=L.Linear(fcl, 1),
             norm1=L.BatchNormalization(k),
@@ -67,7 +67,7 @@ class ValueNetwork(Chain):
         h10 = F.dropout(F.relu(self.norm10(self.l10(h9))), ratio=dropout_ratio)
         u11 = self.l11(h10) + u9
         # output
-        h12 = self.l12(u11)
-        h12_2 = F.relu(self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM))))
+        h12_v = self.l12_v(u11)
+        h12_2 = F.relu(self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM))))
         h13 = F.relu(self.l13(h12_2))
         return self.l14(h13)
