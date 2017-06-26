@@ -74,7 +74,6 @@ class PolicyValueNetwork(Chain):
         h12_1 = self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM)))
         # value network
         h12_v = self.l12_v(u11)
-        h12_1_v = self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM)))
-        h12_2 = F.relu(h12_1_v)
+        h12_2 = F.relu(self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM))))
         h13 = F.relu(self.l13(h12_2))
         return h12_1, self.l14(h13)
