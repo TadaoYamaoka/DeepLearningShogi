@@ -75,6 +75,8 @@ def mini_batch(hcpevec):
 
 # train
 itr = 0
+sum_loss1 = 0
+sum_loss2 = 0
 sum_loss = 0
 eval_interval = 1000
 for e in range(args.epoch):
@@ -94,6 +96,8 @@ for e in range(args.epoch):
         optimizer.update()
 
         itr += 1
+        sum_loss1 += loss1.data
+        sum_loss2 += loss2.data
         sum_loss += loss.data
         itr_epoch += 1
         sum_loss_epoch += loss.data
@@ -104,8 +108,13 @@ for e in range(args.epoch):
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y1, y2 = model(x1, x2)
-            logging.info('epoch = {}, iteration = {}, loss = {}, accuracy1 = {}, accuracy2 = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss / itr, F.accuracy(y1, t1).data, F.binary_accuracy(y2, t2).data))
+            logging.info('epoch = {}, iteration = {}, train loss = {}, {}, {}, test accuracy = {}, {}'.format(
+                optimizer.epoch + 1, optimizer.t,
+                sum_loss1 / itr, sum_loss2 / itr, sum_loss / itr,
+                F.accuracy(y1, t1).data, F.binary_accuracy(y2, t2).data))
             itr = 0
+            sum_loss1 = 0
+            sum_loss2 = 0
             sum_loss = 0
 
     # print train loss for each epoch
