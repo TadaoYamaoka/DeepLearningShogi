@@ -26,7 +26,7 @@ parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='stat
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
+parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
