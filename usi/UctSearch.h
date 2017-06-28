@@ -10,13 +10,13 @@
 
 const int THREAD_MAX = 20;              // 使用するスレッド数の最大値
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
-const double ALL_THINKING_TIME = 90.0;  // 持ち時間(デフォルト)
+const double ALL_THINKING_TIME = 1.0;  // 持ち時間(デフォルト)
 const int CONST_PLAYOUT = 2000;        // 1手あたりのプレイアウト回数(デフォルト)
-const double CONST_TIME = 3.0;         // 1手あたりの思考時間(デフォルト)
+const double CONST_TIME = 1.0;         // 1手あたりの思考時間(デフォルト)
 const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
 
 										// 思考時間の割り振り
-const int TIME_RATE_9 = 20;
+const int TIME_RATE_9 = 150;
 const int TIME_C_13 = 30;
 const int TIME_MAXPLY_13 = 30;
 const int TIME_C_19 = 60;
@@ -106,7 +106,6 @@ void StopPondering(void);
 void SetPonderingMode(bool flag);
 
 // 探索のモードの指定
-enum SEARCH_MODE GetMode();
 void SetMode(enum SEARCH_MODE mode);
 
 // 1手あたりのプレイアウト回数の指定
@@ -120,9 +119,8 @@ void SetThread(int new_thread);
 
 // 持ち時間の指定
 void SetTime(double time);
-
-//  秒読みの設定
-void SetByoyomi(double time);
+void SetRemainingTime(double time, Color c);
+void SetIncTime(double time, Color c);
 
 // 相手がパスしたらパスする
 void SetEarlyPass(bool pass);

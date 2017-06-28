@@ -102,17 +102,17 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			InitializeUctHash();
 
 			// 初回探索をキャッシュ
-			Position pos_tmp;
-			pos_tmp.set(DefaultStartPositionSFEN, nullptr);
-			enum SEARCH_MODE mode_tmp = GetMode();
+			Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
 			SetMode(CONST_PLAYOUT_MODE);
-			SetPlayout(1000);
+			SetPlayout(1);
 			InitializeSearchSetting();
 			UctSearchGenmove(&pos_tmp);
 
-			SetMode(mode_tmp);
-			SetPlayout(options["UCT_Playout"]);
+			// プレイアウト速度測定
+			SetMode(TIME_SETTING_WITH_BYOYOMI_MODE);
+			SetTime(1);
 			InitializeSearchSetting();
+			UctSearchGenmove(&pos_tmp);
 
 			std::cout << "readyok" << std::endl;
 		}
@@ -146,10 +146,14 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 	if (limits.moveTime != 0) {
 		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-		SetByoyomi(limits.moveTime / 1000.0);
+		SetConstTime(limits.moveTime / 1000.0);
 	}
 	else if (pos.searcher()->options["Time_Margin"] != 0)
 		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+
+	// 持ち時間設定
+	SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
+	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
 
 	// 詰みの探索用
 	/*limits.depth = static_cast<Depth>(6);

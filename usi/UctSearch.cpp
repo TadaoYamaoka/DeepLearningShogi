@@ -50,6 +50,8 @@ void EvalNode();
 
 // 持ち時間
 double remaining_time[ColorNum];
+double inc_time[ColorNum];
+double po_per_sec = PLAYOUT_SPEED;
 
 // UCTのノード
 uct_node_t *uct_node;
@@ -65,7 +67,7 @@ mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 						  // 探索の設定
-enum SEARCH_MODE mode = CONST_TIME_MODE;
+enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
 // 使用するスレッド数
 int threads = 16;
 // 1手あたりの試行時間
@@ -133,7 +135,8 @@ ClearEvalQueue()
 static void AddVirtualLoss(child_node_t *child, int current);
 
 // 次のプレイアウト回数の設定
-static void CalculateNextPlayouts(const Position *pos, double best_wp, double finish_time);
+static void CalculatePlayoutPerSec(double finish_time);
+static void CalculateNextPlayouts(const Position *pos);
 
 // ノードの展開
 static int ExpandNode(Position *pos, int current, const std::vector<int>& path);
@@ -170,11 +173,6 @@ static void UpdateResult(child_node_t *child, float result, int current);
 ////////////////////////
 //  探索モードの指定  //
 ////////////////////////
-enum SEARCH_MODE
-GetMode()
-{
-	return mode;
-}
 void
 SetMode(enum SEARCH_MODE new_mode)
 {
@@ -220,16 +218,16 @@ SetTime(double time)
 {
 	default_remaining_time = time;
 }
-
-//////////////////////
-//  秒読みの設定  //
-//////////////////////
 void
-SetByoyomi(double time)
+SetRemainingTime(double time, Color c)
 {
-	time_limit = time;
+	remaining_time[c] = time;
 }
-
+void
+SetIncTime(double time, Color c)
+{
+	inc_time[c] = time;
+}
 
 //////////////////////////
 //  ノード再利用の設定  //
@@ -328,11 +326,11 @@ InitializeSearchSetting(void)
 	}
 	else if (mode == TIME_SETTING_MODE ||
 		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		time_limit = remaining_time[0] / TIME_RATE_9;
+		time_limit = remaining_time[0];
 		po_info.num = (int)(PLAYOUT_SPEED * time_limit);
 		extend_time = true;
 	}
-
+	po_per_sec = PLAYOUT_SPEED;
 }
 
 
@@ -385,6 +383,7 @@ UctSearchGenmove(const Position *pos)
 	pre_simulated = uct_node[current_root].move_count;
 
 	// 探索回数の閾値を設定
+	CalculateNextPlayouts(pos);
 	po_info.halt = po_info.num;
 
 	// 自分の手番を設定
@@ -452,7 +451,7 @@ UctSearchGenmove(const Position *pos)
 	// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
 	PrintPlayoutInformation(&uct_node[current_root], &po_info, finish_time, pre_simulated);
 	// 次の探索でのプレイアウト回数の算出
-	CalculateNextPlayouts(pos, best_wp, finish_time);
+	CalculatePlayoutPerSec(finish_time);
 
 	ClearEvalQueue();
 
@@ -868,33 +867,31 @@ SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
 //  次のプレイアウト回数の設定  //
 /////////////////////////////////
 static void
-CalculateNextPlayouts(const Position *pos, double best_wp, double finish_time)
+CalculatePlayoutPerSec(double finish_time)
 {
-	int color = pos->turn();
-	double po_per_sec;
-
 	if (finish_time != 0.0) {
 		po_per_sec = po_info.count / finish_time;
 	}
 	else {
 		po_per_sec = PLAYOUT_SPEED * threads;
 	}
+}
 
-	// 次の探索の時の探索回数を求める
+static void
+CalculateNextPlayouts(const Position *pos)
+{
+	int color = pos->turn();
+
+	// 探索の時の探索回数を求める
 	if (mode == CONST_TIME_MODE) {
-		if (best_wp > 0.90) {
-			po_info.num = (int)(po_info.count / finish_time * const_thinking_time / 2);
-		}
-		else {
-			po_info.num = (int)(po_info.count / finish_time * const_thinking_time);
-		}
+		po_info.num = (int)(po_per_sec * const_thinking_time);
 	}
 	else if (mode == TIME_SETTING_MODE ||
 		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		time_limit = remaining_time[color] / TIME_RATE_9;
+		time_limit = remaining_time[color] / max(10, TIME_RATE_9 - pos->gamePly()) + inc_time[color];
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
-			time_limit < (const_thinking_time * 0.5)) {
-			time_limit = const_thinking_time * 0.5;
+			time_limit < (const_thinking_time)) {
+			time_limit = const_thinking_time;
 		}
 		po_info.num = (int)(po_per_sec * time_limit);
 	}

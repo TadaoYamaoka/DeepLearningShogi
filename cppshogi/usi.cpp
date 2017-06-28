@@ -96,7 +96,7 @@ void OptionsMap::init(Searcher* s) {
     //(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(100, 0, INT_MAX);
-    (*this)["Time_Margin"]                 = USIOption(4500, 0, INT_MAX);
+    (*this)["Time_Margin"]                 = USIOption(100, 0, INT_MAX);
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
     (*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
     (*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, 0, SHRT_MAX);
@@ -108,7 +108,6 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Move_Overhead"]               = USIOption(30, 0, 5000);
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
     //(*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
-	(*this)["UCT_Playout"]                 = USIOption(2000, 1, 10000);
 	(*this)["UCT_Threads"]                 = USIOption(cpuCoreCount(), 1, MaxThreads);
 	(*this)["DNN_Model"]                   = USIOption("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_005");
 #ifdef NDEBUG
