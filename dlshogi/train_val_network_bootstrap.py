@@ -20,7 +20,7 @@ import logging
 parser = argparse.ArgumentParser(description='Train value network')
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
-parser.add_argument('--batchsize', '-b', type=int, default=32, help='Number of positions in each mini-batch')
+parser.add_argument('--batchsize', '-b', type=int, default=256, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--model', type=str, default='model_val', help='model file name')
 parser.add_argument('--state', type=str, default='state_val', help='state file name')
@@ -67,7 +67,7 @@ def mini_batch(hcpevec):
 
     return (Variable(cuda.to_gpu(features1)),
             Variable(cuda.to_gpu(features2)),
-            Variable(cuda.to_gpu(result)),
+            Variable(cuda.to_gpu(result.reshape((len(hcpevec), 1)))),
             Variable(cuda.to_gpu(value.reshape((len(value), 1))))
             )
 
@@ -91,7 +91,7 @@ for e in range(args.epoch):
 
         model.cleargrads()
         loss1 = F.sigmoid_cross_entropy(y, t)
-        loss2 = cross_entropy(F.sigmoid(y2), value)
+        loss2 = cross_entropy(F.sigmoid(y), value)
         loss = loss1 + args.val_lambda * loss2
         loss.backward()
         optimizer.update()
@@ -105,12 +105,12 @@ for e in range(args.epoch):
 
         # print train loss and test accuracy
         if optimizer.t % eval_interval == 0:
-            x1, x2, t = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t, value = mini_batch(np.random.choice(test_data, 640))
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y = model(x1, x2)
             loss1 = F.sigmoid_cross_entropy(y, t)
-            loss2 = cross_entropy(F.sigmoid(y2), value)
+            loss2 = cross_entropy(F.sigmoid(y), value)
             loss = loss1 + args.val_lambda * loss2
             logging.info('epoch = {}, iteration = {}, train loss = {}, {}, {}, test loss = {}, {}, {}, test accuracy = {}'.format(
                 optimizer.epoch + 1, optimizer.t,
@@ -129,12 +129,12 @@ for e in range(args.epoch):
     sum_test_loss = 0
     sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
+        x1, x2, t, value = mini_batch(test_data[i:i+args.batchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
                 y = model(x1, x2)
         loss1 = F.sigmoid_cross_entropy(y, t)
-        loss2 = cross_entropy(F.sigmoid(y2), value)
+        loss2 = cross_entropy(F.sigmoid(y), value)
         loss = loss1 + args.val_lambda * loss2
         itr_test += 1
         sum_test_loss1 += loss1.data
