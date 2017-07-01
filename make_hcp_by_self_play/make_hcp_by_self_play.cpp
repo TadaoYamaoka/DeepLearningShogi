@@ -64,12 +64,11 @@ int main(int argc, char** argv)
 	Searcher s;
 	s.init();
 
-	const int batch_maxsize = 256;
-	static float features1[batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-	static float features2[batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
+	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
+	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
-	std::uniform_int_distribution<int> dist(8, 150);
+	std::uniform_int_distribution<int> dist(8, 256);
 
 	std::vector<HuffmanCodedPos> hcpvec;
 
@@ -100,13 +99,20 @@ int main(int argc, char** argv)
 
 	std::vector<Position> positions;
 	std::vector<int> maxply;
+	std::vector<int> tmpply;
+	std::vector<int> tmpply2;
 	std::vector<int> ply;
 	std::vector<StateListPtr> stateLists;
+	std::vector<HuffmanCodedPos> hcptmp(batch_size);
+	std::vector<HuffmanCodedPos> hcptmp2(batch_size);
 
 	// 局面初期化
 	for (int i = 0; i < batch_size; i++) {
 		positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 		maxply.emplace_back(dist(mt));
+		int maxply2 = std::uniform_int_distribution<int>(8, maxply[i])(mt);
+		tmpply.emplace_back(maxply2);
+		tmpply2.emplace_back(std::uniform_int_distribution<int>(8, maxply2)(mt));
 		ply.emplace_back(1);
 		stateLists.emplace_back(new std::deque<StateInfo>(1));
 	}
@@ -157,12 +163,32 @@ int main(int argc, char** argv)
 					hcpvec.emplace_back(positions[idx].toHuffmanCodedPos());
 					index++;
 				}
+				else if (ply[idx] == tmpply[idx]) {
+					hcptmp[idx] = positions[idx].toHuffmanCodedPos();
+				}
+				else if (ply[idx] == tmpply2[idx]) {
+					hcptmp2[idx] = positions[idx].toHuffmanCodedPos();
+				}
+			}
+			else {
+				// 終局の場合、暫定で保存した局面を出力
+				if (ply[idx] > tmpply[idx]) {
+					hcpvec.emplace_back(hcptmp[idx]);
+					index++;
+				}
+				else if (ply[idx] > tmpply2[idx]) {
+					hcpvec.emplace_back(hcptmp2[idx]);
+					index++;
+				}
 			}
 
 			// 次のゲーム
 			if (move == Move::moveNone() || ply[idx] == maxply[idx]) {
 				positions[idx].set(DefaultStartPositionSFEN, s.threads.main());
 				maxply[idx] = dist(mt);
+				int maxply2 = std::uniform_int_distribution<int>(8, maxply[idx])(mt);
+				tmpply.emplace_back(maxply2);
+				tmpply2.emplace_back(std::uniform_int_distribution<int>(8, maxply2)(mt));
 				ply[idx] = 1;
 				stateLists[idx]->clear();
 			}
