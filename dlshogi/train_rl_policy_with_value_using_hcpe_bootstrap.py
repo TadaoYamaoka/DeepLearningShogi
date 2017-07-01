@@ -76,7 +76,7 @@ def mini_batch(hcpevec):
             )
 
 def cross_entropy(p, q):
-    return F.mean(-p * F.log(q) - (1 - p) * F.log(1 - q))
+    return F.mean(-p * F.log(q + 1.0e-16) - (1 - p) * F.log(1 - q + 1.0e-16))
 
 # train
 itr = 0
