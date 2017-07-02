@@ -152,12 +152,6 @@ int main(int argc, char** argv)
 
 		// do move
 		for (int idx = 0; idx < positions.size(); idx++, logits++) {
-			// 低い確率でランダムムーブを入れる
-			if (doRandomDist(mt) == 0 && !positions[idx].inCheck()) {
-				randomMove(positions[idx], mt);
-				continue;
-			}
-
 			Move move = select_move(positions[idx], (float*)logits);
 
 			if (move != Move::moveNone()) {
@@ -200,6 +194,12 @@ int main(int argc, char** argv)
 				tmpply2.emplace_back(std::uniform_int_distribution<int>(8, maxply2)(mt));
 				ply[idx] = 1;
 				stateLists[idx]->clear();
+			}
+			else {
+				// 低い確率でランダムムーブを入れる
+				if (doRandomDist(mt) == 0 && !positions[idx].inCheck()) {
+					randomMove(positions[idx], mt);
+				}
 			}
 		}
 	}
