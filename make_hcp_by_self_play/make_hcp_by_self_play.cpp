@@ -5,6 +5,8 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
+void randomMove(Position& pos, std::mt19937& mt);
+
 const Move select_move(const Position pos, float *logits) {
 	// 合法手一覧
 	std::vector<Move> legal_moves;
@@ -68,7 +70,8 @@ int main(int argc, char** argv)
 	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
-	std::uniform_int_distribution<int> dist(8, 256);
+	std::uniform_int_distribution<int> dist(8, 250);
+	std::uniform_int_distribution<int> doRandomDist(0, 30);
 
 	std::vector<HuffmanCodedPos> hcpvec;
 
@@ -149,6 +152,12 @@ int main(int argc, char** argv)
 
 		// do move
 		for (int idx = 0; idx < positions.size(); idx++, logits++) {
+			// 低い確率でランダムムーブを入れる
+			if (doRandomDist(mt) == 0 && !positions[idx].inCheck()) {
+				randomMove(positions[idx], mt);
+				continue;
+			}
+
 			Move move = select_move(positions[idx], (float*)logits);
 
 			if (move != Move::moveNone()) {
@@ -183,7 +192,7 @@ int main(int argc, char** argv)
 			}
 
 			// 次のゲーム
-			if (move == Move::moveNone() || ply[idx] == maxply[idx]) {
+			if (move == Move::moveNone() || ply[idx] >= maxply[idx]) {
 				positions[idx].set(DefaultStartPositionSFEN, s.threads.main());
 				maxply[idx] = dist(mt);
 				int maxply2 = std::uniform_int_distribution<int>(8, maxply[idx])(mt);
