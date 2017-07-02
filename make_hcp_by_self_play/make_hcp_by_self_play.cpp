@@ -70,7 +70,7 @@ int main(int argc, char** argv)
 	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
-	std::uniform_int_distribution<int> dist(8, 250);
+	std::uniform_int_distribution<int> dist(4, 250);
 	std::uniform_int_distribution<int> doRandomDist(0, 30);
 
 	std::vector<HuffmanCodedPos> hcpvec;
