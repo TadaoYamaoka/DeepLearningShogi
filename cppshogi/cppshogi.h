@@ -120,3 +120,9 @@ void make_input_features(const Position& position, float(*features1)[ColorNum][M
 int make_move_label(const u16 move16, const Position& position);
 int make_move_label(const u16 move16, const PieceType move_piece, const Color color);
 void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
+
+// 評価値から価値(勝率)に変換
+// スケールパラメータは、elmo_for_learnの勝率から調査した値
+inline float score_to_value(const Score score) {
+	return 1.0f / (1.0f + expf(-(float)score * 0.00132566f));
+}

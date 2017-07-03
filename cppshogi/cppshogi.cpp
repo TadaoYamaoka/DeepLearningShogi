@@ -6,12 +6,6 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
-// 評価値から価値(勝率)に変換
-// スケールパラメータは、elmo_for_learnの勝率から調査した値
-inline float score_to_value(const Score score) {
-	return 1.0f / (1.0f + expf(-(float)score * 0.00132566f));
-}
-
 // make input features
 void make_input_features(const Position& position, float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]) {
 	float(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);

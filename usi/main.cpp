@@ -75,9 +75,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\n" << options
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
+#ifndef USE_VALUENET
 			// 詰みの探索にしか使用しないためオプション上書き
-			/*const std::string overwrite_options[] = {
-				"name Eval_Dir value H:\\src\\elmo_for_learn\\bin\\20161007", // 暫定
+			const std::string overwrite_options[] = {
 				"name Threads value 1",
 				"name MultiPV value 1",
 				"name Max_Random_Score_Diff value 0" };
@@ -93,7 +93,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
 				std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
 				evalTableIsRead = true;
-			}*/
+			}
+#endif // USE_VALUENET
 
 			// 各種初期化
 			SetThread(options["UCT_Threads"]);

@@ -99,7 +99,7 @@ static bool live_best_sequence = false;
 ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = THREAD_MAX; // スレッド数以上確保する
+const int policy_value_batch_maxsize = THREAD_MAX * 10; // スレッド数以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 static int policy_value_hash_index[2][policy_value_batch_maxsize];
@@ -586,6 +586,9 @@ QueuingNode(const Position *pos, int index)
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
 
+	if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
+		std::cout << "error" << std::endl;
+	}
 	// set all zero
 	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
 	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
@@ -717,6 +720,13 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		return 1.0f;
 	}
 
+#ifndef USE_VALUENET
+	// policyが計算されるのを待つ
+	//cout << "wait policy:" << current_root << ":" << uct_node[current_root].evaled << endl;
+	while (!uct_node[current].evaled)
+		this_thread::sleep_for(chrono::milliseconds(0));
+#endif // !USE_VALUENET
+
 	float result;
 	int next_index;
 	double score;
@@ -735,6 +745,12 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == -1) {
+#ifndef USE_VALUENET
+		// キューがいっぱいの場合待機する
+		while (current_policy_value_batch_index >= policy_value_batch_maxsize - THREAD_MAX)
+			this_thread::sleep_for(chrono::milliseconds(0));
+#endif // !USE_VALUENET
+
 		// ノードの展開中はロック
 		LOCK_EXPAND;
 		// ノードの展開
@@ -745,13 +761,24 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// ノード展開のロックの解除
 		UNLOCK_EXPAND;
 
+#ifndef USE_VALUENET
+		// 従来の評価関数を使う
+		// evaluate() の差分計算を無効化する。
+		SearchStack ss[2];
+		ss[0].staticEvalRaw.p[0][0] = ss[1].staticEvalRaw.p[0][0] = ScoreNotEvaluated;
+		const Score score = evaluate(*pos, ss + 1);
+		uct_node[child_index].value_win = score_to_value(score);
+#endif // !USE_VALUENET
+
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
+#ifdef USE_VALUENET
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (!uct_node[child_index].evaled)
 			this_thread::sleep_for(chrono::milliseconds(0));
+#endif // !NOUSE_VALUENET
 
 		// valueを勝敗として返す
 		result = 1 - uct_node[child_index].value_win;
@@ -1004,7 +1031,9 @@ void EvalNode() {
 					uct_child[j].nnrate = legal_move_probabilities[j];
 				}
 
+#ifdef USE_VALUENET
 				uct_node[index].value_win = *value;
+#endif // USE_VALUENET
 				uct_node[index].evaled = true;
 				UNLOCK_NODE(index);
 			}
