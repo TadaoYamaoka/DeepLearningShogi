@@ -66,6 +66,9 @@ int main(int argc, char** argv)
 	Searcher s;
 	s.init();
 
+	// ボルツマン温度設定
+	set_softmax_tempature(1.25f);
+
 	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
 
