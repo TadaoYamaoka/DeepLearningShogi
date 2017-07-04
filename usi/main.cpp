@@ -30,6 +30,7 @@ int main()
 #include "search.hpp"
 #include "tt.hpp"
 
+#include "cppshogi.h"
 #include "UctSearch.h"
 
 struct MySearcher : Searcher {
@@ -61,6 +62,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		if (argc == 1 && !std::getline(std::cin, cmd))
 			cmd = "quit";
 
+		//std::cout << "info string " << cmd << std::endl;
 		std::istringstream ssCmd(cmd);
 
 		ssCmd >> std::skipws >> token;
@@ -76,16 +78,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
 #ifndef USE_VALUENET
-			// 詰みの探索にしか使用しないためオプション上書き
-			const std::string overwrite_options[] = {
-				"name Threads value 1",
-				"name MultiPV value 1",
-				"name Max_Random_Score_Diff value 0" };
-			for (auto& str : overwrite_options) {
-				std::istringstream is(str);
-				setOption(is);
-			}
-
 			tt.clear();
 			threads.main()->previousScore = ScoreInfinite;
 			if (!evalTableIsRead) {
@@ -97,23 +89,24 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #endif // USE_VALUENET
 
 			// 各種初期化
+			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetThread(options["UCT_Threads"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
 			InitializeUctSearch();
 			InitializeUctHash();
 
 			// 初回探索をキャッシュ
-			Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
+			/*Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
 			SetMode(CONST_PLAYOUT_MODE);
-			SetPlayout(1);
+			SetPlayout(1);*/
 			InitializeSearchSetting();
-			UctSearchGenmove(&pos_tmp);
+			/*UctSearchGenmove(&pos_tmp);
 
 			// プレイアウト速度測定
 			SetMode(TIME_SETTING_WITH_BYOYOMI_MODE);
 			SetTime(1);
 			InitializeSearchSetting();
-			UctSearchGenmove(&pos_tmp);
+			UctSearchGenmove(&pos_tmp);*/
 
 			std::cout << "readyok" << std::endl;
 		}
@@ -157,7 +150,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
 
 	// 詰みの探索用
-	/*limits.depth = static_cast<Depth>(6);
+	/*limits.depth = static_cast<Depth>(0);
 	pos.searcher()->alpha = -ScoreMaxEvaluate;
 	pos.searcher()->beta = ScoreMaxEvaluate;
 	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);*/

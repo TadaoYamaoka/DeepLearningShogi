@@ -107,9 +107,10 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Draw_Ply"]                    = USIOption(256, 1, INT_MAX);
     (*this)["Move_Overhead"]               = USIOption(30, 0, 5000);
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
-    //(*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
+    (*this)["Threads"]                     = USIOption(1, 1, MaxThreads, onThreads, s);
 	(*this)["UCT_Threads"]                 = USIOption(cpuCoreCount(), 1, MaxThreads);
 	(*this)["DNN_Model"]                   = USIOption("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_005");
+	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
 #else

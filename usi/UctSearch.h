@@ -8,12 +8,12 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-//#define USE_VALUENET
+#define USE_VALUENET
 
 const int THREAD_MAX = 20;              // 使用するスレッド数の最大値
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
 const double ALL_THINKING_TIME = 1.0;  // 持ち時間(デフォルト)
-const int CONST_PLAYOUT = 2000;        // 1手あたりのプレイアウト回数(デフォルト)
+const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
 const double CONST_TIME = 1.0;         // 1手あたりの思考時間(デフォルト)
 const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
 
@@ -149,7 +149,7 @@ void InitializeSearchSetting(void);
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(const Position *pos);
+Move UctSearchGenmove(Position *pos);
 
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);

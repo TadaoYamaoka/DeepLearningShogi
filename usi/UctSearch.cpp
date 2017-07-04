@@ -67,7 +67,7 @@ mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 						  // 探索の設定
-enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
+enum SEARCH_MODE mode = CONST_PLAYOUT_MODE;
 // 使用するスレッド数
 int threads = 16;
 // 1手あたりの試行時間
@@ -348,7 +348,7 @@ FinalizeUctSearch(void)
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(const Position *pos)
+UctSearchGenmove(Position *pos)
 {
 	Move move;
 	int select_index, max_count, pre_simulated;
@@ -373,6 +373,20 @@ UctSearchGenmove(const Position *pos)
 
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
+
+#ifndef USE_VALUENET
+	// 従来の評価関数を使う
+	// evaluate() の差分計算を無効化する。
+	LimitsType limits;
+	limits.depth = static_cast<Depth>(1);
+	pos->searcher()->alpha = -ScoreMaxEvaluate;
+	pos->searcher()->beta = ScoreMaxEvaluate;
+	pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
+	pos->searcher()->threads.main()->waitForSearchFinished();
+	Score score = pos->searcher()->threads.main()->rootMoves[0].score;
+	uct_node[current_root].value_win = score_to_value(score);
+	//std::cout << score << std::endl;
+#endif // !USE_VALUENET
 
 	// 詰みのチェック
 	if (uct_node[current_root].child_num == 0) {
@@ -764,10 +778,15 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 #ifndef USE_VALUENET
 		// 従来の評価関数を使う
 		// evaluate() の差分計算を無効化する。
-		SearchStack ss[2];
-		ss[0].staticEvalRaw.p[0][0] = ss[1].staticEvalRaw.p[0][0] = ScoreNotEvaluated;
-		const Score score = evaluate(*pos, ss + 1);
+		LimitsType limits;
+		limits.depth = static_cast<Depth>(1);
+		pos->searcher()->alpha = -ScoreMaxEvaluate;
+		pos->searcher()->beta = ScoreMaxEvaluate;
+		pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
+		pos->searcher()->threads.main()->waitForSearchFinished();
+		Score score = pos->searcher()->threads.main()->rootMoves[0].score;
 		uct_node[child_index].value_win = score_to_value(score);
+		//std::cout << score << std::endl;
 #endif // !USE_VALUENET
 
 		// 現在見ているノードのロックを解除
@@ -866,7 +885,7 @@ SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を1にする
-		if (rnd(*mt) == 0) {
+		if (pos->turn() == my_color && rnd(*mt) == 0) {
 			rate = 1.0f;
 		}
 
