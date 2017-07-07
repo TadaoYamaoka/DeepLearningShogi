@@ -19,7 +19,7 @@ import logging
 parser = argparse.ArgumentParser(description='Traning RL policy network using hcpe')
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
-parser.add_argument('--batchsize', '-b', type=int, default=32, help='Number of positions in each mini-batch')
+parser.add_argument('--batchsize', '-b', type=int, default=64, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
