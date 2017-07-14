@@ -8,13 +8,13 @@ import chainer.links as L
 from dlshogi.common import *
 
 k = 192
-w = 3
 dropout_ratio = 0.1
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(Chain):
     def __init__(self):
         super(PolicyValueNetwork, self).__init__(
-            l1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = w, pad = int(w/2), nobias = True),
+            l1_1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l1_1_2=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 1, pad = 0, nobias = True),
             l1_2=L.Convolution2D(in_channels = FEATURES2_NUM, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
             l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
@@ -46,9 +46,10 @@ class PolicyValueNetwork(Chain):
         )
 
     def __call__(self, x1, x2):
-        u1_1 = self.l1_1(x1)
+        u1_1_1 = self.l1_1_1(x1)
+        u1_1_2 = self.l1_1_2(x1)
         u1_2 = self.l1_2(x2)
-        u1 = u1_1 + u1_2
+        u1 = u1_1_1 + u1_1_2 + u1_2
         # Residual block
         h1 = F.relu(self.norm1(u1))
         h2 = F.dropout(F.relu(self.norm2(self.l2(h1))), ratio=dropout_ratio)
