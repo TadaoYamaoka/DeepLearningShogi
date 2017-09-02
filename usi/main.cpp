@@ -96,17 +96,24 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			InitializeUctHash();
 
 			// 初回探索をキャッシュ
-			/*Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
+			SEARCH_MODE search_mode = GetMode();
+			Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
 			SetMode(CONST_PLAYOUT_MODE);
-			SetPlayout(1);*/
+			SetPlayout(1);
 			InitializeSearchSetting();
-			/*UctSearchGenmove(&pos_tmp);
+			UctSearchGenmove(&pos_tmp);
+			SetPlayout(CONST_PLAYOUT); // 元に戻す
 
-			// プレイアウト速度測定
-			SetMode(TIME_SETTING_WITH_BYOYOMI_MODE);
-			SetTime(1);
-			InitializeSearchSetting();
-			UctSearchGenmove(&pos_tmp);*/
+			SetMode(search_mode); // 元に戻す
+			if (search_mode == TIME_SETTING_MODE || search_mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
+				// プレイアウト速度測定
+				SetTime(1);
+				InitializeSearchSetting();
+				UctSearchGenmove(&pos_tmp);
+			}
+			else {
+				InitializeSearchSetting();
+			}
 
 			std::cout << "readyok" << std::endl;
 		}

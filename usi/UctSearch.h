@@ -109,6 +109,7 @@ void SetPonderingMode(bool flag);
 
 // 探索のモードの指定
 void SetMode(enum SEARCH_MODE mode);
+SEARCH_MODE GetMode();
 
 // 1手あたりのプレイアウト回数の指定
 void SetPlayout(int po);

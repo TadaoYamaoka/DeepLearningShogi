@@ -178,7 +178,10 @@ SetMode(enum SEARCH_MODE new_mode)
 {
 	mode = new_mode;
 }
-
+SEARCH_MODE GetMode()
+{
+	return mode;
+}
 
 ///////////////////////////////////////
 //  1手あたりのプレイアウト数の指定  //
