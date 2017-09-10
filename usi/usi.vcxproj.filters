@@ -87,6 +87,9 @@
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
       <Filter>ソース ファイル\elmo</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\book.cpp">
+      <Filter>ソース ファイル\elmo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ZobristHash.h">

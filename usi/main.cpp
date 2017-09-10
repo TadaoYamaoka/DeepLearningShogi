@@ -29,6 +29,7 @@ int main()
 #include "generateMoves.hpp"
 #include "search.hpp"
 #include "tt.hpp"
+#include "book.hpp"
 
 #include "cppshogi.h"
 #include "UctSearch.h"
@@ -37,10 +38,12 @@ struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
 void go_uct(Position& pos, std::istringstream& ssCmd);
+void make_book(std::istringstream& ssCmd);
 
 int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
+	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
 	s->init();
@@ -118,6 +121,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			std::cout << "readyok" << std::endl;
 		}
 		else if (token == "setoption") setOption(ssCmd);
+		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	//threads.main()->waitForSearchFinished();
@@ -156,6 +160,21 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
 	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
 
+	// Book使用
+	static Book book;
+	if (pos.searcher()->options["OwnBook"]) {
+		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, pos.searcher()->options["Book_File"], false);
+		if (std::get<0>(bookMoveScore)) {
+			std::cout << "info"
+				<< " score cp " << std::get<1>(bookMoveScore)
+				<< " pv " << std::get<0>(bookMoveScore).toUSI()
+				<< std::endl;
+
+			std::cout << "bestmove " << std::get<0>(bookMoveScore).toUSI() << std::endl;
+			return;
+		}
+	}
+
 	// 詰みの探索用
 	/*limits.depth = static_cast<Depth>(0);
 	pos.searcher()->alpha = -ScoreMaxEvaluate;
@@ -181,6 +200,159 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	std::cout << "move:" << move2.toUSI() << std::endl;*/
 
 
+}
+
+struct child_node_t_copy {
+	Move move;  // 着手する座標
+	int move_count;  // 探索回数
+	float win;         // 勝った回数
+
+	child_node_t_copy(const child_node_t& child) {
+		this->move = child.move;
+		this->move_count = child.move_count;
+		this->win = child.win;
+	}
+};
+
+// 定跡作成(再帰処理)
+void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, const int limitDepth) {
+	pos.setStartPosPly(depth + 1);
+	std::cout << pos.toSFEN() << std::endl;
+	if ((depth % 2 == 0) == isBlack) {
+		// UCT探索を使用
+		UctSearchGenmove(&pos);
+
+		// 探索回数で降順ソート
+		child_node_t *uct_child = uct_node[current_root].child;
+		std::vector<child_node_t_copy> movelist;
+		for (int i = 0; i < uct_node[current_root].child_num; i++) {
+			if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
+				movelist.emplace_back(uct_child[i]);
+			}
+		}
+		if (movelist.size() == 0) {
+			std::cerr << "Error: move_count" << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		std::cout << "movelist.size: " << movelist.size() << std::endl;
+
+		std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
+			return left.move_count > right.move_count;
+		});
+
+		const Key key = Book::bookKey(pos);
+		for (auto child : movelist) {
+			// 定跡追加
+			BookEntry be;
+			float wintrate = child.win / child.move_count;
+			be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
+			be.key = key;
+			be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
+			be.count = child.move_count;
+			outMap[key].push_back(be);
+
+			count++;
+
+			StateInfo state;
+			pos.doMove(child.move, state);
+
+			// 次の手を探索
+			if (depth + 1 < limitDepth)
+				make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
+
+			pos.undoMove(child.move);
+		}
+	}
+	else {
+		// 定跡を使用
+		// 合法手一覧
+		for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+			StateInfo state;
+			pos.doMove(ml.move(), state);
+
+			// 局面が定跡にあるか確認
+			auto itr = bookKeys.find(Book::bookKey(pos));
+			if (itr != bookKeys.end()) {
+				// 同じ局面を探索しないようにキーを削除
+				bookKeys.erase(itr);
+
+				// 次の手を探索
+				if (depth + 1 < limitDepth)
+					make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
+			}
+
+			pos.undoMove(ml.move());
+		}
+	}
+}
+
+// 定跡作成
+void make_book(std::istringstream& ssCmd) {
+	// isreadyを先に実行しておくこと。
+
+	std::string bookFileName;
+	std::string outFileName;
+	int limitDepth;
+	int playoutNum;
+	std::map<Key, std::vector<BookEntry> > outMap;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> limitDepth;
+	ssCmd >> playoutNum;
+
+	// プレイアウト数固定
+	SetMode(CONST_PLAYOUT_MODE);
+	SetPlayout(playoutNum);
+	InitializeSearchSetting();
+	SetReuseSubtree(false);
+
+	// 定跡読み込み
+	std::set<Key> bookKeys;
+	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
+	if (!ifs) {
+		std::cerr << "Error: cannot open " << bookFileName << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	BookEntry entry;
+	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+		bookKeys.insert(entry.key);
+	}
+	std::cout << bookKeys.size() << std::endl;
+
+	// 初期局面
+	Searcher s;
+	s.init();
+	const std::string options[] = { "name Threads value 1",
+		"name MultiPV value 1",
+		"name USI_Hash value 256",
+		"name OwnBook value false",
+		"name Max_Random_Score_Diff value 0" };
+	for (auto& str : options) {
+		std::istringstream is(str);
+		s.setOption(is);
+	}
+	Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
+
+	// 探索
+	int count = 0;
+	make_book_inner(pos, bookKeys, outMap, count, 0, true, limitDepth);
+	int black_num = outMap.size();
+
+	pos.set(DefaultStartPositionSFEN, s.threads.main());
+	make_book_inner(pos, bookKeys, outMap, count, 0, false, limitDepth);
+	int white_num = outMap.size() - black_num;
+
+	std::cout << "black\t" << black_num << std::endl;
+	std::cout << "white\t" << white_num << std::endl;
+	std::cout << "sum\t" << black_num + white_num << std::endl;
+
+	// 保存
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+	}
 }
 
 #endif

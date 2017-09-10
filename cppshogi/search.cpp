@@ -28,7 +28,7 @@
 #include "generateMoves.hpp"
 #include "thread.hpp"
 #include "timeManager.hpp"
-//#include "book.hpp"
+#include "book.hpp"
 
 #if defined USE_GLOBAL
 SignalsType Searcher::signals;
@@ -1379,12 +1379,12 @@ void MainThread::search() {
     auto& tt = searcher->tt;
     auto& signals = searcher->signals;
 
-    //static Book book;
+    static Book book;
     Position& pos = rootPos;
     const Color us = pos.turn();
     searcher->timeManager.init(searcher->limits, us, pos.gamePly(), pos, searcher);
-    //std::uniform_int_distribution<int> dist(options["Min_Book_Ply"], options["Max_Book_Ply"]);
-    //const Ply book_ply = dist(g_randomTimeSeed);
+    std::uniform_int_distribution<int> dist(options["Min_Book_Ply"], options["Max_Book_Ply"]);
+    const Ply book_ply = dist(g_randomTimeSeed);
     bool searched = false;
 
     bool nyugyokuWin = false;
@@ -1394,7 +1394,7 @@ void MainThread::search() {
     }
     pos.setNodesSearched(0);
 
-    /*SYNCCOUT << "info string book_ply " << book_ply << SYNCENDL;
+    SYNCCOUT << "info string book_ply " << book_ply << SYNCENDL;
     if (options["OwnBook"] && pos.gamePly() <= book_ply) {
         const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
         if (std::get<0>(bookMoveScore) && std::find(rootMoves.begin(),
@@ -1411,7 +1411,7 @@ void MainThread::search() {
 
             goto finalize;
         }
-    }*/
+    }
 #if defined BISHOP_IN_DANGER
     {
         auto deleteFunc = [](const std::string& str) {

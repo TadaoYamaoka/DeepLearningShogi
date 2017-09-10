@@ -75,6 +75,9 @@
     <ClCompile Include="common.cpp">
       <Filter>ソース ファイル\elmo</Filter>
     </ClCompile>
+    <ClCompile Include="book.cpp">
+      <Filter>ソース ファイル\elmo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.hpp">
@@ -147,6 +150,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="cppshogi.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="book.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

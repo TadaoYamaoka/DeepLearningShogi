@@ -66,8 +66,8 @@ int current_root; // 現在のルートのインデックス
 mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
-						  // 探索の設定
-enum SEARCH_MODE mode = CONST_PLAYOUT_MODE;
+// 探索の設定
+enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
 // 使用するスレッド数
 int threads = 16;
 // 1手あたりの試行時間
@@ -88,7 +88,7 @@ std::thread *handle[THREAD_MAX];    // スレッドのハンドル
 std::mt19937_64 *mt[THREAD_MAX];
 
 // 
-bool reuse_subtree = true;
+bool reuse_subtree = false;
 
 // 自分の手番の色
 int my_color;
@@ -458,7 +458,7 @@ UctSearchGenmove(Position *pos)
 			cp = 30000;
 		}
 		else {
-			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3);
+			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3f);
 		}
 		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << move.toUSI() << endl;
 	}
@@ -973,7 +973,7 @@ ReadWeights()
 void EvalNode() {
 	while (true) {
 		LOCK_EXPAND;
-		bool running = handle[0] != nullptr;
+		bool running = handle[threads - 1] != nullptr;
 		if (!running
 			&& (!reuse_subtree || current_policy_value_batch_index == 0)) {
 			UNLOCK_EXPAND;

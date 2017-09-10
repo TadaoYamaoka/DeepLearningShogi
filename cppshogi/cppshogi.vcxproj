@@ -235,6 +235,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
+    <ClCompile Include="book.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="cppshogi.cpp" />
     <ClCompile Include="evalList.cpp" />
@@ -256,6 +257,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.hpp" />
+    <ClInclude Include="book.hpp" />
     <ClInclude Include="color.hpp" />
     <ClInclude Include="common.hpp" />
     <ClInclude Include="cppshogi.h" />

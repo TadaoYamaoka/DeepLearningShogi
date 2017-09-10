@@ -127,7 +127,8 @@ SearchEmptyIndex(const unsigned long long hash, const int color, const int moves
 			node_hash[i].moves = moves;
 			node_hash[i].color = color;
 			used++;
-			if (used > uct_hash_limit) enough_size = false;
+			if (used > uct_hash_limit)
+				enough_size = false;
 			return i;
 		}
 		i++;

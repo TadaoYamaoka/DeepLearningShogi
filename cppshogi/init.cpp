@@ -23,7 +23,7 @@
 #include "init.hpp"
 #include "mt64bit.hpp"
 #include "evaluate.hpp"
-//#include "book.hpp"
+#include "book.hpp"
 #include "search.hpp"
 
 namespace {
@@ -364,7 +364,7 @@ void initTable() {
     initNeighbor5x5();
     initSquareDistance();
 
-    //Book::init();
+    Book::init();
     initSearchTable();
 }
 

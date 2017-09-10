@@ -223,6 +223,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cppshogi\bitboard.cpp" />
+    <ClCompile Include="..\cppshogi\book.cpp" />
     <ClCompile Include="..\cppshogi\common.cpp" />
     <ClCompile Include="..\cppshogi\cppshogi.cpp" />
     <ClCompile Include="..\cppshogi\evalList.cpp" />

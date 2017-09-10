@@ -78,5 +78,8 @@
     <ClCompile Include="..\cppshogi\usi.cpp">
       <Filter>ソース ファイル\elmo</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\book.cpp">
+      <Filter>ソース ファイル\elmo</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
