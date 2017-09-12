@@ -80,7 +80,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\n" << options
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
-#ifndef USE_VALUENET
+			// 詰み探索用
 			tt.clear();
 			threads.main()->previousScore = ScoreInfinite;
 			if (!evalTableIsRead) {
@@ -89,7 +89,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
 				evalTableIsRead = true;
 			}
-#endif // USE_VALUENET
 
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
@@ -124,7 +123,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	//threads.main()->waitForSearchFinished();
+	threads.main()->waitForSearchFinished();
 }
 
 void go_uct(Position& pos, std::istringstream& ssCmd) {
@@ -176,30 +175,33 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	/*limits.depth = static_cast<Depth>(0);
+	limits.depth = static_cast<Depth>(6);
 	pos.searcher()->alpha = -ScoreMaxEvaluate;
 	pos.searcher()->beta = ScoreMaxEvaluate;
-	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);*/
+	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
 
 	// UCTによる探索
 	Move move = UctSearchGenmove(&pos);
 	if (move == Move::moveNone()) {
 		std::cout << "bestmove resign" << std::endl;
+		return;
+	}
+
+	// 探索待ち
+	pos.searcher()->threads.main()->waitForSearchFinished();
+
+	Score score = pos.searcher()->threads.main()->rootMoves[0].score;
+
+	if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
+		SYNCCOUT << "bestmove resign" << SYNCENDL;
+	} else if (score > ScoreMaxEvaluate) {
+		Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
+		std::cout << "info score mate " << ScoreMate0Ply - score << " pv " << move2.toUSI() << std::endl;
+		std::cout << "bestmove " << move2.toUSI() << std::endl;
 	}
 	else {
 		std::cout << "bestmove " << move.toUSI() << std::endl;
 	}
-
-	// 探索待ち
-	/*pos.searcher()->threads.main()->waitForSearchFinished();
-
-	Score score = pos.searcher()->threads.main()->rootMoves[0].score;
-	Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-
-	std::cout << "score:" << score << std::endl;
-	std::cout << "move:" << move2.toUSI() << std::endl;*/
-
-
 }
 
 struct child_node_t_copy {
