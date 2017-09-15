@@ -81,7 +81,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
-			if (options["Search_Mate"]) {
+			if (options["Search_Mate_Depth"] > 0) {
 				tt.clear();
 				threads.main()->previousScore = ScoreInfinite;
 				if (!evalTableIsRead) {
@@ -125,7 +125,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	if (options["Search_Mate"])
+	if (options["Search_Mate_Depth"] > 0)
 		threads.main()->waitForSearchFinished();
 }
 
@@ -178,8 +178,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	if (pos.searcher()->options["Search_Mate"]) {
-		limits.depth = static_cast<Depth>(6);
+	if (pos.searcher()->options["Search_Mate_Depth"] > 0) {
+		limits.depth = static_cast<Depth>((int)pos.searcher()->options["Search_Mate_Depth"]);
 		pos.searcher()->alpha = -ScoreMaxEvaluate;
 		pos.searcher()->beta = ScoreMaxEvaluate;
 		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);

@@ -14,11 +14,11 @@ const int THREAD_MAX = 20;              // 使用するスレッド数の最大�
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
 const double ALL_THINKING_TIME = 1.0;  // 持ち時間(デフォルト)
 const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
-const double CONST_TIME = 1.0;         // 1手あたりの思考時間(デフォルト)
+const double CONST_TIME = 3.0;         // 1手あたりの思考時間(デフォルト)
 const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
 
 										// 思考時間の割り振り
-const int TIME_RATE_9 = 150;
+const int TIME_RATE_9 = 100;
 const int TIME_C_13 = 30;
 const int TIME_MAXPLY_13 = 30;
 const int TIME_C_19 = 60;
