@@ -81,13 +81,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
-			tt.clear();
-			threads.main()->previousScore = ScoreInfinite;
-			if (!evalTableIsRead) {
-				// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
-				// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-				std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
-				evalTableIsRead = true;
+			if (options["Search_Mate"]) {
+				tt.clear();
+				threads.main()->previousScore = ScoreInfinite;
+				if (!evalTableIsRead) {
+					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
+					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
+					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+					evalTableIsRead = true;
+				}
 			}
 
 			// 各種初期化
@@ -123,7 +125,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	threads.main()->waitForSearchFinished();
+	if (options["Search_Mate"])
+		threads.main()->waitForSearchFinished();
 }
 
 void go_uct(Position& pos, std::istringstream& ssCmd) {
@@ -175,10 +178,12 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	limits.depth = static_cast<Depth>(6);
-	pos.searcher()->alpha = -ScoreMaxEvaluate;
-	pos.searcher()->beta = ScoreMaxEvaluate;
-	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
+	if (pos.searcher()->options["Search_Mate"]) {
+		limits.depth = static_cast<Depth>(6);
+		pos.searcher()->alpha = -ScoreMaxEvaluate;
+		pos.searcher()->beta = ScoreMaxEvaluate;
+		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
+	}
 
 	// UCTによる探索
 	Move move = UctSearchGenmove(&pos);
@@ -188,20 +193,24 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 探索待ち
-	pos.searcher()->threads.main()->waitForSearchFinished();
+	if (pos.searcher()->options["Search_Mate"]) {
+		pos.searcher()->threads.main()->waitForSearchFinished();
 
-	Score score = pos.searcher()->threads.main()->rootMoves[0].score;
+		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 
-	if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
-		SYNCCOUT << "bestmove resign" << SYNCENDL;
-	} else if (score > ScoreMaxEvaluate) {
-		Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-		std::cout << "info score mate " << ScoreMate0Ply - score << " pv " << move2.toUSI() << std::endl;
-		std::cout << "bestmove " << move2.toUSI() << std::endl;
+		if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
+			SYNCCOUT << "bestmove resign" << SYNCENDL;
+			return;
+		}
+		else if (score > ScoreMaxEvaluate) {
+			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
+			std::cout << "info score mate " << ScoreMate0Ply - score << " pv " << move2.toUSI() << std::endl;
+			std::cout << "bestmove " << move2.toUSI() << std::endl;
+			return;
+		}
 	}
-	else {
-		std::cout << "bestmove " << move.toUSI() << std::endl;
-	}
+
+	std::cout << "bestmove " << move.toUSI() << std::endl;
 }
 
 struct child_node_t_copy {
@@ -221,51 +230,86 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 	pos.setStartPosPly(depth + 1);
 	std::cout << pos.toSFEN() << std::endl;
 	if ((depth % 2 == 0) == isBlack) {
-		// UCT探索を使用
-		UctSearchGenmove(&pos);
-
-		// 探索回数で降順ソート
-		child_node_t *uct_child = uct_node[current_root].child;
-		std::vector<child_node_t_copy> movelist;
-		for (int i = 0; i < uct_node[current_root].child_num; i++) {
-			if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
-				movelist.emplace_back(uct_child[i]);
-			}
-		}
-		if (movelist.size() == 0) {
-			std::cerr << "Error: move_count" << std::endl;
-			exit(EXIT_FAILURE);
-		}
-		std::cout << "movelist.size: " << movelist.size() << std::endl;
-
-		std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
-			return left.move_count > right.move_count;
-		});
-
 		const Key key = Book::bookKey(pos);
-		for (auto child : movelist) {
-			// 定跡追加
-			BookEntry be;
-			float wintrate = child.win / child.move_count;
-			be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
-			be.key = key;
-			be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
-			be.count = child.move_count;
-			outMap[key].push_back(be);
 
-			count++;
+		if (outMap.find(key) == outMap.end()) {
+			// UCT探索を使用
+			UctSearchGenmove(&pos);
 
-			StateInfo state;
-			pos.doMove(child.move, state);
+			// 探索回数で降順ソート
+			std::vector<child_node_t_copy> movelist;
+			child_node_t *uct_child = uct_node[current_root].child;
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
+				if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
+					movelist.emplace_back(uct_child[i]);
+				}
+			}
+			if (movelist.size() == 0) {
+				std::cerr << "Error: move_count" << std::endl;
+				exit(EXIT_FAILURE);
+			}
+			std::cout << "movelist.size: " << movelist.size() << std::endl;
 
-			// 次の手を探索
-			if (depth + 1 < limitDepth)
+			std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
+				return left.move_count > right.move_count;
+			});
+
+			for (auto child : movelist) {
+				// 定跡追加
+				BookEntry be;
+				float wintrate = child.win / child.move_count;
+				be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
+				be.key = key;
+				be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
+				be.count = child.move_count;
+				outMap[key].push_back(be);
+
+				count++;
+
+				StateInfo state;
+				pos.doMove(child.move, state);
+
+				// 次の手を探索
 				make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
 
-			pos.undoMove(child.move);
+				pos.undoMove(child.move);
+			}
+		}
+		else {
+			// 探索済みの場合
+			for (auto entry : outMap[key]) {
+				Move move = Move::moveNone();
+				const Move tmp = Move(entry.fromToPro);
+				const Square to = tmp.to();
+				if (tmp.isDrop()) {
+					const PieceType ptDropped = tmp.pieceTypeDropped();
+					move = makeDropMove(ptDropped, to);
+				}
+				else {
+					const Square from = tmp.from();
+					const PieceType ptFrom = pieceToPieceType(pos.piece(from));
+					const bool promo = tmp.isPromotion();
+					if (promo)
+						move = makeCapturePromoteMove(ptFrom, from, to, pos);
+					else
+						move = makeCaptureMove(ptFrom, from, to, pos);
+				}
+
+				StateInfo state;
+				pos.doMove(move, state);
+
+				// 次の手を探索
+				make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
+
+				pos.undoMove(move);
+			}
 		}
 	}
 	else {
+		// limitDepthを超えた場合終了
+		if (depth + 2 >= limitDepth)
+			return;
+
 		// 定跡を使用
 		// 合法手一覧
 		for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
@@ -279,8 +323,7 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 				bookKeys.erase(itr);
 
 				// 次の手を探索
-				if (depth + 1 < limitDepth)
-					make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
+				make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
 			}
 
 			pos.undoMove(ml.move());
@@ -320,7 +363,19 @@ void make_book(std::istringstream& ssCmd) {
 	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
 		bookKeys.insert(entry.key);
 	}
-	std::cout << bookKeys.size() << std::endl;
+	std::cout << "bookKeys.size: " << bookKeys.size() << std::endl;
+
+	// outFileが存在するときは追加する
+	{
+		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].push_back(entry);
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
 
 	// 初期局面
 	Searcher s;
