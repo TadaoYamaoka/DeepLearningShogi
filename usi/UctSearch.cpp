@@ -460,7 +460,36 @@ UctSearchGenmove(Position *pos)
 		else {
 			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3f);
 		}
-		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << move.toUSI() << endl;
+
+		// PV表示
+		string pv;
+		{
+			int best_index = select_index;
+			child_node_t *best_node = uct_child;
+
+			while (true) {
+				pv += " " + best_node[best_index].move.toUSI();
+
+				if (best_node[best_index].index == -1)
+					break;
+
+				const int best_node_index = best_node[best_index].index;
+
+				best_node = uct_node[best_node_index].child;
+				max_count = 0;
+				for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
+					if (best_node[i].move_count > max_count) {
+						best_index = i;
+						max_count = best_node[i].move_count;
+					}
+				}
+
+				if (max_count < 20)
+					break;
+			}
+		}
+
+		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv" << pv << endl;
 	}
 
 	// 最善応手列を出力

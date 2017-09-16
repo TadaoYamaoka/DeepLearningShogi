@@ -192,8 +192,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		return;
 	}
 
-	// 探索待ち
-	if (pos.searcher()->options["Search_Mate"]) {
+	// 詰み探索待ち
+	if (pos.searcher()->options["Search_Mate_Depth"] > 0) {
 		pos.searcher()->threads.main()->waitForSearchFinished();
 
 		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
@@ -203,6 +203,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 			return;
 		}
 		else if (score > ScoreMaxEvaluate) {
+			// 詰み
 			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
 			std::cout << "info score mate " << ScoreMate0Ply - score << " pv " << move2.toUSI() << std::endl;
 			std::cout << "bestmove " << move2.toUSI() << std::endl;
