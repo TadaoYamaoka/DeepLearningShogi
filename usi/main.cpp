@@ -379,6 +379,7 @@ void make_book(std::istringstream& ssCmd) {
 			std::cout << "outMap.size: " << outMap.size() << std::endl;
 		}
 	}
+	int input_num = outMap.size();
 
 	// 初期局面
 	Searcher s;
@@ -403,7 +404,8 @@ void make_book(std::istringstream& ssCmd) {
 	make_book_inner(pos, bookKeys, outMap, count, 0, false, limitDepth);
 	int white_num = outMap.size() - black_num;
 
-	std::cout << "black\t" << black_num << std::endl;
+	std::cout << "input\t" << input_num << std::endl;
+	std::cout << "black\t" << black_num - input_num << std::endl;
 	std::cout << "white\t" << white_num << std::endl;
 	std::cout << "sum\t" << black_num + white_num << std::endl;
 
