@@ -270,13 +270,17 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 				pos.doMove(child.move, state);
 
 				// 次の手を探索
-				make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
+				if (depth + 1 < limitDepth)
+					make_book_inner(pos, bookKeys, outMap, count, depth + 1, isBlack, limitDepth);
 
 				pos.undoMove(child.move);
 			}
 		}
 		else {
 			// 探索済みの場合
+			if (depth + 1 >= limitDepth)
+				return;
+
 			for (auto entry : outMap[key]) {
 				Move move = Move::moveNone();
 				const Move tmp = Move(entry.fromToPro);
@@ -306,11 +310,10 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 		}
 	}
 	else {
-		// limitDepthを超えた場合終了
-		if (depth + 2 >= limitDepth)
+		// 定跡を使用
+		if (depth + 1 >= limitDepth)
 			return;
 
-		// 定跡を使用
 		// 合法手一覧
 		for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
 			StateInfo state;
