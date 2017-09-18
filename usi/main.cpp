@@ -81,7 +81,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
-			if (options["Search_Mate_Depth"] > 0) {
+			if (options["Mate_Search_Depth"] > 0 || options["Leaf_Search_Depth"] > 0) {
 				tt.clear();
 				threads.main()->previousScore = ScoreInfinite;
 				if (!evalTableIsRead) {
@@ -95,6 +95,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetThread(options["UCT_Threads"]);
+			if (options["Leaf_Search_Depth"] > 0) {
+				InitSearcher(); // スレッドごとのSearcher初期化(末端ノードでの探索用)
+			}
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
 			InitializeUctSearch();
 			InitializeUctHash();
@@ -125,7 +128,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	if (options["Search_Mate_Depth"] > 0)
+	if (options["Mate_Search_Depth"] > 0)
 		threads.main()->waitForSearchFinished();
 }
 
@@ -178,8 +181,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	if (pos.searcher()->options["Search_Mate_Depth"] > 0) {
-		limits.depth = static_cast<Depth>((int)pos.searcher()->options["Search_Mate_Depth"]);
+	if (pos.searcher()->options["Mate_Search_Depth"] > 0) {
+		limits.depth = static_cast<Depth>((int)pos.searcher()->options["Mate_Search_Depth"]);
 		pos.searcher()->alpha = -ScoreMaxEvaluate;
 		pos.searcher()->beta = ScoreMaxEvaluate;
 		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
@@ -193,7 +196,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰み探索待ち
-	if (pos.searcher()->options["Search_Mate_Depth"] > 0) {
+	if (pos.searcher()->options["Mate_Search_Depth"] > 0) {
 		pos.searcher()->threads.main()->waitForSearchFinished();
 
 		Score score = pos.searcher()->threads.main()->rootMoves[0].score;

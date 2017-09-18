@@ -157,3 +157,6 @@ void SetReuseSubtree(bool flag);
 
 // モデルパスの設定
 void SetModelPath(const char* path);
+
+// スレッドごとのSearcher初期化
+void InitSearcher();

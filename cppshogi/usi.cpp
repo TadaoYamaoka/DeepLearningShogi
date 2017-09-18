@@ -111,7 +111,8 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["UCT_Threads"]                 = USIOption(cpuCoreCount(), 1, MaxThreads);
 	(*this)["DNN_Model"]                   = USIOption("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_005");
 	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
-	(*this)["Search_Mate_Depth"]           = USIOption(0, 0, 20);
+	(*this)["Mate_Search_Depth"]           = USIOption(0, 0, 20); // 詰み探索の深さ(0の場合探索しない)
+	(*this)["Leaf_Search_Depth"]           = USIOption(0, 0, 20); // 末端ノードで探索を行う深さ(0の場合探索しない)
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
 #else

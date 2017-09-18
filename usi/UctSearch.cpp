@@ -112,6 +112,33 @@ py::object dlshogi_predict;
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
+// スレッドごとのSearcher
+Searcher* searchers;
+//
+int leaf_search_depth = 0;
+
+// スレッドごとのSearcher初期化
+void InitSearcher()
+{
+	if (searchers != nullptr) {
+		delete[] searchers;
+	}
+	searchers = new Searcher[threads];
+	const std::string options[] = {
+		"name Threads value 1",
+		"name MultiPV value 1",
+		"name USI_Hash value 32",
+		"name OwnBook value false",
+		"name Max_Random_Score_Diff value 0" };
+	for (int i = 0; i < threads; i++) {
+		searchers[i].init();
+		for (auto& str : options) {
+			std::istringstream is(str);
+			searchers[i].setOption(is);
+		}
+	}
+}
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -336,7 +363,6 @@ InitializeSearchSetting(void)
 	po_per_sec = PLAYOUT_SPEED;
 }
 
-
 ////////////
 //  終了  //
 ////////////
@@ -376,20 +402,6 @@ UctSearchGenmove(Position *pos)
 
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
-
-#ifndef USE_VALUENET
-	// 従来の評価関数を使う
-	// evaluate() の差分計算を無効化する。
-	LimitsType limits;
-	limits.depth = static_cast<Depth>(1);
-	pos->searcher()->alpha = -ScoreMaxEvaluate;
-	pos->searcher()->beta = ScoreMaxEvaluate;
-	pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
-	pos->searcher()->threads.main()->waitForSearchFinished();
-	Score score = pos->searcher()->threads.main()->rootMoves[0].score;
-	uct_node[current_root].value_win = score_to_value(score);
-	//std::cout << score << std::endl;
-#endif // !USE_VALUENET
 
 	// 詰みのチェック
 	if (uct_node[current_root].child_num == 0) {
@@ -737,7 +749,19 @@ ParallelUctSearch(thread_arg_t *arg)
 		// 探索回数を1回増やす	
 		atomic_fetch_add(&po_info.count, 1);
 		// 盤面のコピー
-		Position pos(*targ->pos);
+		Thread* th;
+		Searcher* s;
+		if (targ->pos->searcher()->options["Leaf_Search_Depth"] == 0) {
+			th = targ->pos->searcher()->threads.main();
+			s = targ->pos->searcher()->thisptr;
+		}
+		else {
+			th = searchers[targ->thread_id].threads.main();
+			s = searchers[targ->thread_id].thisptr;
+			leaf_search_depth = targ->pos->searcher()->options["Leaf_Search_Depth"];
+		}
+		Position pos(*targ->pos, th);
+		pos.setSearcher(s);
 		//cout << pos.toSFEN() << ":" << pos.getKey() << endl;
 		// 1回プレイアウトする
 		std::vector<int> path;
@@ -766,13 +790,6 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		return 1.0f;
 	}
 
-#ifndef USE_VALUENET
-	// policyが計算されるのを待つ
-	//cout << "wait policy:" << current_root << ":" << uct_node[current_root].evaled << endl;
-	while (!uct_node[current].evaled)
-		this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !USE_VALUENET
-
 	float result;
 	int next_index;
 	double score;
@@ -791,45 +808,40 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == -1) {
-#ifndef USE_VALUENET
-		// キューがいっぱいの場合待機する
-		while (current_policy_value_batch_index >= policy_value_batch_maxsize - THREAD_MAX)
-			this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !USE_VALUENET
 
 		// ノードの展開中はロック
 		LOCK_EXPAND;
 		// ノードの展開
-		// ノード展開処理の中でvalueを計算する
+		// ノード展開処理の中でvalueの計算要求をする
 		int child_index = ExpandNode(pos, current, path);
 		uct_child[next_index].index = child_index;
-		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 		// ノード展開のロックの解除
 		UNLOCK_EXPAND;
-
-#ifndef USE_VALUENET
-		// 従来の評価関数を使う
-		// evaluate() の差分計算を無効化する。
-		LimitsType limits;
-		limits.depth = static_cast<Depth>(1);
-		pos->searcher()->alpha = -ScoreMaxEvaluate;
-		pos->searcher()->beta = ScoreMaxEvaluate;
-		pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
-		pos->searcher()->threads.main()->waitForSearchFinished();
-		Score score = pos->searcher()->threads.main()->rootMoves[0].score;
-		uct_node[child_index].value_win = score_to_value(score);
-		//std::cout << score << std::endl;
-#endif // !USE_VALUENET
 
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
-#ifdef USE_VALUENET
+		if (pos->gamePly() > 50 && leaf_search_depth > 0) {
+			// 従来の評価関数を使う
+			LimitsType limits;
+			limits.depth = static_cast<Depth>(leaf_search_depth);
+			pos->searcher()->alpha = -ScoreMaxEvaluate;
+			pos->searcher()->beta = ScoreMaxEvaluate;
+			pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
+		}
+
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (!uct_node[child_index].evaled)
 			this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !NOUSE_VALUENET
+
+		if (pos->gamePly() > 50 && leaf_search_depth > 0) {
+			pos->searcher()->threads.main()->waitForSearchFinished();
+			Score score = pos->searcher()->threads.main()->rootMoves[0].score;
+			//std::cout << pos->toSFEN() << " : " << (int)score << std::endl;
+			// 平均をとる
+			uct_node[child_index].value_win = (uct_node[child_index].value_win + score_to_value(score)) / 2.0f;
+		}
 
 		// valueを勝敗として返す
 		result = 1 - uct_node[child_index].value_win;
@@ -1082,9 +1094,7 @@ void EvalNode() {
 					uct_child[j].nnrate = legal_move_probabilities[j];
 				}
 
-#ifdef USE_VALUENET
 				uct_node[index].value_win = *value;
-#endif // USE_VALUENET
 				uct_node[index].evaled = true;
 				UNLOCK_NODE(index);
 			}
