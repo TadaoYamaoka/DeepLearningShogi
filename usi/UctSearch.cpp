@@ -763,8 +763,12 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
-		return 1.0f;
+		return 1.0f; // 反転して値を返すため1を返す
 	}
+	else if (uct_node[current].value_win == 1.0f) {
+		return 0.0f;  // 反転して値を返すため0を返す
+	}
+
 
 #ifndef USE_VALUENET
 	// policyが計算されるのを待つ
@@ -824,12 +828,20 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
+		// 1手詰みチェック(ValueNet計算中にチェック)
+		boolean isMateMoveIn1Ply = !pos->inCheck() && pos->mateMoveIn1Ply() != Move::moveNone();
+
 #ifdef USE_VALUENET
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (!uct_node[child_index].evaled)
 			this_thread::sleep_for(chrono::milliseconds(0));
 #endif // !NOUSE_VALUENET
+
+		// 1手詰みの場合、ValueNetの値を上書き
+		if (isMateMoveIn1Ply) {
+			uct_node[child_index].value_win = 1.0f;
+		}
 
 		// valueを勝敗として返す
 		result = 1 - uct_node[child_index].value_win;
