@@ -383,17 +383,26 @@ void make_book(std::istringstream& ssCmd) {
 }
 
 void mate_test(Position& pos, std::istringstream& ssCmd) {
+	auto start = std::chrono::system_clock::now();
 	bool isCheck;
+	int depth;
+	ssCmd >> depth;
+
 	if (!pos.inCheck()) {
 		//isCheck = mateMoveIn3Ply(pos);
-		isCheck = mateMoveInOddPly(pos, 7);
-		std::cout << "mateMoveInOddPly : " << isCheck << std::endl;
+		depth += (depth + 1) % 2;
+		isCheck = mateMoveInOddPly(pos, depth);
 	}
 	else {
 		//isCheck = mateMoveIn2Ply(pos);
-		isCheck = mateMoveInEvenPly(pos, 6);
-		std::cout << "mateMoveInEvenPly : " << isCheck << std::endl;
+		depth += depth % 2;
+		isCheck = mateMoveInEvenPly(pos, depth);
 	}
+	auto end = std::chrono::system_clock::now();
+	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+	std::cout << "mateMoveIn" << depth << "Ply : " << isCheck << std::endl;
+	std::cout << msec << " msec" << std::endl;
 }
 
 #endif
