@@ -33,12 +33,14 @@ int main()
 
 #include "cppshogi.h"
 #include "UctSearch.h"
+#include "mate.h"
 
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
 void go_uct(Position& pos, std::istringstream& ssCmd);
 void make_book(std::istringstream& ssCmd);
+void mate3_test(Position& pos, std::istringstream& ssCmd);
 
 int main(int argc, char* argv[]) {
 	initTable();
@@ -123,6 +125,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "setoption") setOption(ssCmd);
 		else if (token == "make_book") make_book(ssCmd);
+		else if (token == "mate3_test") mate3_test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	if (options["Mate_Search_Depth"] > 0)
@@ -415,6 +418,18 @@ void make_book(std::istringstream& ssCmd) {
 	for (auto& elem : outMap) {
 		for (auto& elel : elem.second)
 			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+	}
+}
+
+void mate3_test(Position& pos, std::istringstream& ssCmd) {
+	bool isCheck;
+	if (!pos.inCheck()) {
+		isCheck = mateMoveIn3Ply(pos);
+		std::cout << "mateMoveIn3Ply : " << isCheck << std::endl;
+	}
+	else {
+		isCheck = mateMoveIn2Ply(pos);
+		std::cout << "mateMoveIn2Ply : " << isCheck << std::endl;
 	}
 }
 

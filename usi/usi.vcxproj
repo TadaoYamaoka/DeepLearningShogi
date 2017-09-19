@@ -243,11 +243,13 @@
     <ClCompile Include="..\cppshogi\tt.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mate.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="UctSearch.cpp" />
     <ClCompile Include="ZobristHash.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="UctSearch.h" />
     <ClInclude Include="Utility.h" />

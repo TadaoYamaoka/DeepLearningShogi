@@ -19,6 +19,7 @@
 #include "Message.h"
 #include "UctSearch.h"
 #include "Utility.h"
+#include "mate.h"
 
 #if defined (_WIN32)
 #define NOMINMAX
@@ -765,8 +766,11 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 	if (uct_node[current].child_num == 0) {
 		return 1.0f; // 反転して値を返すため1を返す
 	}
-	else if (uct_node[current].value_win == 1.0f) {
+	else if (uct_node[current].value_win == FLT_MAX) {
 		return 0.0f;  // 反転して値を返すため0を返す
+	}
+	else if (uct_node[current].value_win == FLT_MIN) {
+		return 1.0f; // 反転して値を返すため1を返す
 	}
 
 
@@ -828,8 +832,18 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
-		// 1手詰みチェック(ValueNet計算中にチェック)
-		boolean isMateMoveIn1Ply = !pos->inCheck() && pos->mateMoveIn1Ply() != Move::moveNone();
+		// 詰みチェック(ValueNet計算中にチェック)
+		int isMate = 0;
+		if (!pos->inCheck()) {
+			if (mateMoveIn7Ply(*pos)) {
+				isMate = 1;
+			}
+		}
+		else {
+			if (mateMoveIn6Ply(*pos)) {
+				isMate = -1;
+			}
+		}
 
 #ifdef USE_VALUENET
 		// valueが計算されるのを待つ
@@ -838,13 +852,19 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 			this_thread::sleep_for(chrono::milliseconds(0));
 #endif // !NOUSE_VALUENET
 
-		// 1手詰みの場合、ValueNetの値を上書き
-		if (isMateMoveIn1Ply) {
-			uct_node[child_index].value_win = 1.0f;
+		// 詰みの場合、ValueNetの値を上書き
+		if (isMate == 1) {
+			uct_node[child_index].value_win = FLT_MAX;
+			result = 0.0f;
 		}
-
-		// valueを勝敗として返す
-		result = 1 - uct_node[child_index].value_win;
+		else if (isMate == -1) {
+			uct_node[child_index].value_win = FLT_MIN;
+			result = 1.0f;
+		}
+		else {
+			// valueを勝敗として返す
+			result = 1 - uct_node[child_index].value_win;
+		}
 	}
 	else {
 		// 現在見ているノードのロックを解除
