@@ -6,6 +6,35 @@
 
 // 奇数手詰めチェック
 // 手番側が王手でないこと
+// 詰ます手を返すバージョン
+Move mateMoveInOddPlyReturnMove(Position& pos, int depth) {
+	// OR節点
+
+	// すべての合法手について
+	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+		// 1手動かす
+		StateInfo state;
+		pos.doMove(ml.move(), state);
+
+		// 王手かどうか
+		if (pos.inCheck()) {
+			//std::cout << ml.move().toUSI() << std::endl;
+			// 王手の場合
+			// 偶数手詰めチェック
+			if (mateMoveInEvenPly(pos, depth - 1)) {
+				// 詰みが見つかった時点で終了
+				pos.undoMove(ml.move());
+				return ml.move();
+			}
+		}
+
+		pos.undoMove(ml.move());
+	}
+	return Move::moveNone();
+}
+
+// 奇数手詰めチェック
+// 手番側が王手でないこと
 bool mateMoveInOddPly(Position& pos, int depth)
 {
 	// OR節点

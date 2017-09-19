@@ -82,18 +82,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\n" << options
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
-			// 詰み探索用
-			if (options["Mate_Search_Depth"] > 0) {
-				tt.clear();
-				threads.main()->previousScore = ScoreInfinite;
-				if (!evalTableIsRead) {
-					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
-					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
-					evalTableIsRead = true;
-				}
-			}
-
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetThread(options["UCT_Threads"]);
@@ -180,38 +168,11 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		}
 	}
 
-	// 詰みの探索用
-	if (pos.searcher()->options["Mate_Search_Depth"] > 0) {
-		limits.depth = static_cast<Depth>((int)pos.searcher()->options["Mate_Search_Depth"]);
-		pos.searcher()->alpha = -ScoreMaxEvaluate;
-		pos.searcher()->beta = ScoreMaxEvaluate;
-		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
-	}
-
 	// UCTによる探索
 	Move move = UctSearchGenmove(&pos);
 	if (move == Move::moveNone()) {
 		std::cout << "bestmove resign" << std::endl;
 		return;
-	}
-
-	// 詰み探索待ち
-	if (pos.searcher()->options["Mate_Search_Depth"] > 0) {
-		pos.searcher()->threads.main()->waitForSearchFinished();
-
-		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
-
-		if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
-			SYNCCOUT << "bestmove resign" << SYNCENDL;
-			return;
-		}
-		else if (score > ScoreMaxEvaluate) {
-			// 詰み
-			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-			std::cout << "info score mate " << ScoreMate0Ply - score << " pv " << move2.toUSI() << std::endl;
-			std::cout << "bestmove " << move2.toUSI() << std::endl;
-			return;
-		}
 	}
 
 	std::cout << "bestmove " << move.toUSI() << std::endl;

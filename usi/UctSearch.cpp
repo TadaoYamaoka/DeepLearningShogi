@@ -113,6 +113,9 @@ py::object dlshogi_predict;
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
+// 詰みが見つかったので探索打ち切り
+bool matecheck = false;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -372,6 +375,9 @@ UctSearchGenmove(Position *pos)
 
 	ClearEvalQueue();
 
+	// 詰みチェック初期化
+	matecheck = false;
+
 	// 探索開始時刻の記録
 	begin_time = ray_clock::now();
 
@@ -419,6 +425,20 @@ UctSearchGenmove(Position *pos)
 	// use_nn
 	handle[threads] = new thread(EvalNode);
 
+	// 詰みの探索
+	if (pos->searcher()->options["Mate_Search_Depth"] > 0 && !pos->inCheck()) {
+		// 盤面のコピー
+		Position pos2(*pos);
+		// Mate_Search_Depthが偶数の場合奇数にする
+		int mateSearchDepth = pos->searcher()->options["Mate_Search_Depth"];
+		mateSearchDepth += (mateSearchDepth + 1) % 2;
+		move = mateMoveInOddPlyReturnMove(pos2, mateSearchDepth);
+		if (move != Move::moveNone()) {
+			// 探索打ち切り
+			matecheck = true;
+		}
+	}
+
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
 		delete handle[i];
@@ -448,7 +468,11 @@ UctSearchGenmove(Position *pos)
 	// 選択した着手の勝率の算出
 	best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 
-	if (best_wp <= RESIGN_THRESHOLD) {
+	if (matecheck) {
+		// 詰みが見つかった場合
+		cout << "info time " << int(finish_time * 1000) << " score mate + pv " << move.toUSI() << endl;
+	}
+	else if (best_wp <= RESIGN_THRESHOLD) {
 		move = Move::moveNone();
 	}
 	else {
@@ -661,6 +685,10 @@ InterruptionCheck(void)
 		GetSpendTime(begin_time) * 10.0 < time_limit) {
 		return false;
 	}
+
+	// 詰みが見つかったので探索打ち切り
+	if (matecheck)
+		return true;
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
