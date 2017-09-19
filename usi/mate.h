@@ -1,20 +1,12 @@
 #pragma once
 
-// 7手詰めチェック
+// 奇数手詰めチェック
 // 手番側が王手でないこと
-bool mateMoveIn7Ply(Position& pos);
+bool mateMoveInOddPly(Position& pos, int depth);
 
-// 6手詰めチェック
+// 偶数手詰めチェック
 // 手番側が王手されていること
-bool mateMoveIn6Ply(Position& pos);
-
-// 5手詰めチェック
-// 手番側が王手でないこと
-bool mateMoveIn5Ply(Position& pos);
-
-// 4手詰めチェック
-// 手番側が王手されていること
-bool mateMoveIn4Ply(Position& pos);
+bool mateMoveInEvenPly(Position& pos, int depth);
 
 // 3手詰めチェック
 // 手番側が王手でないこと

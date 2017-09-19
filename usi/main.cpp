@@ -40,7 +40,7 @@ struct MySearcher : Searcher {
 };
 void go_uct(Position& pos, std::istringstream& ssCmd);
 void make_book(std::istringstream& ssCmd);
-void mate3_test(Position& pos, std::istringstream& ssCmd);
+void mate_test(Position& pos, std::istringstream& ssCmd);
 
 int main(int argc, char* argv[]) {
 	initTable();
@@ -125,7 +125,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "setoption") setOption(ssCmd);
 		else if (token == "make_book") make_book(ssCmd);
-		else if (token == "mate3_test") mate3_test(pos, ssCmd);
+		else if (token == "mate_test") mate_test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	if (options["Mate_Search_Depth"] > 0)
@@ -421,15 +421,17 @@ void make_book(std::istringstream& ssCmd) {
 	}
 }
 
-void mate3_test(Position& pos, std::istringstream& ssCmd) {
+void mate_test(Position& pos, std::istringstream& ssCmd) {
 	bool isCheck;
 	if (!pos.inCheck()) {
-		isCheck = mateMoveIn3Ply(pos);
-		std::cout << "mateMoveIn3Ply : " << isCheck << std::endl;
+		//isCheck = mateMoveIn3Ply(pos);
+		isCheck = mateMoveInOddPly(pos, 7);
+		std::cout << "mateMoveInOddPly : " << isCheck << std::endl;
 	}
 	else {
-		isCheck = mateMoveIn2Ply(pos);
-		std::cout << "mateMoveIn2Ply : " << isCheck << std::endl;
+		//isCheck = mateMoveIn2Ply(pos);
+		isCheck = mateMoveInEvenPly(pos, 6);
+		std::cout << "mateMoveInEvenPly : " << isCheck << std::endl;
 	}
 }
 

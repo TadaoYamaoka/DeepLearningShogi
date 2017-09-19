@@ -835,12 +835,12 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// 詰みチェック(ValueNet計算中にチェック)
 		int isMate = 0;
 		if (!pos->inCheck()) {
-			if (mateMoveIn7Ply(*pos)) {
+			if (mateMoveInOddPly(*pos, 7)) {
 				isMate = 1;
 			}
 		}
 		else {
-			if (mateMoveIn6Ply(*pos)) {
+			if (mateMoveInEvenPly(*pos, 6)) {
 				isMate = -1;
 			}
 		}

@@ -4,9 +4,9 @@
 
 #include "mate.h"
 
-// 7手詰めチェック
+// 奇数手詰めチェック
 // 手番側が王手でないこと
-bool mateMoveIn7Ply(Position& pos)
+bool mateMoveInOddPly(Position& pos, int depth)
 {
 	// OR節点
 
@@ -20,8 +20,8 @@ bool mateMoveIn7Ply(Position& pos)
 		if (pos.inCheck()) {
 			//std::cout << ml.move().toUSI() << std::endl;
 			// 王手の場合
-			// 6手詰めチェック
-			if (mateMoveIn6Ply(pos)) {
+			// 偶数手詰めチェック
+			if (mateMoveInEvenPly(pos, depth - 1)) {
 				// 詰みが見つかった時点で終了
 				pos.undoMove(ml.move());
 				return true;
@@ -33,9 +33,9 @@ bool mateMoveIn7Ply(Position& pos)
 	return false;
 }
 
-// 6手詰めチェック
+// 偶数手詰めチェック
 // 手番側が王手されていること
-bool mateMoveIn6Ply(Position& pos)
+bool mateMoveInEvenPly(Position& pos, int depth)
 {
 	// AND節点
 
@@ -54,75 +54,23 @@ bool mateMoveIn6Ply(Position& pos)
 			return false;
 		}
 
-		// 5手詰めかどうか
-		if (!mateMoveIn5Ply(pos)) {
-			// 5手詰めでない場合
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move());
-			return false;
-		}
-
-		pos.undoMove(ml.move());
-	}
-	return true;
-}
-
-// 5手詰めチェック
-// 手番側が王手でないこと
-bool mateMoveIn5Ply(Position& pos)
-{
-	// OR節点
-
-	// すべての合法手について
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move(), state);
-
-		// 王手かどうか
-		if (pos.inCheck()) {
-			//std::cout << ml.move().toUSI() << std::endl;
-			// 王手の場合
-			// 4手詰めチェック
-			if (mateMoveIn4Ply(pos)) {
-				// 詰みが見つかった時点で終了
+		if (depth == 4) {
+			// 3手詰めかどうか
+			if (!mateMoveIn3Ply(pos)) {
+				// 3手詰めでない場合
+				// 詰みが見つからなかった時点で終了
 				pos.undoMove(ml.move());
-				return true;
+				return false;
 			}
 		}
-
-		pos.undoMove(ml.move());
-	}
-	return false;
-}
-
-// 4手詰めチェック
-// 手番側が王手されていること
-bool mateMoveIn4Ply(Position& pos)
-{
-	// AND節点
-
-	// すべてのEvasionについて
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
-		//std::cout << " " << ml.move().toUSI() << std::endl;
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move(), state);
-
-		// 王手かどうか
-		if (pos.inCheck()) {
-			// 王手の場合
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move());
-			return false;
-		}
-
-		// 3手詰めかどうか
-		if (!mateMoveIn3Ply(pos)) {
-			// 3手詰めでない場合
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move());
-			return false;
+		else {
+			// 奇数手詰めかどうか
+			if (!mateMoveInOddPly(pos, depth - 1)) {
+				// 偶数手詰めでない場合
+				// 詰みが見つからなかった時点で終了
+				pos.undoMove(ml.move());
+				return false;
+			}
 		}
 
 		pos.undoMove(ml.move());
