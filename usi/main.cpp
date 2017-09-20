@@ -359,11 +359,11 @@ void make_book(std::istringstream& ssCmd) {
 	}
 	Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 
-	for (int depth = 2; depth <= limitDepth; depth += 2) {
+	for (int depth = 1; depth <= limitDepth; depth += 2) {
 		// 探索
 		int input_num = outMap.size();
 		int count = 0;
-		make_book_inner(pos, bookKeys, outMap, count, 0, true, limitDepth);
+		make_book_inner(pos, bookKeys, outMap, count, 0, true, depth);
 		int black_num = outMap.size();
 
 		// 保存
@@ -376,7 +376,7 @@ void make_book(std::istringstream& ssCmd) {
 		}
 
 		pos.set(DefaultStartPositionSFEN, s.threads.main());
-		make_book_inner(pos, bookKeys, outMap, count, 0, false, limitDepth);
+		make_book_inner(pos, bookKeys, outMap, count, 0, false, depth + 1);
 		int white_num = outMap.size() - black_num;
 
 		std::cout << "input\t" << input_num << std::endl;
