@@ -477,6 +477,19 @@ UctSearchGenmove(Position *pos)
 	}
 	else {
 		move = uct_child[select_index].move;
+
+		// 歩、角、飛が成らない場合、強制的に成る
+		if (!move.isDrop() && !move.isPromotion() &&
+			(move.pieceTypeTo() == Pawn || move.pieceTypeTo() == Bishop || move.pieceTypeTo() == Rook)) {
+			// 合法手に成る手があるか
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
+				if (uct_child[i].move.isPromotion() && uct_child[i].move.fromAndTo() == move.fromAndTo()) {
+					// 強制的に成る
+					move = uct_child[i].move;
+					break;
+				}
+			}
+		}
 		
 		int cp;
 		if (best_wp == 1.0f) {
@@ -487,17 +500,12 @@ UctSearchGenmove(Position *pos)
 		}
 
 		// PV表示
-		string pv;
+		string pv = move.toUSI();
 		{
 			int best_index = select_index;
 			child_node_t *best_node = uct_child;
 
-			while (true) {
-				pv += " " + best_node[best_index].move.toUSI();
-
-				if (best_node[best_index].index == -1)
-					break;
-
+			while (best_node[best_index].index != -1) {
 				const int best_node_index = best_node[best_index].index;
 
 				best_node = uct_node[best_node_index].child;
@@ -511,10 +519,12 @@ UctSearchGenmove(Position *pos)
 
 				if (max_count < 20)
 					break;
+
+				pv += " " + best_node[best_index].move.toUSI();
 			}
 		}
 
-		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv" << pv << endl;
+		cout << "info nps " << int(uct_node[current_root].move_count/finish_time)  << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << pv << endl;
 	}
 
 	// 最善応手列を出力
@@ -795,9 +805,11 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		return 1.0f; // 反転して値を返すため1を返す
 	}
 	else if (uct_node[current].value_win == FLT_MAX) {
+		// 詰み
 		return 0.0f;  // 反転して値を返すため0を返す
 	}
 	else if (uct_node[current].value_win == FLT_MIN) {
+		// 自玉の詰み
 		return 1.0f; // 反転して値を返すため1を返す
 	}
 
