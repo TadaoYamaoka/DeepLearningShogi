@@ -299,6 +299,20 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 	}
 }
 
+// 定跡読み込み
+void read_book(const std::string& bookFileName, std::set<Key>& bookKeys) {
+	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
+	if (!ifs) {
+		std::cerr << "Error: cannot open " << bookFileName << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	BookEntry entry;
+	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+		bookKeys.insert(entry.key);
+	}
+	std::cout << "bookKeys.size: " << bookKeys.size() << std::endl;
+}
+
 // 定跡作成
 void make_book(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
@@ -319,19 +333,6 @@ void make_book(std::istringstream& ssCmd) {
 	SetPlayout(playoutNum);
 	InitializeSearchSetting();
 	SetReuseSubtree(false);
-
-	// 定跡読み込み
-	std::set<Key> bookKeys;
-	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
-	if (!ifs) {
-		std::cerr << "Error: cannot open " << bookFileName << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	BookEntry entry;
-	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-		bookKeys.insert(entry.key);
-	}
-	std::cout << "bookKeys.size: " << bookKeys.size() << std::endl;
 
 	// outFileが存在するときは追加する
 	{
@@ -357,12 +358,19 @@ void make_book(std::istringstream& ssCmd) {
 		std::istringstream is(str);
 		s.setOption(is);
 	}
-	Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
+
+	std::set<Key> bookKeys;
 
 	for (int depth = 1; depth <= limitDepth; depth += 2) {
-		// 探索
 		int input_num = outMap.size();
 		int count = 0;
+
+		// 先手番
+		// 定跡読み込み
+		read_book(bookFileName, bookKeys);
+
+		// 探索
+		Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 		make_book_inner(pos, bookKeys, outMap, count, 0, true, depth);
 		int black_num = outMap.size();
 
@@ -375,14 +383,11 @@ void make_book(std::istringstream& ssCmd) {
 			}
 		}
 
+		// 後手番
+		// 探索
 		pos.set(DefaultStartPositionSFEN, s.threads.main());
 		make_book_inner(pos, bookKeys, outMap, count, 0, false, depth + 1);
 		int white_num = outMap.size() - black_num;
-
-		std::cout << "input\t" << input_num << std::endl;
-		std::cout << "black\t" << black_num - input_num << std::endl;
-		std::cout << "white\t" << white_num << std::endl;
-		std::cout << "sum\t" << black_num + white_num << std::endl;
 
 		// 保存
 		{
@@ -392,6 +397,12 @@ void make_book(std::istringstream& ssCmd) {
 					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
 			}
 		}
+
+		// 結果表示
+		std::cout << "input\t" << input_num << std::endl;
+		std::cout << "black\t" << black_num - input_num << std::endl;
+		std::cout << "white\t" << white_num << std::endl;
+		std::cout << "sum\t" << black_num + white_num << std::endl;
 	}
 }
 
