@@ -344,7 +344,6 @@ void make_book(std::istringstream& ssCmd) {
 			std::cout << "outMap.size: " << outMap.size() << std::endl;
 		}
 	}
-	int input_num = outMap.size();
 
 	// 初期局面
 	Searcher s;
@@ -360,25 +359,39 @@ void make_book(std::istringstream& ssCmd) {
 	}
 	Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 
-	// 探索
-	int count = 0;
-	make_book_inner(pos, bookKeys, outMap, count, 0, true, limitDepth);
-	int black_num = outMap.size();
+	for (int depth = 2; depth <= limitDepth; depth += 2) {
+		// 探索
+		int input_num = outMap.size();
+		int count = 0;
+		make_book_inner(pos, bookKeys, outMap, count, 0, true, limitDepth);
+		int black_num = outMap.size();
 
-	pos.set(DefaultStartPositionSFEN, s.threads.main());
-	make_book_inner(pos, bookKeys, outMap, count, 0, false, limitDepth);
-	int white_num = outMap.size() - black_num;
+		// 保存
+		{
+			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+			for (auto& elem : outMap) {
+				for (auto& elel : elem.second)
+					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+			}
+		}
 
-	std::cout << "input\t" << input_num << std::endl;
-	std::cout << "black\t" << black_num - input_num << std::endl;
-	std::cout << "white\t" << white_num << std::endl;
-	std::cout << "sum\t" << black_num + white_num << std::endl;
+		pos.set(DefaultStartPositionSFEN, s.threads.main());
+		make_book_inner(pos, bookKeys, outMap, count, 0, false, limitDepth);
+		int white_num = outMap.size() - black_num;
 
-	// 保存
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (auto& elem : outMap) {
-		for (auto& elel : elem.second)
-			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+		std::cout << "input\t" << input_num << std::endl;
+		std::cout << "black\t" << black_num - input_num << std::endl;
+		std::cout << "white\t" << white_num << std::endl;
+		std::cout << "sum\t" << black_num + white_num << std::endl;
+
+		// 保存
+		{
+			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+			for (auto& elem : outMap) {
+				for (auto& elel : elem.second)
+					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+			}
+		}
 	}
 }
 
