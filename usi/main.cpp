@@ -41,6 +41,7 @@ struct MySearcher : Searcher {
 void go_uct(Position& pos, std::istringstream& ssCmd);
 void make_book(std::istringstream& ssCmd);
 void mate_test(Position& pos, std::istringstream& ssCmd);
+void test(Position& pos, std::istringstream& ssCmd);
 
 int main(int argc, char* argv[]) {
 	initTable();
@@ -114,6 +115,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "setoption") setOption(ssCmd);
 		else if (token == "make_book") make_book(ssCmd);
 		else if (token == "mate_test") mate_test(pos, ssCmd);
+		else if (token == "test") test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	if (options["Mate_Search_Depth"] > 0)
@@ -427,6 +429,36 @@ void mate_test(Position& pos, std::istringstream& ssCmd) {
 
 	std::cout << "mateMoveIn" << depth << "Ply : " << isCheck << std::endl;
 	std::cout << msec << " msec" << std::endl;
+}
+
+void test(Position& pos, std::istringstream& ssCmd) {
+	std::set<Move> moveSet;
+
+	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
+		std::cout << ml.move().toUSI() << " : " << ml.move().pieceTypeFrom() << std::endl;
+		moveSet.insert(ml.move());
+	}
+	std::cout << moveSet.size() << std::endl;
+
+	std::cout << "--------" << std::endl;
+
+	// 検証
+	// すべての合法手について
+	int count = 0;
+	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+		// 1手動かす
+		StateInfo state;
+		pos.doMove(ml.move(), state);
+
+		// 王手かどうか
+		if (pos.inCheck()) {
+			std::cout << ml.move().toUSI() << " : " << (moveSet.find(ml.move()) != moveSet.end()) << std::endl;
+			count++;
+		}
+
+		pos.undoMove(ml.move());
+	}
+	std::cout << count << std::endl;
 }
 
 #endif

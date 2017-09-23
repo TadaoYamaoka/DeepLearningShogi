@@ -11,21 +11,17 @@ Move mateMoveInOddPlyReturnMove(Position& pos, int depth) {
 	// OR節点
 
 	// すべての合法手について
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
-		// 王手かどうか
-		if (pos.inCheck()) {
-			//std::cout << ml.move().toUSI() << std::endl;
-			// 王手の場合
-			// 偶数手詰めチェック
-			if (mateMoveInEvenPly(pos, depth - 1)) {
-				// 詰みが見つかった時点で終了
-				pos.undoMove(ml.move());
-				return ml.move();
-			}
+		//std::cout << ml.move().toUSI() << std::endl;
+		// 偶数手詰めチェック
+		if (mateMoveInEvenPly(pos, depth - 1)) {
+			// 詰みが見つかった時点で終了
+			pos.undoMove(ml.move());
+			return ml.move();
 		}
 
 		pos.undoMove(ml.move());
@@ -40,21 +36,18 @@ bool mateMoveInOddPly(Position& pos, int depth)
 	// OR節点
 
 	// すべての合法手について
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
-		// 王手かどうか
-		if (pos.inCheck()) {
-			//std::cout << ml.move().toUSI() << std::endl;
-			// 王手の場合
-			// 偶数手詰めチェック
-			if (mateMoveInEvenPly(pos, depth - 1)) {
-				// 詰みが見つかった時点で終了
-				pos.undoMove(ml.move());
-				return true;
-			}
+		//std::cout << ml.move().toUSI() << std::endl;
+		// 王手の場合
+		// 偶数手詰めチェック
+		if (mateMoveInEvenPly(pos, depth - 1)) {
+			// 詰みが見つかった時点で終了
+			pos.undoMove(ml.move());
+			return true;
 		}
 
 		pos.undoMove(ml.move());
@@ -114,21 +107,18 @@ bool mateMoveIn3Ply(Position& pos)
 	// OR節点
 
 	// すべての合法手について
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
-		// 王手かどうか
-		if (pos.inCheck()) {
-			//std::cout << ml.move().toUSI() << std::endl;
-			// 王手の場合
-			// 2手詰めチェック
-			if (mateMoveIn2Ply(pos)) {
-				// 詰みが見つかった時点で終了
-				pos.undoMove(ml.move());
-				return true;
-			}
+		//std::cout << ml.move().toUSI() << std::endl;
+		// 王手の場合
+		// 2手詰めチェック
+		if (mateMoveIn2Ply(pos)) {
+			// 詰みが見つかった時点で終了
+			pos.undoMove(ml.move());
+			return true;
 		}
 
 		pos.undoMove(ml.move());

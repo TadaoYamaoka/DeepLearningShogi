@@ -276,5 +276,8 @@ Bitboard GoldCheckTable[ColorNum][SquareNum];
 Bitboard SilverCheckTable[ColorNum][SquareNum];
 Bitboard KnightCheckTable[ColorNum][SquareNum];
 Bitboard LanceCheckTable[ColorNum][SquareNum];
+Bitboard PawnCheckTable[ColorNum][SquareNum];
+Bitboard BishopCheckTable[ColorNum][SquareNum];
+Bitboard HorseCheckTable[ColorNum][SquareNum];
 
 Bitboard Neighbor5x5Table[SquareNum]; // 25 近傍

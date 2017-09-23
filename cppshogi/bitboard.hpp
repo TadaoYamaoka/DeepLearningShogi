@@ -419,6 +419,9 @@ extern Bitboard GoldCheckTable[ColorNum][SquareNum];
 extern Bitboard SilverCheckTable[ColorNum][SquareNum];
 extern Bitboard KnightCheckTable[ColorNum][SquareNum];
 extern Bitboard LanceCheckTable[ColorNum][SquareNum];
+extern Bitboard PawnCheckTable[ColorNum][SquareNum];
+extern Bitboard BishopCheckTable[ColorNum][SquareNum];
+extern Bitboard HorseCheckTable[ColorNum][SquareNum];
 
 extern Bitboard Neighbor5x5Table[SquareNum]; // 25 近傍
 
@@ -490,6 +493,9 @@ inline Bitboard goldCheckTable(const Color c, const Square sq) { return GoldChec
 inline Bitboard silverCheckTable(const Color c, const Square sq) { return SilverCheckTable[c][sq]; }
 inline Bitboard knightCheckTable(const Color c, const Square sq) { return KnightCheckTable[c][sq]; }
 inline Bitboard lanceCheckTable(const Color c, const Square sq) { return LanceCheckTable[c][sq]; }
+inline Bitboard pawnCheckTable(const Color c, const Square sq) { return PawnCheckTable[c][sq]; }
+inline Bitboard bishopCheckTable(const Color c, const Square sq) { return BishopCheckTable[c][sq]; }
+inline Bitboard horseCheckTable(const Color c, const Square sq) { return HorseCheckTable[c][sq]; }
 
 inline Bitboard neighbor5x5Table(const Square sq) { return Neighbor5x5Table[sq]; }
 // todo: テーブル引きを検討
