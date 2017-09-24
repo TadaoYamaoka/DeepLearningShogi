@@ -2,7 +2,7 @@
 
 #include "position.hpp"
 
-const unsigned int UCT_HASH_SIZE = 65536;
+const unsigned int UCT_HASH_SIZE = 131072;
 
 struct node_hash_t {
 	unsigned long long hash;
