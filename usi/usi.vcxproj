@@ -242,6 +242,8 @@
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\tt.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="DfPn.cpp" />
+    <ClCompile Include="DfPnHash.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mate.cpp" />
     <ClCompile Include="Message.cpp" />
@@ -249,6 +251,8 @@
     <ClCompile Include="ZobristHash.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DfPn.h" />
+    <ClInclude Include="DfPnHash.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="UctSearch.h" />

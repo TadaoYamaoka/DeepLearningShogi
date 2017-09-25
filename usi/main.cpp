@@ -34,6 +34,7 @@ int main()
 #include "cppshogi.h"
 #include "UctSearch.h"
 #include "mate.h"
+#include "DfPn.h"
 
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
@@ -48,6 +49,9 @@ int main(int argc, char* argv[]) {
 	Position::initZobrist();
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
+
+	InitializeUctHash();
+	InitializeDfPnSearch();
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -88,7 +92,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetThread(options["UCT_Threads"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
 			InitializeUctSearch();
-			InitializeUctHash();
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
@@ -432,33 +435,16 @@ void mate_test(Position& pos, std::istringstream& ssCmd) {
 }
 
 void test(Position& pos, std::istringstream& ssCmd) {
-	std::set<Move> moveSet;
+	auto start = std::chrono::system_clock::now();
 
-	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
-		std::cout << ml.move().toUSI() << " : " << ml.move().pieceTypeFrom() << std::endl;
-		moveSet.insert(ml.move());
-	}
-	std::cout << moveSet.size() << std::endl;
+	// df-pn
+	Move move = dfpn(pos, 0);
+	std::cout << move.toUSI() << std::endl;
 
-	std::cout << "--------" << std::endl;
+	auto end = std::chrono::system_clock::now();
+	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-	// 検証
-	// すべての合法手について
-	int count = 0;
-	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move(), state);
-
-		// 王手かどうか
-		if (pos.inCheck()) {
-			std::cout << ml.move().toUSI() << " : " << (moveSet.find(ml.move()) != moveSet.end()) << std::endl;
-			count++;
-		}
-
-		pos.undoMove(ml.move());
-	}
-	std::cout << count << std::endl;
+	std::cout << msec << " msec" << std::endl;
 }
 
 #endif
