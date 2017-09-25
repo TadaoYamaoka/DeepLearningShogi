@@ -61,11 +61,13 @@ InitializeUctHash(void)
 
 	oldest_move = 1;
 	used = 0;
+	enough_size = true;
 
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		node_hash[i].flag = false;
 		node_hash[i].hash = 0;
 		node_hash[i].color = 0;
+		node_hash[i].moves = 0;
 	}
 }
 
