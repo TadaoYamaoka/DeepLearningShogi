@@ -355,9 +355,7 @@ Move
 UctSearchGenmove(Position *pos)
 {
 	Move move;
-	int select_index, max_count, pre_simulated;
 	double finish_time;
-	float best_wp;
 	child_node_t *uct_child;
 
 	// 探索情報をクリア
@@ -398,7 +396,7 @@ UctSearchGenmove(Position *pos)
 	}
 
 	// 前回から持ち込んだ探索回数を記録
-	pre_simulated = uct_node[current_root].move_count;
+	int pre_simulated = uct_node[current_root].move_count;
 
 	// 探索回数の閾値を設定
 	CalculateNextPlayouts(pos);
@@ -434,7 +432,8 @@ UctSearchGenmove(Position *pos)
 
 	uct_child = uct_node[current_root].child;
 
-	max_count = 0;
+	int max_count = 0;
+	int select_index;
 
 	// 探索回数最大の手を見つける
 	for (int i = 0; i < uct_node[current_root].child_num; i++) {
@@ -446,7 +445,7 @@ UctSearchGenmove(Position *pos)
 	}
 
 	// 選択した着手の勝率の算出
-	best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 
 	if (best_wp <= RESIGN_THRESHOLD) {
 		move = Move::moveNone();
@@ -774,16 +773,18 @@ static float
 UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 {
 	// 詰みのチェック
-	if (uct_node[current].child_num == 0) {
-		return 1.0f; // 反転して値を返すため1を返す
-	}
-	else if (uct_node[current].value_win == FLT_MAX) {
-		// 詰み
-		return 0.0f;  // 反転して値を返すため0を返す
-	}
-	else if (uct_node[current].value_win == FLT_MIN) {
-		// 自玉の詰み
-		return 1.0f; // 反転して値を返すため1を返す
+	if (current != current_root) {
+		if (uct_node[current].child_num == 0) {
+			return 1.0f; // 反転して値を返すため1を返す
+		}
+		else if (uct_node[current].value_win == FLT_MAX) {
+			// 詰み
+			return 0.0f;  // 反転して値を返すため0を返す
+		}
+		else if (uct_node[current].value_win == FLT_MIN) {
+			// 自玉の詰み
+			return 1.0f; // 反転して値を返すため1を返す
+		}
 	}
 
 
