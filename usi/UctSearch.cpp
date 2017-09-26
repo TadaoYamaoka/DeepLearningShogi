@@ -113,6 +113,9 @@ py::object dlshogi_predict;
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
+// 末端ノードでの詰み探索の深さ(奇数であること)
+const int MATE_SEARCH_DEPTH = 7;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -392,6 +395,14 @@ UctSearchGenmove(Position *pos)
 
 	// 詰みのチェック
 	if (uct_node[current_root].child_num == 0) {
+		return Move::moveNone();
+	}
+	else if (uct_node[current_root].value_win == FLT_MAX) {
+		// 詰み
+		return mateMoveInOddPlyReturnMove(*pos, MATE_SEARCH_DEPTH);
+	}
+	else if (uct_node[current_root].value_win == FLT_MIN) {
+		// 自玉の詰み
 		return Move::moveNone();
 	}
 
@@ -773,18 +784,16 @@ static float
 UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 {
 	// 詰みのチェック
-	if (current != current_root) {
-		if (uct_node[current].child_num == 0) {
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-		else if (uct_node[current].value_win == FLT_MAX) {
-			// 詰み
-			return 0.0f;  // 反転して値を返すため0を返す
-		}
-		else if (uct_node[current].value_win == FLT_MIN) {
-			// 自玉の詰み
-			return 1.0f; // 反転して値を返すため1を返す
-		}
+	if (uct_node[current].child_num == 0) {
+		return 1.0f; // 反転して値を返すため1を返す
+	}
+	else if (uct_node[current].value_win == FLT_MAX) {
+		// 詰み
+		return 0.0f;  // 反転して値を返すため0を返す
+	}
+	else if (uct_node[current].value_win == FLT_MIN) {
+		// 自玉の詰み
+		return 1.0f; // 反転して値を返すため1を返す
 	}
 
 
@@ -849,12 +858,12 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		// 詰みチェック(ValueNet計算中にチェック)
 		int isMate = 0;
 		if (!pos->inCheck()) {
-			if (mateMoveInOddPly(*pos, 7)) {
+			if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
 				isMate = 1;
 			}
 		}
 		else {
-			if (mateMoveInEvenPly(*pos, 6)) {
+			if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
 				isMate = -1;
 			}
 		}
