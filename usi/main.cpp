@@ -193,10 +193,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 
 	// UCTによる探索
 	Move move = UctSearchGenmove(&pos);
-	if (move == Move::moveNone()) {
-		std::cout << "bestmove resign" << std::endl;
-		return;
-	}
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
@@ -223,6 +219,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		}
 	}
 
+	if (move == Move::moveNone()) {
+		std::cout << "bestmove resign" << std::endl;
+		return;
+	}
 	std::cout << "bestmove " << move.toUSI() << std::endl;
 }
 
