@@ -34,7 +34,6 @@ int main()
 #include "cppshogi.h"
 #include "UctSearch.h"
 #include "mate.h"
-#include "DfPn.h"
 
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
@@ -51,7 +50,6 @@ int main(int argc, char* argv[]) {
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
 	InitializeUctHash();
-	InitializeDfPnSearch();
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -87,6 +85,18 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\n" << options
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
+			// 詰み探索用
+			if (options["Mate_Root_Search"] > 0) {
+				tt.clear();
+				threads.main()->previousScore = ScoreInfinite;
+				if (!evalTableIsRead) {
+					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
+					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
+					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+					evalTableIsRead = true;
+				}
+			}
+
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetThread(options["UCT_Threads"]);
@@ -121,7 +131,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "test") test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	if (options["Mate_Search_Depth"] > 0)
+	if (options["Mate_Root_Search"] > 0)
 		threads.main()->waitForSearchFinished();
 }
 
@@ -173,11 +183,44 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		}
 	}
 
+	// 詰みの探索用
+	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+		limits.infinite = true;
+		pos.searcher()->alpha = -ScoreMaxEvaluate;
+		pos.searcher()->beta = ScoreMaxEvaluate;
+		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
+	}
+
 	// UCTによる探索
 	Move move = UctSearchGenmove(&pos);
 	if (move == Move::moveNone()) {
 		std::cout << "bestmove resign" << std::endl;
 		return;
+	}
+
+	// 詰み探索待ち
+	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+		pos.searcher()->signals.stop = true;
+		pos.searcher()->threads.main()->waitForSearchFinished();
+
+		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
+
+		if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
+			SYNCCOUT << "bestmove resign" << SYNCENDL;
+			return;
+		}
+		else if (score >= ScoreMaxEvaluate) {
+			// 詰み
+			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
+			std::cout << "info score mate ";
+			if (score == ScoreMaxEvaluate)
+				std::cout << "+";
+			else
+				std::cout << ScoreMate0Ply - score;
+			std::cout << " pv " << move2.toUSI() << std::endl;
+			std::cout << "bestmove " << move2.toUSI() << std::endl;
+			return;
+		}
 	}
 
 	std::cout << "bestmove " << move.toUSI() << std::endl;
@@ -435,16 +478,6 @@ void mate_test(Position& pos, std::istringstream& ssCmd) {
 }
 
 void test(Position& pos, std::istringstream& ssCmd) {
-	auto start = std::chrono::system_clock::now();
-
-	// df-pn
-	Move move = dfpn(pos, 0);
-	std::cout << move.toUSI() << std::endl;
-
-	auto end = std::chrono::system_clock::now();
-	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-	std::cout << msec << " msec" << std::endl;
 }
 
 #endif
