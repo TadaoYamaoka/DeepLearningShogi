@@ -75,6 +75,11 @@ Move dfpn(Position& pos, const int ply)
 {
 	// rootノードのみ特別なOR節点の処理
 
+	if (pos.inCheck()) {
+		// 自玉が王手の場合、不詰み
+		return Move::moveNone();
+	}
+
 	// 1手詰みチェック
 	Move move = pos.mateMoveIn1Ply();
 	if (move != Move::moveNone()) {
@@ -195,6 +200,13 @@ void mid_or(Position& pos, int index, const int ply, unsigned int &th_p, unsigne
 
 	// 末端ノードの場合
 	if (dfpn_node[index].child_num == NOT_EXPANDED) {
+		if (pos.inCheck()) {
+			// 自玉が王手の場合、不詰み
+			pn = INF;
+			dn = 0;
+			return;
+		}
+
 		// 詰みチェック
 		if (pos.mateMoveIn1Ply() != Move::moveNone()) {
 			pn = 0;
@@ -318,20 +330,6 @@ void mid_and(Position& pos, int index, const int ply, unsigned int &th_p, unsign
 			dfpn_child[child_num].pn = 1;
 			dfpn_child[child_num].dn = 1;
 			child_num++;
-		}
-
-		// 不詰みチェック
-		for (int i = 0; i < child_num; i++) {
-			StateInfo state;
-			pos.doMove(dfpn_child[i].move, state);
-			if (pos.inCheck()) {
-				// 自玉が王手の場合、不詰み
-				pn = INF;
-				dn = 0;
-				pos.undoMove(dfpn_child[i].move);
-				return;
-			}
-			pos.undoMove(dfpn_child[i].move);
 		}
 
 		dfpn_node[index].child_num = child_num;
