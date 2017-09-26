@@ -113,9 +113,6 @@ py::object dlshogi_predict;
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
-// 詰みが見つかったので探索打ち切り
-bool matecheck = false;
-
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -375,9 +372,6 @@ UctSearchGenmove(Position *pos)
 
 	ClearEvalQueue();
 
-	// 詰みチェック初期化
-	matecheck = false;
-
 	// 探索開始時刻の記録
 	begin_time = ray_clock::now();
 
@@ -425,20 +419,6 @@ UctSearchGenmove(Position *pos)
 	// use_nn
 	handle[threads] = new thread(EvalNode);
 
-	// 詰みの探索
-	if (pos->searcher()->options["Mate_Search_Depth"] > 0 && !pos->inCheck()) {
-		// 盤面のコピー
-		Position pos2(*pos);
-		// Mate_Search_Depthが偶数の場合奇数にする
-		int mateSearchDepth = pos->searcher()->options["Mate_Search_Depth"];
-		mateSearchDepth += (mateSearchDepth + 1) % 2;
-		move = mateMoveInOddPlyReturnMove(pos2, mateSearchDepth);
-		if (move != Move::moveNone()) {
-			// 探索打ち切り
-			matecheck = true;
-		}
-	}
-
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
 		delete handle[i];
@@ -452,84 +432,78 @@ UctSearchGenmove(Position *pos)
 	// 探索にかかった時間を求める
 	finish_time = GetSpendTime(begin_time);
 
-	if (matecheck) {
-		// 詰みが見つかった場合
-		cout << "info time " << int(finish_time * 1000) << " score mate + pv " << move.toUSI() << endl;
+	uct_child = uct_node[current_root].child;
+
+	max_count = 0;
+
+	// 探索回数最大の手を見つける
+	for (int i = 0; i < uct_node[current_root].child_num; i++) {
+		if (uct_child[i].move_count > max_count) {
+			select_index = i;
+			max_count = uct_child[i].move_count;
+		}
+		cout << "info string " << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
+	}
+
+	// 選択した着手の勝率の算出
+	best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+
+	if (best_wp <= RESIGN_THRESHOLD) {
+		move = Move::moveNone();
 	}
 	else {
-		uct_child = uct_node[current_root].child;
+		move = uct_child[select_index].move;
 
-		max_count = 0;
-
-		// 探索回数最大の手を見つける
-		for (int i = 0; i < uct_node[current_root].child_num; i++) {
-			if (uct_child[i].move_count > max_count) {
-				select_index = i;
-				max_count = uct_child[i].move_count;
+		// 歩、角、飛が成らない場合、強制的に成る
+		if (!move.isDrop() && !move.isPromotion() &&
+			(move.pieceTypeTo() == Pawn || move.pieceTypeTo() == Bishop || move.pieceTypeTo() == Rook)) {
+			// 合法手に成る手があるか
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
+				if (uct_child[i].move.isPromotion() && uct_child[i].move.fromAndTo() == move.fromAndTo()) {
+					// 強制的に成る
+					move = uct_child[i].move;
+					break;
+				}
 			}
-			cout << "info string " << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
 		}
 
-		// 選択した着手の勝率の算出
-		best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
-
-		if (best_wp <= RESIGN_THRESHOLD) {
-			move = Move::moveNone();
+		int cp;
+		if (best_wp == 1.0f) {
+			cp = 30000;
 		}
 		else {
-			move = uct_child[select_index].move;
-
-			// 歩、角、飛が成らない場合、強制的に成る
-			if (!move.isDrop() && !move.isPromotion() &&
-				(move.pieceTypeTo() == Pawn || move.pieceTypeTo() == Bishop || move.pieceTypeTo() == Rook)) {
-				// 合法手に成る手があるか
-				for (int i = 0; i < uct_node[current_root].child_num; i++) {
-					if (uct_child[i].move.isPromotion() && uct_child[i].move.fromAndTo() == move.fromAndTo()) {
-						// 強制的に成る
-						move = uct_child[i].move;
-						break;
-					}
-				}
-			}
-
-			int cp;
-			if (best_wp == 1.0f) {
-				cp = 30000;
-			}
-			else {
-				cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3f);
-			}
-
-			// PV表示
-			string pv = move.toUSI();
-			{
-				int best_index = select_index;
-				child_node_t *best_node = uct_child;
-
-				while (best_node[best_index].index != -1) {
-					const int best_node_index = best_node[best_index].index;
-
-					best_node = uct_node[best_node_index].child;
-					max_count = 0;
-					for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
-						if (best_node[i].move_count > max_count) {
-							best_index = i;
-							max_count = best_node[i].move_count;
-						}
-					}
-
-					if (max_count < 20)
-						break;
-
-					pv += " " + best_node[best_index].move.toUSI();
-				}
-			}
-
-			cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << pv << endl;
-
-			// 次の探索でのプレイアウト回数の算出
-			CalculatePlayoutPerSec(finish_time);
+			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3f);
 		}
+
+		// PV表示
+		string pv = move.toUSI();
+		{
+			int best_index = select_index;
+			child_node_t *best_node = uct_child;
+
+			while (best_node[best_index].index != -1) {
+				const int best_node_index = best_node[best_index].index;
+
+				best_node = uct_node[best_node_index].child;
+				max_count = 0;
+				for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
+					if (best_node[i].move_count > max_count) {
+						best_index = i;
+						max_count = best_node[i].move_count;
+					}
+				}
+
+				if (max_count < 20)
+					break;
+
+				pv += " " + best_node[best_index].move.toUSI();
+			}
+		}
+
+		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << pv << endl;
+
+		// 次の探索でのプレイアウト回数の算出
+		CalculatePlayoutPerSec(finish_time);
 	}
 
 	// 最善応手列を出力
@@ -698,10 +672,6 @@ InterruptionCheck(void)
 		GetSpendTime(begin_time) * 10.0 < time_limit) {
 		return false;
 	}
-
-	// 詰みが見つかったので探索打ち切り
-	if (matecheck)
-		return true;
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
