@@ -201,11 +201,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 
 		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 
-		if (!pos.searcher()->threads.main()->rootMoves[0].pv[0]) {
-			SYNCCOUT << "bestmove resign" << SYNCENDL;
-			return;
-		}
-		else if (score >= ScoreMaxEvaluate) {
+		if (score >= ScoreMaxEvaluate) {
 			// 詰み
 			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
 			std::cout << "info score mate ";
