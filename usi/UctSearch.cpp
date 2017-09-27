@@ -365,7 +365,7 @@ UctSearchGenmove(Position *pos)
 	po_info.count = 0;
 
 	if (reuse_subtree) {
-		DeleteOldHash(pos);
+		DeleteOldHash(pos->gamePly());
 	}
 	else {
 		ClearUctHash();
@@ -510,7 +510,7 @@ UctSearchGenmove(Position *pos)
 			}
 		}
 
-		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " score cp " << cp << " pv " << pv << endl;
+		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
@@ -547,7 +547,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 static int
 ExpandRoot(const Position *pos)
 {
-	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -563,7 +563,7 @@ ExpandRoot(const Position *pos)
 	}
 	else {
 		// 空のインデックスを探す
-		index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
+		index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly(), pos->gamePly());
 
 		assert(index != uct_hash_size);
 
@@ -602,7 +602,7 @@ ExpandRoot(const Position *pos)
 static int
 ExpandNode(Position *pos, int current, const std::vector<int>& path)
 {
-	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
+	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size(), pos->gamePly());
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -611,7 +611,7 @@ ExpandNode(Position *pos, int current, const std::vector<int>& path)
 	}
 
 	// 空のインデックスを探す
-	index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
+	index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size(), pos->gamePly());
 
 	assert(index != uct_hash_size);
 

@@ -8,7 +8,6 @@ using namespace std;
 
 node_hash_t *node_hash;
 static unsigned int used;
-static int oldest_move;
 
 unsigned int uct_hash_size = UCT_HASH_SIZE;
 unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10;
@@ -59,7 +58,6 @@ InitializeUctHash(void)
 		exit(1);
 	}
 
-	oldest_move = 1;
 	used = 0;
 	enough_size = true;
 
@@ -68,6 +66,7 @@ InitializeUctHash(void)
 		node_hash[i].hash = 0;
 		node_hash[i].color = 0;
 		node_hash[i].moves = 0;
+		node_hash[i].ply = 0;
 	}
 }
 
@@ -86,6 +85,7 @@ ClearUctHash(void)
 		node_hash[i].hash = 0;
 		node_hash[i].color = 0;
 		node_hash[i].moves = 0;
+		node_hash[i].ply = 0;
 	}
 }
 
@@ -94,19 +94,18 @@ ClearUctHash(void)
 //  古いデータの削除  //
 ///////////////////////
 void
-DeleteOldHash(const Position* pos)
+DeleteOldHash(const int ply)
 {
-	while (oldest_move < pos->gamePly()) {
-		for (unsigned int i = 0; i < uct_hash_size; i++) {
-			if (node_hash[i].flag && node_hash[i].moves == oldest_move) {
-				node_hash[i].flag = false;
-				node_hash[i].hash = 0;
-				node_hash[i].color = 0;
-				node_hash[i].moves = 0;
-				used--;
-			}
+	// 現在の手番未満、または、前回未使用のものを削除
+	for (unsigned int i = 0; i < uct_hash_size; i++) {
+		if (node_hash[i].flag && (node_hash[i].moves < ply || node_hash[i].ply < ply - 1)) {
+			node_hash[i].flag = false;
+			node_hash[i].hash = 0;
+			node_hash[i].color = 0;
+			node_hash[i].moves = 0;
+			node_hash[i].ply = 0;
+			used--;
 		}
-		oldest_move++;
 	}
 
 	enough_size = true;
@@ -117,7 +116,7 @@ DeleteOldHash(const Position* pos)
 //  未使用のインデックスを探して返す  //
 //////////////////////////////////////
 unsigned int
-SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
+SearchEmptyIndex(const unsigned long long hash, const int color, const int moves, const int ply)
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -126,8 +125,9 @@ SearchEmptyIndex(const unsigned long long hash, const int color, const int moves
 		if (!node_hash[i].flag) {
 			node_hash[i].flag = true;
 			node_hash[i].hash = hash;
-			node_hash[i].moves = moves;
 			node_hash[i].color = color;
+			node_hash[i].moves = moves;
+			node_hash[i].ply = ply; // 使用した手番を設定
 			used++;
 			if (used > uct_hash_limit)
 				enough_size = false;
@@ -145,7 +145,7 @@ SearchEmptyIndex(const unsigned long long hash, const int color, const int moves
 //  ハッシュ値に対応するインデックスを返す  //
 ////////////////////////////////////////////
 unsigned int
-FindSameHashIndex(const unsigned long long hash, const int color, const int moves)
+FindSameHashIndex(const unsigned long long hash, const int color, const int moves, const int ply)
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -157,6 +157,7 @@ FindSameHashIndex(const unsigned long long hash, const int color, const int move
 		else if (node_hash[i].hash == hash &&
 			node_hash[i].color == color &&
 			node_hash[i].moves == moves) {
+			node_hash[i].ply = ply; // 使用した手番を上書き
 			return i;
 		}
 		i++;
@@ -173,3 +174,8 @@ CheckRemainingHashSize(void)
 	return enough_size;
 }
 
+// ハッシュ使用率を取得（単位はパーミル（全体を１０００とした値））
+int GetUctHashUsageRate()
+{
+	return 1000 * used / uct_hash_size;
+}
