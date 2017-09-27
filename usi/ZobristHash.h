@@ -1,12 +1,13 @@
 ﻿#pragma once
 
+#include "position.hpp"
+
 const unsigned int UCT_HASH_SIZE = 131072;
 
 struct node_hash_t {
 	unsigned long long hash;
 	int color;
 	int moves;
-	int ply; // 使用した手番
 	bool flag;
 };
 
@@ -26,16 +27,13 @@ void InitializeUctHash(void);
 void ClearUctHash(void);
 
 //  古いデータの削除
-void DeleteOldHash(const int ply);
+void DeleteOldHash(const Position *pos);
 
 //  未使用のインデックスを探す
-unsigned int SearchEmptyIndex(const unsigned long long hash, const int color, const int moves, const int ply);
+unsigned int SearchEmptyIndex(const unsigned long long hash, const int color, const int moves);
 
 //  ハッシュ値に対応するインデックスを返す
-unsigned int FindSameHashIndex(const unsigned long long hash, const int color, const int moves, const int ply);
+unsigned int FindSameHashIndex(const unsigned long long hash, const int color, const int moves);
 
 //  ハッシュ表が埋まっていないか確認
 bool CheckRemainingHashSize(void);
-
-// ハッシュ使用率を取得（単位はパーミル（全体を１０００とした値））
-int GetUctHashUsageRate();
