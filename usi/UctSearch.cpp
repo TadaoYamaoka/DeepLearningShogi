@@ -116,6 +116,10 @@ uniform_int_distribution<int> rnd(0, 999);
 // 末端ノードでの詰み探索の深さ(奇数であること)
 const int MATE_SEARCH_DEPTH = 7;
 
+// 詰み探索で詰みの場合のvalue_winの定数
+const float VALUE_WIN = FLT_MAX;
+const float VALUE_LOSE = -FLT_MAX;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -143,7 +147,7 @@ static void CalculatePlayoutPerSec(double finish_time);
 static void CalculateNextPlayouts(const Position *pos);
 
 // ノードの展開
-static unsigned int ExpandNode(Position *pos, unsigned int current, const std::vector<int>& path);
+static unsigned int ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>& path);
 
 // ルートの展開
 static unsigned int ExpandRoot(const Position *pos);
@@ -167,7 +171,7 @@ static void QueuingNode(const Position *pos, unsigned int index);
 static int SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt);
 
 // UCT探索(1回の呼び出しにつき, 1回の探索)
-static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<int>& path);
+static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsigned int>& path);
 
 // 結果の更新
 static void UpdateResult(child_node_t *child, float result, unsigned int current);
@@ -397,11 +401,11 @@ UctSearchGenmove(Position *pos)
 	if (uct_node[current_root].child_num == 0) {
 		return Move::moveNone();
 	}
-	else if (uct_node[current_root].value_win == FLT_MAX) {
+	else if (uct_node[current_root].value_win == VALUE_WIN) {
 		// 詰み
 		return mateMoveInOddPlyReturnMove(*pos, MATE_SEARCH_DEPTH);
 	}
-	else if (uct_node[current_root].value_win == FLT_MIN) {
+	else if (uct_node[current_root].value_win == VALUE_LOSE) {
 		// 自玉の詰み
 		return Move::moveNone();
 	}
@@ -551,12 +555,8 @@ ExpandRoot(const Position *pos)
 	child_node_t *uct_child;
 	int child_num = 0;
 
-	std::vector<int> path;
-
 	// 既に展開されていた時は, 探索結果を再利用する
 	if (index != uct_hash_size) {
-		path.push_back(index);
-
 		PrintReuseCount(uct_node[index].move_count);
 
 		return index;
@@ -572,6 +572,7 @@ ExpandRoot(const Position *pos)
 		uct_node[index].win = 0;
 		uct_node[index].child_num = 0;
 		uct_node[index].evaled = false;
+		uct_node[index].value_win = 0.0f;
 
 		uct_child = uct_node[index].child;
 
@@ -580,8 +581,6 @@ ExpandRoot(const Position *pos)
 			InitializeCandidate(&uct_child[child_num], ml.move());
 			child_num++;
 		}
-
-		path.push_back(index);
 
 		// 子ノード個数の設定
 		uct_node[index].child_num = child_num;
@@ -600,7 +599,7 @@ ExpandRoot(const Position *pos)
 //  ノードの展開  //
 ///////////////////
 static unsigned int
-ExpandNode(Position *pos, unsigned int current, const std::vector<int>& path)
+ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>& path)
 {
 	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
 	child_node_t *uct_child;
@@ -620,6 +619,7 @@ ExpandNode(Position *pos, unsigned int current, const std::vector<int>& path)
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
 	uct_node[index].evaled = false;
+	uct_node[index].value_win = 0.0f;
 	uct_child = uct_node[index].child;
 
 	// 候補手の展開
@@ -762,7 +762,7 @@ ParallelUctSearch(thread_arg_t *arg)
 		Position pos(*targ->pos);
 		//cout << pos.toSFEN() << ":" << pos.getKey() << endl;
 		// 1回プレイアウトする
-		std::vector<int> path;
+		std::vector<unsigned int> path;
 		UctSearch(&pos, mt[targ->thread_id], current_root, path);
 		//cout << "root:" << current_root << " move_count:" << uct_node[current_root].move_count << endl;
 		// 探索を打ち切るか確認
@@ -781,17 +781,17 @@ ParallelUctSearch(thread_arg_t *arg)
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 static float
-UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<int>& path)
+UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsigned int>& path)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
 		return 1.0f; // 反転して値を返すため1を返す
 	}
-	else if (uct_node[current].value_win == FLT_MAX) {
+	else if (uct_node[current].value_win == VALUE_WIN) {
 		// 詰み
 		return 0.0f;  // 反転して値を返すため0を返す
 	}
-	else if (uct_node[current].value_win == FLT_MIN) {
+	else if (uct_node[current].value_win == VALUE_LOSE) {
 		// 自玉の詰み
 		return 1.0f; // 反転して値を返すため1を返す
 	}
@@ -877,11 +877,11 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<int>&
 
 		// 詰みの場合、ValueNetの値を上書き
 		if (isMate == 1) {
-			uct_node[child_index].value_win = FLT_MAX;
+			uct_node[child_index].value_win = VALUE_WIN;
 			result = 0.0f;
 		}
 		else if (isMate == -1) {
-			uct_node[child_index].value_win = FLT_MIN;
+			uct_node[child_index].value_win = VALUE_LOSE;
 			result = 1.0f;
 		}
 		else {
