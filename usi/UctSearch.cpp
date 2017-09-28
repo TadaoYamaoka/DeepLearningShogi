@@ -63,7 +63,7 @@ static po_info_t po_info;
 // 試行時間を延長するかどうかのフラグ
 static bool extend_time = false;
 
-int current_root; // 現在のルートのインデックス
+unsigned int current_root; // 現在のルートのインデックス
 mutex mutex_nodes[MAX_NODES];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
@@ -103,7 +103,7 @@ ray_clock::time_point begin_time;
 const int policy_value_batch_maxsize = THREAD_MAX * 10; // スレッド数以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
-static int policy_value_hash_index[2][policy_value_batch_maxsize];
+static unsigned int policy_value_hash_index[2][policy_value_batch_maxsize];
 static int current_policy_value_queue_index = 0;
 static int current_policy_value_batch_index = 0;
 
@@ -136,17 +136,17 @@ ClearEvalQueue()
 ////////////
 
 // Virtual Lossを加算
-static void AddVirtualLoss(child_node_t *child, int current);
+static void AddVirtualLoss(child_node_t *child, unsigned int current);
 
 // 次のプレイアウト回数の設定
 static void CalculatePlayoutPerSec(double finish_time);
 static void CalculateNextPlayouts(const Position *pos);
 
 // ノードの展開
-static int ExpandNode(Position *pos, int current, const std::vector<int>& path);
+static unsigned int ExpandNode(Position *pos, unsigned int current, const std::vector<int>& path);
 
 // ルートの展開
-static int ExpandRoot(const Position *pos);
+static unsigned int ExpandRoot(const Position *pos);
 
 // 思考時間を延長する処理
 static bool ExtendTime(void);
@@ -161,16 +161,16 @@ static bool InterruptionCheck(void);
 static void ParallelUctSearch(thread_arg_t *arg);
 
 // ノードのレーティング
-static void QueuingNode(const Position *pos, int index);
+static void QueuingNode(const Position *pos, unsigned int index);
 
 // UCB値が最大の子ノードを返す
-static int SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt);
+static int SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt);
 
 // UCT探索(1回の呼び出しにつき, 1回の探索)
-static float UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path);
+static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<int>& path);
 
 // 結果の更新
-static void UpdateResult(child_node_t *child, float result, int current);
+static void UpdateResult(child_node_t *child, float result, unsigned int current);
 
 
 
@@ -444,7 +444,7 @@ UctSearchGenmove(Position *pos)
 	uct_child = uct_node[current_root].child;
 
 	int max_count = 0;
-	int select_index;
+	unsigned int select_index;
 
 	// 探索回数最大の手を見つける
 	for (int i = 0; i < uct_node[current_root].child_num; i++) {
@@ -488,7 +488,7 @@ UctSearchGenmove(Position *pos)
 		// PV表示
 		string pv = move.toUSI();
 		{
-			int best_index = select_index;
+			unsigned int best_index = select_index;
 			child_node_t *best_node = uct_child;
 
 			while (best_node[best_index].index != -1) {
@@ -544,7 +544,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 /////////////////////////
 //  ルートノードの展開  //
 /////////////////////////
-static int
+static unsigned int
 ExpandRoot(const Position *pos)
 {
 	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
@@ -599,8 +599,8 @@ ExpandRoot(const Position *pos)
 ///////////////////
 //  ノードの展開  //
 ///////////////////
-static int
-ExpandNode(Position *pos, int current, const std::vector<int>& path)
+static unsigned int
+ExpandNode(Position *pos, unsigned int current, const std::vector<int>& path)
 {
 	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
 	child_node_t *uct_child;
@@ -649,7 +649,7 @@ ExpandNode(Position *pos, int current, const std::vector<int>& path)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 static void
-QueuingNode(const Position *pos, int index)
+QueuingNode(const Position *pos, unsigned int index)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
@@ -781,7 +781,7 @@ ParallelUctSearch(thread_arg_t *arg)
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 static float
-UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
+UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<int>& path)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
@@ -805,7 +805,7 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 #endif // !USE_VALUENET
 
 	float result;
-	int next_index;
+	unsigned int next_index;
 	double score;
 	child_node_t *uct_child = uct_node[current].child;
 
@@ -821,7 +821,7 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
-	if (uct_child[next_index].index == -1) {
+	if (uct_child[next_index].index == NOT_EXPANDED ) {
 #ifndef USE_VALUENET
 		// キューがいっぱいの場合待機する
 		while (current_policy_value_batch_index >= policy_value_batch_maxsize - THREAD_MAX)
@@ -832,7 +832,7 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 		LOCK_EXPAND;
 		// ノードの展開
 		// ノード展開処理の中でvalueを計算する
-		int child_index = ExpandNode(pos, current, path);
+		unsigned int child_index = ExpandNode(pos, current, path);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 		// ノード展開のロックの解除
@@ -908,7 +908,7 @@ UctSearch(Position *pos, mt19937_64 *mt, int current, std::vector<int>& path)
 //  Virtual Lossの加算  //
 //////////////////////////
 static void
-AddVirtualLoss(child_node_t *child, int current)
+AddVirtualLoss(child_node_t *child, unsigned int current)
 {
 	atomic_fetch_add(&uct_node[current].move_count, VIRTUAL_LOSS);
 	atomic_fetch_add(&child->move_count, VIRTUAL_LOSS);
@@ -919,7 +919,7 @@ AddVirtualLoss(child_node_t *child, int current)
 //  探索結果の更新  //
 /////////////////////
 static void
-UpdateResult(child_node_t *child, float result, int current)
+UpdateResult(child_node_t *child, float result, unsigned int current)
 {
 	atomic_fetch_add(&uct_node[current].win, result);
 	atomic_fetch_add(&uct_node[current].move_count, 1 - VIRTUAL_LOSS);
@@ -932,7 +932,7 @@ UpdateResult(child_node_t *child, float result, int current)
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 static int
-SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
+SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 {
 	child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
@@ -940,7 +940,7 @@ SelectMaxUcbChild(const Position *pos, int current, mt19937_64 *mt)
 	const int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
-	int max_index;
+	unsigned int max_index;
 	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
 
 	max_value = -1;
@@ -1105,7 +1105,7 @@ void EvalNode() {
 			float *value = reinterpret_cast<float*>(y2_data.get_data());
 
 			for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-				const int index = policy_value_hash_index[policy_value_queue_index][i];
+				const unsigned int index = policy_value_hash_index[policy_value_queue_index][i];
 
 				/*if (index == current_root) {
 					string str;

@@ -33,7 +33,7 @@ const double FPU = 5.0;
 const int UCT_CHILD_MAX = 593;
 
 // 未展開のノードのインデックス
-const int NOT_EXPANDED = -1;
+unsigned const int NOT_EXPANDED = -1;
 
 // 投了する勝率の閾値
 const double RESIGN_THRESHOLD = 0.01;
@@ -64,7 +64,7 @@ struct child_node_t {
 	Move move;  // 着手する座標
 	std::atomic<int> move_count;  // 探索回数
 	std::atomic<float> win;         // 勝った回数
-	int index;   // インデックス
+	unsigned int index;   // インデックス
 	float nnrate; // ニューラルネットワークでのレート
 };
 
@@ -86,11 +86,6 @@ struct po_info_t {
 	std::atomic<int> count;       // 現在の探索回数
 };
 
-struct rate_order_t {
-	int index;    // ノードのインデックス
-	double rate;  // その手のレート
-};
-
 
 // 残り時間
 extern double remaining_time[ColorNum];
@@ -98,7 +93,7 @@ extern double remaining_time[ColorNum];
 extern uct_node_t *uct_node;
 
 // 現在のルートのインデックス
-extern int current_root;
+extern unsigned int current_root;
 
 
 // 予測読みを止める

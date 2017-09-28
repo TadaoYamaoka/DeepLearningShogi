@@ -98,10 +98,12 @@ void delete_hash_recursively(Position &pos, const unsigned int index) {
 
 	child_node_t *child_node = uct_node[index].child;
 	for (int i = 0; i < uct_node[index].child_num; i++) {
-		StateInfo st;
-		pos.doMove(child_node[i].move, st);
-		delete_hash_recursively(pos, child_node[i].index);
-		pos.undoMove(child_node[i].move);
+		if (child_node[i].index != NOT_EXPANDED && node_hash[child_node[i].index].flag == false) {
+			StateInfo st;
+			pos.doMove(child_node[i].move, st);
+			delete_hash_recursively(pos, child_node[i].index);
+			pos.undoMove(child_node[i].move);
+		}
 	}
 }
 
@@ -109,13 +111,13 @@ void
 DeleteOldHash(const Position* pos)
 {
 	// 現在の局面をルートとする局面以外を削除する
-	used = 0;
+	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 
+	used = 0;
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		node_hash[i].flag = false;
 	}
 
-	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 	if (root != uct_hash_size) {
 		// 盤面のコピー
 		Position pos_copy(*pos);
