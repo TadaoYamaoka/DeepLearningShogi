@@ -3,12 +3,12 @@
 #include <iostream>
 
 #include "ZobristHash.h"
+#include "UctSearch.h"
 
 using namespace std;
 
 node_hash_t *node_hash;
 static unsigned int used;
-static int oldest_move;
 
 unsigned int uct_hash_size = UCT_HASH_SIZE;
 unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10;
@@ -59,7 +59,6 @@ InitializeUctHash(void)
 		exit(1);
 	}
 
-	oldest_move = 1;
 	used = 0;
 	enough_size = true;
 
@@ -93,20 +92,34 @@ ClearUctHash(void)
 ///////////////////////
 //  古いデータの削除  //
 ///////////////////////
+void delete_hash_recursively(Position &pos, const unsigned int index) {
+	node_hash[index].flag = true;
+	used++;
+
+	child_node_t *child_node = uct_node[index].child;
+	for (int i = 0; i < uct_node[index].child_num; i++) {
+		StateInfo st;
+		pos.doMove(child_node[i].move, st);
+		delete_hash_recursively(pos, child_node[i].index);
+		pos.undoMove(child_node[i].move);
+	}
+}
+
 void
 DeleteOldHash(const Position* pos)
 {
-	while (oldest_move < pos->gamePly()) {
-		for (unsigned int i = 0; i < uct_hash_size; i++) {
-			if (node_hash[i].flag && node_hash[i].moves == oldest_move) {
-				node_hash[i].flag = false;
-				node_hash[i].hash = 0;
-				node_hash[i].color = 0;
-				node_hash[i].moves = 0;
-				used--;
-			}
-		}
-		oldest_move++;
+	// 現在の局面をルートとする局面以外を削除する
+	used = 0;
+
+	for (unsigned int i = 0; i < uct_hash_size; i++) {
+		node_hash[i].flag = false;
+	}
+
+	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	if (root != uct_hash_size) {
+		// 盤面のコピー
+		Position pos_copy(*pos);
+		delete_hash_recursively(pos_copy, root);
 	}
 
 	enough_size = true;
@@ -173,3 +186,8 @@ CheckRemainingHashSize(void)
 	return enough_size;
 }
 
+// ハッシュ使用率を取得(単位はパーミル(全体を1000とした値))
+int GetUctHashUsageRate()
+{
+	return 1000 * used / uct_hash_size;
+}

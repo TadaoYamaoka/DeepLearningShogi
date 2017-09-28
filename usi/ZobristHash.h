@@ -37,3 +37,6 @@ unsigned int FindSameHashIndex(const unsigned long long hash, const int color, c
 
 //  ハッシュ表が埋まっていないか確認
 bool CheckRemainingHashSize(void);
+
+// ハッシュ使用率を取得(単位はパーミル(全体を1000とした値))
+int GetUctHashUsageRate();
