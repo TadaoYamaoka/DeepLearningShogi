@@ -145,7 +145,7 @@ void InitializeSearchSetting(void);
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position *pos);
+Move UctSearchGenmove(Position *pos, Move &ponderMove = Move::moveNone(), bool ponder = false);
 
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);

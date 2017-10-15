@@ -81,6 +81,12 @@ double default_remaining_time = ALL_THINKING_TIME;
 // 各スレッドに渡す引数
 thread_arg_t t_arg[THREAD_MAX];
 
+bool pondering_mode = false;
+
+bool pondering = false;
+
+bool pondering_stop = false;
+
 double time_limit;
 
 std::thread *handle[THREAD_MAX];    // スレッドのハンドル
@@ -177,6 +183,14 @@ static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std:
 static void UpdateResult(child_node_t *child, float result, unsigned int current);
 
 
+/////////////////////
+//  予測読みの設定  //
+/////////////////////
+void
+SetPonderingMode(bool flag)
+{
+	pondering_mode = flag;
+}
 
 ////////////////////////
 //  探索モードの指定  //
@@ -354,16 +368,24 @@ FinalizeUctSearch(void)
 
 }
 
+void
+StopPondering(void)
+{
+	pondering_stop = true;
+}
 
 /////////////////////////////////////
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position *pos)
+UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 {
 	Move move;
 	double finish_time;
 	child_node_t *uct_child;
+
+	pondering = ponder;
+	pondering_stop = false;
 
 	// 探索情報をクリア
 	po_info.count = 0;
@@ -511,6 +533,10 @@ UctSearchGenmove(Position *pos)
 					break;
 
 				pv += " " + best_node[best_index].move.toUSI();
+
+				// ponderの着手
+				if (pondering_mode && ponderMove == Move::moveNone())
+					ponderMove = best_node[best_index].move;
 			}
 		}
 
@@ -518,6 +544,9 @@ UctSearchGenmove(Position *pos)
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
+
+		if (!pondering)
+			remaining_time[pos->turn()] -= finish_time;
 	}
 
 	// 最善応手列を出力
@@ -673,6 +702,9 @@ QueuingNode(const Position *pos, unsigned int index)
 static bool
 InterruptionCheck(void)
 {
+	if (pondering)
+		return pondering_stop;
+
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
 	const int rest = po_info.halt - po_info.count;
@@ -769,7 +801,7 @@ ParallelUctSearch(thread_arg_t *arg)
 		interruption = InterruptionCheck();
 		// ハッシュに余裕があるか確認
 		enough_size = CheckRemainingHashSize();
-		if (GetSpendTime(begin_time) > time_limit) break;
+		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
 	} while (po_info.count < po_info.halt && !interruption && enough_size);
 
 	return;
@@ -1013,6 +1045,11 @@ CalculatePlayoutPerSec(double finish_time)
 static void
 CalculateNextPlayouts(const Position *pos)
 {
+	if (pondering) {
+		po_info.num = MAX_NODES;
+		return;
+	}
+
 	int color = pos->turn();
 
 	// 探索の時の探索回数を求める

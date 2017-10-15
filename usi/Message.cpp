@@ -43,12 +43,12 @@ PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const 
 
 	if (!debug_message) return;
 
-	cerr << "All Playouts       :  " << setw(7) << root->move_count << endl;
-	cerr << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
-	cerr << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
-	cerr << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
+	cout << "info string " << "All Playouts       :  " << setw(7) << root->move_count << endl;
+	cout << "info string " << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
+	cout << "info string " << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
+	cout << "info string " << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
 	if (finish_time != 0.0) {
-		cerr << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
+		cout << "info string " << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
 	}
 }
 
@@ -60,8 +60,8 @@ PrintPlayoutLimits(const double time_limit, const int playout_limit)
 {
 	if (!debug_message) return;
 
-	cerr << "Time Limit    : " << time_limit << " Sec" << endl;
-	cerr << "Playout Limit : " << playout_limit << " PO" << endl;
+	cout << "info string " << "Time Limit    : " << time_limit << " Sec" << endl;
+	cout << "info string " << "Playout Limit : " << playout_limit << " PO" << endl;
 }
 
 ////////////////////////////////////////
@@ -72,5 +72,5 @@ PrintReuseCount(const int count)
 {
 	if (!debug_message) return;
 
-	cerr << "Reuse : " << count << " Playouts" << endl;
+	cout << "info string " << "Reuse : " << count << " Playouts" << endl;
 }

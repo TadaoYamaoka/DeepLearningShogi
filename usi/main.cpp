@@ -62,6 +62,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 	std::string cmd;
 	std::string token;
+	std::thread th;
 
 	for (int i = 1; i < argc; ++i)
 		cmd += std::string(argv[i]) + " ";
@@ -75,9 +76,23 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 		ssCmd >> std::skipws >> token;
 
-		if (token == "quit" || token == "stop" || token == "ponderhit" || token == "gameover") {
+		if (token == "quit" || token == "gameover") {
 		}
-		else if (token == "go") go_uct(pos, ssCmd);
+		else if (token == "stop") {
+			StopPondering();
+			if (th.joinable())
+				th.join();
+			// 無視されるがbestmoveを返す
+			std::cout << "bestmove resign" << std::endl;
+		}
+		else if (token == "ponderhit" || token == "go") {
+			if (token == "ponderhit") {
+				StopPondering();
+			}
+			if (th.joinable())
+				th.join();
+			th = std::thread([&pos, tmpCmd = ssCmd.str()] { go_uct(pos, std::istringstream(tmpCmd)); });
+		}
 		else if (token == "position") setPosition(pos, ssCmd);
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
 		else if (token == "usi") std::cout << "id name " << std::string(options["Engine_Name"])
@@ -109,7 +124,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMode(CONST_PLAYOUT_MODE);
 			SetPlayout(1);
 			InitializeSearchSetting();
-			UctSearchGenmove(&pos_tmp);
+			Move ponder;
+			UctSearchGenmove(&pos_tmp, ponder);
 			SetPlayout(CONST_PLAYOUT); // 元に戻す
 
 			SetMode(search_mode); // 元に戻す
@@ -117,11 +133,14 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				// プレイアウト速度測定
 				SetTime(1);
 				InitializeSearchSetting();
-				UctSearchGenmove(&pos_tmp);
+				UctSearchGenmove(&pos_tmp, ponder);
 			}
 			else {
 				InitializeSearchSetting();
 			}
+
+			// PonderingMode
+			SetPonderingMode(options["USI_Ponder"]);
 
 			std::cout << "readyok" << std::endl;
 		}
@@ -133,6 +152,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 	if (options["Mate_Root_Search"] > 0)
 		threads.main()->waitForSearchFinished();
+	if (th.joinable())
+		th.join();
 }
 
 void go_uct(Position& pos, std::istringstream& ssCmd) {
@@ -192,13 +213,20 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// UCTによる探索
-	Move move = UctSearchGenmove(&pos);
+	Move ponderMove = Move::moveNone();
+	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		pos.searcher()->signals.stop = true;
 		pos.searcher()->threads.main()->waitForSearchFinished();
+	}
 
+	// Ponderの場合、結果を返さない
+	if (limits.ponder)
+		return;
+	
+	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 
 		if (score >= ScoreMaxEvaluate) {
@@ -219,7 +247,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		std::cout << "bestmove resign" << std::endl;
 		return;
 	}
-	std::cout << "bestmove " << move.toUSI() << std::endl;
+	std::cout << "bestmove " << move.toUSI();
+	if (ponderMove != Move::moveNone())
+		std::cout << " ponder " << ponderMove.toUSI();
+	std::cout << std::endl;
 }
 
 struct child_node_t_copy {
