@@ -1086,7 +1086,7 @@ CalculateNextPlayouts(const Position *pos)
 	}
 	else if (mode == TIME_SETTING_MODE ||
 		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		time_limit = remaining_time[color] / max(10, TIME_RATE_9 - pos->gamePly()) + inc_time[color];
+		time_limit = remaining_time[color] / (30 + max(0, 40 - pos->gamePly())) + inc_time[color];
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
 			time_limit < (const_thinking_time)) {
 			time_limit = const_thinking_time;
