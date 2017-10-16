@@ -464,6 +464,34 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	delete handle[threads];
 	handle[threads] = nullptr;
 
+	// 着手が21手以降で, 
+	// 時間延長を行う設定になっていて,
+	// 探索時間延長をすべきときは
+	// 探索回数を1.5倍に増やす
+	if (pos->gamePly() > 20 &&
+		extend_time &&
+		time_limit > const_thinking_time * 1.5 &&
+		ExtendTime()) {
+		cout << "infor string ExtendTime" << endl;
+		po_info.halt = (int)(1.5 * po_info.halt);
+		time_limit *= 1.5;
+		for (int i = 0; i < threads; i++) {
+			handle[i] = new thread(ParallelUctSearch, &t_arg[i]);
+		}
+		// use_nn
+		handle[threads] = new thread(EvalNode);
+
+		for (int i = 0; i < threads; i++) {
+			handle[i]->join();
+			delete handle[i];
+			handle[i] = nullptr;
+		}
+		// use_nn
+		handle[threads]->join();
+		delete handle[threads];
+		handle[threads] = nullptr;
+	}
+
 	// 探索にかかった時間を求める
 	finish_time = GetSpendTime(begin_time);
 
