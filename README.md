@@ -18,7 +18,7 @@ http://tadaoyamaoka.hatenablog.com/
 * Windows 10 64bit
 * Python 3.5 ([Anaconda](https://www.continuum.io/downloads) 4.2.0 (64-bit))
 * Visual Studio 2015
-* [Boost](http://www.boost.org/) 1.64
+* [Boost](http://www.boost.org/) 1.65.1
 
 ## ライセンス
 ライセンスはMITライセンスとします。
