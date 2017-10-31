@@ -358,6 +358,55 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
+void hcphe_decode_with_value(np::ndarray ndhcphe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
+	const int len = (int)ndhcphe.shape(0);
+	HuffmanCodedPosWithHistoryAndEval *hcphe = reinterpret_cast<HuffmanCodedPosWithHistoryAndEval *>(ndhcphe.get_data());
+	float(*features1)[HISTORY_NUM][ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[HISTORY_NUM][ColorNum][MAX_FEATURES1_NUM][SquareNum]>(ndfeatures1.get_data());
+	float(*features2)[HISTORY_NUM][MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[HISTORY_NUM][MAX_FEATURES2_NUM][SquareNum]>(ndfeatures2.get_data());
+	int *move = reinterpret_cast<int *>(ndmove.get_data());
+	int *result = reinterpret_cast<int *>(ndresult.get_data());
+	float *value = reinterpret_cast<float *>(ndvalue.get_data());
+
+	// set all zero
+	std::fill_n((float*)features1, HISTORY_NUM * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features2, HISTORY_NUM * MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+
+	static Searcher* searcher = nullptr;
+	if (searcher == nullptr) {
+		searcher = new Searcher();
+		searcher->init();
+	}
+	Position position(searcher);
+	StateInfo state[7];
+	for (int i = 0; i < len; i++, hcphe++, features1++, features2++, value++, move++, result++) {
+		float(*features1_hist)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]>(features1);
+		float(*features2_hist)[MAX_FEATURES2_NUM][SquareNum] = reinterpret_cast<float(*)[MAX_FEATURES2_NUM][SquareNum]>(features2);
+
+		position.set(hcphe->hcp, searcher->threads.main());
+		StateInfo* st = state;
+
+		for (int j = 0; j < HISTORY_NUM - 1; j++, features1_hist++, features2_hist++) {
+			// input features
+			make_input_features(position, features1_hist, features2_hist);
+
+			// 履歴を1手進める
+			const Move mv = move16toMove(Move(hcphe->historyMove16[j]), position);
+			position.doMove(mv, *st++);
+		}
+		// input features
+		make_input_features(position, features1_hist, features2_hist);
+
+		// move
+		*move = make_move_label(hcphe->bestMove16, position);
+
+		// game result
+		*result = make_result(hcphe->gameResult, position);
+
+		// eval
+		*value = score_to_value((Score)hcphe->eval);
+	}
+}
+
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
 float beta = 1.0f / 0.67f;
@@ -694,6 +743,7 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
+	py::def("hcphe_decode_with_value", hcphe_decode_with_value);
 
 	py::def("setup_eval_dir", Engine::setup_eval_dir);
 	py::def("set_softmax_tempature", set_softmax_tempature);

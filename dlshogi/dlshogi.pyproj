@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
+    <StartupFile>train_rl_policy_with_value_using_hcphe_bootstrap.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_policy_depth6_1 ..\..\elmo_for_learn\bin\elmo_teacher_rnd8_depth8_10 --lr 0.01 -b 32</CommandLineArguments>
+    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-01 ..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-02</CommandLineArguments>
     <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -29,12 +29,14 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="policy_value_history_network.py" />
     <Compile Include="predict.py" />
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train_rl_policy_with_value.py" />
     <Compile Include="test_policy_value_using_hcpe.py" />
+    <Compile Include="train_rl_policy_with_value_using_hcphe_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
     <Compile Include="train_rl_policy_using_hcpe.py" />
