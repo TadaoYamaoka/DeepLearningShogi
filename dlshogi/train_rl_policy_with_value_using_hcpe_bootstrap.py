@@ -31,12 +31,14 @@ parser.add_argument('--val_lambda', type=float, default=0.5, help='regularizatio
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+logging.info('batchsize={}'.format(args.batchsize))
 
 model = PolicyValueNetwork()
 model.to_gpu()
 
 alpha = args.lr
-optimizer = optimizers.SGD(lr=alpha)
+logging.info('MomentumSGD(lr={})'.format(alpha))
+optimizer = optimizers.MomentumSGD(lr=alpha)
 optimizer.setup(model)
 
 # Init/Resume
