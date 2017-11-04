@@ -40,8 +40,8 @@ model = PolicyValueNetwork()
 model.to_gpu()
 
 optimizer = optimizers.MomentumSGD(lr=args.lr)
-optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 optimizer.setup(model)
+optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 
 # Init/Resume
 if args.initmodel:
