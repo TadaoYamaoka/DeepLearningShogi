@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcphe_bootstrap.py</StartupFile>
+    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

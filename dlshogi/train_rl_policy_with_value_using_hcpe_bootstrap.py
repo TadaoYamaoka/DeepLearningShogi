@@ -27,18 +27,20 @@ parser.add_argument('--initmodel', '-m', default='', help='Initialize the model 
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
 parser.add_argument('--val_lambda', type=float, default=0.5, help='regularization factor')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))
+logging.info('MomentumSGD(lr={})'.format(args.lr))
+logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
 
 model = PolicyValueNetwork()
 model.to_gpu()
 
-alpha = args.lr
-logging.info('MomentumSGD(lr={})'.format(alpha))
-optimizer = optimizers.MomentumSGD(lr=alpha)
+optimizer = optimizers.MomentumSGD(lr=args.lr)
+optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 optimizer.setup(model)
 
 # Init/Resume
