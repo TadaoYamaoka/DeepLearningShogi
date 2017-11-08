@@ -34,14 +34,14 @@ args = parser.parse_args()
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
-logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
+#logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
 
 model = PolicyValueNetwork()
 model.to_gpu()
 
 optimizer = optimizers.MomentumSGD(lr=args.lr)
 optimizer.setup(model)
-optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
+#optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 
 # Init/Resume
 if args.initmodel:
@@ -69,12 +69,12 @@ def mini_batch(hcpevec):
 
     cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
 
-    z = result.astype(np.float32) - value + 0.5
+    z = result.astype(np.float32) - value + 1.0
 
     return (Variable(cuda.to_gpu(features1)),
             Variable(cuda.to_gpu(features2)),
             Variable(cuda.to_gpu(move)),
-            Variable(cuda.to_gpu(result.reshape((len(hcpevec), 1)))),
+            result.reshape((len(hcpevec), 1)),
             Variable(cuda.to_gpu(z)),
             Variable(cuda.to_gpu(value.reshape((len(value), 1))))
             )
@@ -95,13 +95,15 @@ for e in range(args.epoch):
     itr_epoch = 0
     sum_loss_epoch = 0
     for i in range(0, len(train_data) - args.batchsize, args.batchsize):
-        x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
+        x1, x2, t1, t2_np, z, value = mini_batch(train_data[i:i+args.batchsize])
         y1, y2 = model(x1, x2)
+        tanh_y2 = F.tanh(y2)
+        t2 = Variable(cuda.to_gpu(t2_np.astype(np.float32)))
 
         model.cleargrads()
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
-        loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
+        loss2 = F.mean_squared_error(tanh_y2, t2)
+        loss3 = F.mean_squared_error(tanh_y2, value)
         loss = loss1 + loss2 + args.val_lambda * loss3
         loss.backward()
         optimizer.update()
@@ -116,19 +118,22 @@ for e in range(args.epoch):
 
         # print train loss
         if optimizer.t % eval_interval == 0:
-            x1, x2, t1, t2, z, value = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t1, t2_np, z, value = mini_batch(np.random.choice(test_data, 640))
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y1, y2 = model(x1, x2)
+            tanh_y2 = F.tanh(y2)
+            t2 = Variable(cuda.to_gpu(t2_np.astype(np.float32)))
             loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
-            loss2 = F.sigmoid_cross_entropy(y2, t2)
-            loss3 = cross_entropy(F.sigmoid(y2), value)
+            loss2 = F.mean_squared_error(tanh_y2, t2)
+            loss3 = F.mean_squared_error(tanh_y2, value)
             loss = loss1 + loss2 + args.val_lambda * loss3
+            t2_np[t2_np < 0] = 0 # -1 to 0 for binary_accuracy
             logging.info('epoch = {}, iteration = {}, loss = {}, {}, {}, {}, test loss = {}, {}, {}, {}, test accuracy = {}, {}'.format(
                 optimizer.epoch + 1, optimizer.t,
                 sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
                 loss1.data, loss2.data, loss3.data, loss.data,
-                F.accuracy(y1, t1).data, F.binary_accuracy(y2, t2).data))
+                F.accuracy(y1, t1).data, F.binary_accuracy(y2, Variable(cuda.to_gpu(t2_np))).data))
             itr = 0
             sum_loss1 = 0
             sum_loss2 = 0
@@ -144,21 +149,24 @@ for e in range(args.epoch):
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.batchsize])
+        x1, x2, t1, t2_np, z, value = mini_batch(test_data[i:i+args.batchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
                 y1, y2 = model(x1, x2)
+        tanh_y2 = F.tanh(y2)
+        t2 = Variable(cuda.to_gpu(t2_np.astype(np.float32)))
         itr_test += 1
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
-        loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
+        loss2 = F.mean_squared_error(tanh_y2, t2)
+        loss3 = F.mean_squared_error(tanh_y2, value)
         loss = loss1 + loss2 + args.val_lambda * loss3
         sum_test_loss1 += loss1.data
         sum_test_loss2 += loss2.data
         sum_test_loss3 += loss3.data
         sum_test_loss += loss.data
         sum_test_accuracy1 += F.accuracy(y1, t1).data
-        sum_test_accuracy2 += F.binary_accuracy(y2, t2).data
+        t2_np[t2_np < 0] = 0 # -1 to 0 for binary_accuracy
+        sum_test_accuracy2 += F.binary_accuracy(y2, Variable(cuda.to_gpu(t2_np))).data
     logging.info('epoch = {}, iteration = {}, train loss avr = {}, test_loss = {}, {}, {}, {}, test accuracy = {}, {}'.format(
         optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch,
         sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss / itr_test,

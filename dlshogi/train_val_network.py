@@ -20,7 +20,7 @@ import logging
 parser = argparse.ArgumentParser(description='Train value network')
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
-parser.add_argument('--batchsize', '-b', type=int, default=32, help='Number of positions in each mini-batch')
+parser.add_argument('--batchsize', '-b', type=int, default=64, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--model', type=str, default='model_val', help='model file name')
 parser.add_argument('--state', type=str, default='state_val', help='state file name')
@@ -64,7 +64,7 @@ def mini_batch(hcpevec):
 
     return (Variable(cuda.to_gpu(features1)),
             Variable(cuda.to_gpu(features2)),
-            Variable(cuda.to_gpu(result))
+            result
             )
 
 # train
@@ -77,11 +77,13 @@ for e in range(args.epoch):
     itr_epoch = 0
     sum_loss_epoch = 0
     for i in range(0, len(train_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(train_data[i:i+args.batchsize])
+        x1, x2, t_np = mini_batch(train_data[i:i+args.batchsize])
         y = model(x1, x2)
+        tanh_y = F.tanh(y)
+        t = Variable(cuda.to_gpu(t_np.astype(np.float32)))
 
         model.cleargrads()
-        loss = F.sigmoid_cross_entropy(y, t)
+        loss = F.mean_squared_error(tanh_y, t)
         loss.backward()
         optimizer.update()
 
@@ -92,15 +94,18 @@ for e in range(args.epoch):
 
         # print train loss and test accuracy
         if optimizer.t % eval_interval == 0:
-            x1, x2, t = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t_np = mini_batch(np.random.choice(test_data, 640))
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y = model(x1, x2)
-            loss = F.sigmoid_cross_entropy(y, t)
+            tanh_y = F.tanh(y)
+            t = Variable(cuda.to_gpu(t_np.astype(np.float32)))
+            loss = F.mean_squared_error(tanh_y, t)
+            t_np[t_np < 0] = 0 # -1 to 0 for binary_accuracy
             logging.info('epoch = {}, iteration = {}, train loss = {}, test loss = {}, test accuracy = {}'.format(
                 optimizer.epoch + 1, optimizer.t, sum_loss / itr,
                 loss.data,
-                F.binary_accuracy(y, t).data))
+                F.binary_accuracy(y, Variable(cuda.to_gpu(t_np))).data))
             itr = 0
             sum_loss = 0
 
@@ -109,13 +114,16 @@ for e in range(args.epoch):
     sum_test_loss = 0
     sum_test_accuracy = 0
     for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t = mini_batch(test_data[i:i+args.batchsize])
+        x1, x2, t_np = mini_batch(test_data[i:i+args.batchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
                 y = model(x1, x2)
+        tanh_y = F.tanh(y)
+        t = Variable(cuda.to_gpu(t_np.astype(np.float32)))
         itr_test += 1
-        sum_test_loss += F.sigmoid_cross_entropy(y, t).data
-        sum_test_accuracy += F.binary_accuracy(y, t).data
+        sum_test_loss += F.binary_accuracy(y, Variable(cuda.to_gpu(t_np))).data
+        t_np[t_np < 0] = 0 # -1 to 0 for binary_accuracy
+        sum_test_accuracy += F.binary_accuracy(y, Variable(cuda.to_gpu(t_np))).data
     logging.info('epoch = {}, iteration = {}, train loss avr = {}, test loss = {}, test accuracy = {}'.format(
         optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch,
         sum_test_loss / itr_test,

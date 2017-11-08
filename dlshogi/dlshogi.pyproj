@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-01 ..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-02</CommandLineArguments>
+    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_no_history_uniq-01 ..\..\elmo_for_learn\bin\elmo_teacher_no_history_uniq-test</CommandLineArguments>
     <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
