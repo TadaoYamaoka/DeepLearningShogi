@@ -536,7 +536,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			cp = 30000;
 		}
 		else {
-			cp = int(-logf(1.0f / best_wp - 1.0f) * 754.3f);
+			cp = int(logf((1.0f +  best_wp) / (1.0f - best_wp)) * 1481.7f);
 		}
 
 		// PV表示
@@ -849,7 +849,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 	}
 	else if (uct_node[current].value_win == VALUE_WIN) {
 		// 詰み
-		return 0.0f;  // 反転して値を返すため0を返す
+		return -1.0f;  // 反転して値を返すため-1を返す
 	}
 	else if (uct_node[current].value_win == VALUE_LOSE) {
 		// 自玉の詰み
@@ -938,7 +938,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		// 詰みの場合、ValueNetの値を上書き
 		if (isMate == 1) {
 			uct_node[child_index].value_win = VALUE_WIN;
-			result = 0.0f;
+			result = -1.0f;
 		}
 		else if (isMate == -1) {
 			uct_node[child_index].value_win = VALUE_LOSE;
@@ -946,7 +946,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		}
 		else {
 			// valueを勝敗として返す
-			result = 1 - uct_node[child_index].value_win;
+			result = -uct_node[child_index].value_win;
 		}
 	}
 	else {
@@ -960,7 +960,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 	// 探索結果の反映
 	UpdateResult(&uct_child[next_index], result, current);
 
-	return 1 - result;
+	return -result;
 }
 
 
