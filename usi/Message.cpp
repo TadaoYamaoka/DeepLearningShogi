@@ -39,16 +39,16 @@ GetDebugMessageMode()
 void
 PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const double finish_time, const int pre_simulated)
 {
-	double winning_percentage = (double)root->win / root->move_count;
-
 	if (!debug_message) return;
 
-	cout << "info string " << "All Playouts       :  " << setw(7) << root->move_count << endl;
-	cout << "info string " << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
-	cout << "info string " << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
-	cout << "info string " << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
+	double winning_percentage = (double)root->win / root->move_count;
+
+	cout << "All Playouts       :  " << setw(7) << root->move_count << endl;
+	cout << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
+	cout << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
+	cout << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
 	if (finish_time != 0.0) {
-		cout << "info string " << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
+		cout << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
 	}
 }
 
@@ -60,8 +60,8 @@ PrintPlayoutLimits(const double time_limit, const int playout_limit)
 {
 	if (!debug_message) return;
 
-	cout << "info string " << "Time Limit    : " << time_limit << " Sec" << endl;
-	cout << "info string " << "Playout Limit : " << playout_limit << " PO" << endl;
+	cout << "Time Limit    : " << time_limit << " Sec" << endl;
+	cout << "Playout Limit : " << playout_limit << " PO" << endl;
 }
 
 ////////////////////////////////////////
@@ -72,5 +72,5 @@ PrintReuseCount(const int count)
 {
 	if (!debug_message) return;
 
-	cout << "info string " << "Reuse : " << count << " Playouts" << endl;
+	cout << "Reuse : " << count << " Playouts" << endl;
 }

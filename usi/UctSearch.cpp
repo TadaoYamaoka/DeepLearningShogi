@@ -472,7 +472,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		extend_time &&
 		time_limit > const_thinking_time * 1.5 &&
 		ExtendTime()) {
-		cout << "infor string ExtendTime" << endl;
+		if (debug_message) cout << "ExtendTime" << endl;
 		po_info.halt = (int)(1.5 * po_info.halt);
 		time_limit *= 1.5;
 		for (int i = 0; i < threads; i++) {
@@ -506,7 +506,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			select_index = i;
 			max_count = uct_child[i].move_count;
 		}
-		cout << "info string " << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
+		if (debug_message) cout << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
 	}
 
 	// 選択した着手の勝率の算出
@@ -536,7 +536,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			cp = 30000;
 		}
 		else {
-			cp = int(logf((1.0f +  best_wp) / (1.0f - best_wp)) * 1481.7f);
+			cp = int(logf((1.0f + best_wp) / (1.0f - best_wp)) * 1481.7f);
 		}
 
 		// PV表示

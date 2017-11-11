@@ -1,27 +1,4 @@
-﻿#if defined POLICY_ONLY
-// 方策のみ
-#define BOOST_PYTHON_STATIC_LIB
-#define BOOST_NUMPY_STATIC_LIB
-#include <boost/python.hpp>
-
-namespace py = boost::python;
-
-int main()
-{
-	Py_Initialize();
-
-	py::object dlshogi_ns = py::import("dlshogi.usi").attr("__dict__");
-
-	py::object dlshogi_usi_main = dlshogi_ns["main"];
-	dlshogi_usi_main();
-
-	Py_Finalize();
-
-	return 0;
-}
-#else
-// 探索あり
-#include "init.hpp"
+﻿#include "init.hpp"
 #include "position.hpp"
 #include "usi.hpp"
 #include "move.hpp"
@@ -33,6 +10,7 @@ int main()
 
 #include "cppshogi.h"
 #include "UctSearch.h"
+#include "Message.h"
 #include "mate.h"
 
 struct MySearcher : Searcher {
@@ -141,6 +119,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// PonderingMode
 			SetPonderingMode(options["USI_Ponder"]);
+
+			// DebugMessageMode
+			SetDebugMessageMode(options["DebugMessage"]);
 
 			std::cout << "readyok" << std::endl;
 		}
@@ -507,5 +488,3 @@ void mate_test(Position& pos, std::istringstream& ssCmd) {
 
 void test(Position& pos, std::istringstream& ssCmd) {
 }
-
-#endif
