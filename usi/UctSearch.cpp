@@ -1120,6 +1120,7 @@ ReadWeights()
 }
 
 void EvalNode() {
+	bool enough_batch_size = false;
 	while (true) {
 		LOCK_EXPAND;
 		bool running = handle[threads - 1] != nullptr;
@@ -1136,16 +1137,19 @@ void EvalNode() {
 			continue;
 		}
 
-		if (running && current_policy_value_batch_index == 0) {
+		if (running && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < threads * 0.9)) {
 			UNLOCK_EXPAND;
+			this_thread::sleep_for(chrono::milliseconds(1));
+			enough_batch_size = true;
 		}
 		else {
+			enough_batch_size = false;
 			int policy_value_batch_size = current_policy_value_batch_index;
 			int policy_value_queue_index = current_policy_value_queue_index;
 			current_policy_value_batch_index = 0;
 			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
 			UNLOCK_EXPAND;
-
+			
 			// predict
 			np::ndarray ndfeatures1 = np::from_data(
 				features1[policy_value_queue_index],
