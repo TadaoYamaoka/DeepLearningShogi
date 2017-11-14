@@ -106,7 +106,7 @@ static bool live_best_sequence = false;
 ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = THREAD_MAX * 10; // スレッド数以上確保する
+const int policy_value_batch_maxsize = THREAD_MAX; // スレッド数以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 static unsigned int policy_value_hash_index[2][policy_value_batch_maxsize];
@@ -1149,7 +1149,8 @@ void EvalNode() {
 			current_policy_value_batch_index = 0;
 			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
 			UNLOCK_EXPAND;
-			
+			//std::cout << policy_value_batch_size << std::endl;
+
 			// predict
 			np::ndarray ndfeatures1 = np::from_data(
 				features1[policy_value_queue_index],
