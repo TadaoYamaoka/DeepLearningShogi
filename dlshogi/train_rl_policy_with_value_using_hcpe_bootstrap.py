@@ -27,7 +27,7 @@ parser.add_argument('--initmodel', '-m', default='', help='Initialize the model 
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
-parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
+parser.add_argument('--weightdecay_rate', type=float, default=0, help='weightdecay rate')
 parser.add_argument('--val_lambda', type=float, default=0.5, help='regularization factor')
 args = parser.parse_args()
 
@@ -41,7 +41,8 @@ model.to_gpu()
 
 optimizer = optimizers.MomentumSGD(lr=args.lr)
 optimizer.setup(model)
-optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
+if args.weightdecay_rate > 0:
+    optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 
 # Init/Resume
 if args.initmodel:
