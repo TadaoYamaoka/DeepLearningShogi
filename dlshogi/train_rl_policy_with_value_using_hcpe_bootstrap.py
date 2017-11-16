@@ -35,6 +35,7 @@ logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
 logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
+logging.info('val_lambda={}'.format(args.val_lambda))
 
 model = PolicyValueNetwork()
 model.to_gpu()
