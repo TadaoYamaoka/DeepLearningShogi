@@ -130,6 +130,12 @@ int make_move_label(const u16 move16, const Position& position) {
 		if (dir_y < 0 && dir_x == 0) {
 			move_direction = UP;
 		}
+		else if (dir_y == -2 && dir_x == -1) {
+			move_direction = UP2_LEFT;
+		}
+		else if (dir_y == -2 && dir_x == 1) {
+			move_direction = UP2_RIGHT;
+		}
 		else if (dir_y < 0 && dir_x < 0) {
 			move_direction = UP_LEFT;
 		}
@@ -156,7 +162,7 @@ int make_move_label(const u16 move16, const Position& position) {
 		if ((move16 & 0b100000000000000) > 0) {
 			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
 		}
-		move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION_INDEX[move_piece][move_direction];
+		move_direction_label = move_direction;
 	}
 	// 持ち駒の場合
 	else {
@@ -165,7 +171,7 @@ int make_move_label(const u16 move16, const Position& position) {
 			to_sq = (u16)SQ99 - to_sq;
 		}
 		const int hand_piece = from_sq - (int)SquareNum;
-		move_direction_label = MOVE_DIRECTION_LABEL_NUM + hand_piece;
+		move_direction_label = MOVE_DIRECTION_NUM + hand_piece;
 	}
 
 	return 9 * 9 * move_direction_label + to_sq;
@@ -201,6 +207,12 @@ int make_move_label(const u16 move16, const PieceType move_piece, const Color co
 		if (dir_y < 0 && dir_x == 0) {
 			move_direction = UP;
 		}
+		else if (dir_y == -2 && dir_x == -1) {
+			move_direction = UP2_LEFT;
+		}
+		else if (dir_y == -2 && dir_x == 1) {
+			move_direction = UP2_RIGHT;
+		}
 		else if (dir_y < 0 && dir_x < 0) {
 			move_direction = UP_LEFT;
 		}
@@ -227,7 +239,7 @@ int make_move_label(const u16 move16, const PieceType move_piece, const Color co
 		if ((move16 & 0b100000000000000) > 0) {
 			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
 		}
-		move_direction_label = PIECE_MOVE_DIRECTION_LABEL[move_piece] + PIECE_MOVE_DIRECTION_INDEX[move_piece][move_direction];
+		move_direction_label = move_direction;
 	}
 	// 持ち駒の場合
 	else {
@@ -236,7 +248,7 @@ int make_move_label(const u16 move16, const PieceType move_piece, const Color co
 			to_sq = (u16)SQ99 - to_sq;
 		}
 		const int hand_piece = from_sq - (int)SquareNum;
-		move_direction_label = MOVE_DIRECTION_LABEL_NUM + hand_piece;
+		move_direction_label = MOVE_DIRECTION_NUM + hand_piece;
 	}
 
 	return 9 * 9 * move_direction_label + to_sq;
