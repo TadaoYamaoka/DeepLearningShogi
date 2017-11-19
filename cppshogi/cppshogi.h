@@ -35,8 +35,6 @@ const int PIECETYPE_NUM = 14; // 駒の種類
 const int MAX_ATTACK_NUM = 3; // 利き数の最大値
 const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
 const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
-// 履歴
-const int HISTORY_NUM = 8;
 
 // 移動の定数
 enum MOVE_DIRECTION {

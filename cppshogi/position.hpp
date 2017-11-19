@@ -183,15 +183,6 @@ struct HuffmanCodedPosAndEval {
 };
 static_assert(sizeof(HuffmanCodedPosAndEval) == 38, "");
 
-struct HuffmanCodedPosWithHistoryAndEval {
-	HuffmanCodedPos hcp; // n手前の局面(n:履歴手数)
-	u16 historyMove16[7]; // 履歴手(n手前よりインデックス0から格納。履歴がn手より少ない場合0で埋める)
-	s16 eval;
-	u16 bestMove16;
-	GameResult gameResult; // 自己対局で勝ったかどうか。
-};
-static_assert(sizeof(HuffmanCodedPosWithHistoryAndEval) == 52, "");
-
 class Move;
 struct Thread;
 struct Searcher;

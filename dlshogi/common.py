@@ -25,22 +25,9 @@ PIECETYPE_NUM = 14 # 駒の種類
 MAX_ATTACK_NUM = 3 # 利き数の最大値
 FEATURES1_NUM = 2 * (PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM)
 FEATURES2_NUM = 2 * MAX_PIECES_IN_HAND_SUM + 1
-# 履歴あり
-HISTORY_NUM = 8
-FEATURES1_HIST_NUM = FEATURES1_NUM * HISTORY_NUM
-FEATURES2_HIST_NUM = FEATURES2_NUM * HISTORY_NUM
 
 HuffmanCodedPosAndEval = np.dtype([
     ('hcp', np.uint8, 32),
-    ('eval', np.int16),
-    ('bestMove16', np.uint16),
-    ('gameResult', np.uint8),
-    ('dummy', np.uint8),
-    ])
-
-HuffmanCodedPosWithHistoryAndEval = np.dtype([
-    ('hcp', np.uint8, 32),
-    ('historyMove16', np.uint16, 7),
     ('eval', np.int16),
     ('bestMove16', np.uint16),
     ('gameResult', np.uint8),
