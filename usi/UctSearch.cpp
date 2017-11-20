@@ -962,9 +962,6 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 
 	max_value = -1;
 
-	const float p_p = uct_node[current].win / uct_node[current].move_count;
-	const float p_v = uct_node[current].value_win;
-
 	// UCB値最大の手を求める  
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
@@ -979,7 +976,7 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 				<< setw(10) << uct_child[i].nnrate << " ";
 		}*/
 		if (move_count == 0) {
-			q = p_v;
+			q = 0.5f;
 			u = 1.0f;
 		}
 		else {
