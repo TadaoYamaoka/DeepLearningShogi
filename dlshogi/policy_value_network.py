@@ -43,7 +43,8 @@ class PolicyValueNetwork(Chain):
             norm8=L.BatchNormalization(k),
             norm9=L.BatchNormalization(k),
             norm10=L.BatchNormalization(k),
-            norm11=L.BatchNormalization(k)
+            norm11=L.BatchNormalization(k),
+            norm12_v=L.BatchNormalization((9*9*MAX_MOVE_LABEL_NUM))
         )
 
     def __call__(self, x1, x2):
@@ -77,6 +78,7 @@ class PolicyValueNetwork(Chain):
         h12_1 = self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM)))
         # value network
         h12_v = self.l12_v(h11)
-        h12_2 = F.relu(self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM))))
-        h13 = F.relu(self.l13(h12_2))
+        h12_1_v = self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM)))
+        h12_2_v = F.relu(self.norm12_v(h12_1_v))
+        h13 = F.relu(self.l13(h12_2_v))
         return h12_1, self.l14(h13)
