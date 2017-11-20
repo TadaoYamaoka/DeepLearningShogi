@@ -405,20 +405,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
 
-#ifndef USE_VALUENET
-	// 従来の評価関数を使う
-	// evaluate() の差分計算を無効化する。
-	LimitsType limits;
-	limits.depth = static_cast<Depth>(1);
-	pos->searcher()->alpha = -ScoreMaxEvaluate;
-	pos->searcher()->beta = ScoreMaxEvaluate;
-	pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
-	pos->searcher()->threads.main()->waitForSearchFinished();
-	Score score = pos->searcher()->threads.main()->rootMoves[0].score;
-	uct_node[current_root].value_win = score_to_value(score);
-	//std::cout << score << std::endl;
-#endif // !USE_VALUENET
-
 	// 詰みのチェック
 	if (uct_node[current_root].child_num == 0) {
 		return Move::moveNone();
@@ -857,13 +843,6 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 	}
 
 
-#ifndef USE_VALUENET
-	// policyが計算されるのを待つ
-	//cout << "wait policy:" << current_root << ":" << uct_node[current_root].evaled << endl;
-	while (!uct_node[current].evaled)
-		this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !USE_VALUENET
-
 	float result;
 	unsigned int next_index;
 	double score;
@@ -882,12 +861,6 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED ) {
-#ifndef USE_VALUENET
-		// キューがいっぱいの場合待機する
-		while (current_policy_value_batch_index >= policy_value_batch_maxsize - THREAD_MAX)
-			this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !USE_VALUENET
-
 		// ノードの展開中はロック
 		LOCK_EXPAND;
 		// ノードの展開
@@ -897,20 +870,6 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 		// ノード展開のロックの解除
 		UNLOCK_EXPAND;
-
-#ifndef USE_VALUENET
-		// 従来の評価関数を使う
-		// evaluate() の差分計算を無効化する。
-		LimitsType limits;
-		limits.depth = static_cast<Depth>(1);
-		pos->searcher()->alpha = -ScoreMaxEvaluate;
-		pos->searcher()->beta = ScoreMaxEvaluate;
-		pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
-		pos->searcher()->threads.main()->waitForSearchFinished();
-		Score score = pos->searcher()->threads.main()->rootMoves[0].score;
-		uct_node[child_index].value_win = score_to_value(score);
-		//std::cout << score << std::endl;
-#endif // !USE_VALUENET
 
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
@@ -928,12 +887,10 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 			}
 		}
 
-#ifdef USE_VALUENET
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (!uct_node[child_index].evaled)
 			this_thread::sleep_for(chrono::milliseconds(0));
-#endif // !NOUSE_VALUENET
 
 		// 詰みの場合、ValueNetの値を上書き
 		if (isMate == 1) {
@@ -1207,9 +1164,7 @@ void EvalNode() {
 					uct_child[j].nnrate = legal_move_probabilities[j];
 				}
 
-#ifdef USE_VALUENET
 				uct_node[index].value_win = *value;
-#endif // USE_VALUENET
 				uct_node[index].evaled = true;
 				UNLOCK_NODE(index);
 			}

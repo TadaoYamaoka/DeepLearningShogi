@@ -9,8 +9,6 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-#define USE_VALUENET
-
 const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
 const double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
