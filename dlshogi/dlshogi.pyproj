@@ -29,7 +29,6 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="policy_value_history_network.py" />
     <Compile Include="predict.py" />
     <Compile Include="test.py">
       <SubType>Code</SubType>
