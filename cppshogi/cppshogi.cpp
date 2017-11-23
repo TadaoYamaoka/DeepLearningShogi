@@ -92,7 +92,7 @@ inline int make_result(const GameResult gameResult, const Position& position) {
 		return 1;
 	}
 	else {
-		return 0;
+		return -1;
 	}
 }
 

@@ -18,4 +18,4 @@ def predict(features1, features2):
         with chainer.using_config('train', False):
             y1, y2 = model(x1, x2)
 
-    return cuda.to_cpu(y1.data), cuda.to_cpu(F.sigmoid(y2).data)
+    return cuda.to_cpu(y1.data), cuda.to_cpu(F.tanh(y2).data)
