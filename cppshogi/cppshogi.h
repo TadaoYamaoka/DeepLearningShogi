@@ -59,5 +59,5 @@ void set_softmax_tempature(const float tempature);
 // 評価値から価値(勝率)に変換
 // スケールパラメータは、elmo_for_learnの勝率から調査した値
 inline float score_to_value(const Score score) {
-	return tanhf((float)score * 0.00067492f);
+	return tanhf((float)score * 0.00067304f);
 }

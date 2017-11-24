@@ -522,7 +522,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			cp = 30000;
 		}
 		else {
-			cp = int(logf((1.0f + best_wp) / (1.0f - best_wp)) * 1481.7f / 2.0f);
+			cp = int(logf((1.0f + best_wp) / (1.0f - best_wp)) * 1485.7957922263165f / 2.0f);
 		}
 
 		// PV表示
