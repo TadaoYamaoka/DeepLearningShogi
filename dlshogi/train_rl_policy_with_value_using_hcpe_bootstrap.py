@@ -71,7 +71,7 @@ def mini_batch(hcpevec):
 
     cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
 
-    z = result.astype(np.float32) - value + 1.0
+    z = (result.astype(np.float32) - value + 1.0) * 0.5
 
     return (Variable(cuda.to_gpu(features1)),
             Variable(cuda.to_gpu(features2)),
