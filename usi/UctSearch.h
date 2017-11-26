@@ -35,7 +35,7 @@ const int UCT_CHILD_MAX = 593;
 unsigned const int NOT_EXPANDED = -1;
 
 // 投了する勝率の閾値
-const float RESIGN_THRESHOLD = -0.99f;
+const float RESIGN_THRESHOLD = 0.01f;
 
 // Virtual Loss (Best Parameter)
 const int VIRTUAL_LOSS = 1;
