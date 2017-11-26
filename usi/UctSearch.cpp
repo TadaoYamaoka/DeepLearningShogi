@@ -976,7 +976,7 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 				<< setw(10) << uct_child[i].nnrate << " ";
 		}*/
 		if (move_count == 0) {
-			q = 0.5f;
+			q = 0.0f;
 			u = 1.0f;
 		}
 		else {
