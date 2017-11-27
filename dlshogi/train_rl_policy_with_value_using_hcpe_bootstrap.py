@@ -154,7 +154,7 @@ for e in range(args.epoch):
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
         loss3 = cross_entropy(F.sigmoid(y2), value)
-        loss = loss1 + loss2 + args.val_lambda * loss3
+        loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         sum_test_loss1 += loss1.data
         sum_test_loss2 += loss2.data
         sum_test_loss3 += loss3.data
