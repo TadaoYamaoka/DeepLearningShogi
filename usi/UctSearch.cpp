@@ -125,6 +125,7 @@ const int MATE_SEARCH_DEPTH = 7;
 // 詰み探索で詰みの場合のvalue_winの定数
 const float VALUE_WIN = FLT_MAX;
 const float VALUE_LOSE = -FLT_MAX;
+const float VALUE_DRAW = FLT_MAX / 2;
 
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
@@ -841,6 +842,10 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		// 自玉の詰み
 		return 1.0f; // 反転して値を返すため1を返す
 	}
+	else if (uct_node[current].value_win == VALUE_DRAW) {
+		// 千日手
+		return 0.5f;
+	}
 
 
 	float result;
@@ -887,6 +892,17 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 			}
 		}
 
+		// 千日手チェック
+		switch (pos->isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionDraw: isMate = 2; break; // Draw
+		case RepetitionWin: isMate = 1; break;
+		case RepetitionLose: isMate = -1; break;
+		// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
+		// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		default: UNREACHABLE;
+		}
+
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (!uct_node[child_index].evaled)
@@ -900,6 +916,10 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		else if (isMate == -1) {
 			uct_node[child_index].value_win = VALUE_LOSE;
 			result = 1.0f;
+		}
+		else if (isMate == 2) { // Draw
+			uct_node[child_index].value_win = VALUE_DRAW;
+			result = 0.5f;
 		}
 		else {
 			// valueを勝敗として返す
