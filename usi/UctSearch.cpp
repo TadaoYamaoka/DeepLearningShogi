@@ -125,7 +125,6 @@ const int MATE_SEARCH_DEPTH = 7;
 // 詰み探索で詰みの場合のvalue_winの定数
 const float VALUE_WIN = FLT_MAX;
 const float VALUE_LOSE = -FLT_MAX;
-const float VALUE_DRAW = FLT_MAX / 2;
 
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
@@ -615,7 +614,7 @@ ExpandRoot(const Position *pos)
 		uct_node[index].move_count = 0;
 		uct_node[index].win = 0;
 		uct_node[index].child_num = 0;
-		uct_node[index].evaled = false;
+		uct_node[index].evaled = 0;
 		uct_node[index].value_win = 0.0f;
 
 		uct_child = uct_node[index].child;
@@ -662,7 +661,7 @@ ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>&
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
-	uct_node[index].evaled = false;
+	uct_node[index].evaled = 0;
 	uct_node[index].value_win = 0.0f;
 	uct_child = uct_node[index].child;
 
@@ -682,7 +681,7 @@ ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>&
 	}
 	else {
 		uct_node[index].value_win = 0.0f;
-		uct_node[index].evaled = true;
+		uct_node[index].evaled = 1;
 	}
 
 	return index;
@@ -798,7 +797,7 @@ ParallelUctSearch(thread_arg_t *arg)
 
 	// policyが計算されるのを待つ
 	//cout << "wait policy:" << current_root << ":" << uct_node[current_root].evaled << endl;
-	while (!uct_node[current_root].evaled)
+	while (uct_node[current_root].evaled == 0)
 		this_thread::sleep_for(chrono::milliseconds(0));
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
@@ -842,9 +841,18 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		// 自玉の詰み
 		return 1.0f; // 反転して値を返すため1を返す
 	}
-	else if (uct_node[current].value_win == VALUE_DRAW) {
-		// 千日手
-		return 0.5f;
+
+	// 千日手チェック
+	if (uct_node[current].evaled == 2) {
+		switch (pos->isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionDraw: return 0.5f;
+		case RepetitionWin: return 0.0f;
+		case RepetitionLose: return 1.0f;
+			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
+			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		default: UNREACHABLE;
+		}
 	}
 
 
@@ -893,33 +901,44 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		}
 
 		// 千日手チェック
+		int isDraw = 0;
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
-		case RepetitionDraw: isMate = 2; break; // Draw
-		case RepetitionWin: isMate = 1; break;
-		case RepetitionLose: isMate = -1; break;
-		// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
-		// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		case RepetitionDraw: isDraw = 2; break; // Draw
+		case RepetitionWin: isDraw = 1; break;
+		case RepetitionLose: isDraw = -1; break;
+			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
+			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
 		default: UNREACHABLE;
 		}
 
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
-		while (!uct_node[child_index].evaled)
+		while (uct_node[child_index].evaled == 0)
 			this_thread::sleep_for(chrono::milliseconds(0));
 
+		// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
+		if (isDraw != 0) {
+			uct_node[child_index].evaled = 2;
+			if (isDraw == 1) {
+				result = 0.0f;
+			}
+			else if (isDraw == -1) {
+				result = 1.0f;
+			}
+			else {
+				result = 0.5f;
+			}
+
+		}
 		// 詰みの場合、ValueNetの値を上書き
-		if (isMate == 1) {
+		else if (isMate == 1) {
 			uct_node[child_index].value_win = VALUE_WIN;
 			result = 0.0f;
 		}
 		else if (isMate == -1) {
 			uct_node[child_index].value_win = VALUE_LOSE;
 			result = 1.0f;
-		}
-		else if (isMate == 2) { // Draw
-			uct_node[child_index].value_win = VALUE_DRAW;
-			result = 0.5f;
 		}
 		else {
 			// valueを勝敗として返す
