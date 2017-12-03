@@ -263,15 +263,6 @@ SetReuseSubtree(bool flag)
 	reuse_subtree = flag;
 }
 
-//////////////////////////////
-// Toggle Live Best Sequece //
-//////////////////////////////
-void
-ToggleLiveBestSequence()
-{
-	live_best_sequence = !live_best_sequence;
-}
-
 //////////////////////////////////////
 //  time_settingsコマンドによる設定  //
 //////////////////////////////////////

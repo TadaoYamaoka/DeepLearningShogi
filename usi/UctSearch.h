@@ -67,9 +67,6 @@ struct child_node_t {
 	float nnrate; // ニューラルネットワークでのレート
 };
 
-//  9x9  : 1828bytes
-// 13x13 : 3764bytes
-// 19x19 : 7988bytes
 struct uct_node_t {
 	std::atomic<int> move_count;
 	std::atomic<float> win;
@@ -118,18 +115,6 @@ void SetThread(int new_thread);
 void SetTime(double time);
 void SetRemainingTime(double time, Color c);
 void SetIncTime(double time, Color c);
-
-// 相手がパスしたらパスする
-void SetEarlyPass(bool pass);
-
-// ノード展開の有無指定
-void SetNoExpand(bool flag);
-
-//
-void ToggleLiveBestSequence();
-
-// パラメータの設定
-void SetParameter(void);
 
 // time_settingsコマンドによる設定
 void SetTimeSettings(int main_time, int byoyomi, int stones);
