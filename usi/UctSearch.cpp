@@ -1016,8 +1016,12 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
-		if (pos->turn() == my_color && rnd(*mt) == 0) {
-			rate *= 1.5f;
+		if (current == current_root) {
+			if (rnd(*mt) <= 2)
+				rate = (rate + 1.0f) / 2.0f;
+		}
+		else if (pos->turn() == my_color && rnd(*mt) == 0) {
+			rate = std::min(rate * 1.5f, 1.0f);
 		}
 
 		ucb_value = q + c_puct * u * rate;
