@@ -8,6 +8,7 @@ import chainer.links as L
 
 from dlshogi.policy_value_network import *
 from dlshogi.common import *
+from dlshogi.sigmoid_cross_entropy2 import sigmoid_cross_entropy2
 
 import cppshogi
 
@@ -103,7 +104,7 @@ for e in range(args.epoch):
         model.cleargrads()
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
+        loss3 = sigmoid_cross_entropy2(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         loss.backward()
         optimizer.update()
