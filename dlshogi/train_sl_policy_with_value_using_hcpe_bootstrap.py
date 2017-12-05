@@ -8,6 +8,7 @@ import chainer.links as L
 
 from dlshogi.policy_value_network import *
 from dlshogi.common import *
+from dlshogi.sigmoid_cross_entropy2 import sigmoid_cross_entropy2
 
 import cppshogi
 
@@ -78,9 +79,6 @@ def mini_batch(hcpevec):
             Variable(cuda.to_gpu(value.reshape((len(value), 1))))
             )
 
-def cross_entropy(p, q):
-    return F.mean(-p * F.log(q + 1.0e-16) - (1 - p) * F.log(1 - q + 1.0e-16))
-
 # train
 itr = 0
 sum_loss1 = 0
@@ -100,7 +98,7 @@ for e in range(args.epoch):
         model.cleargrads()
         loss1 = F.softmax_cross_entropy(y1, t1)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
+        loss3 = sigmoid_cross_entropy2(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         loss.backward()
         optimizer.update()
@@ -121,7 +119,7 @@ for e in range(args.epoch):
                     y1, y2 = model(x1, x2)
             loss1 = F.softmax_cross_entropy(y1, t1)
             loss2 = F.sigmoid_cross_entropy(y2, t2)
-            loss3 = cross_entropy(F.sigmoid(y2), value)
+            loss3 = sigmoid_cross_entropy2(y2, value)
             loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
             logging.info('epoch = {}, iteration = {}, loss = {}, {}, {}, {}, test loss = {}, {}, {}, {}, test accuracy = {}, {}'.format(
                 optimizer.epoch + 1, optimizer.t,
@@ -150,7 +148,7 @@ for e in range(args.epoch):
         itr_test += 1
         loss1 = F.softmax_cross_entropy(y1, t1)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
+        loss3 = sigmoid_cross_entropy2(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         sum_test_loss1 += loss1.data
         sum_test_loss2 += loss2.data
