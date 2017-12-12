@@ -1039,6 +1039,8 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 		if (current == current_root) {
 			const float epsilon = 0.1f;
 			rate = (1.0f - epsilon) * rate + epsilon * dir[i];
+			if (rnd(*mt) <= 2)
+				rate = (rate + 1.0f) / 2.0f;
 		}
 		else if (pos->turn() == my_color && rnd(*mt) == 0) {
 			rate = std::min(rate * 1.5f, 1.0f);
