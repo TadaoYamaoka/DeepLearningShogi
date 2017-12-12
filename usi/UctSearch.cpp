@@ -974,6 +974,19 @@ UpdateResult(child_node_t *child, float result, unsigned int current)
 	atomic_fetch_add(&child->move_count, 1 - VIRTUAL_LOSS);
 }
 
+// ディリクレ分布
+void random_dirichlet(std::mt19937_64 &mt, float *x, const int size) {
+	const float dirichlet_alpha = 0.15f;
+	static std::gamma_distribution<float> gamma(dirichlet_alpha, 1.0f);
+
+	float sum_y = 0;
+	for (int i = 0; i < size; i++) {
+		float y = gamma(mt);
+		sum_y += y;
+		x[i] = y;
+	}
+	std::for_each(x, x + size, [sum_y](float &v) mutable { v /= sum_y; });
+}
 
 /////////////////////////////////////////////////////
 //  UCBが最大となる子ノードのインデックスを返す関数  //
@@ -991,6 +1004,13 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
 
 	max_value = -1;
+
+	// ディリクレ分布
+	float* dir = nullptr;
+	if (current == current_root) {
+		dir = new float[child_num];
+		random_dirichlet(*mt, dir, child_num);
+	}
 
 	// UCB値最大の手を求める  
 	for (int i = 0; i < child_num; i++) {
@@ -1017,8 +1037,8 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
 		if (current == current_root) {
-			if (rnd(*mt) <= 2)
-				rate = (rate + 1.0f) / 2.0f;
+			const float epsilon = 0.1f;
+			rate = (1.0f - epsilon) * rate + epsilon * dir[i];
 		}
 		else if (pos->turn() == my_color && rnd(*mt) == 0) {
 			rate = std::min(rate * 1.5f, 1.0f);
@@ -1039,6 +1059,8 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 	/*if (debug) {
 		cerr << "select node:" << current << " child:" << max_child << endl;
 	}*/
+
+	if (dir) delete[] dir;
 
 	return max_child;
 }
