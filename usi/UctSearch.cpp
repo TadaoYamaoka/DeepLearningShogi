@@ -153,7 +153,7 @@ static void CalculatePlayoutPerSec(double finish_time);
 static void CalculateNextPlayouts(const Position *pos);
 
 // ノードの展開
-static unsigned int ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>& path);
+static unsigned int ExpandNode(Position *pos, unsigned int current, const int depth);
 
 // ルートの展開
 static unsigned int ExpandRoot(const Position *pos);
@@ -177,7 +177,7 @@ static void QueuingNode(const Position *pos, unsigned int index);
 static int SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt);
 
 // UCT探索(1回の呼び出しにつき, 1回の探索)
-static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsigned int>& path);
+static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, const int depth);
 
 // 結果の更新
 static void UpdateResult(child_node_t *child, float result, unsigned int current);
@@ -633,9 +633,9 @@ ExpandRoot(const Position *pos)
 //  ノードの展開  //
 ///////////////////
 static unsigned int
-ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>& path)
+ExpandNode(Position *pos, unsigned int current, const int depth)
 {
-	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
+	unsigned int index = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -644,7 +644,7 @@ ExpandNode(Position *pos, unsigned int current, const std::vector<unsigned int>&
 	}
 
 	// 空のインデックスを探す
-	index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + path.size());
+	index = SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != uct_hash_size);
 
@@ -799,8 +799,7 @@ ParallelUctSearch(thread_arg_t *arg)
 		Position pos(*targ->pos);
 		//cout << pos.toSFEN() << ":" << pos.getKey() << endl;
 		// 1回プレイアウトする
-		std::vector<unsigned int> path;
-		UctSearch(&pos, mt[targ->thread_id], current_root, path);
+		UctSearch(&pos, mt[targ->thread_id], current_root, 0);
 		//cout << "root:" << current_root << " move_count:" << uct_node[current_root].move_count << endl;
 		// 探索を打ち切るか確認
 		interruption = InterruptionCheck();
@@ -818,7 +817,7 @@ ParallelUctSearch(thread_arg_t *arg)
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 static float
-UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsigned int>& path)
+UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, const int depth)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
@@ -860,7 +859,6 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
 
-	path.push_back(current);
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
@@ -869,7 +867,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		LOCK_EXPAND;
 		// ノードの展開
 		// ノード展開処理の中でvalueを計算する
-		unsigned int child_index = ExpandNode(pos, current, path);
+		unsigned int child_index = ExpandNode(pos, current, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 		// ノード展開のロックの解除
@@ -941,7 +939,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, std::vector<unsig
 		UNLOCK_NODE(current);
 
 		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, mt, uct_child[next_index].index, path);
+		result = UctSearch(pos, mt, uct_child[next_index].index, depth + 1);
 	}
 
 	// 探索結果の反映
@@ -1005,13 +1003,6 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 
 	max_value = -1;
 
-	// ディリクレ分布
-	float* dir = nullptr;
-	if (current == current_root) {
-		dir = new float[child_num];
-		random_dirichlet(*mt, dir, child_num);
-	}
-
 	// UCB値最大の手を求める  
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
@@ -1037,8 +1028,6 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
 		if (current == current_root) {
-			const float epsilon = 0.1f;
-			rate = (1.0f - epsilon) * rate + epsilon * dir[i];
 			if (rnd(*mt) <= 2)
 				rate = (rate + 1.0f) / 2.0f;
 		}
@@ -1061,8 +1050,6 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 	/*if (debug) {
 		cerr << "select node:" << current << " child:" << max_child << endl;
 	}*/
-
-	if (dir) delete[] dir;
 
 	return max_child;
 }
