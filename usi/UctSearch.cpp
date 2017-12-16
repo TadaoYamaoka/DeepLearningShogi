@@ -97,9 +97,6 @@ std::mt19937_64 *mt[THREAD_MAX];
 // 
 bool reuse_subtree = true;
 
-// 自分の手番の色
-int my_color;
-
 //
 static bool live_best_sequence = false;
 
@@ -174,7 +171,7 @@ static void ParallelUctSearch(thread_arg_t *arg);
 static void QueuingNode(const Position *pos, unsigned int index);
 
 // UCB値が最大の子ノードを返す
-static int SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt);
+static int SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt, const int depth);
 
 // UCT探索(1回の呼び出しにつき, 1回の探索)
 static float UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, const int depth);
@@ -415,9 +412,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 探索回数の閾値を設定
 	CalculateNextPlayouts(pos);
 	po_info.halt = po_info.num;
-
-	// 自分の手番を設定
-	my_color = pos->turn();
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
@@ -854,7 +848,7 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, const int depth)
 	// 現在見ているノードをロック
 	LOCK_NODE(current);
 	// UCB値最大の手を求める
-	next_index = SelectMaxUcbChild(pos, current, mt);
+	next_index = SelectMaxUcbChild(pos, current, mt, depth);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
@@ -990,7 +984,7 @@ void random_dirichlet(std::mt19937_64 &mt, float *x, const int size) {
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 static int
-SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
+SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt, const int depth)
 {
 	child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
@@ -1027,11 +1021,10 @@ SelectMaxUcbChild(const Position *pos, unsigned int current, mt19937_64 *mt)
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
-		if (current == current_root) {
-			if (rnd(*mt) <= 2)
-				rate = (rate + 1.0f) / 2.0f;
+		if (depth == 0 && rnd(*mt) <= 2) {
+			rate = (rate + 1.0f) / 2.0f;
 		}
-		else if (pos->turn() == my_color && rnd(*mt) == 0) {
+		else if (depth < 4 && depth % 2 == 0 && rnd(*mt) == 0) {
 			rate = std::min(rate * 1.5f, 1.0f);
 		}
 
