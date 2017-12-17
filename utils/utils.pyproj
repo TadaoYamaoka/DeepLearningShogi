@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="filter_csa_in_dir.py" />
+    <Compile Include="plot_log_policy_value.py" />
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="throughput.py">
       <SubType>Code</SubType>
