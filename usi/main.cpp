@@ -109,7 +109,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMode(search_mode); // 元に戻す
 			if (search_mode == TIME_SETTING_MODE || search_mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
 				// プレイアウト速度測定
-				SetTime(1);
+				SetConstTime(10);
 				InitializeSearchSetting();
 				UctSearchGenmove(&pos_tmp, ponder);
 			}
