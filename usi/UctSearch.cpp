@@ -780,11 +780,6 @@ ParallelUctSearch(thread_arg_t *arg)
 	bool interruption = false;
 	bool enough_size = true;
 
-	// policyが計算されるのを待つ
-	//cout << "wait policy:" << current_root << ":" << uct_node[current_root].evaled << endl;
-	while (uct_node[current_root].evaled == 0)
-		this_thread::sleep_for(chrono::milliseconds(0));
-
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
 		// 探索回数を1回増やす	
@@ -839,6 +834,9 @@ UctSearch(Position *pos, mt19937_64 *mt, unsigned int current, const int depth)
 		}
 	}
 
+	// policyが計算されるのを待つ(他のスレッドが同じノードを先に展開した場合、nnの計算を待つ必要がある)
+	while (uct_node[current].evaled == 0)
+		this_thread::sleep_for(chrono::milliseconds(0));
 
 	float result;
 	unsigned int next_index;
