@@ -108,9 +108,6 @@ int make_move_label(const u16 move16, const Position& position) {
 	// move direction
 	int move_direction_label;
 	if (from_sq < SquareNum) {
-		// 駒の種類
-		PieceType move_piece = pieceToPieceType(position.piece((Square)from_sq));
-
 		// 白の場合、盤面を180度回転
 		if (position.turn() == White) {
 			to_sq = (u16)SQ99 - to_sq;
@@ -177,7 +174,7 @@ int make_move_label(const u16 move16, const Position& position) {
 	return 9 * 9 * move_direction_label + to_sq;
 }
 
-int make_move_label(const u16 move16, const PieceType move_piece, const Color color) {
+int make_move_label(const u16 move16, const Color color) {
 	// see: move.hpp : 30
 	// xxxxxxxx x1111111  移動先
 	// xx111111 1xxxxxxx  移動元。駒打ちの際には、PieceType + SquareNum - 1

@@ -52,7 +52,7 @@ const int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
 void make_input_features(const Position& position, float(*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum], float(*features2)[MAX_FEATURES2_NUM][SquareNum]);
 int make_move_label(const u16 move16, const Position& position);
-int make_move_label(const u16 move16, const PieceType move_piece, const Color color);
+int make_move_label(const u16 move16, const Color color);
 void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
 void set_softmax_tempature(const float tempature);
 

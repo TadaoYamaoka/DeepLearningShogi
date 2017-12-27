@@ -1186,7 +1186,7 @@ void EvalNode() {
 				std::vector<float> legal_move_probabilities;
 				for (int j = 0; j < child_num; j++) {
 					Move move = uct_child[j].move;
-					const int move_label = make_move_label((u16)move.proFromAndTo(), move.pieceTypeFrom(), color);
+					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 					legal_move_probabilities.emplace_back((*logits)[move_label]);
 				}
 
