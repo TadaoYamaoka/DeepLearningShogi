@@ -16,16 +16,6 @@ const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回
 const double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
 const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
 
-										// 思考時間の割り振り
-const int TIME_RATE_9 = 100;
-const int TIME_C_13 = 30;
-const int TIME_MAXPLY_13 = 30;
-const int TIME_C_19 = 60;
-const int TIME_MAXPLY_19 = 80;
-
-// 先頭打着緊急度
-const double FPU = 5.0;
-
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.
