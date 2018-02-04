@@ -7,19 +7,11 @@
 
 using namespace std;
 
-node_hash_t *node_hash;
-static unsigned int used;
-
-unsigned int uct_hash_size = UCT_HASH_SIZE;
-unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10;
-
-bool enough_size;
-
 ////////////////////////////////////
 //  ハッシュテーブルのサイズの設定  //
 ////////////////////////////////////
 void
-SetHashSize(const unsigned int new_size)
+UctHash::SetHashSize(const unsigned int new_size)
 {
 	if (!(new_size & (new_size - 1))) {
 		uct_hash_size = new_size;
@@ -36,23 +28,15 @@ SetHashSize(const unsigned int new_size)
 }
 
 
-/////////////////////////
-//  インデックスの取得  //
-/////////////////////////
-unsigned int
-TransHash(const unsigned long long hash)
-{
-	return ((hash & 0xffffffff) ^ ((hash >> 32) & 0xffffffff)) & (uct_hash_size - 1);
-}
-
-
 //////////////////////////////////
 //  UCTノードのハッシュの初期化  //
 //////////////////////////////////
 void
-InitializeUctHash(void)
+UctHash::InitializeUctHash(const unsigned int hash_size)
 {
-	node_hash = (node_hash_t *)malloc(sizeof(node_hash_t) * uct_hash_size);
+	SetHashSize(hash_size);
+
+	node_hash = new node_hash_t[uct_hash_size];
 
 	if (node_hash == NULL) {
 		cerr << "Cannot allocate memory" << endl;
@@ -75,7 +59,7 @@ InitializeUctHash(void)
 //  UCTノードのハッシュ情報のクリア  //
 /////////////////////////////////////
 void
-ClearUctHash(void)
+UctHash::ClearUctHash(void)
 {
 	used = 0;
 	enough_size = true;
@@ -92,7 +76,8 @@ ClearUctHash(void)
 ///////////////////////
 //  古いデータの削除  //
 ///////////////////////
-void delete_hash_recursively(Position &pos, const unsigned int index) {
+void
+UctHash::delete_hash_recursively(Position &pos, const unsigned int index) {
 	node_hash[index].flag = true;
 	used++;
 
@@ -108,7 +93,7 @@ void delete_hash_recursively(Position &pos, const unsigned int index) {
 }
 
 void
-DeleteOldHash(const Position* pos)
+UctHash::DeleteOldHash(const Position* pos)
 {
 	// 現在の局面をルートとする局面以外を削除する
 	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
@@ -132,7 +117,7 @@ DeleteOldHash(const Position* pos)
 //  未使用のインデックスを探して返す  //
 //////////////////////////////////////
 unsigned int
-SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
+UctHash::SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -160,7 +145,7 @@ SearchEmptyIndex(const unsigned long long hash, const int color, const int moves
 //  ハッシュ値に対応するインデックスを返す  //
 ////////////////////////////////////////////
 unsigned int
-FindSameHashIndex(const unsigned long long hash, const int color, const int moves)
+UctHash::FindSameHashIndex(const unsigned long long hash, const int color, const int moves) const
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -179,17 +164,4 @@ FindSameHashIndex(const unsigned long long hash, const int color, const int move
 	} while (i != key);
 
 	return uct_hash_size;
-}
-
-
-bool
-CheckRemainingHashSize(void)
-{
-	return enough_size;
-}
-
-// ハッシュ使用率を取得(単位はパーミル(全体を1000とした値))
-int GetUctHashUsageRate()
-{
-	return 1000 * used / uct_hash_size;
 }

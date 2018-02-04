@@ -9,6 +9,9 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
+const unsigned int uct_hash_size = 262144; // UCTハッシュサイズ
+extern UctHash uct_hash;
+
 const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
 const double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
@@ -43,10 +46,6 @@ enum SEARCH_MODE {
 struct thread_arg_t {
 	const Position *pos; // 探索対象の局面
 	int thread_id;   // スレッド識別番号
-};
-
-struct statistic_t {
-	std::atomic<int> colors[3];  // その箇所を領地にした回数
 };
 
 struct child_node_t {

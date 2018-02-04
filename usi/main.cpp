@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
-	InitializeUctHash();
+	uct_hash.InitializeUctHash(uct_hash_size);
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
