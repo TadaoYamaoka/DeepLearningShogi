@@ -836,7 +836,7 @@ void UctSercher::SelfPlay()
 
 void SelfPlay(const int threadID)
 {
-	logger->info("selfplay thread={}", threadID);
+	logger->info("selfplay thread:{}", threadID);
 	UctSercher uct_sercher(threadID);
 	uct_sercher.SelfPlay();
 }
