@@ -74,6 +74,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
 // 使用するスレッド数
 int threads = 16;
+atomic<int> running_threads; // 実行中の探索スレッド数
 // 1手あたりの試行時間
 double const_thinking_time = CONST_TIME;
 // 1手当たりのプレイアウト数
@@ -467,8 +468,10 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// use_nn
 	handle[threads] = new thread(EvalNode);
 
+	running_threads = threads;
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
+		running_threads--;
 		delete handle[i];
 		handle[i] = nullptr;
 	}
@@ -1155,8 +1158,7 @@ void EvalNode() {
 	bool enough_batch_size = false;
 	while (true) {
 		LOCK_EXPAND;
-		bool running = handle[threads - 1] != nullptr;
-		if (!running
+		if (running_threads == 0
 			&& (!reuse_subtree || current_policy_value_batch_index == 0)) {
 			UNLOCK_EXPAND;
 			break;
@@ -1169,7 +1171,7 @@ void EvalNode() {
 			continue;
 		}
 
-		if (running && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < threads * 0.9)) {
+		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
 			UNLOCK_EXPAND;
 			this_thread::sleep_for(chrono::milliseconds(1));
 			enough_batch_size = true;

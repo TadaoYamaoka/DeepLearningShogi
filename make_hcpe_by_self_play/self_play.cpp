@@ -39,7 +39,8 @@ string model_path;
 int playout_num = 1000;
 
 const unsigned int uct_hash_size = 16384; // UCTハッシュサイズ
-int threads = 1; // スレッド数
+int threads; // スレッド数
+atomic<int> running_threads; // 実行中の探索スレッド数
 thread **handle; // スレッドのハンドル
 
 s64 teacherNodes; // 教師局面数
@@ -528,8 +529,7 @@ void EvalNode() {
 	bool enough_batch_size = false;
 	while (true) {
 		LOCK_QUEUE;
-		bool running = handle[threads - 1] != nullptr;
-		if (!running && current_policy_value_batch_index == 0) {
+		if (running_threads == 0 && current_policy_value_batch_index == 0) {
 			UNLOCK_QUEUE;
 			break;
 		}
@@ -541,7 +541,7 @@ void EvalNode() {
 			continue;
 		}
 
-		if (running && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < threads * 0.9)) {
+		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
 			UNLOCK_QUEUE;
 			this_thread::sleep_for(chrono::milliseconds(1));
 			enough_batch_size = true;
@@ -553,7 +553,7 @@ void EvalNode() {
 			current_policy_value_batch_index = 0;
 			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
 			UNLOCK_QUEUE;
-			//cout << policy_value_batch_size << endl;
+			SPDLOG_DEBUG(logger, "policy_value_batch_size:{}", policy_value_batch_size);
 
 			// predict
 			np::ndarray ndfeatures1 = np::from_data(
@@ -854,6 +854,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	ReadWeights();
 
 	// スレッド作成
+	running_threads = threads;
 	for (int i = 0; i < threads; i++) {
 		handle[i] = new thread(SelfPlay, i);
 	}
@@ -863,6 +864,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
+		running_threads--;
 		delete handle[i];
 		handle[i] = nullptr;
 	}
