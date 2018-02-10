@@ -793,6 +793,12 @@ void UctSercher::SelfPlay()
 			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 			hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
 
+			// 一定の手数以上で引き分け
+			if (ply > 200) {
+				gameResult = Draw;
+				goto L_END_GAME;
+			}
+
 			// 着手
 			states->push_back(StateInfo());
 			pos.doMove(best_move, states->back());
@@ -806,18 +812,21 @@ void UctSercher::SelfPlay()
 
 	L_END_GAME:
 		SPDLOG_DEBUG(logger, "thread:{} ply:{} gameResult:{}", threadID, ply, gameResult);
-		// 勝敗を1局全てに付ける。
-		for (auto& elem : hcpevec)
-			elem.gameResult = gameResult;
+		// 引き分けは出力しない
+		if (gameResult != Draw) {
+			// 勝敗を1局全てに付ける。
+			for (auto& elem : hcpevec)
+				elem.gameResult = gameResult;
 
-		// 局面出力
-		if (hcpevec.size() > 0) {
-			std::unique_lock<Mutex> lock(omutex);
-			Position po;
-			po.set(hcpevec[0].hcp, nullptr);
-			ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
+			// 局面出力
+			if (hcpevec.size() > 0) {
+				std::unique_lock<Mutex> lock(omutex);
+				Position po;
+				po.set(hcpevec[0].hcp, nullptr);
+				ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
+			}
+			idx++;
 		}
-		idx++;
 
 		// 新しいゲーム
 		playout = 0;
