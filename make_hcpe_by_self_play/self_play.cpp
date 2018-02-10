@@ -73,7 +73,7 @@ struct uct_node_t {
 };
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = 32; // スレッド数以上確保する
+const int policy_value_batch_maxsize = 64; // スレッド数の2倍以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 struct policy_value_queue_node_t {
@@ -902,7 +902,7 @@ int main(int argc, char* argv[]) {
 
 	if (teacherNodes <= 0)
 		return 0;
-	if (threads <= 0 || threads > policy_value_batch_maxsize)
+	if (threads <= 0 || threads > policy_value_batch_maxsize / 2)
 		return 0;
 	if (playout_num <= 0)
 		return 0;
