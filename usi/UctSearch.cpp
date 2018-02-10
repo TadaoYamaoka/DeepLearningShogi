@@ -141,6 +141,45 @@ ClearEvalQueue()
 	current_policy_value_batch_index = 0;
 }
 
+///////////////////////
+//  古いデータの削除  //
+///////////////////////
+void
+UctHash::delete_hash_recursively(Position &pos, const unsigned int index) {
+	node_hash[index].flag = true;
+	used++;
+
+	child_node_t *child_node = uct_node[index].child;
+	for (int i = 0; i < uct_node[index].child_num; i++) {
+		if (child_node[i].index != NOT_EXPANDED && node_hash[child_node[i].index].flag == false) {
+			StateInfo st;
+			pos.doMove(child_node[i].move, st);
+			delete_hash_recursively(pos, child_node[i].index);
+			pos.undoMove(child_node[i].move);
+		}
+	}
+}
+
+void
+UctHash::DeleteOldHash(const Position* pos)
+{
+	// 現在の局面をルートとする局面以外を削除する
+	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+
+	used = 0;
+	for (unsigned int i = 0; i < uct_hash_size; i++) {
+		node_hash[i].flag = false;
+	}
+
+	if (root != uct_hash_size) {
+		// 盤面のコピー
+		Position pos_copy(*pos);
+		delete_hash_recursively(pos_copy, root);
+	}
+
+	enough_size = true;
+}
+
 ////////////
 //  関数  //
 ////////////
