@@ -320,9 +320,6 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 		if (depth == 0 && rnd(mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
 		}
-		else if (depth < 4 && depth % 2 == 0 && rnd(mt) == 0) {
-			rate = std::min(rate * 1.5f, 1.0f);
-		}
 
 		ucb_value = q + c_puct * u * rate;
 
