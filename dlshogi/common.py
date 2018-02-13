@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 
 # 移動の定数
 MOVE_DIRECTION = [

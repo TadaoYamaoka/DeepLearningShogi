@@ -1,4 +1,4 @@
-#include "init.hpp"
+ï»¿#include "init.hpp"
 #include "position.hpp"
 #include "usi.hpp"
 #include "move.hpp"
@@ -21,7 +21,7 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
-// ƒ‹[ƒgƒm[ƒh‚Å‚Ì‹l‚İ’Tõ‚ğs‚¤
+// ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰ã§ã®è©°ã¿æ¢ç´¢ã‚’è¡Œã†
 //#define USE_MATE_ROOT_SEARCH
 
 //#define SPDLOG_TRACE_ON
@@ -33,17 +33,17 @@ auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 819
 
 using namespace std;
 
-// ƒ‚ƒfƒ‹‚ÌƒpƒX
+// ãƒ¢ãƒ‡ãƒ«ã®ãƒ‘ã‚¹
 string model_path;
 
 int playout_num = 1000;
 
-const unsigned int uct_hash_size = 16384; // UCTƒnƒbƒVƒ…ƒTƒCƒY
-int threads; // ƒXƒŒƒbƒh”
-atomic<int> running_threads; // Às’†‚Ì’TõƒXƒŒƒbƒh”
-thread **handle; // ƒXƒŒƒbƒh‚Ìƒnƒ“ƒhƒ‹
+const unsigned int uct_hash_size = 16384; // UCTãƒãƒƒã‚·ãƒ¥ã‚µã‚¤ã‚º
+int threads; // ã‚¹ãƒ¬ãƒƒãƒ‰æ•°
+atomic<int> running_threads; // å®Ÿè¡Œä¸­ã®æ¢ç´¢ã‚¹ãƒ¬ãƒƒãƒ‰æ•°
+thread **handle; // ã‚¹ãƒ¬ãƒƒãƒ‰ã®ãƒãƒ³ãƒ‰ãƒ«
 
-s64 teacherNodes; // ‹³t‹Ç–Ê”
+s64 teacherNodes; // æ•™å¸«å±€é¢æ•°
 std::atomic<s64> idx = 0;
 
 ifstream ifs;
@@ -52,28 +52,28 @@ mutex imutex;
 mutex omutex;
 size_t entryNum;
 
-// Œó•âè‚ÌÅ‘å”(”Õã‘S‘Ì)
+// å€™è£œæ‰‹ã®æœ€å¤§æ•°(ç›¤ä¸Šå…¨ä½“)
 const int UCT_CHILD_MAX = 593;
 
 struct child_node_t {
-	Move move;          // ’…è‚·‚éÀ•W
-	int move_count;     // ’Tõ‰ñ”
-	float win;          // Ÿ‚Á‚½‰ñ”
-	unsigned int index; // ƒCƒ“ƒfƒbƒNƒX
-	float nnrate;       // ƒjƒ…[ƒ‰ƒ‹ƒlƒbƒgƒ[ƒN‚Å‚ÌƒŒ[ƒg
+	Move move;          // ç€æ‰‹ã™ã‚‹åº§æ¨™
+	int move_count;     // æ¢ç´¢å›æ•°
+	float win;          // å‹ã£ãŸå›æ•°
+	unsigned int index; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
+	float nnrate;       // ãƒ‹ãƒ¥ãƒ¼ãƒ©ãƒ«ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã§ã®ãƒ¬ãƒ¼ãƒˆ
 };
 
 struct uct_node_t {
 	int move_count;
 	float win;
-	int child_num;                      // qƒm[ƒh‚Ì”
-	child_node_t child[UCT_CHILD_MAX];  // qƒm[ƒh‚Ìî•ñ
-	std::atomic<int> evaled; // 0:–¢•]‰¿ 1:•]‰¿Ï 2:ç“úè‚Ì‰Â”\«‚ ‚è
+	int child_num;                      // å­ãƒãƒ¼ãƒ‰ã®æ•°
+	child_node_t child[UCT_CHILD_MAX];  // å­ãƒãƒ¼ãƒ‰ã®æƒ…å ±
+	std::atomic<int> evaled; // 0:æœªè©•ä¾¡ 1:è©•ä¾¡æ¸ˆ 2:åƒæ—¥æ‰‹ã®å¯èƒ½æ€§ã‚ã‚Š
 	float value_win;
 };
 
-// 2‚Â‚ÌƒLƒ…[‚ğŒğŒİ‚Ég—p‚·‚é
-const int policy_value_batch_maxsize = 64; // ƒXƒŒƒbƒh”‚Ì2”{ˆÈãŠm•Û‚·‚é
+// 2ã¤ã®ã‚­ãƒ¥ãƒ¼ã‚’äº¤äº’ã«ä½¿ç”¨ã™ã‚‹
+const int policy_value_batch_maxsize = 64; // ã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã®2å€ä»¥ä¸Šç¢ºä¿ã™ã‚‹
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 struct policy_value_queue_node_t {
@@ -84,24 +84,24 @@ static policy_value_queue_node_t policy_value_queue_node[2][policy_value_batch_m
 static int current_policy_value_queue_index = 0;
 static int current_policy_value_batch_index = 0;
 
-mutex mutex_queue; // ƒLƒ…[‚Ì”r‘¼§Œä
+mutex mutex_queue; // ã‚­ãƒ¥ãƒ¼ã®æ’ä»–åˆ¶å¾¡
 #define LOCK_QUEUE mutex_queue.lock();
 #define UNLOCK_QUEUE mutex_queue.unlock();
 
-// —\‘ªŠÖ”
+// äºˆæ¸¬é–¢æ•°
 py::object dlshogi_predict;
 
-// ƒ‰ƒ“ƒ_ƒ€
+// ãƒ©ãƒ³ãƒ€ãƒ 
 uniform_int_distribution<int> rnd(0, 999);
 
-// ––’[ƒm[ƒh‚Å‚Ì‹l‚İ’Tõ‚Ì[‚³(Šï”‚Å‚ ‚é‚±‚Æ)
+// æœ«ç«¯ãƒãƒ¼ãƒ‰ã§ã®è©°ã¿æ¢ç´¢ã®æ·±ã•(å¥‡æ•°ã§ã‚ã‚‹ã“ã¨)
 const int MATE_SEARCH_DEPTH = 7;
 
-// ‹l‚İ’Tõ‚Å‹l‚İ‚Ìê‡‚Ìvalue_win‚Ì’è”
+// è©°ã¿æ¢ç´¢ã§è©°ã¿ã®å ´åˆã®value_winã®å®šæ•°
 const float VALUE_WIN = FLT_MAX;
 const float VALUE_LOSE = -FLT_MAX;
 
-unsigned const int NOT_EXPANDED = -1; // –¢“WŠJ‚Ìƒm[ƒh‚ÌƒCƒ“ƒfƒbƒNƒX
+unsigned const int NOT_EXPANDED = -1; // æœªå±•é–‹ã®ãƒãƒ¼ãƒ‰ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
 
 const float c_puct = 1.0f;
 
@@ -111,7 +111,7 @@ public:
 	UctSercher(const int threadID) : threadID(threadID), mt(std::chrono::system_clock::now().time_since_epoch().count() + threadID) {
 		// UCTHash
 		uct_hash.InitializeUctHash(uct_hash_size);
-		// UCT‚Ìƒm[ƒh
+		// UCTã®ãƒãƒ¼ãƒ‰
 		uct_node = new uct_node_t[uct_hash_size];
 	}
 	~UctSercher() {
@@ -139,26 +139,26 @@ static void QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct
 
 
 //////////////////////////////////////////////
-//  UCT’Tõ‚ğs‚¤ŠÖ”                        //
-//  1‰ñ‚ÌŒÄ‚Ño‚µ‚É‚Â‚«, 1ƒvƒŒƒCƒAƒEƒg‚·‚é    //
+//  UCTæ¢ç´¢ã‚’è¡Œã†é–¢æ•°                        //
+//  1å›ã®å‘¼ã³å‡ºã—ã«ã¤ã, 1ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã™ã‚‹    //
 //////////////////////////////////////////////
 float
 UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 {
-	// ‹l‚İ‚Ìƒ`ƒFƒbƒN
+	// è©°ã¿ã®ãƒã‚§ãƒƒã‚¯
 	if (uct_node[current].child_num == 0) {
-		return 1.0f; // ”½“]‚µ‚Ä’l‚ğ•Ô‚·‚½‚ß1‚ğ•Ô‚·
+		return 1.0f; // åè»¢ã—ã¦å€¤ã‚’è¿”ã™ãŸã‚1ã‚’è¿”ã™
 	}
 	else if (uct_node[current].value_win == VALUE_WIN) {
-		// ‹l‚İ
-		return 0.0f;  // ”½“]‚µ‚Ä’l‚ğ•Ô‚·‚½‚ß0‚ğ•Ô‚·
+		// è©°ã¿
+		return 0.0f;  // åè»¢ã—ã¦å€¤ã‚’è¿”ã™ãŸã‚0ã‚’è¿”ã™
 	}
 	else if (uct_node[current].value_win == VALUE_LOSE) {
-		// ©‹Ê‚Ì‹l‚İ
-		return 1.0f; // ”½“]‚µ‚Ä’l‚ğ•Ô‚·‚½‚ß1‚ğ•Ô‚·
+		// è‡ªç‰ã®è©°ã¿
+		return 1.0f; // åè»¢ã—ã¦å€¤ã‚’è¿”ã™ãŸã‚1ã‚’è¿”ã™
 	}
 
-	// ç“úèƒ`ƒFƒbƒN
+	// åƒæ—¥æ‰‹ãƒã‚§ãƒƒã‚¯
 	if (uct_node[current].evaled == 2) {
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
@@ -176,21 +176,21 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 	double score;
 	child_node_t *uct_child = uct_node[current].child;
 
-	// UCB’lÅ‘å‚Ìè‚ğ‹‚ß‚é
+	// UCBå€¤æœ€å¤§ã®æ‰‹ã‚’æ±‚ã‚ã‚‹
 	next_index = SelectMaxUcbChild(pos, current, depth);
-	// ‘I‚ñ‚¾è‚ğ’…è
+	// é¸ã‚“ã æ‰‹ã‚’ç€æ‰‹
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
 
-	// ƒm[ƒh‚Ì“WŠJ‚ÌŠm”F
+	// ãƒãƒ¼ãƒ‰ã®å±•é–‹ã®ç¢ºèª
 	if (uct_child[next_index].index == NOT_EXPANDED) {
-		// ƒm[ƒh‚Ì“WŠJ
-		// ƒm[ƒh“WŠJˆ—‚Ì’†‚Åvalue‚ğŒvZ‚·‚é
+		// ãƒãƒ¼ãƒ‰ã®å±•é–‹
+		// ãƒãƒ¼ãƒ‰å±•é–‹å‡¦ç†ã®ä¸­ã§valueã‚’è¨ˆç®—ã™ã‚‹
 		unsigned int child_index = ExpandNode(pos, current, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
-		// ‹l‚İƒ`ƒFƒbƒN(ValueNetŒvZ’†‚Éƒ`ƒFƒbƒN)
+		// è©°ã¿ãƒã‚§ãƒƒã‚¯(ValueNetè¨ˆç®—ä¸­ã«ãƒã‚§ãƒƒã‚¯)
 		int isMate = 0;
 		if (!pos->inCheck()) {
 			if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
@@ -203,7 +203,7 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 			}
 		}
 
-		// ç“úèƒ`ƒFƒbƒN
+		// åƒæ—¥æ‰‹ãƒã‚§ãƒƒã‚¯
 		int isDraw = 0;
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
@@ -215,12 +215,12 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 		default: UNREACHABLE;
 		}
 
-		// value‚ªŒvZ‚³‚ê‚é‚Ì‚ğ‘Ò‚Â
+		// valueãŒè¨ˆç®—ã•ã‚Œã‚‹ã®ã‚’å¾…ã¤
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (uct_node[child_index].evaled == 0)
 			this_thread::sleep_for(chrono::milliseconds(0));
 
-		// ç“úè‚Ìê‡AValueNet‚Ì’l‚ğg—p‚µ‚È‚¢iŒo˜H‚É‚æ‚Á‚Ä”»’è‚ªˆÙ‚È‚é‚½‚ßã‘‚«‚Í‚µ‚È‚¢j
+		// åƒæ—¥æ‰‹ã®å ´åˆã€ValueNetã®å€¤ã‚’ä½¿ç”¨ã—ãªã„ï¼ˆçµŒè·¯ã«ã‚ˆã£ã¦åˆ¤å®šãŒç•°ãªã‚‹ãŸã‚ä¸Šæ›¸ãã¯ã—ãªã„ï¼‰
 		if (isDraw != 0) {
 			uct_node[child_index].evaled = 2;
 			if (isDraw == 1) {
@@ -234,7 +234,7 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 			}
 
 		}
-		// ‹l‚İ‚Ìê‡AValueNet‚Ì’l‚ğã‘‚«
+		// è©°ã¿ã®å ´åˆã€ValueNetã®å€¤ã‚’ä¸Šæ›¸ã
 		else if (isMate == 1) {
 			uct_node[child_index].value_win = VALUE_WIN;
 			result = 0.0f;
@@ -244,16 +244,16 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 			result = 1.0f;
 		}
 		else {
-			// value‚ğŸ”s‚Æ‚µ‚Ä•Ô‚·
+			// valueã‚’å‹æ•—ã¨ã—ã¦è¿”ã™
 			result = 1 - uct_node[child_index].value_win;
 		}
 	}
 	else {
-		// è”Ô‚ğ“ü‚ê‘Ö‚¦‚Ä1è[‚­“Ç‚Ş
+		// æ‰‹ç•ªã‚’å…¥ã‚Œæ›¿ãˆã¦1æ‰‹æ·±ãèª­ã‚€
 		result = UctSearch(pos, uct_child[next_index].index, depth + 1);
 	}
 
-	// ’TõŒ‹‰Ê‚Ì”½‰f
+	// æ¢ç´¢çµæœã®åæ˜ 
 	UpdateResult(&uct_child[next_index], result, current);
 
 	pos->undoMove(uct_child[next_index].move);
@@ -261,7 +261,7 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 }
 
 //////////////////////
-//  ’TõŒ‹‰Ê‚ÌXV  //
+//  æ¢ç´¢çµæœã®æ›´æ–°  //
 /////////////////////
 void
 UctSercher::UpdateResult(child_node_t *child, float result, unsigned int current)
@@ -273,7 +273,7 @@ UctSercher::UpdateResult(child_node_t *child, float result, unsigned int current
 }
 
 /////////////////////////////////////////////////////
-//  UCB‚ªÅ‘å‚Æ‚È‚éqƒm[ƒh‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ•Ô‚·ŠÖ”  //
+//  UCBãŒæœ€å¤§ã¨ãªã‚‹å­ãƒãƒ¼ãƒ‰ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’è¿”ã™é–¢æ•°  //
 /////////////////////////////////////////////////////
 int
 UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth)
@@ -289,7 +289,7 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 
 	max_value = -1;
 
-	// UCB’lÅ‘å‚Ìè‚ğ‹‚ß‚é  
+	// UCBå€¤æœ€å¤§ã®æ‰‹ã‚’æ±‚ã‚ã‚‹  
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
@@ -312,7 +312,7 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 		}
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
-		// ƒ‰ƒ“ƒ_ƒ€‚ÉŠm—¦‚ğã‚°‚é
+		// ãƒ©ãƒ³ãƒ€ãƒ ã«ç¢ºç‡ã‚’ä¸Šã’ã‚‹
 		if (depth == 0 && rnd(mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
 		}
@@ -336,27 +336,27 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 	return max_child;
 }
 
-// ƒ‚ƒfƒ‹“Ç‚İ‚İ
+// ãƒ¢ãƒ‡ãƒ«èª­ã¿è¾¼ã¿
 void
 ReadWeights()
 {
-	// Boost.Python‚ÆBoost.Numpy‚Ì‰Šú‰»
+	// Boost.Pythonã¨Boost.Numpyã®åˆæœŸåŒ–
 	Py_Initialize();
 	np::initialize();
 
-	// Pythonƒ‚ƒWƒ…[ƒ‹“Ç‚İ‚İ
+	// Pythonãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«èª­ã¿è¾¼ã¿
 	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
 
-	// modelƒ[ƒh
+	// modelãƒ­ãƒ¼ãƒ‰
 	py::object dlshogi_load_model = dlshogi_ns["load_model"];
 	dlshogi_load_model(model_path.c_str());
 
-	// —\‘ªŠÖ”æ“¾
+	// äºˆæ¸¬é–¢æ•°å–å¾—
 	dlshogi_predict = dlshogi_ns["predict"];
 }
 
 /////////////////////
-//  Œó•âè‚Ì‰Šú‰»  //
+//  å€™è£œæ‰‹ã®åˆæœŸåŒ–  //
 /////////////////////
 static void
 InitializeCandidate(child_node_t *uct_child, Move move)
@@ -369,7 +369,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 }
 
 /////////////////////////
-//  ƒ‹[ƒgƒm[ƒh‚Ì“WŠJ  //
+//  ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰ã®å±•é–‹  //
 /////////////////////////
 unsigned int
 UctSercher::ExpandRoot(const Position *pos)
@@ -378,17 +378,17 @@ UctSercher::ExpandRoot(const Position *pos)
 	child_node_t *uct_child;
 	int child_num = 0;
 
-	// Šù‚É“WŠJ‚³‚ê‚Ä‚¢‚½‚Í, ’TõŒ‹‰Ê‚ğÄ—˜—p‚·‚é
+	// æ—¢ã«å±•é–‹ã•ã‚Œã¦ã„ãŸæ™‚ã¯, æ¢ç´¢çµæœã‚’å†åˆ©ç”¨ã™ã‚‹
 	if (index != uct_hash_size) {
 		return index;
 	}
 	else {
-		// ‹ó‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ’T‚·
+		// ç©ºã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æ¢ã™
 		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
 
 		assert(index != uct_hash_size);
 
-		// ƒ‹[ƒgƒm[ƒh‚Ì‰Šú‰»
+		// ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰ã®åˆæœŸåŒ–
 		uct_node[index].move_count = 0;
 		uct_node[index].win = 0;
 		uct_node[index].child_num = 0;
@@ -397,16 +397,16 @@ UctSercher::ExpandRoot(const Position *pos)
 
 		uct_child = uct_node[index].child;
 
-		// Œó•âè‚Ì“WŠJ
+		// å€™è£œæ‰‹ã®å±•é–‹
 		for (MoveList<Legal> ml(*pos); !ml.end(); ++ml) {
 			InitializeCandidate(&uct_child[child_num], ml.move());
 			child_num++;
 		}
 
-		// qƒm[ƒhŒÂ”‚Ìİ’è
+		// å­ãƒãƒ¼ãƒ‰å€‹æ•°ã®è¨­å®š
 		uct_node[index].child_num = child_num;
 
-		// Œó•âè‚ÌƒŒ[ƒeƒBƒ“ƒO
+		// å€™è£œæ‰‹ã®ãƒ¬ãƒ¼ãƒ†ã‚£ãƒ³ã‚°
 		QueuingNode(pos, index, uct_node, pos->turn());
 
 	}
@@ -415,7 +415,7 @@ UctSercher::ExpandRoot(const Position *pos)
 }
 
 ///////////////////
-//  ƒm[ƒh‚Ì“WŠJ  //
+//  ãƒãƒ¼ãƒ‰ã®å±•é–‹  //
 ///////////////////
 unsigned int
 UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
@@ -423,17 +423,17 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
-	// ‡—¬æ‚ªŒŸ’m‚Å‚«‚ê‚Î, ‚»‚ê‚ğ•Ô‚·
+	// åˆæµå…ˆãŒæ¤œçŸ¥ã§ãã‚Œã°, ãã‚Œã‚’è¿”ã™
 	if (index != uct_hash_size) {
 		return index;
 	}
 
-	// ‹ó‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ’T‚·
+	// ç©ºã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æ¢ã™
 	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != uct_hash_size);
 
-	// Œ»İ‚Ìƒm[ƒh‚Ì‰Šú‰»
+	// ç¾åœ¨ã®ãƒãƒ¼ãƒ‰ã®åˆæœŸåŒ–
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
@@ -441,17 +441,17 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 	uct_node[index].value_win = 0.0f;
 	uct_child = uct_node[index].child;
 
-	// Œó•âè‚Ì“WŠJ
+	// å€™è£œæ‰‹ã®å±•é–‹
 	int child_num = 0;
 	for (MoveList<Legal> ml(*pos); !ml.end(); ++ml) {
 		InitializeCandidate(&uct_child[child_num], ml.move());
 		child_num++;
 	}
 
-	// qƒm[ƒh‚ÌŒÂ”‚ğİ’è
+	// å­ãƒãƒ¼ãƒ‰ã®å€‹æ•°ã‚’è¨­å®š
 	uct_node[index].child_num = child_num;
 
-	// Œó•âè‚ÌƒŒ[ƒeƒBƒ“ƒO
+	// å€™è£œæ‰‹ã®ãƒ¬ãƒ¼ãƒ†ã‚£ãƒ³ã‚°
 	if (child_num > 0) {
 		QueuingNode(pos, index, uct_node, pos->turn());
 	}
@@ -464,7 +464,7 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 }
 
 //////////////////////////////////////
-//  ƒm[ƒh‚ğƒLƒ…[‚É’Ç‰Á            //
+//  ãƒãƒ¼ãƒ‰ã‚’ã‚­ãƒ¥ãƒ¼ã«è¿½åŠ             //
 //////////////////////////////////////
 static void
 QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color)
@@ -486,7 +486,7 @@ QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const
 }
 
 //////////////////////////
-//  ’Tõ‘Å‚¿~‚ß‚ÌŠm”F  //
+//  æ¢ç´¢æ‰“ã¡æ­¢ã‚ã®ç¢ºèª  //
 //////////////////////////
 bool
 UctSercher::InterruptionCheck(const unsigned int current_root, const int playout_count)
@@ -496,7 +496,7 @@ UctSercher::InterruptionCheck(const unsigned int current_root, const int playout
 	const int rest = playout_num - playout_count;
 	child_node_t *uct_child = uct_node[current_root].child;
 
-	// ’Tõ‰ñ”‚ªÅ‚à‘½‚¢è‚ÆŸ‚É‘½‚¢è‚ğ‹‚ß‚é
+	// æ¢ç´¢å›æ•°ãŒæœ€ã‚‚å¤šã„æ‰‹ã¨æ¬¡ã«å¤šã„æ‰‹ã‚’æ±‚ã‚ã‚‹
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max) {
 			second = max;
@@ -507,8 +507,8 @@ UctSercher::InterruptionCheck(const unsigned int current_root, const int playout
 		}
 	}
 
-	// c‚è‚Ì’Tõ‚ğ‘S‚ÄŸ‘Pè‚É”ï‚â‚µ‚Ä‚à
-	// Å‘Pè‚ğ’´‚¦‚ç‚ê‚È‚¢ê‡‚Í’Tõ‚ğ‘Å‚¿Ø‚é
+	// æ®‹ã‚Šã®æ¢ç´¢ã‚’å…¨ã¦æ¬¡å–„æ‰‹ã«è²»ã‚„ã—ã¦ã‚‚
+	// æœ€å–„æ‰‹ã‚’è¶…ãˆã‚‰ã‚Œãªã„å ´åˆã¯æ¢ç´¢ã‚’æ‰“ã¡åˆ‡ã‚‹
 	if (max - second > rest) {
 		return true;
 	}
@@ -517,7 +517,7 @@ UctSercher::InterruptionCheck(const unsigned int current_root, const int playout
 	}
 }
 
-// ‹Ç–Ê‚Ì•]‰¿
+// å±€é¢ã®è©•ä¾¡
 void EvalNode() {
 	bool enough_batch_size = false;
 	while (true) {
@@ -582,12 +582,12 @@ void EvalNode() {
 				cout << str << endl;
 				}*/
 
-				// ‘Î‹Ç‚Í1ƒXƒŒƒbƒh‚Ås‚¤‚½‚ßƒƒbƒN‚Í•s—v
+				// å¯¾å±€ã¯1ã‚¹ãƒ¬ãƒƒãƒ‰ã§è¡Œã†ãŸã‚ãƒ­ãƒƒã‚¯ã¯ä¸è¦
 				const int child_num = queue_node.node->child_num;
 				child_node_t *uct_child = queue_node.node->child;
 				Color color = queue_node.color;
 
-				// ‡–@èˆê——
+				// åˆæ³•æ‰‹ä¸€è¦§
 				vector<float> legal_move_probabilities;
 				for (int j = 0; j < child_num; j++) {
 					Move move = uct_child[j].move;
@@ -609,7 +609,7 @@ void EvalNode() {
 	}
 }
 
-// ˜A‘±‚Å©ŒÈ‘Î‹Ç‚·‚é
+// é€£ç¶šã§è‡ªå·±å¯¾å±€ã™ã‚‹
 void UctSercher::SelfPlay()
 {
 	int playout = 0;
@@ -622,7 +622,7 @@ void UctSercher::SelfPlay()
 	std::vector<HuffmanCodedPosAndEval> hcpevec;
 
 
-	// ‹Ç–ÊŠÇ—‚Æ’TõƒXƒŒƒbƒh
+	// å±€é¢ç®¡ç†ã¨æ¢ç´¢ã‚¹ãƒ¬ãƒƒãƒ‰
 	Searcher s;
 	s.init();
 	const std::string options[] = {
@@ -646,20 +646,20 @@ void UctSercher::SelfPlay()
 
 	uniform_int_distribution<s64> inputFileDist(0, entryNum - 1);
 
-	// ƒvƒŒƒCƒAƒEƒg‚ğŒJ‚è•Ô‚·
+	// ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã‚’ç¹°ã‚Šè¿”ã™
 	while (true) {
-		// è”ÔŠJn
+		// æ‰‹ç•ªé–‹å§‹
 		if (playout == 0) {
-			// V‚µ‚¢ƒQ[ƒ€ŠJn
+			// æ–°ã—ã„ã‚²ãƒ¼ãƒ é–‹å§‹
 			if (ply == 0) {
-				// ‘SƒXƒŒƒbƒh‚ª¶¬‚µ‚½‹Ç–Ê”‚ª¶¬‹Ç–Ê”ˆÈã‚É‚È‚Á‚½‚çI—¹
+				// å…¨ã‚¹ãƒ¬ãƒƒãƒ‰ãŒç”Ÿæˆã—ãŸå±€é¢æ•°ãŒç”Ÿæˆå±€é¢æ•°ä»¥ä¸Šã«ãªã£ãŸã‚‰çµ‚äº†
 				if (idx >= teacherNodes) {
 					break;
 				}
 
 				ply = 1;
 
-				// ŠJn‹Ç–Ê‚ğ‹Ç–ÊW‚©‚çƒ‰ƒ“ƒ_ƒ€‚É‘I‚Ô
+				// é–‹å§‹å±€é¢ã‚’å±€é¢é›†ã‹ã‚‰ãƒ©ãƒ³ãƒ€ãƒ ã«é¸ã¶
 				HuffmanCodedPos hcp;
 				{
 					std::unique_lock<Mutex> lock(imutex);
@@ -667,7 +667,7 @@ void UctSercher::SelfPlay()
 					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
 				}
 				setPosition(pos, hcp);
-				randomMove(pos, mt); // ‹³t‹Ç–Ê‚ğ‘‚â‚·ˆ×Aæ“¾‚µ‚½Œ³‹Ç–Ê‚©‚çƒ‰ƒ“ƒ_ƒ€‚É“®‚©‚µ‚Ä‚¨‚­B
+				randomMove(pos, mt); // æ•™å¸«å±€é¢ã‚’å¢—ã‚„ã™ç‚ºã€å–å¾—ã—ãŸå…ƒå±€é¢ã‹ã‚‰ãƒ©ãƒ³ãƒ€ãƒ ã«å‹•ã‹ã—ã¦ãŠãã€‚
 				SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", threadID, ply, pos.toSFEN());
 
 				keyHash.clear();
@@ -675,52 +675,52 @@ void UctSercher::SelfPlay()
 				hcpevec.clear();
 			}
 
-			// ƒnƒbƒVƒ…ƒNƒŠƒA
+			// ãƒãƒƒã‚·ãƒ¥ã‚¯ãƒªã‚¢
 			uct_hash.ClearUctHash();
 
-			// ƒ‹[ƒgƒm[ƒh“WŠJ
+			// ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰å±•é–‹
 			current_root = ExpandRoot(&pos);
 
-			// ‹l‚İ‚Ìƒ`ƒFƒbƒN
+			// è©°ã¿ã®ãƒã‚§ãƒƒã‚¯
 			if (uct_node[current_root].child_num == 0) {
 				gameResult = (pos.turn() == Black) ? WhiteWin : BlackWin;
 				goto L_END_GAME;
 			}
 			else if (uct_node[current_root].child_num == 1) {
-				// 1è‚µ‚©‚È‚¢‚Æ‚«‚ÍA‚»‚Ìè‚ğw‚µ‚ÄŸ‚Ìè”Ô‚Ö
+				// 1æ‰‹ã—ã‹ãªã„ã¨ãã¯ã€ãã®æ‰‹ã‚’æŒ‡ã—ã¦æ¬¡ã®æ‰‹ç•ªã¸
 				states->push_back(StateInfo());
 				pos.doMove(uct_node[current_root].child[0].move, states->back());
 				playout = 0;
 				continue;
 			}
 			else if (uct_node[current_root].value_win == VALUE_WIN) {
-				// ‹l‚İ
+				// è©°ã¿
 				gameResult = (pos.turn() == Black) ? BlackWin : WhiteWin;
 				goto L_END_GAME;
 			}
 			else if (uct_node[current_root].value_win == VALUE_LOSE) {
-				// ©‹Ê‚Ì‹l‚İ
+				// è‡ªç‰ã®è©°ã¿
 				gameResult = (pos.turn() == Black) ? WhiteWin : BlackWin;
 				goto L_END_GAME;
 			}
 
 #ifdef USE_MATE_ROOT_SEARCH
-			// ‹l‚İ’TõŠJn
+			// è©°ã¿æ¢ç´¢é–‹å§‹
 			pos.searcher()->alpha = -ScoreMaxEvaluate;
 			pos.searcher()->beta = ScoreMaxEvaluate;
 			pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
 #endif
 		}
 
-		// ƒvƒŒƒCƒAƒEƒg
+		// ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆ
 		UctSearch(&pos, current_root, 0);
 
-		// ƒvƒŒƒCƒAƒEƒg‰ñ”‰ÁZ
+		// ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆå›æ•°åŠ ç®—
 		playout++;
 
-		// ’TõI—¹”»’è
+		// æ¢ç´¢çµ‚äº†åˆ¤å®š
 		if (InterruptionCheck(current_root, playout)) {
-			// ’Tõ‰ñ”Å‘å‚Ìè‚ğŒ©‚Â‚¯‚é
+			// æ¢ç´¢å›æ•°æœ€å¤§ã®æ‰‹ã‚’è¦‹ã¤ã‘ã‚‹
 			child_node_t* uct_child = uct_node[current_root].child;
 			int max_count = 0;
 			unsigned int select_index;
@@ -732,22 +732,22 @@ void UctSercher::SelfPlay()
 				SPDLOG_DEBUG(logger, "thread:{} {}:{} move_count:{} win_rate:{}", threadID, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
 			}
 
-			// ‘I‘ğ‚µ‚½’…è‚ÌŸ—¦‚ÌZo
+			// é¸æŠã—ãŸç€æ‰‹ã®å‹ç‡ã®ç®—å‡º
 			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 			Move best_move = uct_child[select_index].move;
 			SPDLOG_DEBUG(logger, "thread:{} bestmove:{} winrate:{}", threadID, best_move.toUSI(), best_wp);
 
 #ifdef USE_MATE_ROOT_SEARCH
 			{
-				// ‹l‚İ’TõI—¹
+				// è©°ã¿æ¢ç´¢çµ‚äº†
 				pos.searcher()->threads.main()->waitForSearchFinished();
 				Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 				const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
 
-				// ƒQ[ƒ€I—¹”»’è
-				// ğŒF•]‰¿’l‚ªè‡’l‚ğ’´‚¦‚½ê‡
-				const int ScoreThresh = 5000; // ©ŒÈ‘Î‹Ç‚ğŒˆ’…‚ª‚Â‚¢‚½‚Æ‚µ‚Ä~‚ß‚éè‡’l
-				if (ScoreThresh < abs(score)) { // ·‚ª•t‚¢‚½‚Ì‚Å“Š—¹‚µ‚½–‚É‚·‚éB
+				// ã‚²ãƒ¼ãƒ çµ‚äº†åˆ¤å®š
+				// æ¡ä»¶ï¼šè©•ä¾¡å€¤ãŒé–¾å€¤ã‚’è¶…ãˆãŸå ´åˆ
+				const int ScoreThresh = 5000; // è‡ªå·±å¯¾å±€ã‚’æ±ºç€ãŒã¤ã„ãŸã¨ã—ã¦æ­¢ã‚ã‚‹é–¾å€¤
+				if (ScoreThresh < abs(score)) { // å·®ãŒä»˜ã„ãŸã®ã§æŠ•äº†ã—ãŸäº‹ã«ã™ã‚‹ã€‚
 					if (pos.turn() == Black)
 						gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
 					else
@@ -755,14 +755,14 @@ void UctSercher::SelfPlay()
 
 					goto L_END_GAME;
 				}
-				else if (!bestMove) { // Ÿ‚¿éŒ¾
+				else if (!bestMove) { // å‹ã¡å®£è¨€
 					gameResult = (pos.turn() == Black ? BlackWin : WhiteWin);
 					goto L_END_GAME;
 				}
 			}
 #else
 			{
-				// Ÿ—¦‚ªè‡’l‚ğ’´‚¦‚½ê‡AƒQ[ƒ€I—¹
+				// å‹ç‡ãŒé–¾å€¤ã‚’è¶…ãˆãŸå ´åˆã€ã‚²ãƒ¼ãƒ çµ‚äº†
 				const float winrate = (best_wp - 0.5f) * 2.0f;
 				const float winrate_threshold = 0.99f;
 				if (winrate_threshold < abs(winrate)) {
@@ -776,7 +776,7 @@ void UctSercher::SelfPlay()
 			}
 #endif
 
-			// ‹Ç–Ê’Ç‰Á
+			// å±€é¢è¿½åŠ 
 			hcpevec.emplace_back(HuffmanCodedPosAndEval());
 			HuffmanCodedPosAndEval& hcpe = hcpevec.back();
 			hcpe.hcp = pos.toHuffmanCodedPos();
@@ -784,17 +784,17 @@ void UctSercher::SelfPlay()
 			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 			hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
 
-			// ˆê’è‚Ìè”ˆÈã‚Åˆø‚«•ª‚¯
+			// ä¸€å®šã®æ‰‹æ•°ä»¥ä¸Šã§å¼•ãåˆ†ã‘
 			if (ply > 200) {
 				gameResult = Draw;
 				goto L_END_GAME;
 			}
 
-			// ’…è
+			// ç€æ‰‹
 			states->push_back(StateInfo());
 			pos.doMove(best_move, states->back());
 
-			// Ÿ‚Ìè”Ô
+			// æ¬¡ã®æ‰‹ç•ª
 			playout = 0;
 			ply++;
 			SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", threadID, ply, pos.toSFEN());
@@ -803,13 +803,13 @@ void UctSercher::SelfPlay()
 
 	L_END_GAME:
 		SPDLOG_DEBUG(logger, "thread:{} ply:{} gameResult:{}", threadID, ply, gameResult);
-		// ˆø‚«•ª‚¯‚Ío—Í‚µ‚È‚¢
+		// å¼•ãåˆ†ã‘ã¯å‡ºåŠ›ã—ãªã„
 		if (gameResult != Draw) {
-			// Ÿ”s‚ğ1‹Ç‘S‚Ä‚É•t‚¯‚éB
+			// å‹æ•—ã‚’1å±€å…¨ã¦ã«ä»˜ã‘ã‚‹ã€‚
 			for (auto& elem : hcpevec)
 				elem.gameResult = gameResult;
 
-			// ‹Ç–Êo—Í
+			// å±€é¢å‡ºåŠ›
 			if (hcpevec.size() > 0) {
 				std::unique_lock<Mutex> lock(omutex);
 				Position po;
@@ -819,7 +819,7 @@ void UctSercher::SelfPlay()
 			idx++;
 		}
 
-		// V‚µ‚¢ƒQ[ƒ€
+		// æ–°ã—ã„ã‚²ãƒ¼ãƒ 
 		playout = 0;
 		ply = 0;
 	}
@@ -833,10 +833,10 @@ void SelfPlay(const int threadID)
 	logger->info("end selfplay thread:{}", threadID);
 }
 
-// ‹³t‹Ç–Ê¶¬
+// æ•™å¸«å±€é¢ç”Ÿæˆ
 void make_teacher(const char* recordFileName, const char* outputFileName)
 {
-	// ‰Šú‹Ç–ÊW
+	// åˆæœŸå±€é¢é›†
 	ifs.open(recordFileName, ifstream::in | ifstream::binary | ios::ate);
 	if (!ifs) {
 		cerr << "Error: cannot open " << recordFileName << endl;
@@ -844,24 +844,24 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	}
 	entryNum = ifs.tellg() / sizeof(HuffmanCodedPos);
 
-	// ‹³t‹Ç–Ê‚ğ•Û‘¶‚·‚éƒtƒ@ƒCƒ‹
+	// æ•™å¸«å±€é¢ã‚’ä¿å­˜ã™ã‚‹ãƒ•ã‚¡ã‚¤ãƒ«
 	ofs.open(outputFileName, ios::binary);
 	if (!ofs) {
 		cerr << "Error: cannot open " << outputFileName << endl;
 		exit(EXIT_FAILURE);
 	}
 
-	// ƒ‚ƒfƒ‹“Ç‚İ‚İ
+	// ãƒ¢ãƒ‡ãƒ«èª­ã¿è¾¼ã¿
 	ReadWeights();
 
-	// i’»ó‹µ•\¦
+	// é€²æ—çŠ¶æ³è¡¨ç¤º
 	auto progressFunc = [](Timer& t) {
 		while (true) {
-			std::this_thread::sleep_for(std::chrono::seconds(5)); // w’è•b‚¾‚¯‘Ò‹@‚µAi’»‚ğ•\¦‚·‚éB
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // æŒ‡å®šç§’ã ã‘å¾…æ©Ÿã—ã€é€²æ—ã‚’è¡¨ç¤ºã™ã‚‹ã€‚
 			const s64 madeTeacherNodes = idx;
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
-			if (progress > 0.0) // 0 œZ‚ğ‰ñ”ğ‚·‚éB
+			if (progress > 0.0) // 0 é™¤ç®—ã‚’å›é¿ã™ã‚‹ã€‚
 				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
 				<< "%, Elapsed: " << elapsed_msec / 1000
 				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
@@ -872,7 +872,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	Timer t = Timer::currentTime();
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
-	// ƒXƒŒƒbƒhì¬
+	// ã‚¹ãƒ¬ãƒƒãƒ‰ä½œæˆ
 	running_threads = threads;
 	for (int i = 0; i < threads; i++) {
 		handle[i] = new thread(SelfPlay, i);
@@ -943,8 +943,8 @@ int main(int argc, char* argv[]) {
 
 #ifdef USE_MATE_ROOT_SEARCH
 	logger->info("init evaluator");
-	// ˆêƒIƒuƒWƒFƒNƒg‚ğ¶¬‚µ‚Ä Evaluator::init() ‚ğŒÄ‚ñ‚¾’¼Œã‚ÉƒIƒuƒWƒFƒNƒg‚ğ”jŠü‚·‚éB
-	// •]‰¿ŠÖ”‚ÌŸŒ³‰º‚°‚ğ‚µ‚½ƒf[ƒ^‚ğŠi”[‚·‚é•ª‚Ìƒƒ‚ƒŠ‚ª–³‘Ê‚Èˆ×A
+	// ä¸€æ™‚ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ç”Ÿæˆã—ã¦ Evaluator::init() ã‚’å‘¼ã‚“ã ç›´å¾Œã«ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ç ´æ£„ã™ã‚‹ã€‚
+	// è©•ä¾¡é–¢æ•°ã®æ¬¡å…ƒä¸‹ã’ã‚’ã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹åˆ†ã®ãƒ¡ãƒ¢ãƒªãŒç„¡é§„ãªç‚ºã€
 	std::unique_ptr<Evaluator>(new Evaluator)->init(evalDir, true);
 #endif
 

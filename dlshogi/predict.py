@@ -1,4 +1,4 @@
-from chainer import cuda, Variable, serializers
+﻿from chainer import cuda, Variable, serializers
 import chainer.functions as F
 
 from dlshogi.policy_value_network import *

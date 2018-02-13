@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import chainer
 from chainer import cuda, Variable
 from chainer import Chain

@@ -1,4 +1,4 @@
-from chainer import serializers
+﻿from chainer import serializers
 
 from dlshogi.policy_network import *
 from dlshogi.value_network import *

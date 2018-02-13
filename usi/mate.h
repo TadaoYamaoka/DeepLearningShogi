@@ -1,22 +1,22 @@
-#pragma once
+﻿#pragma once
 
-// ���l�߃`�F�b�N
-// ��ԑ�������łȂ�����
-// // �l�܂����Ԃ��o�[�W����
+// 奇数手詰めチェック
+// 手番側が王手でないこと
+// // 詰ます手を返すバージョン
 Move mateMoveInOddPlyReturnMove(Position& pos, int depth);
 
-// ���l�߃`�F�b�N
-// ��ԑ�������łȂ�����
+// 奇数手詰めチェック
+// 手番側が王手でないこと
 bool mateMoveInOddPly(Position& pos, int depth);
 
-// ������l�߃`�F�b�N
-// ��ԑ������肳��Ă��邱��
+// 偶数手詰めチェック
+// 手番側が王手されていること
 bool mateMoveInEvenPly(Position& pos, int depth);
 
-// 3��l�߃`�F�b�N
-// ��ԑ�������łȂ�����
+// 3手詰めチェック
+// 手番側が王手でないこと
 bool mateMoveIn3Ply(Position& pos);
 
-// 2��l�߃`�F�b�N
-// ��ԑ������肳��Ă��邱��
+// 2手詰めチェック
+// 手番側が王手されていること
 bool mateMoveIn2Ply(Position& pos);

@@ -1,4 +1,4 @@
-#include <cstdlib>
+ï»¿#include <cstdlib>
 
 #include "cppshogi.h"
 
@@ -8,7 +8,7 @@ namespace np = boost::python::numpy;
 void randomMove(Position& pos, std::mt19937& mt);
 
 const Move select_move(const Position pos, float *logits) {
-	// ‡–@èˆê——
+	// åˆæ³•æ‰‹ä¸€è¦§
 	std::vector<Move> legal_moves;
 	std::vector<float> legal_move_probabilities;
 	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
@@ -27,7 +27,7 @@ const Move select_move(const Position pos, float *logits) {
 	// Boltzmann distribution
 	softmax_tempature_with_normalize(legal_move_probabilities);
 
-	// Šm—¦‚É‰‚¶‚Äè‚ğ‘I‘ğ
+	// ç¢ºç‡ã«å¿œã˜ã¦æ‰‹ã‚’é¸æŠ
 	std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
 	int move_idx = distribution(g_randomTimeSeed);
 
@@ -46,18 +46,18 @@ int main(int argc, char** argv)
 	int batch_size = std::atoi(argv[3]);
 	int position_num = std::atoi(argv[4]);
 
-	// Boost.Python‚ÆBoost.Numpy‚Ì‰Šú‰»
+	// Boost.Pythonã¨Boost.Numpyã®åˆæœŸåŒ–
 	Py_Initialize();
 	np::initialize();
 
-	// Pythonƒ‚ƒWƒ…[ƒ‹“Ç‚İ‚İ
+	// Pythonãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«èª­ã¿è¾¼ã¿
 	py::object dlshogi_ns = py::import("dlshogi.test").attr("__dict__");
 
-	// modelƒ[ƒh
+	// modelãƒ­ãƒ¼ãƒ‰
 	py::object dlshogi_load_model = dlshogi_ns["load_model"];
 	dlshogi_load_model(model_path);
 
-	// —\‘ªŠÖ”æ“¾
+	// äºˆæ¸¬é–¢æ•°å–å¾—
 	py::object dlshogi_predict = dlshogi_ns["predict"];
 
 	initTable();
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 	Searcher s;
 	s.init();
 
-	// ƒ{ƒ‹ƒcƒ}ƒ“‰·“xİ’è
+	// ãƒœãƒ«ãƒ„ãƒãƒ³æ¸©åº¦è¨­å®š
 	set_softmax_tempature(1.25f);
 
 	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
@@ -84,16 +84,16 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
 	}
 
-	// i’»ó‹µ•\¦
+	// é€²æ—çŠ¶æ³è¡¨ç¤º
 	std::atomic<s64> index = 0;
 	Timer t = Timer::currentTime();
 	auto progressFunc = [&position_num](std::atomic<s64>& index, Timer& t) {
 		while (true) {
-			std::this_thread::sleep_for(std::chrono::seconds(5)); // w’è•b‚¾‚¯‘Ò‹@‚µAi’»‚ğ•\¦‚·‚éB
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // æŒ‡å®šç§’ã ã‘å¾…æ©Ÿã—ã€é€²æ—ã‚’è¡¨ç¤ºã™ã‚‹ã€‚
 			const s64 madeTeacherNodes = index;
 			const double progress = static_cast<double>(madeTeacherNodes) / position_num;
 			auto elapsed_msec = t.elapsed();
-			if (progress > 0.0) // 0 œZ‚ğ‰ñ”ğ‚·‚éB
+			if (progress > 0.0) // 0 é™¤ç®—ã‚’å›é¿ã™ã‚‹ã€‚
 				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
 				<< "%, Elapsed: " << elapsed_msec / 1000
 				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
@@ -112,7 +112,7 @@ int main(int argc, char** argv)
 	std::vector<HuffmanCodedPos> hcptmp(batch_size);
 	std::vector<HuffmanCodedPos> hcptmp2(batch_size);
 
-	// ‹Ç–Ê‰Šú‰»
+	// å±€é¢åˆæœŸåŒ–
 	for (int i = 0; i < batch_size; i++) {
 		positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 		maxply.emplace_back(dist(mt));
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 
 				ply[idx]++;
 
-				// o—Í”»’è
+				// å‡ºåŠ›åˆ¤å®š
 				if (ply[idx] == maxply[idx]) {
 					hcpvec.emplace_back(positions[idx].toHuffmanCodedPos());
 					index++;
@@ -177,7 +177,7 @@ int main(int argc, char** argv)
 				}
 			}
 			else {
-				// I‹Ç‚Ìê‡Ab’è‚Å•Û‘¶‚µ‚½‹Ç–Ê‚ğo—Í
+				// çµ‚å±€ã®å ´åˆã€æš«å®šã§ä¿å­˜ã—ãŸå±€é¢ã‚’å‡ºåŠ›
 				if (ply[idx] > tmpply[idx]) {
 					hcpvec.emplace_back(hcptmp[idx]);
 					index++;
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
 				}
 			}
 
-			// Ÿ‚ÌƒQ[ƒ€
+			// æ¬¡ã®ã‚²ãƒ¼ãƒ 
 			if (move == Move::moveNone() || ply[idx] >= maxply[idx]) {
 				positions[idx].set(DefaultStartPositionSFEN, s.threads.main());
 				maxply[idx] = dist(mt);
@@ -199,7 +199,7 @@ int main(int argc, char** argv)
 				stateLists[idx]->clear();
 			}
 			else {
-				// ’á‚¢Šm—¦‚Åƒ‰ƒ“ƒ_ƒ€ƒ€[ƒu‚ğ“ü‚ê‚é
+				// ä½ã„ç¢ºç‡ã§ãƒ©ãƒ³ãƒ€ãƒ ãƒ ãƒ¼ãƒ–ã‚’å…¥ã‚Œã‚‹
 				if (doRandomDist(mt) == 0 && !positions[idx].inCheck()) {
 					randomMove(positions[idx], mt);
 				}
@@ -207,7 +207,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// o—Í
+	// å‡ºåŠ›
 	ofs.write(reinterpret_cast<char*>(hcpvec.data()), sizeof(HuffmanCodedPos) * hcpvec.size());
 
 	progressThread.join();

@@ -1,4 +1,4 @@
-#include "cppshogi.h"
+ï»¿#include "cppshogi.h"
 
 #include <iostream>
 #include <chrono>
@@ -8,11 +8,11 @@ namespace np = boost::python::numpy;
 
 #if 0
 int main() {
-	// Boost.Python‚ÆBoost.Numpy‚Ì‰Šú‰»
+	// Boost.Pythonã¨Boost.Numpyã®åˆæœŸåŒ–
 	Py_Initialize();
 	np::initialize();
 
-	// “ü—Íƒf[ƒ^ì¬
+	// å…¥åŠ›ãƒ‡ãƒ¼ã‚¿ä½œæˆ
 	const int batchsize = 1;
 	float features1[batchsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 	float features2[batchsize][MAX_FEATURES2_NUM][SquareNum];
@@ -36,13 +36,13 @@ int main() {
 
 	make_input_features(position, features1, features2);
 
-	// Pythonƒ‚ƒWƒ…[ƒ‹“Ç‚İ‚İ
+	// Pythonãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«èª­ã¿è¾¼ã¿
 	py::object dlshogi_test_ns = py::import("dlshogi.test").attr("__dict__");
 
 	py::object dlshogi_test_load_model = dlshogi_test_ns["load_model"];
 	dlshogi_test_load_model("H:\\src\\DeepLearningShogi\\dlshogi\\model_sl_elmo1000-009");
 
-	// Python‚ÌŠÖ”Às
+	// Pythonã®é–¢æ•°å®Ÿè¡Œ
 	py::object dlshogi_test_predict = dlshogi_test_ns["predict"];
 	const int max = 1000;
 	auto start = std::chrono::system_clock::now();
@@ -60,7 +60,7 @@ int main() {
 	std::cout << (double)max / msec * 1000 << "[nps]" << std::endl;
 
 
-	// PythonŒÄ‚Ño‚µ‚ÌƒI[ƒo[ƒwƒbƒhŒv‘ª
+	// Pythonå‘¼ã³å‡ºã—ã®ã‚ªãƒ¼ãƒãƒ¼ãƒ˜ãƒƒãƒ‰è¨ˆæ¸¬
 	py::object dlshogi_test_dummy = dlshogi_test_ns["dummy"];
 	const int max2 = 100000;
 	start = std::chrono::system_clock::now();
@@ -76,7 +76,7 @@ int main() {
 	std::cout << (double)msec / max2 << "[msec per each call]" << std::endl;
 
 
-	// PythonŒÄ‚Ño‚µ‚ÌƒI[ƒo[ƒwƒbƒhŒv‘ª
+	// Pythonå‘¼ã³å‡ºã—ã®ã‚ªãƒ¼ãƒãƒ¼ãƒ˜ãƒƒãƒ‰è¨ˆæ¸¬
 	py::object dlshogi_test_dummy2 = dlshogi_test_ns["dummy2"];
 	const int max3 = 1000;
 	start = std::chrono::system_clock::now();
@@ -109,7 +109,7 @@ int main() {
 	pos.bbOf(Black).printBoard();
 	pos.bbOf(White).printBoard();
 
-	// ‹î‚Ì—˜‚«
+	// é§’ã®åˆ©ã
 	/*for (Color c = Black; c < ColorNum; ++c) {
 		for (Square sq = SQ11; sq < SquareNum; sq++) {
 			Bitboard bb = pos.attackersTo(Black, sq, occupied);
@@ -118,7 +118,7 @@ int main() {
 		}
 	}*/
 
-	// ‹î‚Ì—˜‚«(‹îí‚Åƒ}[ƒW)
+	// é§’ã®åˆ©ã(é§’ç¨®ã§ãƒãƒ¼ã‚¸)
 	/*Bitboard attacks[ColorNum][PieceTypeNum] = {
 		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
 		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
@@ -141,7 +141,7 @@ int main() {
 		}
 	}*/
 
-	// ‰¤èî•ñ
+	// ç‹æ‰‹æƒ…å ±
 	std::cout << pos.inCheck() << std::endl;
 	CheckInfo checkInfo(pos);
 	std::cout << "dcBB" << std::endl;

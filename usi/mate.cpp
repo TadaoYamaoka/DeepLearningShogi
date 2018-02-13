@@ -1,25 +1,25 @@
-#include "position.hpp"
+ï»¿#include "position.hpp"
 #include "move.hpp"
 #include "generateMoves.hpp"
 
 #include "mate.h"
 
-// Šï”è‹l‚ßƒ`ƒFƒbƒN
-// è”Ô‘¤‚ª‰¤è‚Å‚È‚¢‚±‚Æ
-// ‹l‚Ü‚·è‚ğ•Ô‚·ƒo[ƒWƒ‡ƒ“
+// å¥‡æ•°æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
+// æ‰‹ç•ªå´ãŒç‹æ‰‹ã§ãªã„ã“ã¨
+// è©°ã¾ã™æ‰‹ã‚’è¿”ã™ãƒãƒ¼ã‚¸ãƒ§ãƒ³
 Move mateMoveInOddPlyReturnMove(Position& pos, int depth) {
-	// ORß“_
+	// ORç¯€ç‚¹
 
-	// ‚·‚×‚Ä‚Ì‡–@è‚É‚Â‚¢‚Ä
+	// ã™ã¹ã¦ã®åˆæ³•æ‰‹ã«ã¤ã„ã¦
 	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
-		// 1è“®‚©‚·
+		// 1æ‰‹å‹•ã‹ã™
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
 		//std::cout << ml.move().toUSI() << std::endl;
-		// ‹ô”è‹l‚ßƒ`ƒFƒbƒN
+		// å¶æ•°æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
 		if (mateMoveInEvenPly(pos, depth - 1)) {
-			// ‹l‚İ‚ªŒ©‚Â‚©‚Á‚½“_‚ÅI—¹
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return ml.move();
 		}
@@ -29,23 +29,23 @@ Move mateMoveInOddPlyReturnMove(Position& pos, int depth) {
 	return Move::moveNone();
 }
 
-// Šï”è‹l‚ßƒ`ƒFƒbƒN
-// è”Ô‘¤‚ª‰¤è‚Å‚È‚¢‚±‚Æ
+// å¥‡æ•°æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
+// æ‰‹ç•ªå´ãŒç‹æ‰‹ã§ãªã„ã“ã¨
 bool mateMoveInOddPly(Position& pos, int depth)
 {
-	// ORß“_
+	// ORç¯€ç‚¹
 
-	// ‚·‚×‚Ä‚Ì‡–@è‚É‚Â‚¢‚Ä
+	// ã™ã¹ã¦ã®åˆæ³•æ‰‹ã«ã¤ã„ã¦
 	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
-		// 1è“®‚©‚·
+		// 1æ‰‹å‹•ã‹ã™
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
 		//std::cout << ml.move().toUSI() << std::endl;
-		// ‰¤è‚Ìê‡
-		// ‹ô”è‹l‚ßƒ`ƒFƒbƒN
+		// ç‹æ‰‹ã®å ´åˆ
+		// å¶æ•°æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
 		if (mateMoveInEvenPly(pos, depth - 1)) {
-			// ‹l‚İ‚ªŒ©‚Â‚©‚Á‚½“_‚ÅI—¹
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return true;
 		}
@@ -55,41 +55,41 @@ bool mateMoveInOddPly(Position& pos, int depth)
 	return false;
 }
 
-// ‹ô”è‹l‚ßƒ`ƒFƒbƒN
-// è”Ô‘¤‚ª‰¤è‚³‚ê‚Ä‚¢‚é‚±‚Æ
+// å¶æ•°æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
+// æ‰‹ç•ªå´ãŒç‹æ‰‹ã•ã‚Œã¦ã„ã‚‹ã“ã¨
 bool mateMoveInEvenPly(Position& pos, int depth)
 {
-	// ANDß“_
+	// ANDç¯€ç‚¹
 
-	// ‚·‚×‚Ä‚ÌEvasion‚É‚Â‚¢‚Ä
+	// ã™ã¹ã¦ã®Evasionã«ã¤ã„ã¦
 	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
 		//std::cout << " " << ml.move().toUSI() << std::endl;
-		// 1è“®‚©‚·
+		// 1æ‰‹å‹•ã‹ã™
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
-		// ‰¤è‚©‚Ç‚¤‚©
+		// ç‹æ‰‹ã‹ã©ã†ã‹
 		if (pos.inCheck()) {
-			// ‰¤è‚Ìê‡
-			// ‹l‚İ‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½“_‚ÅI—¹
+			// ç‹æ‰‹ã®å ´åˆ
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return false;
 		}
 
 		if (depth == 4) {
-			// 3è‹l‚ß‚©‚Ç‚¤‚©
+			// 3æ‰‹è©°ã‚ã‹ã©ã†ã‹
 			if (!mateMoveIn3Ply(pos)) {
-				// 3è‹l‚ß‚Å‚È‚¢ê‡
-				// ‹l‚İ‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½“_‚ÅI—¹
+				// 3æ‰‹è©°ã‚ã§ãªã„å ´åˆ
+				// è©°ã¿ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 				pos.undoMove(ml.move());
 				return false;
 			}
 		}
 		else {
-			// Šï”è‹l‚ß‚©‚Ç‚¤‚©
+			// å¥‡æ•°æ‰‹è©°ã‚ã‹ã©ã†ã‹
 			if (!mateMoveInOddPly(pos, depth - 1)) {
-				// ‹ô”è‹l‚ß‚Å‚È‚¢ê‡
-				// ‹l‚İ‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½“_‚ÅI—¹
+				// å¶æ•°æ‰‹è©°ã‚ã§ãªã„å ´åˆ
+				// è©°ã¿ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 				pos.undoMove(ml.move());
 				return false;
 			}
@@ -100,23 +100,23 @@ bool mateMoveInEvenPly(Position& pos, int depth)
 	return true;
 }
 
-// 3è‹l‚ßƒ`ƒFƒbƒN
-// è”Ô‘¤‚ª‰¤è‚Å‚È‚¢‚±‚Æ
+// 3æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
+// æ‰‹ç•ªå´ãŒç‹æ‰‹ã§ãªã„ã“ã¨
 bool mateMoveIn3Ply(Position& pos)
 {
-	// ORß“_
+	// ORç¯€ç‚¹
 
-	// ‚·‚×‚Ä‚Ì‡–@è‚É‚Â‚¢‚Ä
+	// ã™ã¹ã¦ã®åˆæ³•æ‰‹ã«ã¤ã„ã¦
 	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
-		// 1è“®‚©‚·
+		// 1æ‰‹å‹•ã‹ã™
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
 		//std::cout << ml.move().toUSI() << std::endl;
-		// ‰¤è‚Ìê‡
-		// 2è‹l‚ßƒ`ƒFƒbƒN
+		// ç‹æ‰‹ã®å ´åˆ
+		// 2æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
 		if (mateMoveIn2Ply(pos)) {
-			// ‹l‚İ‚ªŒ©‚Â‚©‚Á‚½“_‚ÅI—¹
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return true;
 		}
@@ -126,31 +126,31 @@ bool mateMoveIn3Ply(Position& pos)
 	return false;
 }
 
-// 2è‹l‚ßƒ`ƒFƒbƒN
-// è”Ô‘¤‚ª‰¤è‚³‚ê‚Ä‚¢‚é‚±‚Æ
+// 2æ‰‹è©°ã‚ãƒã‚§ãƒƒã‚¯
+// æ‰‹ç•ªå´ãŒç‹æ‰‹ã•ã‚Œã¦ã„ã‚‹ã“ã¨
 bool mateMoveIn2Ply(Position& pos)
 {
-	// ANDß“_
+	// ANDç¯€ç‚¹
 
-	// ‚·‚×‚Ä‚ÌEvasion‚É‚Â‚¢‚Ä
+	// ã™ã¹ã¦ã®Evasionã«ã¤ã„ã¦
 	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
 		//std::cout << " " << ml.move().toUSI() << std::endl;
-		// 1è“®‚©‚·
+		// 1æ‰‹å‹•ã‹ã™
 		StateInfo state;
 		pos.doMove(ml.move(), state);
 
-		// ‰¤è‚©‚Ç‚¤‚©
+		// ç‹æ‰‹ã‹ã©ã†ã‹
 		if (pos.inCheck()) {
-			// ‰¤è‚Ìê‡
-			// ‹l‚İ‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½“_‚ÅI—¹
+			// ç‹æ‰‹ã®å ´åˆ
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return false;
 		}
 
-		// 1è‹l‚ß‚©‚Ç‚¤‚©
+		// 1æ‰‹è©°ã‚ã‹ã©ã†ã‹
 		if (pos.mateMoveIn1Ply() == Move::moveNone()) {
-			// 1è‹l‚ß‚Å‚È‚¢ê‡
-			// ‹l‚İ‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½“_‚ÅI—¹
+			// 1æ‰‹è©°ã‚ã§ãªã„å ´åˆ
+			// è©°ã¿ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸæ™‚ç‚¹ã§çµ‚äº†
 			pos.undoMove(ml.move());
 			return false;
 		}
