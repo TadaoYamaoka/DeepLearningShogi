@@ -900,7 +900,12 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 }
 
 int main(int argc, char* argv[]) {
-	if (argc < 8) {
+#ifdef USE_MATE_ROOT_SEARCH
+	const int argnum = 8;
+#else
+	const int argnum = 7;
+#endif
+	if (argc < argnum) {
 		cout << "make_hcpe_by_self_play <modelfile> roots.hcp output.teacher <threads> <nodes> <playout_num>";
 #ifdef USE_MATE_ROOT_SEARCH
 		cout << " <eval_dir>";
