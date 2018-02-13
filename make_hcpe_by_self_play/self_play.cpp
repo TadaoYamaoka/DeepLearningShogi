@@ -24,8 +24,8 @@ namespace np = boost::python::numpy;
 // ルートノードでの詰み探索を行う
 //#define USE_MATE_ROOT_SEARCH
 
-#define SPDLOG_TRACE_ON
-#define SPDLOG_DEBUG_ON
+//#define SPDLOG_TRACE_ON
+//#define SPDLOG_DEBUG_ON
 #define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
 auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
@@ -170,10 +170,6 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 		default: UNREACHABLE;
 		}
 	}
-
-	// policyが計算されるのを待つ(他のスレッドが同じノードを先に展開した場合、nnの計算を待つ必要がある)
-	while (uct_node[current].evaled == 0)
-		this_thread::sleep_for(chrono::milliseconds(0));
 
 	float result;
 	unsigned int next_index;
@@ -534,11 +530,10 @@ void EvalNode() {
 		if (current_policy_value_batch_index == 0) {
 			UNLOCK_QUEUE;
 			this_thread::sleep_for(chrono::milliseconds(1));
-			//cerr << "EMPTY QUEUE" << endl;
 			continue;
 		}
 
-		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
+		if (running_threads > 0 && !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9) {
 			UNLOCK_QUEUE;
 			this_thread::sleep_for(chrono::milliseconds(1));
 			enough_batch_size = true;
@@ -646,7 +641,7 @@ void UctSercher::SelfPlay()
 	s.tt.clear();
 	s.threads.main()->previousScore = ScoreInfinite;
 	LimitsType limits;
-	limits.infinite = true;
+	limits.depth = static_cast<Depth>(8);
 #endif
 
 	uniform_int_distribution<s64> inputFileDist(0, entryNum - 1);
@@ -745,14 +740,13 @@ void UctSercher::SelfPlay()
 #ifdef USE_MATE_ROOT_SEARCH
 			{
 				// 詰み探索終了
-				pos.searcher()->signals.stop = true;
 				pos.searcher()->threads.main()->waitForSearchFinished();
 				Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 				const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
 
 				// ゲーム終了判定
 				// 条件：評価値が閾値を超えた場合
-				const int ScoreThresh = 3000; // 自己対局を決着がついたとして止める閾値
+				const int ScoreThresh = 5000; // 自己対局を決着がついたとして止める閾値
 				if (ScoreThresh < abs(score)) { // 差が付いたので投了した事にする。
 					if (pos.turn() == Black)
 						gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
@@ -833,9 +827,10 @@ void UctSercher::SelfPlay()
 
 void SelfPlay(const int threadID)
 {
-	logger->info("selfplay thread:{}", threadID);
+	logger->info("start selfplay thread:{}", threadID);
 	UctSercher uct_sercher(threadID);
 	uct_sercher.SelfPlay();
+	logger->info("end selfplay thread:{}", threadID);
 }
 
 // 教師局面生成
@@ -859,6 +854,24 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	// モデル読み込み
 	ReadWeights();
 
+	// 進捗状況表示
+	auto progressFunc = [](Timer& t) {
+		while (true) {
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // 指定秒だけ待機し、進捗を表示する。
+			const s64 madeTeacherNodes = idx;
+			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
+			auto elapsed_msec = t.elapsed();
+			if (progress > 0.0) // 0 除算を回避する。
+				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
+				<< "%, Elapsed: " << elapsed_msec / 1000
+				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
+			if (idx >= teacherNodes)
+				break;
+		}
+	};
+	Timer t = Timer::currentTime();
+	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
+
 	// スレッド作成
 	running_threads = threads;
 	for (int i = 0; i < threads; i++) {
@@ -879,23 +892,32 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	delete handle[threads];
 	handle[threads] = nullptr;
 
+	progressThread.join();
 	ifs.close();
 	ofs.close();
+
+	std::cout << "Made " << teacherNodes << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
 }
 
 int main(int argc, char* argv[]) {
 	if (argc < 8) {
-		cout << "make_hcpe_by_self_play <eval_dir> <modelfile> roots.hcp output.teacher <threads> <nodes> <playout_num>" << endl;
+		cout << "make_hcpe_by_self_play <modelfile> roots.hcp output.teacher <threads> <nodes> <playout_num>";
+#ifdef USE_MATE_ROOT_SEARCH
+		cout << " <eval_dir>";
+#endif
+		cout << endl;
 		return 0;
 	}
 
-	char* evalDir = argv[1];
-	model_path = argv[2];
-	char* recordFileName = argv[3];
-	char* outputFileName = argv[4];
-	threads = stoi(argv[5]);
-	teacherNodes = stoi(argv[6]);
-	playout_num = stoi(argv[7]);
+	model_path = argv[1];
+	char* recordFileName = argv[2];
+	char* outputFileName = argv[3];
+	threads = stoi(argv[4]);
+	teacherNodes = stoi(argv[5]);
+	playout_num = stoi(argv[6]);
+#ifdef USE_MATE_ROOT_SEARCH
+	char* evalDir = argv[7];
+#endif
 
 	if (teacherNodes <= 0)
 		return 0;
@@ -906,7 +928,7 @@ int main(int argc, char* argv[]) {
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
-	logger->info("{} {} {} {} {} {} {}", evalDir, model_path, recordFileName, outputFileName, threads, teacherNodes, playout_num);
+	logger->info("{} {} {} {} {} {}", model_path, recordFileName, outputFileName, threads, teacherNodes, playout_num);
 
 	handle = new thread*[threads + 1];
 
