@@ -543,7 +543,7 @@ public:
 		ply++;
 	}
 
-	const int get_ply() const { return ply; }
+	const Ply get_ply() const { return ply; }
 
 	void print() {
 		std::cout << ply << std::endl;
@@ -572,7 +572,7 @@ public:
 	}
 
 	void default_start_position() {
-		for (int i = 0; i < engines.size(); i++) {
+		for (size_t i = 0; i < engines.size(); i++) {
 			engines[i].default_start_position();
 			unfinished[i] = true;
 		}
@@ -634,7 +634,7 @@ public:
 
 		// 初期局面の評価
 		if (prev_score.size() == 0) {
-			for (int i = 0; i < engines.size(); i++) {
+			for (size_t i = 0; i < engines.size(); i++) {
 				// eval
 				Score score;
 				engines[i].eval(&score);
@@ -642,7 +642,7 @@ public:
 			}
 		}
 
-		for (int i = 0; i < engines.size(); i++) {
+		for (size_t i = 0; i < engines.size(); i++) {
 			if (unfinished[i]) {
 				// select move
 				Move move = engines[i].select_move_inner((float*)logits);
@@ -685,7 +685,7 @@ public:
 
 	void get_learner_wons(np::ndarray ndwons) {
 		int *wons = reinterpret_cast<int*>(ndwons.get_data());
-		for (int i = 0; i < this->wons.size(); i++, wons++) {
+		for (size_t i = 0; i < this->wons.size(); i++, wons++) {
 			*wons = this->wons[i];
 		}
 	}

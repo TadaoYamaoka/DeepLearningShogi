@@ -44,7 +44,7 @@ atomic<int> running_threads; // 実行中の探索スレッド数
 thread **handle; // スレッドのハンドル
 
 s64 teacherNodes; // 教師局面数
-std::atomic<s64> idx = 0;
+std::atomic<s64> idx(0);
 
 ifstream ifs;
 ofstream ofs;

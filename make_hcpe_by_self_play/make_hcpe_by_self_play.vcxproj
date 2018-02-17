@@ -243,6 +243,9 @@
     <ClCompile Include="..\usi\ZobristHash.cpp" />
     <ClCompile Include="self_play.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Makefile" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
