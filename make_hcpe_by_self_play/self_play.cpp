@@ -73,7 +73,7 @@ struct uct_node_t {
 };
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = 64; // スレッド数の2倍以上確保する
+const int policy_value_batch_maxsize = 64; // スレッド数の以上確保する
 static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
 static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 struct policy_value_queue_node_t {
@@ -783,6 +783,7 @@ void UctSercher::SelfPlay()
 			const Color rootTurn = pos.turn();
 			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 			hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
+			idx++;
 
 			// 一定の手数以上で引き分け
 			if (ply > 200) {
@@ -816,7 +817,6 @@ void UctSercher::SelfPlay()
 				po.set(hcpevec[0].hcp, nullptr);
 				ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 			}
-			idx++;
 		}
 
 		// 新しいゲーム
@@ -854,24 +854,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	// モデル読み込み
 	ReadWeights();
 
-	// 進捗状況表示
-	auto progressFunc = [](Timer& t) {
-		while (true) {
-			std::this_thread::sleep_for(std::chrono::seconds(5)); // 指定秒だけ待機し、進捗を表示する。
-			const s64 madeTeacherNodes = idx;
-			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
-			auto elapsed_msec = t.elapsed();
-			if (progress > 0.0) // 0 除算を回避する。
-				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
-				<< "%, Elapsed: " << elapsed_msec / 1000
-				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
-			if (idx >= teacherNodes)
-				break;
-		}
-	};
-	Timer t = Timer::currentTime();
-	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
-
 	// スレッド作成
 	running_threads = threads;
 	for (int i = 0; i < threads; i++) {
@@ -881,6 +863,28 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	// use_nn
 	handle[threads] = new thread(EvalNode);
 
+	// 進捗状況表示
+	auto progressFunc = [](Timer& t) {
+		while (true) {
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // 指定秒だけ待機し、進捗を表示する。
+			const s64 madeTeacherNodes = idx;
+			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
+			auto elapsed_msec = t.elapsed();
+			if (progress > 0.0) // 0 除算を回避する。
+				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
+				<< "%, nodes:" << madeTeacherNodes
+				<< ", nodes/sec:" << static_cast<double>(madeTeacherNodes) / elapsed_msec * 1000.0
+				<< ", threads:" << running_threads
+				<< ", Elapsed: " << elapsed_msec / 1000
+				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
+			if (running_threads == 0)
+				break;
+		}
+	};
+	Timer t = Timer::currentTime();
+	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
+
+	// スレッドの終了を待機
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
 		running_threads--;
@@ -896,7 +900,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	ifs.close();
 	ofs.close();
 
-	std::cout << "Made " << teacherNodes << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
+	std::cout << "Made " << idx << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -926,7 +930,7 @@ int main(int argc, char* argv[]) {
 
 	if (teacherNodes <= 0)
 		return 0;
-	if (threads <= 0 || threads > policy_value_batch_maxsize / 2)
+	if (threads <= 0 || threads > policy_value_batch_maxsize * 9 / 10)
 		return 0;
 	if (playout_num <= 0)
 		return 0;
