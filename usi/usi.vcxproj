@@ -259,6 +259,9 @@
     <ClInclude Include="Utility.h" />
     <ClInclude Include="ZobristHash.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Makefile" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -364,7 +364,7 @@ InitializeSearchSetting(void)
 	}
 
 	// 持ち時間の初期化
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < ColorNum; i++) {
 		remaining_time[i] = default_remaining_time;
 	}
 
@@ -514,7 +514,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	uct_child = uct_node[current_root].child;
 
 	int max_count = 0;
-	unsigned int select_index;
+	unsigned int select_index = 0;
 
 	// 探索回数最大の手を見つける
 	for (int i = 0; i < uct_node[current_root].child_num; i++) {
@@ -561,7 +561,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			unsigned int best_index = select_index;
 			child_node_t *best_node = uct_child;
 
-			while (best_node[best_index].index != -1) {
+			while (best_node[best_index].index != NOT_EXPANDED) {
 				const int best_node_index = best_node[best_index].index;
 
 				best_node = uct_node[best_node_index].child;

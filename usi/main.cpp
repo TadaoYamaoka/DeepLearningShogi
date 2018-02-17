@@ -13,6 +13,8 @@
 #include "Message.h"
 #include "mate.h"
 
+extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
+
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
@@ -69,7 +71,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 			if (th.joinable())
 				th.join();
-			th = std::thread([&pos, tmpCmd = ssCmd.str()] { go_uct(pos, std::istringstream(tmpCmd)); });
+			th = std::thread([&pos, tmpCmd = ssCmd.str()] {
+				std::istringstream ssCmd(tmpCmd);
+				go_uct(pos, ssCmd);
+			});
 		}
 		else if (token == "position") setPosition(pos, ssCmd);
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
@@ -256,7 +261,7 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 
 		if (outMap.find(key) == outMap.end()) {
 			// UCT探索を使用
-			UctSearchGenmove(&pos);
+			UctSearchGenmoveNoPonder(&pos);
 
 			// 探索回数で降順ソート
 			std::vector<child_node_t_copy> movelist;
