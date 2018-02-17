@@ -473,7 +473,7 @@ L_RETRY:
 	LOCK_QUEUE;
 	if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
 		UNLOCK_QUEUE;
-		logger->warn("queue is full");
+		//logger->warn("queue is full");
 		this_thread::sleep_for(chrono::milliseconds(1));
 		goto L_RETRY;
 	}
