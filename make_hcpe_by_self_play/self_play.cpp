@@ -469,10 +469,13 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 static void
 QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color)
 {
+L_RETRY:
 	LOCK_QUEUE;
 	if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
-		std::cout << "error" << std::endl;
-		exit(EXIT_FAILURE);
+		UNLOCK_QUEUE;
+		logger->warn("queue is full");
+		this_thread::sleep_for(chrono::milliseconds(1));
+		goto L_RETRY;
 	}
 	// set all zero
 	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
