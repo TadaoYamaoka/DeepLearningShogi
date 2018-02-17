@@ -830,6 +830,7 @@ void SelfPlay(const int threadID)
 	logger->info("start selfplay thread:{}", threadID);
 	UctSercher uct_sercher(threadID);
 	uct_sercher.SelfPlay();
+	running_threads--;
 	logger->info("end selfplay thread:{}", threadID);
 }
 
@@ -887,7 +888,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 	// スレッドの終了を待機
 	for (int i = 0; i < threads; i++) {
 		handle[i]->join();
-		running_threads--;
 		delete handle[i];
 		handle[i] = nullptr;
 	}

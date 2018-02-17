@@ -1,5 +1,5 @@
 ﻿CC = g++
-CFLAGS = -std=c++11 -Wextra -Ofast -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+CFLAGS = -std=c++11 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lboost_python3 -lboost_numpy3 -lpython3.6m -flto
 INCLUDE = -I../usi -I../cppshogi -I$(PYENV_ROOT)/versions/anaconda3-5.0.1/include/python3.6m
 LIB = -L$(PYENV_ROOT)/versions/anaconda3-5.0.1/lib
