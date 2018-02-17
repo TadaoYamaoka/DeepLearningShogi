@@ -543,7 +543,7 @@ public:
 		ply++;
 	}
 
-	const Ply get_ply() const { return ply; }
+	Ply get_ply() const { return ply; }
 
 	void print() {
 		std::cout << ply << std::endl;
