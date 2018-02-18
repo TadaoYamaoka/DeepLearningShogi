@@ -408,7 +408,6 @@ UctSercher::ExpandRoot(const Position *pos)
 
 		// 候補手のレーティング
 		QueuingNode(pos, index, uct_node, pos->turn());
-
 	}
 
 	return index;
@@ -451,7 +450,7 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 	// 子ノードの個数を設定
 	uct_node[index].child_num = child_num;
 
-	// 候補手のレーティング
+	// ノードをキューに追加
 	if (child_num > 0) {
 		QueuingNode(pos, index, uct_node, pos->turn());
 	}
@@ -469,13 +468,10 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 static void
 QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color)
 {
-L_RETRY:
 	LOCK_QUEUE;
 	if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
-		UNLOCK_QUEUE;
-		//logger->warn("queue is full");
-		this_thread::sleep_for(chrono::milliseconds(1));
-		goto L_RETRY;
+		logger->error("queue is full queue_index:{} batch_index:{}", current_policy_value_queue_index, current_policy_value_batch_index);
+		exit(EXIT_FAILURE);
 	}
 	// set all zero
 	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
@@ -683,6 +679,10 @@ void UctSercher::SelfPlay()
 
 			// ルートノード展開
 			current_root = ExpandRoot(&pos);
+
+			// policyが計算されるのを待つ
+			while (uct_node[current_root].evaled == 0)
+				this_thread::sleep_for(chrono::milliseconds(0));
 
 			// 詰みのチェック
 			if (uct_node[current_root].child_num == 0) {
@@ -933,7 +933,7 @@ int main(int argc, char* argv[]) {
 
 	if (teacherNodes <= 0)
 		return 0;
-	if (threads <= 0 || threads > policy_value_batch_maxsize * 9 / 10)
+	if (threads <= 0 || threads > policy_value_batch_maxsize)
 		return 0;
 	if (playout_num <= 0)
 		return 0;
