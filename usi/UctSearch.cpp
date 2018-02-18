@@ -705,7 +705,7 @@ ExpandNode(Position *pos, unsigned int current, const int depth)
 	// 子ノードの個数を設定
 	uct_node[index].child_num = child_num;
 
-	// 候補手のレーティング
+	// ノードをキューに追加
 	if (child_num > 0) {
 		QueuingNode(pos, index);
 	}
@@ -1158,17 +1158,9 @@ void EvalNode() {
 	bool enough_batch_size = false;
 	while (true) {
 		LOCK_EXPAND;
-		if (running_threads == 0
-			&& (!reuse_subtree || current_policy_value_batch_index == 0)) {
+		if (running_threads == 0 && current_policy_value_batch_index == 0) {
 			UNLOCK_EXPAND;
 			break;
-		}
-
-		if (current_policy_value_batch_index == 0) {
-			UNLOCK_EXPAND;
-			this_thread::sleep_for(chrono::milliseconds(1));
-			//cerr << "EMPTY QUEUE" << endl;
-			continue;
 		}
 
 		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
