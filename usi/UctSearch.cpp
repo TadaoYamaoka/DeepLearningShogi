@@ -73,7 +73,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 // 探索の設定
 enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
 // 使用するスレッド数
-int threads = 16;
+int threads;
 atomic<int> running_threads; // 実行中の探索スレッド数
 // 1手あたりの試行時間
 double const_thinking_time = CONST_TIME;
@@ -107,10 +107,10 @@ static bool live_best_sequence = false;
 ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = THREAD_MAX; // スレッド数以上確保する
-static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
-static unsigned int policy_value_hash_index[2][policy_value_batch_maxsize];
+int policy_value_batch_maxsize; // スレッド数以上確保する
+static vector<float(*)[ColorNum][MAX_FEATURES1_NUM][SquareNum]> features1(2, nullptr);
+static vector<float(*)[MAX_FEATURES2_NUM][SquareNum]> features2(2, nullptr);
+static vector<unsigned int*> policy_value_hash_index(2, nullptr);
 static int current_policy_value_queue_index = 0;
 static int current_policy_value_batch_index = 0;
 
@@ -271,7 +271,20 @@ SetConstTime(double time)
 void
 SetThread(int new_thread)
 {
-	threads = new_thread;
+	if (threads != new_thread) {
+		threads = new_thread;
+
+		// キューを動的に確保する
+		policy_value_batch_maxsize = threads;
+		for (size_t i = 0; i < 2; i++) {
+			delete[] features1[i];
+			delete[] features2[i];
+			delete[] policy_value_hash_index[i];
+			features1[i] = new float[policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
+			features2[i] = new float[policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
+			policy_value_hash_index[i] = new unsigned int[policy_value_batch_maxsize];
+		}
+	}
 }
 
 
@@ -658,7 +671,7 @@ ExpandRoot(const Position *pos)
 		// 子ノード個数の設定
 		uct_node[index].child_num = child_num;
 
-		// 候補手のレーティング
+		// ノードをキューに追加
 		QueuingNode(pos, index);
 
 	}
