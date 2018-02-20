@@ -42,7 +42,7 @@ using namespace std;
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 
-void ReadWeights();
+void ReadWeights(const int num_gpu);
 void EvalNode();
 
 ////////////////
@@ -422,7 +422,7 @@ SetTimeSettings(int main_time, int byoyomi, int stone)
 //  UCT探索の初期設定  //
 /////////////////////////
 void
-InitializeUctSearch(void)
+InitializeUctSearch(const int num_gpu)
 {
 	// UCTのノードのメモリを確保
 	uct_node = new uct_node_t[uct_hash_size];
@@ -434,7 +434,7 @@ InitializeUctSearch(void)
 	}
 
 	// モデル読み込み
-	ReadWeights();
+	ReadWeights(num_gpu);
 }
 
 
@@ -1199,7 +1199,7 @@ void SetModelPath(const char* path)
 }
 
 void
-ReadWeights()
+ReadWeights(const int num_gpu)
 {
 	// Boost.PythonとBoost.Numpyの初期化
 	Py_Initialize();
@@ -1210,7 +1210,7 @@ ReadWeights()
 
 	// modelロード
 	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(model_path.c_str());
+	dlshogi_load_model(model_path.c_str(), num_gpu);
 
 	// 予測関数取得
 	dlshogi_predict = dlshogi_ns["predict"];

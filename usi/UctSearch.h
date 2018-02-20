@@ -104,7 +104,7 @@ void SetIncTime(double time, Color c);
 void SetTimeSettings(int main_time, int byoyomi, int stones);
 
 // UCT探索の初期設定
-void InitializeUctSearch(void);
+void InitializeUctSearch(const int num_gpu);
 
 // 探索設定の初期化
 void InitializeSearchSetting(void);

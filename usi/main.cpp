@@ -99,7 +99,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetThread(options["UCT_Threads"], options["UCT_Threads2"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
-			InitializeUctSearch();
+			InitializeUctSearch(options["UCT_Threads2"] > 0 ? 2 : 1);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
