@@ -108,9 +108,9 @@ ray_clock::time_point begin_time;
 
 // 2つのキューを交互に使用する
 int policy_value_batch_maxsize; // スレッド数以上確保する
-static features1_t features1[2];
-static features2_t features2[2];
-static vector<unsigned int*> policy_value_hash_index(2, nullptr);
+features1_t features1[2];
+features2_t features2[2];
+unsigned int* policy_value_hash_index[2];
 static int current_policy_value_queue_index = 0;
 static int current_policy_value_batch_index = 0;
 
