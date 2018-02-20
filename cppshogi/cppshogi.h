@@ -61,3 +61,6 @@ void set_softmax_tempature(const float tempature);
 inline float score_to_value(const Score score) {
 	return 1.0f / (1.0f + expf(-(float)score * 0.0013226f));
 }
+
+typedef float(*features1_t)[ColorNum][MAX_FEATURES1_NUM][SquareNum];
+typedef float(*features2_t)[MAX_FEATURES2_NUM][SquareNum];
