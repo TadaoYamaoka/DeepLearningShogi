@@ -97,7 +97,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
-			SetThread(options["UCT_Threads"]);
+			SetThread(options["UCT_Threads"], options["UCT_Threads2"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
 			InitializeUctSearch();
 

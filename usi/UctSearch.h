@@ -43,11 +43,6 @@ enum SEARCH_MODE {
 };
 
 
-struct thread_arg_t {
-	const Position *pos; // 探索対象の局面
-	int thread_id;   // スレッド識別番号
-};
-
 struct child_node_t {
 	Move move;  // 着手する座標
 	std::atomic<int> move_count;  // 探索回数
@@ -98,7 +93,7 @@ void SetPlayout(int po);
 void SetConstTime(double time);
 
 // 使用するスレッド数の指定
-void SetThread(int new_thread);
+void SetThread(const int new_thread1, const int new_thread2);
 
 // 持ち時間の指定
 void SetTime(double time);
