@@ -104,7 +104,7 @@ void SetIncTime(double time, Color c);
 void SetTimeSettings(int main_time, int byoyomi, int stones);
 
 // UCT探索の初期設定
-void InitializeUctSearch(const int num_gpu);
+void InitializeUctSearch();
 
 // 探索設定の初期化
 void InitializeSearchSetting(void);
@@ -123,3 +123,6 @@ void SetReuseSubtree(bool flag);
 
 // モデルパスの設定
 void SetModelPath(const char* path);
+
+// ゲーム終了
+void GameOver();

@@ -30,6 +30,7 @@ int main(int argc, char* argv[]) {
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
 	uct_hash.InitializeUctHash(uct_hash_size);
+	InitializeUctSearch();
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -57,6 +58,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		ssCmd >> std::skipws >> token;
 
 		if (token == "quit" || token == "gameover") {
+			GameOver();
 		}
 		else if (token == "stop") {
 			StopPondering();
@@ -97,9 +99,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
-			SetThread(options["UCT_Threads"], options["UCT_Threads2"]);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
-			InitializeUctSearch(options["UCT_Threads2"] > 0 ? 2 : 1);
+			SetThread(options["UCT_Threads"], options["UCT_Threads2"]);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();

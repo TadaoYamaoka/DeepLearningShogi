@@ -42,8 +42,6 @@ using namespace std;
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 
-void ReadWeights(const int num_gpu);
-void EvalNode();
 
 ////////////////
 //  大域変数  //
@@ -93,14 +91,19 @@ double time_limit;
 // 
 bool reuse_subtree = true;
 
-//
-static bool live_best_sequence = false;
-
 ray_clock::time_point begin_time;
 
 
+// Python関数
+// モデル読み込み
+py::object dlshogi_load_model;
 // 予測関数
 py::object dlshogi_predict;
+// GIL
+PyThreadState *_save;
+
+// モデルのパス
+string model_path;
 
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
@@ -188,9 +191,13 @@ static void UpdateResult(child_node_t *child, float result, unsigned int current
 class UCTSearcher;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0) {}
+	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0) {
+		features1[0] = features1[1] = nullptr;
+		features2[0] = features2[1] = nullptr;
+		policy_value_hash_index[0] = policy_value_hash_index[1] = nullptr;
+	}
 
-	void SetThread(const int new_thread, const int gpu_id);
+	void Initialize(const int new_thread, const int gpu_id);
 	void ClearEvalQueue();
 	void QueuingNode(const Position *pos, unsigned int index);
 	void EvalNode();
@@ -304,12 +311,21 @@ SetConstTime(double time)
 ////////////////////////////////
 void SetThread(const int new_thread1, const int new_thread2)
 {
-	search_groups[0].SetThread(new_thread1, 0);
-	search_groups[1].SetThread(new_thread2, 1);
+	search_groups[0].Initialize(new_thread1, 0);
+	search_groups[1].Initialize(new_thread2, 1);
+
+	// GIL解放
+	_save = PyEval_SaveThread();
+}
+
+void GameOver()
+{
+	// GIL取得
+	PyEval_RestoreThread(_save);
 }
 
 void
-UCTSearcherGroup::SetThread(const int new_thread, const int gpu_id)
+UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 {
 	this->gpu_id = gpu_id;
 	if (threads != new_thread) {
@@ -332,6 +348,11 @@ UCTSearcherGroup::SetThread(const int new_thread, const int gpu_id)
 			searchers.emplace_back(*this, i);
 		}
 	}
+
+	// modelロード
+	PyGILState_STATE gstate = PyGILState_Ensure();
+	dlshogi_load_model(model_path.c_str(), gpu_id);
+	PyGILState_Release(gstate);
 }
 
 // スレッド開始
@@ -422,7 +443,7 @@ SetTimeSettings(int main_time, int byoyomi, int stone)
 //  UCT探索の初期設定  //
 /////////////////////////
 void
-InitializeUctSearch(const int num_gpu)
+InitializeUctSearch()
 {
 	// UCTのノードのメモリを確保
 	uct_node = new uct_node_t[uct_hash_size];
@@ -433,8 +454,19 @@ InitializeUctSearch(const int num_gpu)
 		exit(1);
 	}
 
-	// モデル読み込み
-	ReadWeights(num_gpu);
+	// Boost.PythonとBoost.Numpyの初期化
+	Py_Initialize();
+	PyEval_InitThreads();
+	np::initialize();
+
+	// Pythonモジュール読み込み
+	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
+
+	// modelロード
+	dlshogi_load_model = dlshogi_ns["load_model"];
+
+	// 予測関数取得
+	dlshogi_predict = dlshogi_ns["predict"];
 }
 
 
@@ -1192,28 +1224,9 @@ CalculateNextPlayouts(const Position *pos)
 	}
 }
 
-string model_path;
 void SetModelPath(const char* path)
 {
 	model_path = path;
-}
-
-void
-ReadWeights(const int num_gpu)
-{
-	// Boost.PythonとBoost.Numpyの初期化
-	Py_Initialize();
-	np::initialize();
-
-	// Pythonモジュール読み込み
-	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
-
-	// modelロード
-	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(model_path.c_str(), num_gpu);
-
-	// 予測関数取得
-	dlshogi_predict = dlshogi_ns["predict"];
 }
 
 void UCTSearcherGroup::EvalNode() {
@@ -1239,66 +1252,70 @@ void UCTSearcherGroup::EvalNode() {
 			UNLOCK_EXPAND;
 			//std::cout << policy_value_batch_size << std::endl;
 
-			// predict
-			np::ndarray ndfeatures1 = np::from_data(
-				features1[policy_value_queue_index],
-				np::dtype::get_builtin<float>(),
-				py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-				py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-				py::object());
+			PyGILState_STATE gstate = PyGILState_Ensure();
+			{
+				// predict
+				np::ndarray ndfeatures1 = np::from_data(
+					features1[policy_value_queue_index],
+					np::dtype::get_builtin<float>(),
+					py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
+					py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+					py::object());
 
-			np::ndarray ndfeatures2 = np::from_data(
-				features2[policy_value_queue_index],
-				np::dtype::get_builtin<float>(),
-				py::make_tuple(policy_value_batch_size, MAX_FEATURES2_NUM, 9, 9),
-				py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-				py::object());
+				np::ndarray ndfeatures2 = np::from_data(
+					features2[policy_value_queue_index],
+					np::dtype::get_builtin<float>(),
+					py::make_tuple(policy_value_batch_size, MAX_FEATURES2_NUM, 9, 9),
+					py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+					py::object());
 
-			auto ret = dlshogi_predict(ndfeatures1, ndfeatures2, gpu_id);
-			py::tuple ret_list = py::extract<py::tuple>(ret);
-			np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
-			np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
+				auto ret = dlshogi_predict(ndfeatures1, ndfeatures2, gpu_id);
+				py::tuple ret_list = py::extract<py::tuple>(ret);
+				np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
+				np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
 
-			float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
-			float *value = reinterpret_cast<float*>(y2_data.get_data());
+				float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
+				float *value = reinterpret_cast<float*>(y2_data.get_data());
 
-			for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-				const unsigned int index = policy_value_hash_index[policy_value_queue_index][i];
+				for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+					const unsigned int index = policy_value_hash_index[policy_value_queue_index][i];
 
-				/*if (index == current_root) {
-					string str;
-					for (int sq = 0; sq < SquareNum; sq++) {
-						str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
-						str += " ";
+					/*if (index == current_root) {
+						string str;
+						for (int sq = 0; sq < SquareNum; sq++) {
+							str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
+							str += " ";
+						}
+						cout << str << endl;
+					}*/
+
+					LOCK_NODE(index);
+
+					const int child_num = uct_node[index].child_num;
+					child_node_t *uct_child = uct_node[index].child;
+					Color color = (Color)uct_hash[index].color;
+
+					// 合法手一覧
+					std::vector<float> legal_move_probabilities;
+					for (int j = 0; j < child_num; j++) {
+						Move move = uct_child[j].move;
+						const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+						legal_move_probabilities.emplace_back((*logits)[move_label]);
 					}
-					cout << str << endl;
-				}*/
 
-				LOCK_NODE(index);
+					// Boltzmann distribution
+					softmax_tempature_with_normalize(legal_move_probabilities);
 
-				const int child_num = uct_node[index].child_num;
-				child_node_t *uct_child = uct_node[index].child;
-				Color color = (Color)uct_hash[index].color;
+					for (int j = 0; j < child_num; j++) {
+						uct_child[j].nnrate = legal_move_probabilities[j];
+					}
 
-				// 合法手一覧
-				std::vector<float> legal_move_probabilities;
-				for (int j = 0; j < child_num; j++) {
-					Move move = uct_child[j].move;
-					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-					legal_move_probabilities.emplace_back((*logits)[move_label]);
+					uct_node[index].value_win = *value;
+					uct_node[index].evaled = true;
+					UNLOCK_NODE(index);
 				}
-
-				// Boltzmann distribution
-				softmax_tempature_with_normalize(legal_move_probabilities);
-
-				for (int j = 0; j < child_num; j++) {
-					uct_child[j].nnrate = legal_move_probabilities[j];
-				}
-
-				uct_node[index].value_win = *value;
-				uct_node[index].evaled = true;
-				UNLOCK_NODE(index);
 			}
+			PyGILState_Release(gstate);
 		}
 	}
 }
