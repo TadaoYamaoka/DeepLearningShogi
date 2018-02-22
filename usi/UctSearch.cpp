@@ -312,7 +312,8 @@ SetConstTime(double time)
 void SetThread(const int new_thread1, const int new_thread2)
 {
 	search_groups[0].Initialize(new_thread1, 0);
-	search_groups[1].Initialize(new_thread2, 1);
+	if (new_thread2 > 0)
+		search_groups[1].Initialize(new_thread2, 1);
 
 	// GIL解放
 	_save = PyEval_SaveThread();
@@ -1236,6 +1237,11 @@ void UCTSearcherGroup::EvalNode() {
 		if (running_threads == 0 && current_policy_value_batch_index == 0) {
 			UNLOCK_EXPAND;
 			break;
+		}
+
+		if (running_threads == 0) {
+			UNLOCK_EXPAND;
+			this_thread::yield();
 		}
 
 		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
