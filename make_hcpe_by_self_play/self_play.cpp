@@ -39,9 +39,6 @@ string model_path;
 int playout_num = 1000;
 
 const unsigned int uct_hash_size = 16384; // UCTハッシュサイズ
-int threads; // スレッド数
-atomic<int> running_threads; // 実行中の探索スレッド数
-thread **handle; // スレッドのハンドル
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -72,24 +69,21 @@ struct uct_node_t {
 	float value_win;
 };
 
-// 2つのキューを交互に使用する
-const int policy_value_batch_maxsize = 64; // スレッド数の以上確保する
-static float features1[2][policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-static float features2[2][policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
 struct policy_value_queue_node_t {
 	uct_node_t* node;
 	Color color;
 };
-static policy_value_queue_node_t policy_value_queue_node[2][policy_value_batch_maxsize];
-static int current_policy_value_queue_index = 0;
-static int current_policy_value_batch_index = 0;
 
 mutex mutex_queue; // キューの排他制御
 #define LOCK_QUEUE mutex_queue.lock();
 #define UNLOCK_QUEUE mutex_queue.unlock();
 
+// モデル読み込み
+py::object dlshogi_load_model;
 // 予測関数
 py::object dlshogi_predict;
+// GIL
+PyThreadState *_save;
 
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
@@ -106,18 +100,59 @@ unsigned const int NOT_EXPANDED = -1; // 未展開のノードのインデック
 const float c_puct = 1.0f;
 
 
-class UctSercher {
+class UCTSearcher;
+class UCTSearcherGroup {
 public:
-	UctSercher(const int threadID) : threadID(threadID), mt(std::chrono::system_clock::now().time_since_epoch().count() + threadID) {
+	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0) {
+		features1[0] = features1[1] = nullptr;
+		features2[0] = features2[1] = nullptr;
+		policy_value_queue_node[0] = policy_value_queue_node[1] = nullptr;
+	}
+
+	void Initialize(const int new_thread, const int gpu_id);
+	void QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color);
+	void EvalNode();
+	void Run();
+	void Join();
+
+	// 実行中の探索スレッド数
+	atomic<int> running_threads;
+private:
+	// 使用するスレッド数
+	int threads;
+	// GPUID
+	int gpu_id;
+
+	// 2つのキューを交互に使用する
+	int policy_value_batch_maxsize; // スレッド数以上確保する
+	features1_t* features1[2];
+	features2_t* features2[2];
+	policy_value_queue_node_t* policy_value_queue_node[2];
+	int current_policy_value_queue_index;
+	int current_policy_value_batch_index;
+
+	// UCTSearcher
+	UCTSearcher* searchers;
+	thread* handle_eval;
+} search_groups[2];
+
+class UCTSearcher {
+public:
+	UCTSearcher() : uct_node(nullptr) {}
+
+	void Init(UCTSearcherGroup* grp, const int thread_id) {
+		this->grp = grp;
+		this->thread_id = thread_id;
+		mt = new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + thread_id);
 		// UCTHash
 		uct_hash.InitializeUctHash(uct_hash_size);
 		// UCTのノード
 		uct_node = new uct_node_t[uct_hash_size];
 	}
-	~UctSercher() {
+	void Delete() {
+		delete mt;
 		delete[] uct_node;
 	}
-
 	float UctSearch(Position *pos, unsigned int current, const int depth);
 	int SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position *pos);
@@ -125,25 +160,94 @@ public:
 	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
 	void UpdateResult(child_node_t *child, float result, unsigned int current);
 	void SelfPlay();
+	void Run();
+	void Join();
 
 
 private:
-	int threadID;
+	UCTSearcherGroup* grp;
+	int thread_id;
 	UctHash uct_hash;
 	uct_node_t* uct_node;
-	std::mt19937 mt;
+	std::mt19937* mt;
+	// スレッドのハンドル
+	thread *handle;
 };
 
 void randomMove(Position& pos, std::mt19937& mt);
-static void QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color);
 
+void
+UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
+{
+	this->gpu_id = gpu_id;
+	if (threads != new_thread) {
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Delete();
+		}
+
+		threads = new_thread;
+
+		// キューを動的に確保する
+		policy_value_batch_maxsize = threads;
+		for (size_t i = 0; i < 2; i++) {
+			delete[] features1[i];
+			delete[] features2[i];
+			delete[] policy_value_queue_node[i];
+			features1[i] = new features1_t[policy_value_batch_maxsize];
+			features2[i] = new features2_t[policy_value_batch_maxsize];
+			policy_value_queue_node[i] = new policy_value_queue_node_t[policy_value_batch_maxsize];
+		}
+
+		// UCTSearcher
+		delete[] searchers;
+		searchers = new UCTSearcher[threads];
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Init(this, i);
+		}
+	}
+
+	// modelロード
+	PyGILState_STATE gstate = PyGILState_Ensure();
+	dlshogi_load_model(model_path.c_str(), gpu_id);
+	PyGILState_Release(gstate);
+}
+
+// スレッド開始
+void
+UCTSearcherGroup::Run()
+{
+	// 探索用スレッド
+	for (int i = 0; i < threads; i++) {
+		searchers[i].Run();
+	}
+
+	// 評価用スレッド
+	if (threads > 0)
+		handle_eval = new thread([this]() { this->EvalNode(); });
+}
+
+// スレッド終了待機
+void
+UCTSearcherGroup::Join()
+{
+	// 探索用スレッド
+	for (int i = 0; i < threads; i++) {
+		searchers[i].Join();
+	}
+
+	// 評価用スレッド
+	if (threads > 0) {
+		handle_eval->join();
+		delete handle_eval;
+	}
+}
 
 //////////////////////////////////////////////
 //  UCT探索を行う関数                        //
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
+UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
@@ -165,8 +269,8 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 		case RepetitionDraw: return 0.5f;
 		case RepetitionWin: return 0.0f;
 		case RepetitionLose: return 1.0f;
-			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
-			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		case RepetitionSuperior: return 0.0f;
+		case RepetitionInferior: return 1.0f;
 		default: UNREACHABLE;
 		}
 	}
@@ -210,8 +314,8 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 		case RepetitionDraw: isDraw = 2; break; // Draw
 		case RepetitionWin: isDraw = 1; break;
 		case RepetitionLose: isDraw = -1; break;
-			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
-			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		case RepetitionSuperior: isDraw = 1; break;
+		case RepetitionInferior: isDraw = -1; break;
 		default: UNREACHABLE;
 		}
 
@@ -256,7 +360,6 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 	// 探索結果の反映
 	UpdateResult(&uct_child[next_index], result, current);
 
-	pos->undoMove(uct_child[next_index].move);
 	return 1 - result;
 }
 
@@ -264,7 +367,7 @@ UctSercher::UctSearch(Position *pos, unsigned int current, const int depth)
 //  探索結果の更新  //
 /////////////////////
 void
-UctSercher::UpdateResult(child_node_t *child, float result, unsigned int current)
+UCTSearcher::UpdateResult(child_node_t *child, float result, unsigned int current)
 {
 	uct_node[current].win += result;
 	uct_node[current].move_count++;
@@ -276,7 +379,7 @@ UctSercher::UpdateResult(child_node_t *child, float result, unsigned int current
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 int
-UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth)
+UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth)
 {
 	child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
@@ -313,7 +416,7 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
-		if (depth == 0 && rnd(mt) <= 2) {
+		if (depth == 0 && rnd(*mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
 		}
 
@@ -336,20 +439,20 @@ UctSercher::SelectMaxUcbChild(const Position *pos, unsigned int current, const i
 	return max_child;
 }
 
-// モデル読み込み
+// 初期設定
 void
-ReadWeights()
+InitializeUctSearch()
 {
 	// Boost.PythonとBoost.Numpyの初期化
 	Py_Initialize();
+	PyEval_InitThreads();
 	np::initialize();
 
 	// Pythonモジュール読み込み
 	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
 
 	// modelロード
-	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(model_path.c_str());
+	dlshogi_load_model = dlshogi_ns["load_model"];
 
 	// 予測関数取得
 	dlshogi_predict = dlshogi_ns["predict"];
@@ -372,7 +475,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 //  ルートノードの展開  //
 /////////////////////////
 unsigned int
-UctSercher::ExpandRoot(const Position *pos)
+UCTSearcher::ExpandRoot(const Position *pos)
 {
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 	child_node_t *uct_child;
@@ -403,11 +506,15 @@ UctSercher::ExpandRoot(const Position *pos)
 			child_num++;
 		}
 
+		if (child_num > UCT_CHILD_MAX) {
+			DebugBreak();
+		}
+
 		// 子ノード個数の設定
 		uct_node[index].child_num = child_num;
 
 		// 候補手のレーティング
-		QueuingNode(pos, index, uct_node, pos->turn());
+		grp->QueuingNode(pos, index, uct_node, pos->turn());
 	}
 
 	return index;
@@ -417,7 +524,7 @@ UctSercher::ExpandRoot(const Position *pos)
 //  ノードの展開  //
 ///////////////////
 unsigned int
-UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
+UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 {
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
@@ -447,12 +554,16 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 		child_num++;
 	}
 
+	if (child_num > UCT_CHILD_MAX) {
+		DebugBreak();
+	}
+
 	// 子ノードの個数を設定
 	uct_node[index].child_num = child_num;
 
 	// ノードをキューに追加
 	if (child_num > 0) {
-		QueuingNode(pos, index, uct_node, pos->turn());
+		grp->QueuingNode(pos, index, uct_node, pos->turn());
 	}
 	else {
 		uct_node[index].value_win = 0.0f;
@@ -465,17 +576,18 @@ UctSercher::ExpandNode(Position *pos, unsigned int current, const int depth)
 //////////////////////////////////////
 //  ノードをキューに追加            //
 //////////////////////////////////////
-static void
-QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color)
+void
+UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const Color color)
 {
 	LOCK_QUEUE;
 	if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
 		logger->error("queue is full queue_index:{} batch_index:{}", current_policy_value_queue_index, current_policy_value_batch_index);
 		exit(EXIT_FAILURE);
 	}
+	//SPDLOG_DEBUG(logger, "QueuingNode queue_index={} batch_index={}", current_policy_value_queue_index, current_policy_value_batch_index);
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
-	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
+	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_queue_index][current_policy_value_batch_index], &features2[current_policy_value_queue_index][current_policy_value_batch_index]);
 	policy_value_queue_node[current_policy_value_queue_index][current_policy_value_batch_index].node = &uct_node[index];
@@ -488,7 +600,7 @@ QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node, const
 //  探索打ち止めの確認  //
 //////////////////////////
 bool
-UctSercher::InterruptionCheck(const unsigned int current_root, const int playout_count)
+UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playout_count)
 {
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
@@ -517,7 +629,7 @@ UctSercher::InterruptionCheck(const unsigned int current_root, const int playout
 }
 
 // 局面の評価
-void EvalNode() {
+void UCTSearcherGroup::EvalNode() {
 	bool enough_batch_size = false;
 	while (true) {
 		LOCK_QUEUE;
@@ -528,7 +640,7 @@ void EvalNode() {
 
 		if (current_policy_value_batch_index == 0) {
 			UNLOCK_QUEUE;
-			this_thread::sleep_for(chrono::milliseconds(1));
+			this_thread::yield();
 			continue;
 		}
 
@@ -544,72 +656,76 @@ void EvalNode() {
 			current_policy_value_batch_index = 0;
 			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
 			UNLOCK_QUEUE;
-			SPDLOG_DEBUG(logger, "policy_value_batch_size:{}", policy_value_batch_size);
+			//SPDLOG_DEBUG(logger, "EvalNode queue_index={} batch_size={}", policy_value_queue_index, policy_value_batch_size);
 
-			// predict
-			np::ndarray ndfeatures1 = np::from_data(
-				features1[policy_value_queue_index],
-				np::dtype::get_builtin<float>(),
-				py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-				py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-				py::object());
+			PyGILState_STATE gstate = PyGILState_Ensure();
+			{
+				// predict
+				np::ndarray ndfeatures1 = np::from_data(
+					features1[policy_value_queue_index],
+					np::dtype::get_builtin<float>(),
+					py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
+					py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+					py::object());
 
-			np::ndarray ndfeatures2 = np::from_data(
-				features2[policy_value_queue_index],
-				np::dtype::get_builtin<float>(),
-				py::make_tuple(policy_value_batch_size, MAX_FEATURES2_NUM, 9, 9),
-				py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-				py::object());
+				np::ndarray ndfeatures2 = np::from_data(
+					features2[policy_value_queue_index],
+					np::dtype::get_builtin<float>(),
+					py::make_tuple(policy_value_batch_size, MAX_FEATURES2_NUM, 9, 9),
+					py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+					py::object());
 
-			auto ret = dlshogi_predict(ndfeatures1, ndfeatures2);
-			py::tuple ret_list = py::extract<py::tuple>(ret);
-			np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
-			np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
+				auto ret = dlshogi_predict(ndfeatures1, ndfeatures2, gpu_id);
+				py::tuple ret_list = py::extract<py::tuple>(ret);
+				np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
+				np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
 
-			float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
-			float *value = reinterpret_cast<float*>(y2_data.get_data());
+				float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
+				float *value = reinterpret_cast<float*>(y2_data.get_data());
 
-			for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-				policy_value_queue_node_t queue_node = policy_value_queue_node[policy_value_queue_index][i];
+				for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+					policy_value_queue_node_t queue_node = policy_value_queue_node[policy_value_queue_index][i];
 
-				/*if (index == current_root) {
-				string str;
-				for (int sq = 0; sq < SquareNum; sq++) {
-				str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
-				str += " ";
+					/*if (index == current_root) {
+					string str;
+					for (int sq = 0; sq < SquareNum; sq++) {
+					str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
+					str += " ";
+					}
+					cout << str << endl;
+					}*/
+
+					// 対局は1スレッドで行うためロックは不要
+					const int child_num = queue_node.node->child_num;
+					child_node_t *uct_child = queue_node.node->child;
+					Color color = queue_node.color;
+
+					// 合法手一覧
+					vector<float> legal_move_probabilities;
+					for (int j = 0; j < child_num; j++) {
+						Move move = uct_child[j].move;
+						const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+						legal_move_probabilities.emplace_back((*logits)[move_label]);
+					}
+
+					// Boltzmann distribution
+					softmax_tempature_with_normalize(legal_move_probabilities);
+
+					for (int j = 0; j < child_num; j++) {
+						uct_child[j].nnrate = legal_move_probabilities[j];
+					}
+
+					queue_node.node->value_win = *value;
+					queue_node.node->evaled = true;
 				}
-				cout << str << endl;
-				}*/
-
-				// 対局は1スレッドで行うためロックは不要
-				const int child_num = queue_node.node->child_num;
-				child_node_t *uct_child = queue_node.node->child;
-				Color color = queue_node.color;
-
-				// 合法手一覧
-				vector<float> legal_move_probabilities;
-				for (int j = 0; j < child_num; j++) {
-					Move move = uct_child[j].move;
-					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-					legal_move_probabilities.emplace_back((*logits)[move_label]);
-				}
-
-				// Boltzmann distribution
-				softmax_tempature_with_normalize(legal_move_probabilities);
-
-				for (int j = 0; j < child_num; j++) {
-					uct_child[j].nnrate = legal_move_probabilities[j];
-				}
-
-				queue_node.node->value_win = *value;
-				queue_node.node->evaled = true;
 			}
+			PyGILState_Release(gstate);
 		}
 	}
 }
 
 // 連続で自己対局する
-void UctSercher::SelfPlay()
+void UCTSearcher::SelfPlay()
 {
 	int playout = 0;
 	int ply = 0;
@@ -662,12 +778,12 @@ void UctSercher::SelfPlay()
 				HuffmanCodedPos hcp;
 				{
 					std::unique_lock<Mutex> lock(imutex);
-					ifs.seekg(inputFileDist(mt) * sizeof(HuffmanCodedPos), std::ios_base::beg);
+					ifs.seekg(inputFileDist(*mt) * sizeof(HuffmanCodedPos), std::ios_base::beg);
 					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
 				}
 				setPosition(pos, hcp);
-				randomMove(pos, mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
-				SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", threadID, ply, pos.toSFEN());
+				randomMove(pos, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
+				SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", thread_id, ply, pos.toSFEN());
 
 				keyHash.clear();
 				states = StateListPtr(new std::deque<StateInfo>(1));
@@ -715,8 +831,10 @@ void UctSercher::SelfPlay()
 #endif
 		}
 
+		// 盤面のコピー
+		Position pos_copy(pos);
 		// プレイアウト
-		UctSearch(&pos, current_root, 0);
+		UctSearch(&pos_copy, current_root, 0);
 
 		// プレイアウト回数加算
 		playout++;
@@ -732,13 +850,13 @@ void UctSercher::SelfPlay()
 					select_index = i;
 					max_count = uct_child[i].move_count;
 				}
-				SPDLOG_DEBUG(logger, "thread:{} {}:{} move_count:{} win_rate:{}", threadID, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+				SPDLOG_DEBUG(logger, "thread:{} {}:{} move_count:{} win_rate:{}", thread_id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
 			}
 
 			// 選択した着手の勝率の算出
 			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 			Move best_move = uct_child[select_index].move;
-			SPDLOG_DEBUG(logger, "thread:{} bestmove:{} winrate:{}", threadID, best_move.toUSI(), best_wp);
+			SPDLOG_DEBUG(logger, "thread:{} bestmove:{} winrate:{}", thread_id, best_move.toUSI(), best_wp);
 
 #ifdef USE_MATE_ROOT_SEARCH
 			{
@@ -801,12 +919,12 @@ void UctSercher::SelfPlay()
 			// 次の手番
 			playout = 0;
 			ply++;
-			SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", threadID, ply, pos.toSFEN());
+			SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", thread_id, ply, pos.toSFEN());
 		}
 		continue;
 
 	L_END_GAME:
-		SPDLOG_DEBUG(logger, "thread:{} ply:{} gameResult:{}", threadID, ply, gameResult);
+		SPDLOG_DEBUG(logger, "thread:{} ply:{} gameResult:{}", thread_id, ply, gameResult);
 		// 引き分けは出力しない
 		if (gameResult != Draw) {
 			// 勝敗を1局全てに付ける。
@@ -828,17 +946,23 @@ void UctSercher::SelfPlay()
 	}
 }
 
-void SelfPlay(const int threadID)
+void UCTSearcher::Run()
 {
-	logger->info("start selfplay thread:{}", threadID);
-	UctSercher uct_sercher(threadID);
-	uct_sercher.SelfPlay();
-	running_threads--;
-	logger->info("end selfplay thread:{}", threadID);
+	logger->info("start selfplay thread:{}", thread_id);
+	grp->running_threads++;
+	handle = new thread([this]() { this->SelfPlay(); });
+}
+
+void UCTSearcher::Join()
+{
+	handle->join();
+	grp->running_threads--;
+	delete handle;
+	logger->info("end selfplay thread:{}", thread_id);
 }
 
 // 教師局面生成
-void make_teacher(const char* recordFileName, const char* outputFileName)
+void make_teacher(const char* recordFileName, const char* outputFileName, const int thread1, const int thread2)
 {
 	// 初期局面集
 	ifs.open(recordFileName, ifstream::in | ifstream::binary | ios::ate);
@@ -855,17 +979,19 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 		exit(EXIT_FAILURE);
 	}
 
-	// モデル読み込み
-	ReadWeights();
+	// 初期設定
+	InitializeUctSearch();
 
-	// スレッド作成
-	running_threads = threads;
-	for (int i = 0; i < threads; i++) {
-		handle[i] = new thread(SelfPlay, i);
-	}
+	search_groups[0].Initialize(thread1, 0);
+	if (thread2 > 0)
+		search_groups[1].Initialize(thread2, 1);
 
-	// use_nn
-	handle[threads] = new thread(EvalNode);
+	// GIL解放
+	_save = PyEval_SaveThread();
+
+	// 探索スレッド開始
+	search_groups[0].Run();
+	search_groups[1].Run();
 
 	// 進捗状況表示
 	auto progressFunc = [](Timer& t) {
@@ -878,42 +1004,39 @@ void make_teacher(const char* recordFileName, const char* outputFileName)
 				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
 				<< "%, nodes:" << madeTeacherNodes
 				<< ", nodes/sec:" << static_cast<double>(madeTeacherNodes) / elapsed_msec * 1000.0
-				<< ", threads:" << running_threads
+				<< ", threads1:" << search_groups[0].running_threads
+				<< ", threads2:" << search_groups[1].running_threads
 				<< ", Elapsed: " << elapsed_msec / 1000
 				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
-			if (running_threads == 0)
+			if (search_groups[0].running_threads + search_groups[1].running_threads == 0)
 				break;
 		}
 	};
 	Timer t = Timer::currentTime();
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
-	// スレッドの終了を待機
-	for (int i = 0; i < threads; i++) {
-		handle[i]->join();
-		delete handle[i];
-		handle[i] = nullptr;
-	}
-	// use_nn
-	handle[threads]->join();
-	delete handle[threads];
-	handle[threads] = nullptr;
+	// 探索スレッド終了待機
+	search_groups[0].Join();
+	search_groups[1].Join();
 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
 
 	std::cout << "Made " << idx << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
+
+	// GIL取得
+	PyEval_RestoreThread(_save);
 }
 
 int main(int argc, char* argv[]) {
 #ifdef USE_MATE_ROOT_SEARCH
-	const int argnum = 8;
+	const int argnum = 9;
 #else
-	const int argnum = 7;
+	const int argnum = 8;
 #endif
 	if (argc < argnum) {
-		cout << "make_hcpe_by_self_play <modelfile> roots.hcp output.teacher <threads> <nodes> <playout_num>";
+		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output.teacher> <threads1> <threads2> <nodes> <playout_num>";
 #ifdef USE_MATE_ROOT_SEARCH
 		cout << " <eval_dir>";
 #endif
@@ -924,25 +1047,32 @@ int main(int argc, char* argv[]) {
 	model_path = argv[1];
 	char* recordFileName = argv[2];
 	char* outputFileName = argv[3];
-	threads = stoi(argv[4]);
-	teacherNodes = stoi(argv[5]);
-	playout_num = stoi(argv[6]);
+	const int threads1 = stoi(argv[4]);
+	const int threads2 = stoi(argv[5]);
+	teacherNodes = stoi(argv[6]);
+	playout_num = stoi(argv[7]);
 #ifdef USE_MATE_ROOT_SEARCH
-	char* evalDir = argv[7];
+	char* evalDir = argv[8];
 #endif
 
-	if (teacherNodes <= 0)
+	if (teacherNodes <= 0) {
+		cout << "too few teacherNodes" << endl;
 		return 0;
-	if (threads <= 0 || threads > policy_value_batch_maxsize)
+	}
+	if (threads1 <= 0) {
+		cout << "too few threads1" << endl;
 		return 0;
+	}
+	if (threads2 < 0) {
+		cout << "too few threads2" << endl;
+		return 0;
+	}
 	if (playout_num <= 0)
 		return 0;
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
-	logger->info("{} {} {} {} {} {}", model_path, recordFileName, outputFileName, threads, teacherNodes, playout_num);
-
-	handle = new thread*[threads + 1];
+	logger->info("{} {} {} {} {} {} {}", model_path, recordFileName, outputFileName, threads1, threads2, teacherNodes, playout_num);
 
 	initTable();
 	Position::initZobrist();
@@ -956,7 +1086,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	logger->info("make_teacher");
-	make_teacher(recordFileName, outputFileName);
+	make_teacher(recordFileName, outputFileName, threads1, threads2);
 
 	spdlog::drop_all();
 }
