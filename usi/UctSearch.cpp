@@ -968,8 +968,8 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		case RepetitionDraw: return 0.5f;
 		case RepetitionWin: return 0.0f;
 		case RepetitionLose: return 1.0f;
-			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
-			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		case RepetitionSuperior: return 0.0f;
+		case RepetitionInferior: return 1.0f;
 		default: UNREACHABLE;
 		}
 	}
@@ -1028,8 +1028,8 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		case RepetitionDraw: isDraw = 2; break; // Draw
 		case RepetitionWin: isDraw = 1; break;
 		case RepetitionLose: isDraw = -1; break;
-			// case RepetitionSuperior: if (ss->ply != 2) { return ScoreMateInMaxPly; } break;
-			// case RepetitionInferior: if (ss->ply != 2) { return ScoreMatedInMaxPly; } break;
+		case RepetitionSuperior: isDraw = 1; break;
+		case RepetitionInferior: isDraw = -1; break;
 		default: UNREACHABLE;
 		}
 
