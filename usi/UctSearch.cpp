@@ -322,7 +322,7 @@ void SetThread(const int new_thread1, const int new_thread2)
 void GameOver()
 {
 	// GIL取得
-	PyEval_RestoreThread(_save);
+	if (_save) PyEval_RestoreThread(_save);
 }
 
 void
