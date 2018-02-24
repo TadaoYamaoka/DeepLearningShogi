@@ -214,8 +214,8 @@ private:
 
 	// 2つのキューを交互に使用する
 	int policy_value_batch_maxsize; // スレッド数以上確保する
-	features1_t features1[2];
-	features2_t features2[2];
+	features1_t* features1[2];
+	features2_t* features2[2];
 	unsigned int* policy_value_hash_index[2];
 	int current_policy_value_queue_index;
 	int current_policy_value_batch_index;
@@ -338,8 +338,8 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 			delete[] features1[i];
 			delete[] features2[i];
 			delete[] policy_value_hash_index[i];
-			features1[i] = new float[policy_value_batch_maxsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-			features2[i] = new float[policy_value_batch_maxsize][MAX_FEATURES2_NUM][SquareNum];
+			features1[i] = new features1_t[policy_value_batch_maxsize];
+			features2[i] = new features2_t[policy_value_batch_maxsize];
 			policy_value_hash_index[i] = new unsigned int[policy_value_batch_maxsize];
 		}
 
@@ -827,8 +827,8 @@ UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
-	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
+	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_queue_index][current_policy_value_batch_index], &features2[current_policy_value_queue_index][current_policy_value_batch_index]);
 	policy_value_hash_index[current_policy_value_queue_index][current_policy_value_batch_index] = index;

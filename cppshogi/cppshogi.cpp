@@ -7,7 +7,7 @@ namespace py = boost::python;
 namespace np = boost::python::numpy;
 
 // make input features
-void make_input_features(const Position& position, features1_t features1, features2_t features2) {
+void make_input_features(const Position& position, features1_t* features1, features2_t* features2) {
 	float(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<float(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
 
 	const Bitboard occupied_bb = position.occupiedBB();
@@ -266,8 +266,8 @@ int make_move_label(const u16 move16, const Color color) {
 void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndresult) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-	features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 
 	// set all zero
@@ -289,13 +289,13 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-	features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
-	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
 	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, move++) {
@@ -312,14 +312,14 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-	features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
-	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
 	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, move++, result++) {
@@ -339,15 +339,15 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
 	const int len = (int)ndhcpe.shape(0);
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-	features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
 	int *result = reinterpret_cast<int *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
-	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
 	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
@@ -467,18 +467,18 @@ public:
 		return ret;
 	}
 
-	void make_input_features_inner(features1_t features1, features2_t features2) {
+	void make_input_features_inner(features1_t* features1, features2_t* features2) {
 		// set all zero
-		std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
-		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+		std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float), 0.0f);
+		std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float), 0.0f);
 
 		// input features
 		::make_input_features(*m_position, features1, features2);
 	}
 
 	int make_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
-		features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-		features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+		features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+		features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 
 		// input features
 		make_input_features_inner(features1, features2);
@@ -582,12 +582,12 @@ public:
 
 	void make_odd_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
 		const int len = engines.size() / 2;
-		features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-		features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+		features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+		features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 
 		// set all zero
-		std::fill_n((float*)features1, (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum * len, 0.0f);
-		std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+		std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+		std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 		// input features
 		for (int i = 0; i < len; i++, features1++, features2++) {
@@ -607,8 +607,8 @@ public:
 
 	py::list make_unfinished_input_features(np::ndarray ndfeatures1, np::ndarray ndfeatures2) {
 		const int len = engines.size();
-		features1_t features1 = reinterpret_cast<features1_t>(ndfeatures1.get_data());
-		features2_t features2 = reinterpret_cast<features2_t>(ndfeatures2.get_data());
+		features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+		features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 
 		py::list ret;
 

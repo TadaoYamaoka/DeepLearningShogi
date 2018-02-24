@@ -50,10 +50,10 @@ const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
 // 指し手を表すラベルの数
 const int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
-typedef float(*features1_t)[ColorNum][MAX_FEATURES1_NUM][SquareNum];
-typedef float(*features2_t)[MAX_FEATURES2_NUM][SquareNum];
+typedef float features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
+typedef float features2_t[MAX_FEATURES2_NUM][SquareNum];
 
-void make_input_features(const Position& position, features1_t features1, features2_t features2);
+void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
 int make_move_label(const u16 move16, const Position& position);
 int make_move_label(const u16 move16, const Color color);
 void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
