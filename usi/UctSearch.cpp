@@ -221,13 +221,22 @@ private:
 	int current_policy_value_batch_index;
 
 	// UCTSearcher
-	vector<UCTSearcher> searchers;
+	UCTSearcher* searchers;
 	thread* handle_eval;
 } search_groups[2];
 
 class UCTSearcher {
 public:
-	UCTSearcher(UCTSearcherGroup& grp, const int thread_id) : grp(grp), thread_id(thread_id), mt(std::chrono::system_clock::now().time_since_epoch().count() + thread_id) {}
+	UCTSearcher() : mt(nullptr) {}
+
+	void Init(UCTSearcherGroup* grp, const int thread_id) {
+		this->grp = grp;
+		this->thread_id = thread_id;
+		mt = new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id);
+	}
+	void Delete() {
+		delete mt;
+	}
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
@@ -238,22 +247,22 @@ public:
 	int SelectMaxUcbChild(const Position *pos, const unsigned int current, const int depth);
 	// スレッド開始
 	void Run() {
-		grp.running_threads++;
+		grp->running_threads++;
 		handle = new thread([this]() { this->ParallelUctSearch(); });
 	}
 	// スレッド終了待機
 	void Join() {
 		handle->join();
-		grp.running_threads--;
+		grp->running_threads--;
 		delete handle;
 	}
 
 private:
-	UCTSearcherGroup& grp;
+	UCTSearcherGroup* grp;
 	// スレッド識別番号
 	int thread_id;
 	// 乱数生成器
-	std::mt19937_64 mt;
+	std::mt19937_64* mt;
 	// スレッドのハンドル
 	thread *handle;
 };
@@ -330,6 +339,10 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 {
 	this->gpu_id = gpu_id;
 	if (threads != new_thread) {
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Delete();
+		}
+
 		threads = new_thread;
 
 		// キューを動的に確保する
@@ -344,9 +357,10 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		}
 
 		// UCTSearcher
-		searchers.clear();
+		delete[] searchers;
+		searchers = new UCTSearcher[threads];
 		for (int i = 0; i < threads; i++) {
-			searchers.emplace_back(*this, i);
+			searchers[i].Init(this, i);
 		}
 	}
 
@@ -803,7 +817,7 @@ UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 
 	// ノードをキューに追加
 	if (child_num > 0) {
-		grp.QueuingNode(pos, index);
+		grp->QueuingNode(pos, index);
 	}
 	else {
 		uct_node[index].value_win = 0.0f;
@@ -1159,10 +1173,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 		float rate = max(uct_child[i].nnrate, 0.01f);
 		// ランダムに確率を上げる
-		if (depth == 0 && rnd(mt) <= 2) {
+		if (depth == 0 && rnd(*mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
 		}
-		else if (depth < 4 && depth % 2 == 0 && rnd(mt) == 0) {
+		else if (depth < 4 && depth % 2 == 0 && rnd(*mt) == 0) {
 			rate = std::min(rate * 1.5f, 1.0f);
 		}
 
