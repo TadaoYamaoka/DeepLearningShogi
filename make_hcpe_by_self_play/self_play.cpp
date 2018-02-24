@@ -644,7 +644,7 @@ void UCTSearcherGroup::EvalNode() {
 			continue;
 		}
 
-		if (running_threads > 0 && !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9) {
+		if (running_threads > 0 && !enough_batch_size && current_policy_value_batch_index < running_threads * 0.4) {
 			UNLOCK_QUEUE;
 			this_thread::sleep_for(chrono::milliseconds(1));
 			enough_batch_size = true;
