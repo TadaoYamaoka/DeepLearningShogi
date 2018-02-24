@@ -102,8 +102,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)\cppshogi;C:\Anaconda3\include;C:\boost_1_64_0;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_64_0\stage\x64\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\cppshogi;$(SolutionDir)\usi;C:\Anaconda3\include;C:\boost_1_65_1;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -113,12 +113,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)\cppshogi;C:\Anaconda3\include;C:\boost_1_65_1;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\cppshogi;$(SolutionDir)\usi;C:\Anaconda3\include;C:\boost_1_65_1;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)\cppshogi;C:\Anaconda3\include;C:\boost_1_65_1;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\cppshogi;$(SolutionDir)\usi;C:\Anaconda3\include;C:\boost_1_65_1;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -242,6 +242,7 @@
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\tt.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
