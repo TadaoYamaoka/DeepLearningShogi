@@ -12,12 +12,13 @@ struct node_hash_t {
 class UctHash
 {
 public:
-	UctHash() : node_hash(nullptr) {}
-	UctHash(const unsigned int hash_size) { InitializeUctHash(hash_size); }
-	~UctHash() { delete[] node_hash; }
-
-	//  UCTノードのハッシュの初期化
-	void InitializeUctHash(const unsigned int hash_size);
+	UctHash(const unsigned int hash_size);
+	UctHash(UctHash&& o) :
+		uct_hash_size(o.uct_hash_size),
+		uct_hash_limit(o.uct_hash_limit),
+		node_hash(std::move(o.node_hash)),
+		used(o.used),
+		enough_size(o.enough_size) {}
 
 	//  UCTノードのハッシュ情報のクリア
 	void ClearUctHash(void);
@@ -46,7 +47,7 @@ private:
 	unsigned int uct_hash_limit;
 
 	//  UCT用ハッシュテーブル
-	node_hash_t *node_hash;
+	std::unique_ptr<node_hash_t[]> node_hash;
 	unsigned int used;
 	bool enough_size;
 

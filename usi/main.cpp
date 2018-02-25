@@ -29,7 +29,6 @@ int main(int argc, char* argv[]) {
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
-	uct_hash.InitializeUctHash(uct_hash_size);
 	InitializeUctSearch();
 
 	s->init();

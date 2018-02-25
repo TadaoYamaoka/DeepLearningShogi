@@ -132,27 +132,30 @@ private:
 	int current_policy_value_batch_index;
 
 	// UCTSearcher
-	UCTSearcher* searchers;
+	vector<UCTSearcher> searchers;
 	thread* handle_eval;
 } search_groups[2];
 
 class UCTSearcher {
 public:
-	UCTSearcher() : uct_node(nullptr) {}
-
-	void Init(UCTSearcherGroup* grp, const int thread_id) {
-		this->grp = grp;
-		this->thread_id = thread_id;
-		mt = new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + thread_id);
-		// UCTHash
-		uct_hash.InitializeUctHash(uct_hash_size);
-		// UCTのノード
-		uct_node = new uct_node_t[uct_hash_size];
+	UCTSearcher(UCTSearcherGroup* grp, const int thread_id) :
+		grp(grp),
+		thread_id(thread_id),
+		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
+		uct_hash(new UctHash(uct_hash_size)),
+		uct_node(new uct_node_t[uct_hash_size]) {}
+	UCTSearcher(UCTSearcher&& o) :
+		grp(grp),
+		thread_id(thread_id),
+		mt(move(o.mt)),
+		uct_hash(move(o.uct_hash)),
+		uct_node(o.uct_node) {
+		o.uct_node = nullptr;
 	}
-	void Delete() {
-		delete mt;
+	~UCTSearcher() {
 		delete[] uct_node;
 	}
+
 	float UctSearch(Position *pos, unsigned int current, const int depth);
 	int SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position *pos);
@@ -167,9 +170,9 @@ public:
 private:
 	UCTSearcherGroup* grp;
 	int thread_id;
-	UctHash uct_hash;
+	unique_ptr<UctHash> uct_hash;
 	uct_node_t* uct_node;
-	std::mt19937* mt;
+	unique_ptr<std::mt19937> mt;
 	// スレッドのハンドル
 	thread *handle;
 };
@@ -181,10 +184,6 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 {
 	this->gpu_id = gpu_id;
 	if (threads != new_thread) {
-		for (int i = 0; i < threads; i++) {
-			searchers[i].Delete();
-		}
-
 		threads = new_thread;
 
 		// キューを動的に確保する
@@ -199,10 +198,10 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		}
 
 		// UCTSearcher
-		delete[] searchers;
-		searchers = new UCTSearcher[threads];
+		searchers.clear();
+		searchers.reserve(threads);
 		for (int i = 0; i < threads; i++) {
-			searchers[i].Init(this, i);
+			searchers.emplace_back(this, i);
 		}
 	}
 
@@ -477,7 +476,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 unsigned int
 UCTSearcher::ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -487,7 +486,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 	}
 	else {
 		// 空のインデックスを探す
-		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
+		index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
 
 		assert(index != uct_hash_size);
 
@@ -526,7 +525,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -535,7 +534,7 @@ UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 	}
 
 	// 空のインデックスを探す
-	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != uct_hash_size);
 
@@ -791,7 +790,7 @@ void UCTSearcher::SelfPlay()
 			}
 
 			// ハッシュクリア
-			uct_hash.ClearUctHash();
+			uct_hash->ClearUctHash();
 
 			// ルートノード展開
 			current_root = ExpandRoot(&pos);

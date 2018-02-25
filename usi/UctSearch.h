@@ -10,7 +10,6 @@
 #include "ZobristHash.h"
 
 const unsigned int uct_hash_size = 262144; // UCTハッシュサイズ
-extern UctHash uct_hash;
 
 const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
 const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ

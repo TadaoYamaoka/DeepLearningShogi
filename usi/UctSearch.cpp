@@ -53,7 +53,7 @@ double inc_time[ColorNum];
 double po_per_sec = PLAYOUT_SPEED;
 
 // UCTハッシュ
-UctHash uct_hash;
+UctHash* uct_hash;
 
 // UCTのノード
 uct_node_t *uct_node;
@@ -221,22 +221,21 @@ private:
 	int current_policy_value_batch_index;
 
 	// UCTSearcher
-	UCTSearcher* searchers;
+	vector<UCTSearcher> searchers;
 	thread* handle_eval;
 } search_groups[2];
 
 class UCTSearcher {
 public:
-	UCTSearcher() : mt(nullptr) {}
+	UCTSearcher(UCTSearcherGroup* grp, const int thread_id) :
+		grp(grp),
+		thread_id(thread_id),
+		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)) {}
+	UCTSearcher(UCTSearcher&& o) :
+		grp(grp),
+		thread_id(thread_id),
+		mt(move(o.mt)) {}
 
-	void Init(UCTSearcherGroup* grp, const int thread_id) {
-		this->grp = grp;
-		this->thread_id = thread_id;
-		mt = new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id);
-	}
-	void Delete() {
-		delete mt;
-	}
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
@@ -262,7 +261,7 @@ private:
 	// スレッド識別番号
 	int thread_id;
 	// 乱数生成器
-	std::mt19937_64* mt;
+	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
 };
@@ -339,10 +338,6 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 {
 	this->gpu_id = gpu_id;
 	if (threads != new_thread) {
-		for (int i = 0; i < threads; i++) {
-			searchers[i].Delete();
-		}
-
 		threads = new_thread;
 
 		// キューを動的に確保する
@@ -357,10 +352,10 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		}
 
 		// UCTSearcher
-		delete[] searchers;
-		searchers = new UCTSearcher[threads];
+		searchers.clear();
+		searchers.reserve(threads);
 		for (int i = 0; i < threads; i++) {
-			searchers[i].Init(this, i);
+			searchers.emplace_back(this, i);
 		}
 	}
 
@@ -461,6 +456,7 @@ void
 InitializeUctSearch()
 {
 	// UCTのノードのメモリを確保
+	uct_hash = new UctHash(uct_hash_size);
 	uct_node = new uct_node_t[uct_hash_size];
 
 	if (uct_node == nullptr) {
@@ -553,10 +549,10 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	po_info.count = 0;
 
 	if (reuse_subtree) {
-		uct_hash.DeleteOldHash(pos);
+		uct_hash->DeleteOldHash(pos);
 	}
 	else {
-		uct_hash.ClearUctHash();
+		uct_hash->ClearUctHash();
 	}
 
 	// キューをクリア
@@ -696,7 +692,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			}
 		}
 
-		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
+		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
@@ -734,7 +730,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 static unsigned int
 ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -746,7 +742,7 @@ ExpandRoot(const Position *pos)
 	}
 	else {
 		// 空のインデックスを探す
-		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
+		index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
 
 		assert(index != uct_hash_size);
 
@@ -784,7 +780,7 @@ ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -793,7 +789,7 @@ UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 	}
 
 	// 空のインデックスを探す
-	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != uct_hash_size);
 
@@ -947,7 +943,7 @@ UCTSearcher::ParallelUctSearch()
 		// 探索を打ち切るか確認
 		interruption = InterruptionCheck();
 		// ハッシュに余裕があるか確認
-		enough_size = uct_hash.CheckRemainingHashSize();
+		enough_size = uct_hash->CheckRemainingHashSize();
 		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
 	} while (po_info.count < po_info.halt && !interruption && enough_size);
 
@@ -1313,7 +1309,7 @@ void UCTSearcherGroup::EvalNode() {
 
 					const int child_num = uct_node[index].child_num;
 					child_node_t *uct_child = uct_node[index].child;
-					Color color = (Color)uct_hash[index].color;
+					Color color = (Color)(*uct_hash)[index].color;
 
 					// 合法手一覧
 					std::vector<float> legal_move_probabilities;
