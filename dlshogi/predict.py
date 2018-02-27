@@ -9,6 +9,7 @@ def load_model(file, gpu=0):
     if not model.get(gpu):
         model[gpu] = PolicyValueNetwork()
         model[gpu].to_gpu(gpu)
+    print('compute_capability ', chainer.cuda.cuda.Device(gpu).compute_capability)
     print('Load model from', file)
     serializers.load_npz(file, model[gpu])
 
