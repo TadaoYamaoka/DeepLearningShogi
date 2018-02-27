@@ -134,7 +134,7 @@ private:
 	// UCTSearcher
 	vector<UCTSearcher> searchers;
 	thread* handle_eval;
-} search_groups[2];
+} search_group;
 
 class UCTSearcher {
 public:
@@ -391,7 +391,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	max_value = -1;
 
-	// UCB値最大の手を求める  
+	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
@@ -655,7 +655,7 @@ void UCTSearcherGroup::EvalNode() {
 			current_policy_value_batch_index = 0;
 			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
 			UNLOCK_QUEUE;
-			//SPDLOG_DEBUG(logger, "EvalNode queue_index={} batch_size={}", policy_value_queue_index, policy_value_batch_size);
+			SPDLOG_DEBUG(logger, "EvalNode queue_index={} batch_size={}", policy_value_queue_index, policy_value_batch_size);
 
 			PyGILState_STATE gstate = PyGILState_Ensure();
 			{
@@ -961,7 +961,7 @@ void UCTSearcher::Join()
 }
 
 // 教師局面生成
-void make_teacher(const char* recordFileName, const char* outputFileName, const int thread1, const int thread2)
+void make_teacher(const char* recordFileName, const char* outputFileName, const int thread, const int gpu_id)
 {
 	// 初期局面集
 	ifs.open(recordFileName, ifstream::in | ifstream::binary | ios::ate);
@@ -981,19 +981,16 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	// 初期設定
 	InitializeUctSearch();
 
-	search_groups[0].Initialize(thread1, 0);
-	if (thread2 > 0)
-		search_groups[1].Initialize(thread2, 1);
+	search_group.Initialize(thread, gpu_id);
 
 	// GIL解放
 	_save = PyEval_SaveThread();
 
 	// 探索スレッド開始
-	search_groups[0].Run();
-	search_groups[1].Run();
+	search_group.Run();
 
 	// 進捗状況表示
-	auto progressFunc = [](Timer& t) {
+	auto progressFunc = [gpu_id](Timer& t) {
 		while (true) {
 			std::this_thread::sleep_for(std::chrono::seconds(5)); // 指定秒だけ待機し、進捗を表示する。
 			const s64 madeTeacherNodes = idx;
@@ -1003,11 +1000,11 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
 				<< "%, nodes:" << madeTeacherNodes
 				<< ", nodes/sec:" << static_cast<double>(madeTeacherNodes) / elapsed_msec * 1000.0
-				<< ", threads1:" << search_groups[0].running_threads
-				<< ", threads2:" << search_groups[1].running_threads
+				<< ", threads:" << search_group.running_threads
+				<< ", gpu_id:" << gpu_id
 				<< ", Elapsed: " << elapsed_msec / 1000
 				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
-			if (search_groups[0].running_threads + search_groups[1].running_threads == 0)
+			if (search_group.running_threads == 0)
 				break;
 		}
 	};
@@ -1015,8 +1012,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
 	// 探索スレッド終了待機
-	search_groups[0].Join();
-	search_groups[1].Join();
+	search_group.Join();
 
 	progressThread.join();
 	ifs.close();
@@ -1035,7 +1031,7 @@ int main(int argc, char* argv[]) {
 	const int argnum = 8;
 #endif
 	if (argc < argnum) {
-		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output.teacher> <threads1> <threads2> <nodes> <playout_num>";
+		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output.teacher> <threads> <gpu_id> <nodes> <playout_num>";
 #ifdef USE_MATE_ROOT_SEARCH
 		cout << " <eval_dir>";
 #endif
@@ -1046,8 +1042,8 @@ int main(int argc, char* argv[]) {
 	model_path = argv[1];
 	char* recordFileName = argv[2];
 	char* outputFileName = argv[3];
-	const int threads1 = stoi(argv[4]);
-	const int threads2 = stoi(argv[5]);
+	const int threads = stoi(argv[4]);
+	const int gpu_id = stoi(argv[5]);
 	teacherNodes = stoi(argv[6]);
 	playout_num = stoi(argv[7]);
 #ifdef USE_MATE_ROOT_SEARCH
@@ -1058,12 +1054,12 @@ int main(int argc, char* argv[]) {
 		cout << "too few teacherNodes" << endl;
 		return 0;
 	}
-	if (threads1 <= 0) {
-		cout << "too few threads1" << endl;
+	if (threads <= 0) {
+		cout << "too few threads" << endl;
 		return 0;
 	}
-	if (threads2 < 0) {
-		cout << "too few threads2" << endl;
+	if (gpu_id < 0) {
+		cout << "invalid gpu id" << endl;
 		return 0;
 	}
 	if (playout_num <= 0)
@@ -1071,7 +1067,7 @@ int main(int argc, char* argv[]) {
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
-	logger->info("{} {} {} {} {} {} {}", model_path, recordFileName, outputFileName, threads1, threads2, teacherNodes, playout_num);
+	logger->info("{} {} {} {} {} {} {}", model_path, recordFileName, outputFileName, threads, gpu_id, teacherNodes, playout_num);
 
 	initTable();
 	Position::initZobrist();
@@ -1085,7 +1081,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	logger->info("make_teacher");
-	make_teacher(recordFileName, outputFileName, threads1, threads2);
+	make_teacher(recordFileName, outputFileName, threads, gpu_id);
 
 	spdlog::drop_all();
 }
