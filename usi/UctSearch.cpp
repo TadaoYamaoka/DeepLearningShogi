@@ -88,7 +88,7 @@ bool pondering_stop = false;
 
 double time_limit;
 
-// 
+//
 bool reuse_subtree = true;
 
 ray_clock::time_point begin_time;
@@ -596,7 +596,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	search_groups[0].Join();
 	search_groups[1].Join();
 
-	// 着手が21手以降で, 
+	// 着手が21手以降で,
 	// 時間延長を行う設定になっていて,
 	// 探索時間延長をすべきときは
 	// 探索回数を1.5倍に増やす
@@ -932,7 +932,7 @@ UCTSearcher::ParallelUctSearch()
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
-		// 探索回数を1回増やす	
+		// 探索回数を1回増やす
 		atomic_fetch_add(&po_info.count, 1);
 		// 盤面のコピー
 		Position pos(*pos_root);
@@ -1145,7 +1145,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 	max_value = -1;
 
-	// UCB値最大の手を求める  
+	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
