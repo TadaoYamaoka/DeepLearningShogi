@@ -583,7 +583,7 @@ namespace {
 			if (canPromote(us, makeRank(to)) | canPromote(us, makeRank(from))) {
 				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 			}
-			makeNonPromoteMove<Capture>(pt, from, to, pos);
+			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 			break;
 		case Gold: case King: case ProPawn: case ProLance: case ProKnight: case ProSilver: case Horse: case Dragon:
 			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
