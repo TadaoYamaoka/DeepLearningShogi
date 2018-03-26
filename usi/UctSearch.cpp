@@ -1256,7 +1256,7 @@ void UCTSearcherGroup::EvalNode() {
 			//std::cout << policy_value_batch_size << std::endl;
 
 			// predict
-			nn->foward(features1[policy_value_queue_index], features2[policy_value_queue_index], y1, y2);
+			nn->foward(policy_value_batch_size, features1[policy_value_queue_index], features2[policy_value_queue_index], y1, y2);
 
 			const float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 			const float *value = reinterpret_cast<float*>(y2);

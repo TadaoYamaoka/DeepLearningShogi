@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 
 	const char* model_path = argv[1];
 	const char* outfile = argv[2];
-	int batch_size = std::atoi(argv[3]);
+	int max_batch_size = std::atoi(argv[3]);
 	int position_num = std::atoi(argv[4]);
 
 	// Boost.PythonとBoost.Numpyの初期化
@@ -69,8 +69,8 @@ int main(int argc, char** argv)
 	// ボルツマン温度設定
 	set_softmax_tempature(1.25f);
 
-	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
+	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[max_batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
+	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[max_batch_size][MAX_FEATURES2_NUM][SquareNum];
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
 	std::uniform_int_distribution<int> dist(4, 250);
@@ -109,11 +109,11 @@ int main(int argc, char** argv)
 	std::vector<int> tmpply2;
 	std::vector<int> ply;
 	std::vector<StateListPtr> stateLists;
-	std::vector<HuffmanCodedPos> hcptmp(batch_size);
-	std::vector<HuffmanCodedPos> hcptmp2(batch_size);
+	std::vector<HuffmanCodedPos> hcptmp(max_batch_size);
+	std::vector<HuffmanCodedPos> hcptmp2(max_batch_size);
 
 	// 局面初期化
-	for (int i = 0; i < batch_size; i++) {
+	for (int i = 0; i < max_batch_size; i++) {
 		positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 		maxply.emplace_back(dist(mt));
 		int maxply2 = std::uniform_int_distribution<int>(8, maxply[i])(mt);

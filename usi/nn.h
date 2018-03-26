@@ -5,20 +5,22 @@
 
 class NN {
 public:
-	NN(const int batch_size);
+	NN(const int max_batch_size);
 	~NN();
 
 	void load_model(const char* filename);
 
-	void foward(features1_t* x1, features2_t* x2, float* y1, float* y2);
+	void foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2);
 
 private:
+	void prepare_desc(const int batch_size);
+
 	CudnnHandle cudnnHandle;
 	CublasHandle cublasHandle;
 	static const int k = 192;
 	static const int fcl = 256;
 
-	const int batch_size;
+	const int max_batch_size;
 
 	// input layer
 	ConvLayer<k, (int)ColorNum * MAX_FEATURES1_NUM, 3, 1> conv1_1_1;

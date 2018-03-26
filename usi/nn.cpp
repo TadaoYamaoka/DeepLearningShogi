@@ -1,17 +1,9 @@
 ﻿#include "nn.h"
 #include "npz.h"
 
-NN::NN(const int batch_size) : batch_size(batch_size)
+NN::NN(const int max_batch_size) : max_batch_size(max_batch_size)
 {
-	conv1_1_1.get_xdesc(x1Desc, batch_size, 9, 9);
-	conv1_2.get_xdesc(x2Desc, batch_size, 9, 9);
-	conv1_1_1.get_ydesc(h1Desc, batch_size, 9, 9);
-
-	conv22.get_ydesc(y1Desc, batch_size, 9, 9);
-
-	conv22v.get_ydesc(h22vDesc, batch_size, 9, 9);
-	l23v.get_ydesc(h23vDesc, batch_size);
-	l24v.get_ydesc(y2Desc, batch_size);
+	prepare_desc(max_batch_size);
 
 	// init conv layers
 	conv1_1_1.init(cudnnHandle, x1Desc, h1Desc);
@@ -41,30 +33,30 @@ NN::NN(const int batch_size) : batch_size(batch_size)
 	conv22v.init(cudnnHandle, h1Desc, h22vDesc);
 
 	// malloc
-	checkCudaErrors(cudaMalloc((void**)&x1_dev, conv1_1_1.get_xsize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&x2_dev, conv1_2.get_xsize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h1_1_1_dev, conv1_1_1.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h1_1_2_dev, conv1_1_2.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h1_2_dev, conv1_2.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h1_bn_dev, conv1_1_1.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h2_dev, conv2.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h2_bn_dev, conv2.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h3_dev, conv3.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h5_dev, conv5.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h7_dev, conv7.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h9_dev, conv9.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h11_dev, conv11.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h13_dev, conv13.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h15_dev, conv15.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h17_dev, conv17.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h19_dev, conv19.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h21_dev, conv21.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h21_bn_dev, conv21.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&y1_dev, conv22.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h22v_dev, conv22v.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h22v_bn_dev, conv22v.get_ysize(batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h23v_dev, batch_size * fcl * sizeof(float)));
-	checkCudaErrors(cudaMalloc((void**)&y2_dev, batch_size * sizeof(float)));
+	checkCudaErrors(cudaMalloc((void**)&x1_dev, conv1_1_1.get_xsize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&x2_dev, conv1_2.get_xsize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h1_1_1_dev, conv1_1_1.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h1_1_2_dev, conv1_1_2.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h1_2_dev, conv1_2.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h1_bn_dev, conv1_1_1.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h2_dev, conv2.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h2_bn_dev, conv2.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h3_dev, conv3.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h5_dev, conv5.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h7_dev, conv7.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h9_dev, conv9.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h11_dev, conv11.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h13_dev, conv13.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h15_dev, conv15.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h17_dev, conv17.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h19_dev, conv19.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h21_dev, conv21.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h21_bn_dev, conv21.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&y1_dev, conv22.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h22v_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h22v_bn_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
+	checkCudaErrors(cudaMalloc((void**)&h23v_dev, max_batch_size * fcl * sizeof(float)));
+	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(float)));
 }
 
 NN::~NN() {
@@ -92,6 +84,19 @@ NN::~NN() {
 	checkCudaErrors(cudaFree(h22v_bn_dev));
 	checkCudaErrors(cudaFree(h23v_dev));
 	checkCudaErrors(cudaFree(y2_dev));
+}
+
+void NN::prepare_desc(const int batch_size)
+{
+	conv1_1_1.get_xdesc(x1Desc, batch_size, 9, 9);
+	conv1_2.get_xdesc(x2Desc, batch_size, 9, 9);
+	conv1_1_1.get_ydesc(h1Desc, batch_size, 9, 9);
+
+	conv22.get_ydesc(y1Desc, batch_size, 9, 9);
+
+	conv22v.get_ydesc(h22vDesc, batch_size, 9, 9);
+	l23v.get_ydesc(h23vDesc, batch_size);
+	l24v.get_ydesc(y2Desc, batch_size);
 }
 
 void NN::load_model(const char* filepath)
@@ -154,8 +159,10 @@ void NN::load_model(const char* filepath)
 	bias24v.set_bias(params["l24_v/b.npy"].data);
 }
 
-void NN::foward(features1_t* x1, features2_t* x2, float* y1, float* y2)
+void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2)
 {
+	prepare_desc(batch_size);
+
 	// input
 	checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice));
 	checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice));

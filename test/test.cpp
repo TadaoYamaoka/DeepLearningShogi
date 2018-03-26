@@ -27,7 +27,7 @@ int main() {
 
 	float y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
 	float y2[batchsize];
-	nn.foward(features1, features2, (float*)y1, y2);
+	nn.foward(batchsize, features1, features2, (float*)y1, y2);
 
 	for (int i = 0; i < batchsize; i++) {
 		// policyの結果
