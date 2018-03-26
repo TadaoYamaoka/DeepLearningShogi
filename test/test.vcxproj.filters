@@ -16,6 +16,9 @@
     <Filter Include="ソース ファイル\cppshogi">
       <UniqueIdentifier>{6c2182d1-3d3c-4281-8f09-d1d7bc90a3be}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\usi">
+      <UniqueIdentifier>{f30ef8ab-c52e-4da7-ba25-e9c4beacde2b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test.cpp">
@@ -82,7 +85,16 @@
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\usi\mate.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\nn.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\npz.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

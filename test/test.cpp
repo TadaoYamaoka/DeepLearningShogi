@@ -1,98 +1,90 @@
-﻿#include "cppshogi.h"
-
-#include <iostream>
+﻿#include <iostream>
 #include <chrono>
 
-namespace py = boost::python;
-namespace np = boost::python::numpy;
+#include "cppshogi.h"
 
-#if 0
+using namespace std;
+
+#if 1
+#include "nn.h"
 int main() {
-	// Boost.PythonとBoost.Numpyの初期化
-	Py_Initialize();
-	np::initialize();
-
+	initTable();
 	// 入力データ作成
-	const int batchsize = 1;
-	float features1[batchsize][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-	float features2[batchsize][MAX_FEATURES2_NUM][SquareNum];
+	const int batchsize = 2;
+	features1_t features1[batchsize] = {};
+	features2_t features2[batchsize] = {};
 
-	np::ndarray ndfeatures1 = np::from_data(
-		features1,
-		np::dtype::get_builtin<float>(),
-		py::make_tuple(batchsize, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-		py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-		py::object());
+	Position pos[batchsize];
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1", nullptr);
+	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
 
-	np::ndarray ndfeatures2 = np::from_data(
-		features2,
-		np::dtype::get_builtin<float>(),
-		py::make_tuple(batchsize, MAX_FEATURES2_NUM, 9, 9),
-		py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-		py::object());
+	make_input_features(pos[0], features1, features2);
+	make_input_features(pos[1], features1 + 1, features2 + 1);
 
-	Position position;
-	position.set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1", nullptr);
+	NN nn(batchsize);
 
-	make_input_features(position, features1, features2);
+	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
 
-	// Pythonモジュール読み込み
-	py::object dlshogi_test_ns = py::import("dlshogi.test").attr("__dict__");
+	float y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
+	float y2[batchsize];
+	nn.foward(features1, features2, (float*)y1, y2);
 
-	py::object dlshogi_test_load_model = dlshogi_test_ns["load_model"];
-	dlshogi_test_load_model("H:\\src\\DeepLearningShogi\\dlshogi\\model_sl_elmo1000-009");
+	for (int i = 0; i < batchsize; i++) {
+		// policyの結果
+		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
+			cout << y1[i][j] << endl;
+		}
+		// valueの結果
+		cout << y2[i] << endl;
 
-	// Pythonの関数実行
-	py::object dlshogi_test_predict = dlshogi_test_ns["predict"];
-	const int max = 1000;
-	auto start = std::chrono::system_clock::now();
+		// 合法手一覧
+		std::vector<Move> legal_moves;
+		std::vector<float> legal_move_probabilities;
+		for (MoveList<Legal> ml(pos[i]); !ml.end(); ++ml) {
+			const Move move = ml.move();
+			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
+			legal_moves.emplace_back(move);
+			legal_move_probabilities.emplace_back(y1[i][move_label]);
+		}
 
-	for (int i = 0; i < max; i++) {
-		auto ret = dlshogi_test_predict(ndfeatures1, ndfeatures2);
-		np::ndarray y_data = py::extract<np::ndarray>(ret);
+		// Boltzmann distribution
+		softmax_tempature_with_normalize(legal_move_probabilities);
+
+		// print result
+		for (int j = 0; j < legal_moves.size(); j++) {
+			const Move& move = legal_moves[j];
+			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
+			cout << move.toUSI() << " logit:" << y1[i][move_label] << " rate:" << legal_move_probabilities[j] << endl;
+		}
+
 	}
-
-	auto duration = std::chrono::system_clock::now() - start;
-	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-	std::cout << "predict call " << max << " times" << std::endl;
-	std::cout << msec << "[msec]" << std::endl;
-	std::cout << (double)msec / max << "[msec per each call]" << std::endl;
-	std::cout << (double)max / msec * 1000 << "[nps]" << std::endl;
-
-
-	// Python呼び出しのオーバーヘッド計測
-	py::object dlshogi_test_dummy = dlshogi_test_ns["dummy"];
-	const int max2 = 100000;
-	start = std::chrono::system_clock::now();
-
-	for (int i = 0; i < max2; i++) {
-		dlshogi_test_dummy();
-	}
-
-	duration = std::chrono::system_clock::now() - start;
-	msec = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-	std::cout << "dummy call " << max2 << " times" << std::endl;
-	std::cout << msec << "[msec]" << std::endl;
-	std::cout << (double)msec / max2 << "[msec per each call]" << std::endl;
-
-
-	// Python呼び出しのオーバーヘッド計測
-	py::object dlshogi_test_dummy2 = dlshogi_test_ns["dummy2"];
-	const int max3 = 1000;
-	start = std::chrono::system_clock::now();
-
-	for (int i = 0; i < max3; i++) {
-		auto ret = dlshogi_test_dummy2(ndfeatures1, ndfeatures2);
-		np::ndarray y_data = py::extract<np::ndarray>(ret);
-	}
-
-	duration = std::chrono::system_clock::now() - start;
-	msec = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-	std::cout << "dummy2 call " << max3 << " times" << std::endl;
-	std::cout << msec << "[msec]" << std::endl;
-	std::cout << (double)msec / max3 << "[msec per each call]" << std::endl;
 
 	return 0;
+}
+#endif
+
+#if 0
+// hcpe作成
+#include <fstream>
+int main() {
+	initTable();
+	const int num = 2;
+	Position pos[num];
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1", nullptr);
+	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+
+	vector<HuffmanCodedPosAndEval> hcpevec;
+	std::ofstream ofs("test.hcpe", std::ios::binary);
+	for (int i = 0; i < num; i++) {
+		hcpevec.emplace_back(HuffmanCodedPosAndEval());
+		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
+		hcpe.hcp = pos[i].toHuffmanCodedPos();
+		MoveList<Legal> ml(pos[i]);
+		hcpe.bestMove16 = static_cast<u16>(ml.move().value());
+		hcpe.gameResult = BlackWin;
+		hcpe.eval = 0;
+	}
+	ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 }
 #endif
 
@@ -153,7 +145,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 王手生成テスト
 int main() {
 	initTable();

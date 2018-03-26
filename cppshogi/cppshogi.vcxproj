@@ -248,6 +248,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClCompile Include="mt64bit.cpp" />
     <ClCompile Include="pieceScore.cpp" />
     <ClCompile Include="position.cpp" />
+    <ClCompile Include="python_module.cpp" />
     <ClCompile Include="search.cpp" />
     <ClCompile Include="square.cpp" />
     <ClCompile Include="thread.cpp" />

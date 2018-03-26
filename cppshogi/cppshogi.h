@@ -1,9 +1,5 @@
 ﻿#pragma once
 
-#define BOOST_PYTHON_STATIC_LIB
-#define BOOST_NUMPY_STATIC_LIB
-#include <boost/python/numpy.hpp>
-
 #include "init.hpp"
 #include "position.hpp"
 #include "search.hpp"
@@ -56,6 +52,7 @@ typedef float features2_t[MAX_FEATURES2_NUM][SquareNum];
 void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
 int make_move_label(const u16 move16, const Position& position);
 int make_move_label(const u16 move16, const Color color);
+void softmax_tempature(std::vector<float> &log_probabilities);
 void softmax_tempature_with_normalize(std::vector<float> &log_probabilities);
 void set_softmax_tempature(const float tempature);
 
