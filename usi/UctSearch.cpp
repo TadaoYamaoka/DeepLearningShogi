@@ -188,9 +188,13 @@ public:
 		policy_value_hash_index[0] = policy_value_hash_index[1] = nullptr;
 	}
 	~UCTSearcherGroup() {
+		for (size_t i = 0; i < 2; i++) {
+			checkCudaErrors(cudaFreeHost(features1[i]));
+			checkCudaErrors(cudaFreeHost(features2[i]));
+		}
+		checkCudaErrors(cudaFreeHost(y1));
+		checkCudaErrors(cudaFreeHost(y2));
 		delete nn;
-		delete y1;
-		delete y2;
 	}
 
 	void Initialize(const int new_thread, const int gpu_id);
@@ -339,11 +343,11 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		// キューを動的に確保する
 		policy_value_batch_maxsize = threads;
 		for (size_t i = 0; i < 2; i++) {
-			delete[] features1[i];
-			delete[] features2[i];
+			checkCudaErrors(cudaFreeHost(features1[i]));
+			checkCudaErrors(cudaFreeHost(features2[i]));
 			delete[] policy_value_hash_index[i];
-			features1[i] = new features1_t[policy_value_batch_maxsize];
-			features2[i] = new features2_t[policy_value_batch_maxsize];
+			checkCudaErrors(cudaHostAlloc(&features1[i], sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocDefault));
+			checkCudaErrors(cudaHostAlloc(&features2[i], sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocDefault));
 			policy_value_hash_index[i] = new unsigned int[policy_value_batch_maxsize];
 		}
 
@@ -354,8 +358,10 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 			searchers.emplace_back(this, i);
 		}
 
-		y1 = new float[MAX_MOVE_LABEL_NUM * SquareNum * threads];
-		y2 = new float[threads];
+		checkCudaErrors(cudaFreeHost(y1));
+		checkCudaErrors(cudaFreeHost(y2));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * threads * sizeof(float), cudaHostAllocDefault));
+		checkCudaErrors(cudaHostAlloc(&y2, threads * sizeof(float), cudaHostAllocDefault));
 	}
 }
 
