@@ -346,8 +346,8 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 			checkCudaErrors(cudaFreeHost(features1[i]));
 			checkCudaErrors(cudaFreeHost(features2[i]));
 			delete[] policy_value_hash_index[i];
-			checkCudaErrors(cudaHostAlloc(&features1[i], sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocDefault));
-			checkCudaErrors(cudaHostAlloc(&features2[i], sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocDefault));
+			checkCudaErrors(cudaHostAlloc(&features1[i], sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+			checkCudaErrors(cudaHostAlloc(&features2[i], sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 			policy_value_hash_index[i] = new unsigned int[policy_value_batch_maxsize];
 		}
 
@@ -360,8 +360,8 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * threads * sizeof(float), cudaHostAllocDefault));
-		checkCudaErrors(cudaHostAlloc(&y2, threads * sizeof(float), cudaHostAllocDefault));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * threads * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, threads * sizeof(float), cudaHostAllocPortable));
 	}
 }
 
