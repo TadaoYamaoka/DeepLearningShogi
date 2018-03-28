@@ -16,10 +16,9 @@
 #include <memory>
 #include "ZobristHash.h"
 #include "mate.h"
+#include "nn.h"
 
 #include "cppshogi.h"
-namespace py = boost::python;
-namespace np = boost::python::numpy;
 
 // ルートノードでの詰み探索を行う
 //#define USE_MATE_ROOT_SEARCH
@@ -78,13 +77,6 @@ mutex mutex_queue; // キューの排他制御
 #define LOCK_QUEUE mutex_queue.lock();
 #define UNLOCK_QUEUE mutex_queue.unlock();
 
-// モデル読み込み
-py::object dlshogi_load_model;
-// 予測関数
-py::object dlshogi_predict;
-// GIL
-PyThreadState *_save;
-
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
@@ -103,10 +95,19 @@ const float c_puct = 1.0f;
 class UCTSearcher;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0) {
+	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0), nn(nullptr), y1(nullptr), y2(nullptr) {
 		features1[0] = features1[1] = nullptr;
 		features2[0] = features2[1] = nullptr;
 		policy_value_queue_node[0] = policy_value_queue_node[1] = nullptr;
+	}
+	~UCTSearcherGroup() {
+		for (size_t i = 0; i < 2; i++) {
+			checkCudaErrors(cudaFreeHost(features1[i]));
+			checkCudaErrors(cudaFreeHost(features2[i]));
+		}
+		checkCudaErrors(cudaFreeHost(y1));
+		checkCudaErrors(cudaFreeHost(y2));
+		delete nn;
 	}
 
 	void Initialize(const int new_thread, const int gpu_id);
@@ -134,6 +135,11 @@ private:
 	// UCTSearcher
 	vector<UCTSearcher> searchers;
 	thread* handle_eval;
+
+	// neural network
+	NN* nn;
+	float* y1;
+	float* y2;
 } search_group;
 
 class UCTSearcher {
@@ -189,11 +195,11 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		// キューを動的に確保する
 		policy_value_batch_maxsize = threads;
 		for (size_t i = 0; i < 2; i++) {
-			delete[] features1[i];
-			delete[] features2[i];
+			checkCudaErrors(cudaFreeHost(features1[i]));
+			checkCudaErrors(cudaFreeHost(features2[i]));
 			delete[] policy_value_queue_node[i];
-			features1[i] = new features1_t[policy_value_batch_maxsize];
-			features2[i] = new features2_t[policy_value_batch_maxsize];
+			checkCudaErrors(cudaHostAlloc(&features1[i], sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+			checkCudaErrors(cudaHostAlloc(&features2[i], sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 			policy_value_queue_node[i] = new policy_value_queue_node_t[policy_value_batch_maxsize];
 		}
 
@@ -203,12 +209,12 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 		for (int i = 0; i < threads; i++) {
 			searchers.emplace_back(this, i);
 		}
-	}
 
-	// modelロード
-	PyGILState_STATE gstate = PyGILState_Ensure();
-	dlshogi_load_model(model_path.c_str(), gpu_id);
-	PyGILState_Release(gstate);
+		checkCudaErrors(cudaFreeHost(y1));
+		checkCudaErrors(cudaFreeHost(y2));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * threads * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, threads * sizeof(float), cudaHostAllocPortable));
+	}
 }
 
 // スレッド開始
@@ -442,19 +448,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 void
 InitializeUctSearch()
 {
-	// Boost.PythonとBoost.Numpyの初期化
-	Py_Initialize();
-	PyEval_InitThreads();
-	np::initialize();
-
-	// Pythonモジュール読み込み
-	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
-
-	// modelロード
-	dlshogi_load_model = dlshogi_ns["load_model"];
-
-	// 予測関数取得
-	dlshogi_predict = dlshogi_ns["predict"];
 }
 
 /////////////////////
@@ -629,6 +622,13 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 
 // 局面の評価
 void UCTSearcherGroup::EvalNode() {
+	cudaSetDevice(gpu_id);
+
+	if (nn == nullptr) {
+		nn = new NN(threads);
+		nn->load_model(model_path.c_str());
+	}
+
 	bool enough_batch_size = false;
 	while (true) {
 		LOCK_QUEUE;
@@ -657,68 +657,47 @@ void UCTSearcherGroup::EvalNode() {
 			UNLOCK_QUEUE;
 			SPDLOG_DEBUG(logger, "EvalNode queue_index={} batch_size={}", policy_value_queue_index, policy_value_batch_size);
 
-			PyGILState_STATE gstate = PyGILState_Ensure();
-			{
-				// predict
-				np::ndarray ndfeatures1 = np::from_data(
-					features1[policy_value_queue_index],
-					np::dtype::get_builtin<float>(),
-					py::make_tuple(policy_value_batch_size, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-					py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-					py::object());
+			// predict
+			nn->foward(policy_value_batch_size, features1[policy_value_queue_index], features2[policy_value_queue_index], y1, y2);
 
-				np::ndarray ndfeatures2 = np::from_data(
-					features2[policy_value_queue_index],
-					np::dtype::get_builtin<float>(),
-					py::make_tuple(policy_value_batch_size, MAX_FEATURES2_NUM, 9, 9),
-					py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-					py::object());
+			float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+			float *value = reinterpret_cast<float*>(y2);
 
-				auto ret = dlshogi_predict(ndfeatures1, ndfeatures2, gpu_id);
-				py::tuple ret_list = py::extract<py::tuple>(ret);
-				np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
-				np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
+			for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+				policy_value_queue_node_t queue_node = policy_value_queue_node[policy_value_queue_index][i];
 
-				float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
-				float *value = reinterpret_cast<float*>(y2_data.get_data());
-
-				for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-					policy_value_queue_node_t queue_node = policy_value_queue_node[policy_value_queue_index][i];
-
-					/*if (index == current_root) {
-					string str;
-					for (int sq = 0; sq < SquareNum; sq++) {
-					str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
-					str += " ";
-					}
-					cout << str << endl;
-					}*/
-
-					// 対局は1スレッドで行うためロックは不要
-					const int child_num = queue_node.node->child_num;
-					child_node_t *uct_child = queue_node.node->child;
-					Color color = queue_node.color;
-
-					// 合法手一覧
-					vector<float> legal_move_probabilities;
-					for (int j = 0; j < child_num; j++) {
-						Move move = uct_child[j].move;
-						const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-						legal_move_probabilities.emplace_back((*logits)[move_label]);
-					}
-
-					// Boltzmann distribution
-					softmax_tempature_with_normalize(legal_move_probabilities);
-
-					for (int j = 0; j < child_num; j++) {
-						uct_child[j].nnrate = legal_move_probabilities[j];
-					}
-
-					queue_node.node->value_win = *value;
-					queue_node.node->evaled = true;
+				/*if (index == current_root) {
+				string str;
+				for (int sq = 0; sq < SquareNum; sq++) {
+				str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
+				str += " ";
 				}
+				cout << str << endl;
+				}*/
+
+				// 対局は1スレッドで行うためロックは不要
+				const int child_num = queue_node.node->child_num;
+				child_node_t *uct_child = queue_node.node->child;
+				Color color = queue_node.color;
+
+				// 合法手一覧
+				vector<float> legal_move_probabilities;
+				for (int j = 0; j < child_num; j++) {
+					Move move = uct_child[j].move;
+					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+					legal_move_probabilities.emplace_back((*logits)[move_label]);
+				}
+
+				// Boltzmann distribution
+				softmax_tempature_with_normalize(legal_move_probabilities);
+
+				for (int j = 0; j < child_num; j++) {
+					uct_child[j].nnrate = legal_move_probabilities[j];
+				}
+
+				queue_node.node->value_win = *value;
+				queue_node.node->evaled = true;
 			}
-			PyGILState_Release(gstate);
 		}
 	}
 }
@@ -987,9 +966,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 
 	search_group.Initialize(thread, gpu_id);
 
-	// GIL解放
-	_save = PyEval_SaveThread();
-
 	// 探索スレッド開始
 	search_group.Run();
 
@@ -1023,9 +999,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ofs.close();
 
 	std::cout << "Made " << idx << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
-
-	// GIL取得
-	PyEval_RestoreThread(_save);
 }
 
 int main(int argc, char* argv[]) {

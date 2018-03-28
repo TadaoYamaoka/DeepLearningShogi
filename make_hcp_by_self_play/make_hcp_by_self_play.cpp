@@ -1,9 +1,7 @@
 ﻿#include <cstdlib>
 
+#include "nn.h"
 #include "cppshogi.h"
-
-namespace py = boost::python;
-namespace np = boost::python::numpy;
 
 void randomMove(Position& pos, std::mt19937& mt);
 
@@ -46,19 +44,8 @@ int main(int argc, char** argv)
 	int max_batch_size = std::atoi(argv[3]);
 	int position_num = std::atoi(argv[4]);
 
-	// Boost.PythonとBoost.Numpyの初期化
-	Py_Initialize();
-	np::initialize();
-
-	// Pythonモジュール読み込み
-	py::object dlshogi_ns = py::import("dlshogi.test").attr("__dict__");
-
-	// modelロード
-	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(model_path);
-
-	// 予測関数取得
-	py::object dlshogi_predict = dlshogi_ns["predict"];
+	std::unique_ptr<NN> nn(new NN(max_batch_size));
+	nn->load_model(model_path);
 
 	initTable();
 	Position::initZobrist();
@@ -69,8 +56,15 @@ int main(int argc, char** argv)
 	// ボルツマン温度設定
 	set_softmax_tempature(1.25f);
 
-	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[max_batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[max_batch_size][MAX_FEATURES2_NUM][SquareNum];
+	features1_t *features1;
+	features2_t *features2;
+	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * max_batch_size, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * max_batch_size, cudaHostAllocPortable));
+
+	float* y1;
+	float* y2;
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * max_batch_size * sizeof(float), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y2, max_batch_size * sizeof(float), cudaHostAllocPortable));
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
 	std::uniform_int_distribution<int> dist(4, 250);
@@ -135,23 +129,8 @@ int main(int argc, char** argv)
 		}
 
 		// predict
-		np::ndarray ndfeatures1 = np::from_data(
-			features1,
-			np::dtype::get_builtin<float>(),
-			py::make_tuple(positions.size(), (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-			py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-			py::object());
-
-		np::ndarray ndfeatures2 = np::from_data(
-			features2,
-			np::dtype::get_builtin<float>(),
-			py::make_tuple(positions.size(), MAX_FEATURES2_NUM, 9, 9),
-			py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-			py::object());
-
-		auto ret = dlshogi_predict(ndfeatures1, ndfeatures2);
-		np::ndarray y_data = py::extract<np::ndarray>(ret);
-		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y_data.get_data());
+		nn->foward(max_batch_size, features1, features2, y1, y2);
+		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 
 		// do move
 		for (int idx = 0; idx < positions.size(); idx++, logits++) {
@@ -211,7 +190,11 @@ int main(int argc, char** argv)
 	ofs.write(reinterpret_cast<char*>(hcpvec.data()), sizeof(HuffmanCodedPos) * hcpvec.size());
 
 	progressThread.join();
-	Py_Finalize();
+
+	checkCudaErrors(cudaFreeHost(features1));
+	checkCudaErrors(cudaFreeHost(features2));
+	checkCudaErrors(cudaFreeHost(y1));
+	checkCudaErrors(cudaFreeHost(y2));
 
 	return 0;
 }
