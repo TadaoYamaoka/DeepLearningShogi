@@ -140,7 +140,7 @@ private:
 	NN* nn;
 	float* y1;
 	float* y2;
-} search_group;
+};
 
 class UCTSearcher {
 public:
@@ -958,13 +958,14 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	// 初期設定
 	InitializeUctSearch();
 
+	UCTSearcherGroup search_group;
 	search_group.Initialize(thread, gpu_id);
 
 	// 探索スレッド開始
 	search_group.Run();
 
 	// 進捗状況表示
-	auto progressFunc = [gpu_id](Timer& t) {
+	auto progressFunc = [gpu_id, &search_group](Timer& t) {
 		while (true) {
 			std::this_thread::sleep_for(std::chrono::seconds(5)); // 指定秒だけ待機し、進捗を表示する。
 			const s64 madeTeacherNodes = idx;
