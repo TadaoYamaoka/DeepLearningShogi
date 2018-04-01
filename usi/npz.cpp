@@ -8,17 +8,17 @@ using namespace std;
 // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
 struct LocalFileHeader
 {
-	unsigned long local_file_header_signature; // 4_bytes (0x04034b50)
-	unsigned short version_needed_to_extract; // 2_bytes
-	unsigned short general_purpose_bit_flag; // 2_bytes
-	unsigned short compression_method; // 2_bytes
-	unsigned short last_mod_file_time; // 2_bytes
-	unsigned short last_mod_file_date; // 2_bytes
-	unsigned long crc_32; // 4_bytes
-	unsigned long compressed_size; // 4_bytes
-	unsigned long uncompressed_size; // 4_bytes
-	unsigned short file_name_length; // 2_bytes
-	unsigned short extra_field_length; // 2_bytes
+	uint32_t local_file_header_signature; // 4_bytes (0x04034b50)
+	uint16_t version_needed_to_extract; // 2_bytes
+	uint16_t general_purpose_bit_flag; // 2_bytes
+	uint16_t compression_method; // 2_bytes
+	uint16_t last_mod_file_time; // 2_bytes
+	uint16_t last_mod_file_date; // 2_bytes
+	uint32_t crc_32; // 4_bytes
+	uint32_t compressed_size; // 4_bytes
+	uint32_t uncompressed_size; // 4_bytes
+	uint16_t file_name_length; // 2_bytes
+	uint16_t extra_field_length; // 2_bytes
 									   // ここまで30bytes
 
 									   //char* file_name; // (variable_size)
@@ -82,7 +82,7 @@ void load_npz(const char* file, ParamMap& params)
 		inflateEnd(&strm);
 
 		// NPY
-		const unsigned short header_len = *(unsigned short*)(npy.uncompressed_data + 8);
+		const uint16_t header_len = *(uint16_t*)(npy.uncompressed_data + 8);
 		npy.data = (float*)(npy.uncompressed_data + 10 + header_len);
 
 		params.emplace(file_name, std::move(npy));
