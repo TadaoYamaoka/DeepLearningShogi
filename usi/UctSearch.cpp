@@ -228,7 +228,8 @@ private:
 	NN* nn;
 	float* y1;
 	float* y2;
-} search_groups[2];
+};
+UCTSearcherGroup* search_groups;
 
 class UCTSearcher {
 public:
@@ -464,8 +465,15 @@ InitializeUctSearch()
 		cerr << "You must reduce tree size !!" << endl;
 		exit(1);
 	}
+
+	search_groups = new UCTSearcherGroup[2];
 }
 
+//  UCT探索の終了処理
+void TerminateUctSearch()
+{
+	delete[] search_groups;
+}
 
 ////////////////////////
 //  探索設定の初期化  //

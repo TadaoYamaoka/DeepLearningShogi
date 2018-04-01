@@ -104,6 +104,8 @@ void SetTimeSettings(int main_time, int byoyomi, int stones);
 
 // UCT探索の初期設定
 void InitializeUctSearch();
+// UCT探索の終了処理
+void TerminateUctSearch();
 
 // 探索設定の初期化
 void InitializeSearchSetting(void);
