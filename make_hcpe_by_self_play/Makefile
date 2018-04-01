@@ -1,12 +1,12 @@
 ﻿CC = g++
 CFLAGS = -std=c++11 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
-LDFLAGS = -lpthread -lboost_python3 -lboost_numpy3 -lpython3.6m -flto
-INCLUDE = -I../usi -I../cppshogi -I$(PYENV_ROOT)/versions/anaconda3-5.0.1/include/python3.6m
-LIB = -L$(PYENV_ROOT)/versions/anaconda3-5.0.1/lib
+LDFLAGS = -lpthread -lcuda -lcudnn -lcudart -lcublas -flto
+INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
+LIB =
 
 target = bin/make_hcpe_by_self_play
 sources = self_play.cpp
-usi_sources =  mate.cpp ZobristHash.cpp
+usi_sources =  mate.cpp ZobristHash.cpp nn.cpp npz.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp evalList.cpp evaluate.cpp generateMoves.cpp hand.cpp init.cpp move.cpp movePicker.cpp mt64bit.cpp pieceScore.cpp position.cpp search.cpp square.cpp thread.cpp timeManager.cpp tt.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))

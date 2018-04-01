@@ -805,97 +805,99 @@ void UCTSearcher::SelfPlay()
 #endif
 		}
 
-		// 盤面のコピー
-		Position pos_copy(pos);
-		// プレイアウト
-		UctSearch(&pos_copy, current_root, 0);
+		{
+			// 盤面のコピー
+			Position pos_copy(pos);
+			// プレイアウト
+			UctSearch(&pos_copy, current_root, 0);
 
-		// プレイアウト回数加算
-		playout++;
+			// プレイアウト回数加算
+			playout++;
 
-		// 探索終了判定
-		if (InterruptionCheck(current_root, playout)) {
-			// 探索回数最大の手を見つける
-			child_node_t* uct_child = uct_node[current_root].child;
-			int max_count = 0;
-			unsigned int select_index;
-			for (int i = 0; i < uct_node[current_root].child_num; i++) {
-				if (uct_child[i].move_count > max_count) {
-					select_index = i;
-					max_count = uct_child[i].move_count;
+			// 探索終了判定
+			if (InterruptionCheck(current_root, playout)) {
+				// 探索回数最大の手を見つける
+				child_node_t* uct_child = uct_node[current_root].child;
+				int max_count = 0;
+				unsigned int select_index;
+				for (int i = 0; i < uct_node[current_root].child_num; i++) {
+					if (uct_child[i].move_count > max_count) {
+						select_index = i;
+						max_count = uct_child[i].move_count;
+					}
+					SPDLOG_DEBUG(logger, "thread:{} {}:{} move_count:{} win_rate:{}", thread_id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
 				}
-				SPDLOG_DEBUG(logger, "thread:{} {}:{} move_count:{} win_rate:{}", thread_id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
-			}
 
-			// 選択した着手の勝率の算出
-			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
-			Move best_move = uct_child[select_index].move;
-			SPDLOG_DEBUG(logger, "thread:{} bestmove:{} winrate:{}", thread_id, best_move.toUSI(), best_wp);
+				// 選択した着手の勝率の算出
+				float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+				Move best_move = uct_child[select_index].move;
+				SPDLOG_DEBUG(logger, "thread:{} bestmove:{} winrate:{}", thread_id, best_move.toUSI(), best_wp);
 
 #ifdef USE_MATE_ROOT_SEARCH
-			{
-				// 詰み探索終了
-				pos.searcher()->threads.main()->waitForSearchFinished();
-				Score score = pos.searcher()->threads.main()->rootMoves[0].score;
-				const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
+				{
+					// 詰み探索終了
+					pos.searcher()->threads.main()->waitForSearchFinished();
+					Score score = pos.searcher()->threads.main()->rootMoves[0].score;
+					const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
 
-				// ゲーム終了判定
-				// 条件：評価値が閾値を超えた場合
-				const int ScoreThresh = 5000; // 自己対局を決着がついたとして止める閾値
-				if (ScoreThresh < abs(score)) { // 差が付いたので投了した事にする。
-					if (pos.turn() == Black)
-						gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
-					else
-						gameResult = (score < ScoreZero ? BlackWin : WhiteWin);
+					// ゲーム終了判定
+					// 条件：評価値が閾値を超えた場合
+					const int ScoreThresh = 5000; // 自己対局を決着がついたとして止める閾値
+					if (ScoreThresh < abs(score)) { // 差が付いたので投了した事にする。
+						if (pos.turn() == Black)
+							gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
+						else
+							gameResult = (score < ScoreZero ? BlackWin : WhiteWin);
 
-					goto L_END_GAME;
+						goto L_END_GAME;
+					}
+					else if (!bestMove) { // 勝ち宣言
+						gameResult = (pos.turn() == Black ? BlackWin : WhiteWin);
+						goto L_END_GAME;
+					}
 				}
-				else if (!bestMove) { // 勝ち宣言
-					gameResult = (pos.turn() == Black ? BlackWin : WhiteWin);
-					goto L_END_GAME;
-				}
-			}
 #else
-			{
-				// 勝率が閾値を超えた場合、ゲーム終了
-				const float winrate = (best_wp - 0.5f) * 2.0f;
-				const float winrate_threshold = 0.99f;
-				if (winrate_threshold < abs(winrate)) {
-					if (pos.turn() == Black)
-						gameResult = (winrate < 0 ? WhiteWin : BlackWin);
-					else
-						gameResult = (winrate < 0 ? BlackWin : WhiteWin);
+				{
+					// 勝率が閾値を超えた場合、ゲーム終了
+					const float winrate = (best_wp - 0.5f) * 2.0f;
+					const float winrate_threshold = 0.99f;
+					if (winrate_threshold < abs(winrate)) {
+						if (pos.turn() == Black)
+							gameResult = (winrate < 0 ? WhiteWin : BlackWin);
+						else
+							gameResult = (winrate < 0 ? BlackWin : WhiteWin);
 
-					goto L_END_GAME;
+						goto L_END_GAME;
+					}
 				}
-			}
 #endif
 
-			// 局面追加
-			hcpevec.emplace_back(HuffmanCodedPosAndEval());
-			HuffmanCodedPosAndEval& hcpe = hcpevec.back();
-			hcpe.hcp = pos.toHuffmanCodedPos();
-			const Color rootTurn = pos.turn();
-			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
-			idx++;
+				// 局面追加
+				hcpevec.emplace_back(HuffmanCodedPosAndEval());
+				HuffmanCodedPosAndEval& hcpe = hcpevec.back();
+				hcpe.hcp = pos.toHuffmanCodedPos();
+				const Color rootTurn = pos.turn();
+				hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+				hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
+				idx++;
 
-			// 一定の手数以上で引き分け
-			if (ply > 200) {
-				gameResult = Draw;
-				goto L_END_GAME;
+				// 一定の手数以上で引き分け
+				if (ply > 200) {
+					gameResult = Draw;
+					goto L_END_GAME;
+				}
+
+				// 着手
+				states->push_back(StateInfo());
+				pos.doMove(best_move, states->back());
+
+				// 次の手番
+				playout = 0;
+				ply++;
+				SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", thread_id, ply, pos.toSFEN());
 			}
-
-			// 着手
-			states->push_back(StateInfo());
-			pos.doMove(best_move, states->back());
-
-			// 次の手番
-			playout = 0;
-			ply++;
-			SPDLOG_DEBUG(logger, "thread:{} ply:{} {}", thread_id, ply, pos.toSFEN());
+			continue;
 		}
-		continue;
 
 	L_END_GAME:
 		SPDLOG_DEBUG(logger, "thread:{} ply:{} gameResult:{}", thread_id, ply, gameResult);
