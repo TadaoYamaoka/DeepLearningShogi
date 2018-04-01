@@ -2,7 +2,7 @@
 CFLAGS = -std=c++11 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lcuda -lcudnn -lcudart -lcublas -flto
 INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
-LIB =
+LIB = -L/usr/local/cuda-9.0/targets/x86_64-linux/lib
 
 target = bin/make_hcpe_by_self_play
 sources = self_play.cpp
