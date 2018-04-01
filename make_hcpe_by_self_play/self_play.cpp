@@ -542,10 +542,6 @@ UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
 		child_num++;
 	}
 
-	if (child_num > UCT_CHILD_MAX) {
-		DebugBreak();
-	}
-
 	// 子ノードの個数を設定
 	uct_node[index].child_num = child_num;
 
