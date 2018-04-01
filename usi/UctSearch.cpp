@@ -1242,7 +1242,7 @@ void UCTSearcherGroup::EvalNode() {
 		nn->load_model(model_path.c_str());
 	}
 
-	bool enough_batch_size = false;
+	bool enough_batch_size = true; // 初回はルートノードのため待たない
 	while (true) {
 		LOCK_EXPAND;
 		if (running_threads == 0 && current_policy_value_batch_index == 0) {
