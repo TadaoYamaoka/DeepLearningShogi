@@ -972,13 +972,14 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
-				<< "%, nodes:" << madeTeacherNodes
-				<< ", nodes/sec:" << static_cast<double>(madeTeacherNodes) / elapsed_msec * 1000.0
-				<< ", threads:" << search_group.running_threads
-				<< ", gpu_id:" << gpu_id
-				<< ", Elapsed: " << elapsed_msec / 1000
-				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, threads:{}, gpu_id:{}, Elapsed:{}[s], Remaining:{}[s]",
+					std::min(100.0, progress * 100.0),
+					madeTeacherNodes,
+					static_cast<double>(madeTeacherNodes) / elapsed_msec * 1000.0,
+					search_group.running_threads,
+					gpu_id,
+					elapsed_msec / 1000,
+					std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)));
 			if (search_group.running_threads == 0)
 				break;
 		}
@@ -993,7 +994,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ifs.close();
 	ofs.close();
 
-	std::cout << "Made " << idx << " teacher nodes in " << t.elapsed() / 1000 << " seconds." << std::endl;
+	logger->info("Made {} teacher nodes in {} seconds.", idx, t.elapsed() / 1000);
 }
 
 int main(int argc, char* argv[]) {
