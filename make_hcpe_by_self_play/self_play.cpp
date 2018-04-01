@@ -674,6 +674,7 @@ void UCTSearcherGroup::EvalNode() {
 
 				// 合法手一覧
 				vector<float> legal_move_probabilities;
+				legal_move_probabilities.reserve(child_num);
 				for (int j = 0; j < child_num; j++) {
 					Move move = uct_child[j].move;
 					const int move_label = make_move_label((u16)move.proFromAndTo(), color);

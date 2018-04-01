@@ -1294,7 +1294,8 @@ void UCTSearcherGroup::EvalNode() {
 				Color color = (Color)(*uct_hash)[index].color;
 
 				// 合法手一覧
-				std::vector<float> legal_move_probabilities;
+				std::vector<float> legal_move_probabilities(child_num);
+				legal_move_probabilities.reserve(child_num);
 				for (int j = 0; j < child_num; j++) {
 					Move move = uct_child[j].move;
 					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
