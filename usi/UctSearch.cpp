@@ -182,7 +182,7 @@ static void UpdateResult(child_node_t *child, float result, unsigned int current
 class UCTSearcher;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), running_threads(0), handle_eval(nullptr), nn(nullptr), y1(nullptr), y2(nullptr) {
+	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), threads(0), running_threads(0), handle_eval(nullptr), nn(nullptr), y1(nullptr), y2(nullptr) {
 		features1[0] = features1[1] = nullptr;
 		features2[0] = features2[1] = nullptr;
 		policy_value_hash_index[0] = policy_value_hash_index[1] = nullptr;
