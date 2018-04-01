@@ -71,7 +71,7 @@ void load_npz(const char* file, ParamMap& params)
 		NPY npy;
 		npy.uncompressed_data = new unsigned char[lfh.uncompressed_size];
 
-		z_stream strm = { 0 };
+		z_stream strm = {};
 		inflateInit2(&strm, -MAX_WBITS);
 
 		strm.next_in = file_data;
