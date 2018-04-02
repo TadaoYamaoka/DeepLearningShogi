@@ -14,6 +14,8 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <signal.h>
+
 #include "ZobristHash.h"
 #include "mate.h"
 #include "nn.h"
@@ -31,6 +33,13 @@ auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
 auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
 
 using namespace std;
+
+volatile sig_atomic_t stopflg = false;
+
+void sigint_handler(int signum)
+{
+	stopflg = true;
+}
 
 // モデルのパス
 string model_path;
@@ -737,7 +746,7 @@ void UCTSearcher::SelfPlay()
 	uniform_int_distribution<s64> inputFileDist(0, entryNum - 1);
 
 	// プレイアウトを繰り返す
-	while (true) {
+	while (!stopflg) {
 		// 手番開始
 		if (playout == 0) {
 			// 新しいゲーム開始
@@ -1053,6 +1062,8 @@ int main(int argc, char* argv[]) {
 	// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
 	std::unique_ptr<Evaluator>(new Evaluator)->init(evalDir, true);
 #endif
+
+	signal(SIGINT, sigint_handler);
 
 	logger->info("make_teacher");
 	make_teacher(recordFileName, outputFileName, threads, gpu_id);
