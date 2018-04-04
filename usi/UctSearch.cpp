@@ -980,7 +980,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 
 	// policyが計算されるのを待つ(他のスレッドが同じノードを先に展開した場合、nnの計算を待つ必要がある)
 	while (uct_node[current].evaled == 0)
-		this_thread::sleep_for(chrono::milliseconds(0));
+		this_thread::yield();
 
 	float result;
 	unsigned int next_index;
@@ -1040,7 +1040,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (uct_node[child_index].evaled == 0)
-			this_thread::sleep_for(chrono::milliseconds(0));
+			this_thread::yield();
 
 		// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
 		if (isDraw != 0) {
@@ -1310,7 +1310,7 @@ void UCTSearcherGroup::EvalNode() {
 				}
 
 				uct_node[index].value_win = *value;
-				uct_node[index].evaled = true;
+				uct_node[index].evaled = 1;
 				UNLOCK_NODE(index);
 			}
 		}

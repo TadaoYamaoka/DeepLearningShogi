@@ -336,7 +336,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth)
 		// valueが計算されるのを待つ
 		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
 		while (uct_node[child_index].evaled == 0)
-			this_thread::sleep_for(chrono::milliseconds(0));
+			this_thread::yield();
 
 		// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
 		if (isDraw != 0) {
@@ -698,7 +698,7 @@ void UCTSearcherGroup::EvalNode() {
 				}
 
 				queue_node.node->value_win = *value;
-				queue_node.node->evaled = true;
+				queue_node.node->evaled = 1;
 			}
 		}
 	}
@@ -782,7 +782,7 @@ void UCTSearcher::SelfPlay()
 
 			// policyが計算されるのを待つ
 			while (uct_node[current_root].evaled == 0)
-				this_thread::sleep_for(chrono::milliseconds(0));
+				this_thread::yield();
 
 			// 詰みのチェック
 			if (uct_node[current_root].child_num == 0) {
