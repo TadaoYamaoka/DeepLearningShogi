@@ -323,11 +323,12 @@ SetConstTime(double time)
 ////////////////////////////////
 //  使用するスレッド数の指定  //
 ////////////////////////////////
-void SetThread(const int new_thread1, const int new_thread2)
+void SetThread(const int new_thread[max_gpu])
 {
-	search_groups[0].Initialize(new_thread1, 0);
-	if (new_thread2 > 0)
-		search_groups[1].Initialize(new_thread2, 1);
+	for (int i = 0; i < max_gpu; i++) {
+		if (new_thread[i] > 0)
+			search_groups[i].Initialize(new_thread[i], 1);
+	}
 }
 
 void GameOver()
@@ -370,27 +371,28 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 void
 UCTSearcherGroup::Run()
 {
-	// 探索用スレッド
-	for (int i = 0; i < threads; i++) {
-		searchers[i].Run();
-	}
+	if (threads > 0) {
+		// 探索用スレッド
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Run();
+		}
 
-	// 評価用スレッド
-	if (threads > 0)
+		// 評価用スレッド
 		handle_eval = new thread([this]() { this->EvalNode(); });
+	}
 }
 
 // スレッド終了待機
 void
 UCTSearcherGroup::Join()
 {
-	// 探索用スレッド
-	for (int i = 0; i < threads; i++) {
-		searchers[i].Join();
-	}
-
-	// 評価用スレッド
 	if (threads > 0) {
+		// 探索用スレッド
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Join();
+		}
+
+		// 評価用スレッド
 		handle_eval->join();
 		delete handle_eval;
 	}
@@ -466,7 +468,7 @@ InitializeUctSearch()
 		exit(1);
 	}
 
-	search_groups = new UCTSearcherGroup[2];
+	search_groups = new UCTSearcherGroup[max_gpu];
 }
 
 //  UCT探索の終了処理
@@ -550,8 +552,8 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	}
 
 	// キューをクリア
-	search_groups[0].ClearEvalQueue();
-	search_groups[1].ClearEvalQueue();
+	for (int i = 0; i < max_gpu; i++)
+		search_groups[i].ClearEvalQueue();
 
 	// 探索開始時刻の記録
 	begin_time = ray_clock::now();
@@ -583,12 +585,12 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	PrintPlayoutLimits(time_limit, po_info.halt);
 
 	// 探索スレッド開始
-	search_groups[0].Run();
-	search_groups[1].Run();
+	for (int i = 0; i < max_gpu; i++)
+		search_groups[i].Run();
 
 	// 探索スレッド終了待機
-	search_groups[0].Join();
-	search_groups[1].Join();
+	for (int i = 0; i < max_gpu; i++)
+		search_groups[i].Join();
 
 	// 着手が21手以降で,
 	// 時間延長を行う設定になっていて,
@@ -602,12 +604,12 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		po_info.halt = (int)(1.5 * po_info.halt);
 		time_limit *= 1.5;
 		// 探索スレッド開始
-		search_groups[0].Run();
-		search_groups[1].Run();
+		for (int i = 0; i < max_gpu; i++)
+			search_groups[i].Run();
 
 		// 探索スレッド終了待機
-		search_groups[0].Join();
-		search_groups[1].Join();
+		for (int i = 0; i < max_gpu; i++)
+			search_groups[i].Join();
 	}
 
 	// 探索にかかった時間を求める

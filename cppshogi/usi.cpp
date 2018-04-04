@@ -110,6 +110,12 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Threads"]                     = USIOption(1, 1, MaxThreads, onThreads, s);
 	(*this)["UCT_Threads"]                 = USIOption(std::min(cpuCoreCount() * 16, MaxThreads), 1, MaxThreads);
 	(*this)["UCT_Threads2"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads3"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads4"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads5"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads6"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads7"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads8"]                = USIOption(0, 0, MaxThreads);
 	(*this)["DNN_Model"]                   = USIOption("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_005");
 	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
 	(*this)["Mate_Root_Search"]            = USIOption(false);

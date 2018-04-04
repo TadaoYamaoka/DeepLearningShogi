@@ -101,7 +101,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			SetModelPath(std::string(options["DNN_Model"]).c_str());
-			SetThread(options["UCT_Threads"], options["UCT_Threads2"]);
+			const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
+			SetThread(new_thread);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();

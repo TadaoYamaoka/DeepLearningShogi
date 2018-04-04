@@ -92,7 +92,8 @@ void SetPlayout(int po);
 void SetConstTime(double time);
 
 // 使用するスレッド数の指定
-void SetThread(const int new_thread1, const int new_thread2);
+const int max_gpu = 8;
+void SetThread(const int new_thread[max_gpu]);
 
 // 持ち時間の指定
 void SetTime(double time);
