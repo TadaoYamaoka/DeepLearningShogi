@@ -39,8 +39,6 @@ GetDebugMessageMode()
 void
 PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const double finish_time, const int pre_simulated)
 {
-	if (!debug_message) return;
-
 	double winning_percentage = (double)root->win / root->move_count;
 
 	cout << "All Playouts       :  " << setw(7) << root->move_count << endl;

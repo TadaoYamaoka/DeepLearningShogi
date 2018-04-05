@@ -688,7 +688,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			}
 		}
 
-		cout << "info nps " << int(uct_node[current_root].move_count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
+		cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
@@ -700,7 +700,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 最善応手列を出力
 	//PrintBestSequence(pos, uct_node, current_root);
 	// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
-	PrintPlayoutInformation(&uct_node[current_root], &po_info, finish_time, pre_simulated);
+	if (debug_message) PrintPlayoutInformation(&uct_node[current_root], &po_info, finish_time, pre_simulated);
 
 	return move;
 }
