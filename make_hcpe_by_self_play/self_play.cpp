@@ -930,6 +930,9 @@ void UCTSearcher::SelfPlay()
 		playout = 0;
 		ply = 0;
 	}
+
+	grp->running_threads--;
+	logger->info("end selfplay thread:{}", thread_id);
 }
 
 void UCTSearcher::Run()
@@ -942,9 +945,7 @@ void UCTSearcher::Run()
 void UCTSearcher::Join()
 {
 	handle->join();
-	grp->running_threads--;
 	delete handle;
-	logger->info("end selfplay thread:{}", thread_id);
 }
 
 // 教師局面生成
