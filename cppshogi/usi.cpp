@@ -85,7 +85,11 @@ namespace {
 
 void OptionsMap::init(Searcher* s) {
     const int MaxHashMB = 1024 * 1024;
-    (*this)["USI_Hash"]                    = USIOption(256, 1, MaxHashMB, onHashSize, s);
+#ifdef SELF_PLAY
+	(*this)["USI_Hash"] = USIOption(1, 1, MaxHashMB, onHashSize, s);
+#else
+	(*this)["USI_Hash"] = USIOption(256, 1, MaxHashMB, onHashSize, s);
+#endif // SELF_PLAY
     (*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
     (*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
     (*this)["Eval_Dir"]                    = USIOption("20161007");

@@ -723,11 +723,6 @@ void UCTSearcher::SelfPlay()
 	const std::string options[] = {
 		"name Threads value 1",
 		"name MultiPV value 1",
-#ifdef USE_MATE_ROOT_SEARCH
-		"name USI_Hash value 256",
-#else
-		"name USI_Hash value 1",
-#endif
 		"name OwnBook value false",
 		"name Max_Random_Score_Diff value 0" };
 	for (auto& str : options) {
