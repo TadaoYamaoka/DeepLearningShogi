@@ -266,25 +266,33 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 			// UCT探索を使用
 			UctSearchGenmoveNoPonder(&pos);
 
-			// 探索回数で降順ソート
-			std::vector<child_node_t_copy> movelist;
-			child_node_t *uct_child = uct_node[current_root].child;
-			for (int i = 0; i < uct_node[current_root].child_num; i++) {
-				if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
-					movelist.emplace_back(uct_child[i]);
-				}
-			}
-			if (movelist.size() == 0) {
-				std::cerr << "Error: move_count" << std::endl;
+			if (uct_node[current_root].child_num == 0) {
+				std::cerr << "Error: child_num" << std::endl;
 				exit(EXIT_FAILURE);
 			}
-			std::cout << "movelist.size: " << movelist.size() << std::endl;
+
+			// 探索回数で降順ソート
+			std::vector<child_node_t_copy> movelist;
+			int num = 0;
+			child_node_t *uct_child = uct_node[current_root].child;
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
+				movelist.emplace_back(uct_child[i]);
+				if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
+					num++;
+				}
+			}
+			if (num == 0) {
+				num = (uct_node[current_root].child_num + 2) / 3;
+			}
+
+			std::cout << "movelist.size: " << num << std::endl;
 
 			std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
 				return left.move_count > right.move_count;
 			});
 
-			for (auto child : movelist) {
+			for (int i = 0; i < num; i++) {
+				auto &child = movelist[i];
 				// 定跡追加
 				BookEntry be;
 				float wintrate = child.win / child.move_count;
