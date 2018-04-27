@@ -327,7 +327,7 @@ void SetThread(const int new_thread[max_gpu])
 {
 	for (int i = 0; i < max_gpu; i++) {
 		if (new_thread[i] > 0)
-			search_groups[i].Initialize(new_thread[i], 1);
+			search_groups[i].Initialize(new_thread[i], i);
 	}
 }
 
