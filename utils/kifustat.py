@@ -33,7 +33,7 @@ for filepath in find_all_files(args.dir):
 # 表示
 games = win['b'] + win['w'] + win.get('-', 0)
 print('対局数{} 先手勝ち{}({}%) 後手勝ち{}({}%) 引き分け{}'.format(
-    games, win['b'], int(win['b'] / games * 100), win['w'], int(win['w'] / games * 100), win['-']))
+    games, win['b'], int(win['b'] / games * 100), win['w'], int(win['w'] / games * 100), win.get('-', 0)))
 for name in player.keys():
     print(name)
     print('勝ち{}({}%) 先手勝ち{}({}%) 後手勝ち{}({}%)'.format(
