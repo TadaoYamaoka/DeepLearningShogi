@@ -390,6 +390,9 @@ void read_book(const std::string& bookFileName, std::set<Key>& bookKeys) {
 void make_book(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
 
+	// ノードを再利用しない
+	SetReuseSubtree(false);
+
 	std::string bookFileName;
 	std::string outFileName;
 	int limitDepth;
