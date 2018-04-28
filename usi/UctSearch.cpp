@@ -677,7 +677,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 					}
 				}
 
-				if (max_count < 20)
+				if (max_count < 80)
 					break;
 
 				pv += " " + best_node[best_index].move.toUSI();
