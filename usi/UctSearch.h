@@ -9,10 +9,9 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-const unsigned int uct_hash_size = 262144; // UCTハッシュサイズ
+const unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 
 const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
-const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
 const double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
 const double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)

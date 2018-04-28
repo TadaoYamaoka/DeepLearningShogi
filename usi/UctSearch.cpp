@@ -67,7 +67,7 @@ const Position *pos_root;
 // 現在のルートのインデックス
 unsigned int current_root;
 
-mutex mutex_nodes[MAX_NODES];
+mutex mutex_nodes[uct_hash_size];
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 // 探索の設定
@@ -1210,7 +1210,7 @@ static void
 CalculateNextPlayouts(const Position *pos)
 {
 	if (pondering) {
-		po_info.num = MAX_NODES;
+		po_info.num = uct_hash_size;
 		return;
 	}
 
