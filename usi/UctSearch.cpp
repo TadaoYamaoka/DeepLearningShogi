@@ -853,7 +853,7 @@ InterruptionCheck(void)
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
 	const int rest = po_info.halt - po_info.count;
-	child_node_t *uct_child = uct_node[current_root].child;
+	const child_node_t *uct_child = uct_node[current_root].child;
 
 	if (mode != CONST_PLAYOUT_MODE &&
 		GetSpendTime(begin_time) * 10.0 < time_limit) {
