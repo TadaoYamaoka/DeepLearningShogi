@@ -890,7 +890,7 @@ ExtendTime(void)
 {
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
-	child_node_t *uct_child = uct_node[current_root].child;
+	const child_node_t *uct_child = uct_node[current_root].child;
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
