@@ -19,6 +19,7 @@ struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
 void go_uct(Position& pos, std::istringstream& ssCmd);
+bool nyugyoku(const Position& pos);
 void make_book(std::istringstream& ssCmd);
 void mate_test(Position& pos, std::istringstream& ssCmd);
 void test(Position& pos, std::istringstream& ssCmd);
@@ -193,6 +194,12 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 			std::cout << "bestmove " << std::get<0>(bookMoveScore).toUSI() << std::endl;
 			return;
 		}
+	}
+
+	// 入玉勝ちかどうかを判定
+	if (nyugyoku(pos)) {
+		std::cout << "bestmove win" << std::endl;
+		return;
 	}
 
 	// 詰みの探索用
