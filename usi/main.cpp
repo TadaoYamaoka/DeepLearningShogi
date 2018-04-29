@@ -274,7 +274,7 @@ void make_book_inner(Position& pos, std::set<Key>& bookKeys, std::map<Key, std::
 			// 探索回数で降順ソート
 			std::vector<child_node_t_copy> movelist;
 			int num = 0;
-			child_node_t *uct_child = uct_node[current_root].child;
+			const child_node_t *uct_child = uct_node[current_root].child;
 			for (int i = 0; i < uct_node[current_root].child_num; i++) {
 				movelist.emplace_back(uct_child[i]);
 				if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
