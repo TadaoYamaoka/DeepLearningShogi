@@ -1129,7 +1129,7 @@ void random_dirichlet(std::mt19937_64 &mt, float *x, const int size) {
 int
 UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, const int depth)
 {
-	child_node_t *uct_child = uct_node[current].child;
+	const child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
 	int max_child = 0;
 	const int sum = uct_node[current].move_count;
