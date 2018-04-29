@@ -687,7 +687,8 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			}
 		}
 
-		cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
+		if (!pondering)
+			cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
