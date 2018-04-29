@@ -533,7 +533,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 {
 	Move move;
 	double finish_time;
-	child_node_t *uct_child;
 
 	// ルート局面をグローバル変数に保存
 	pos_root = pos;
@@ -615,7 +614,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 探索にかかった時間を求める
 	finish_time = GetSpendTime(begin_time);
 
-	uct_child = uct_node[current_root].child;
+	const child_node_t* uct_child = uct_node[current_root].child;
 
 	int max_count = 0;
 	unsigned int select_index = 0;
@@ -663,7 +662,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		string pv = move.toUSI();
 		{
 			unsigned int best_index = select_index;
-			child_node_t *best_node = uct_child;
+			const child_node_t *best_node = uct_child;
 
 			while (best_node[best_index].index != NOT_EXPANDED) {
 				const int best_node_index = best_node[best_index].index;
