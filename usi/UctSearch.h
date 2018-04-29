@@ -91,7 +91,7 @@ void SetPlayout(int po);
 void SetConstTime(double time);
 
 // 使用するスレッド数の指定
-const int max_gpu = 2;
+const int max_gpu = 4;
 void SetThread(const int new_thread[max_gpu]);
 
 // 持ち時間の指定
@@ -123,7 +123,7 @@ inline Move UctSearchGenmoveNoPonder(Position *pos) {
 void SetReuseSubtree(bool flag);
 
 // モデルパスの設定
-void SetModelPath(const char* path);
+void SetModelPath(const std::string path[max_gpu]);
 
 // ゲーム終了
 void GameOver();

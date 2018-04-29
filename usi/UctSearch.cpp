@@ -94,7 +94,7 @@ ray_clock::time_point begin_time;
 
 
 // モデルのパス
-string model_path;
+string model_path[max_gpu];
 
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
@@ -1230,9 +1230,14 @@ CalculateNextPlayouts(const Position *pos)
 	}
 }
 
-void SetModelPath(const char* path)
+void SetModelPath(const std::string path[max_gpu])
 {
-	model_path = path;
+	for (int i = 0; i < max_gpu; i++) {
+		if (path[i] == "")
+			model_path[i] = path[0];
+		else
+			model_path[i] = path[i];
+	}
 }
 
 void UCTSearcherGroup::EvalNode() {
@@ -1240,7 +1245,7 @@ void UCTSearcherGroup::EvalNode() {
 
 	if (nn == nullptr) {
 		nn = new NN(threads);
-		nn->load_model(model_path.c_str());
+		nn->load_model(model_path[gpu_id].c_str());
 	}
 
 	bool enough_batch_size = true; // 初回はルートノードのため待たない
