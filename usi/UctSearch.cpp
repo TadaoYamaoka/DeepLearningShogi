@@ -92,6 +92,8 @@ bool reuse_subtree = true;
 
 ray_clock::time_point begin_time;
 
+// 投了する勝率の閾値
+float RESIGN_THRESHOLD = 0.01f;
 
 // モデルのパス
 string model_path[max_gpu];
@@ -333,6 +335,12 @@ void SetThread(const int new_thread[max_gpu])
 
 void GameOver()
 {
+}
+
+// 投了の閾値設定（1000分率）
+void SetResignThreshold(const int resign_threshold)
+{
+	RESIGN_THRESHOLD = (float)resign_threshold / 1000.0f;
 }
 
 void

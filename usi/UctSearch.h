@@ -25,9 +25,6 @@ const int UCT_CHILD_MAX = 593;
 // 未展開のノードのインデックス
 unsigned const int NOT_EXPANDED = -1;
 
-// 投了する勝率の閾値
-const float RESIGN_THRESHOLD = 0.01f;
-
 // Virtual Loss (Best Parameter)
 const int VIRTUAL_LOSS = 1;
 
@@ -101,6 +98,9 @@ void SetIncTime(double time, Color c);
 
 // time_settingsコマンドによる設定
 void SetTimeSettings(int main_time, int byoyomi, int stones);
+
+// 投了の閾値設定（1000分率）
+void SetResignThreshold(const int resign_threshold);
 
 // UCT探索の初期設定
 void InitializeUctSearch();

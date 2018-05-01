@@ -105,6 +105,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetModelPath(model_paths);
 			const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"] };
 			SetThread(new_thread);
+			SetResignThreshold(options["Resign_Threshold"]);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
