@@ -174,7 +174,7 @@ public:
 	float UctSearch(Position *pos, unsigned int current, const int depth);
 	int SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position *pos);
-	unsigned int ExpandNode(Position *pos, unsigned int current, const int depth);
+	unsigned int ExpandNode(Position *pos, const int depth);
 	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
 	void UpdateResult(child_node_t *child, float result, unsigned int current);
 	void SelfPlay();
@@ -304,7 +304,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth)
 	if (uct_child[next_index].index == NOT_EXPANDED) {
 		// ノードの展開
 		// ノード展開処理の中でvalueを計算する
-		unsigned int child_index = ExpandNode(pos, current, depth + 1);
+		unsigned int child_index = ExpandNode(pos, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
@@ -521,7 +521,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 //  ノードの展開  //
 ///////////////////
 unsigned int
-UCTSearcher::ExpandNode(Position *pos, unsigned int current, const int depth)
+UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
 	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
