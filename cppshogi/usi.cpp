@@ -93,7 +93,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
     (*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
     (*this)["Eval_Dir"]                    = USIOption("20161007");
-    //(*this)["Best_Book_Move"]              = USIOption(false);
+    (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(true);
     //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);

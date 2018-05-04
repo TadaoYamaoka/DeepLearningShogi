@@ -185,7 +185,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	// Book使用
 	static Book book;
 	if (!limits.ponder && pos.searcher()->options["OwnBook"]) {
-		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, pos.searcher()->options["Book_File"], false);
+		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, pos.searcher()->options["Book_File"], pos.searcher()->options["Best_Book_Move"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"
 				<< " score cp " << std::get<1>(bookMoveScore)
