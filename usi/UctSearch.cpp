@@ -370,8 +370,8 @@ UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
 
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * threads * sizeof(float), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y2, threads * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
 	}
 }
 
@@ -1253,7 +1253,7 @@ void UCTSearcherGroup::EvalNode() {
 	cudaSetDevice(gpu_id);
 
 	if (nn == nullptr) {
-		nn = new NN(threads);
+		nn = new NN(policy_value_batch_maxsize);
 		nn->load_model(model_path[gpu_id].c_str());
 	}
 
@@ -1263,11 +1263,6 @@ void UCTSearcherGroup::EvalNode() {
 		if (running_threads == 0 && current_policy_value_batch_index == 0) {
 			UNLOCK_EXPAND;
 			break;
-		}
-
-		if (running_threads == 0) {
-			UNLOCK_EXPAND;
-			this_thread::yield();
 		}
 
 		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
