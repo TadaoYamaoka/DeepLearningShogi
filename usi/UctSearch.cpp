@@ -668,6 +668,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 		// PV表示
 		string pv = move.toUSI();
+		int depth = 1;
 		{
 			unsigned int best_index = select_index;
 			const child_node_t *best_node = uct_child;
@@ -684,10 +685,11 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 					}
 				}
 
-				if (max_count < 80)
+				if (max_count < 1)
 					break;
 
 				pv += " " + best_node[best_index].move.toUSI();
+				depth++;
 
 				// ponderの着手
 				if (pondering_mode && ponderMove == Move::moveNone())
@@ -696,7 +698,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		}
 
 		if (!pondering)
-			cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " pv " << pv << endl;
+			cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash->GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
 		// 次の探索でのプレイアウト回数の算出
 		CalculatePlayoutPerSec(finish_time);
