@@ -724,7 +724,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 {
 	uct_child->move = move;
 	uct_child->move_count = 0;
-	uct_child->win = 0;
+	uct_child->win = 0.5f;
 	uct_child->index = NOT_EXPANDED;
 	uct_child->nnrate = 0;
 }
@@ -754,7 +754,7 @@ ExpandRoot(const Position *pos)
 
 		// ルートノードの初期化
 		uct_node[index].move_count = 0;
-		uct_node[index].win = 0;
+		uct_node[index].win = 0.5f;
 		uct_node[index].child_num = 0;
 		uct_node[index].evaled = 0;
 		uct_node[index].value_win = 0.0f;
@@ -801,7 +801,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;
-	uct_node[index].win = 0;
+	uct_node[index].win = 0.5f;
 	uct_node[index].child_num = 0;
 	uct_node[index].evaled = 0;
 	uct_node[index].value_win = 0.0f;
