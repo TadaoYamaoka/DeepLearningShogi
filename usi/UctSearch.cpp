@@ -108,6 +108,10 @@ const int MATE_SEARCH_DEPTH = 7;
 const float VALUE_WIN = FLT_MAX;
 const float VALUE_LOSE = -FLT_MAX;
 
+// 探索の結果を評価のキューに追加したか、破棄したか
+const float QUEUING = FLT_MAX;
+const float DISCARDED = -FLT_MAX;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -161,6 +165,8 @@ UctHash::DeleteOldHash(const Position* pos)
 
 // Virtual Lossを加算
 static void AddVirtualLoss(child_node_t *child, unsigned int current);
+// Virtual Lossを減算
+static void SubVirtualLoss(child_node_t *child, unsigned int current);
 
 // 次のプレイアウト回数の設定
 static void CalculatePlayoutPerSec(double finish_time);
@@ -184,83 +190,93 @@ static void UpdateResult(child_node_t *child, float result, unsigned int current
 class UCTSearcher;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup() : current_policy_value_queue_index(0), current_policy_value_batch_index(0), threads(0), running_threads(0), handle_eval(nullptr), nn(nullptr), y1(nullptr), y2(nullptr) {
-		features1[0] = features1[1] = nullptr;
-		features2[0] = features2[1] = nullptr;
-		policy_value_hash_index[0] = policy_value_hash_index[1] = nullptr;
-	}
+	UCTSearcherGroup() : threads(0), nn(nullptr) {}
 	~UCTSearcherGroup() {
-		for (size_t i = 0; i < 2; i++) {
-			checkCudaErrors(cudaFreeHost(features1[i]));
-			checkCudaErrors(cudaFreeHost(features2[i]));
-		}
-		checkCudaErrors(cudaFreeHost(y1));
-		checkCudaErrors(cudaFreeHost(y2));
 		delete nn;
 	}
 
-	void Initialize(const int new_thread, const int gpu_id);
-	void ClearEvalQueue();
-	void QueuingNode(const Position *pos, unsigned int index);
-	void EvalNode();
+	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
+	void InitGPU() {
+		mutex_gpu.lock();
+		if (nn == nullptr) {
+			nn = new NN(policy_value_batch_maxsize);
+			nn->load_model(model_path[gpu_id].c_str());
+		
+		}
+		mutex_gpu.unlock();
+	}
+	void nn_foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2) {
+		mutex_gpu.lock();
+		nn->foward(batch_size, x1, x2, y1, y2);
+		mutex_gpu.unlock();
+	}
 	void Run();
 	void Join();
 
-	// 実行中の探索スレッド数
-	atomic<int> running_threads;
+	// GPUID
+	int gpu_id;
 private:
 	// 使用するスレッド数
 	int threads;
-	// GPUID
-	int gpu_id;
-
-	// 2つのキューを交互に使用する
-	int policy_value_batch_maxsize; // スレッド数以上確保する
-	features1_t* features1[2];
-	features2_t* features2[2];
-	unsigned int* policy_value_hash_index[2];
-	int current_policy_value_queue_index;
-	int current_policy_value_batch_index;
 
 	// UCTSearcher
 	vector<UCTSearcher> searchers;
-	thread* handle_eval;
 
 	// neural network
 	NN* nn;
-	float* y1;
-	float* y2;
+	int policy_value_batch_maxsize;
+
+	// mutex for gpu
+	mutex mutex_gpu;
 };
 UCTSearcherGroup* search_groups;
 
 class UCTSearcher {
 public:
-	UCTSearcher(UCTSearcherGroup* grp, const int thread_id) :
+	UCTSearcher(UCTSearcherGroup* grp, const int thread_id, const int policy_value_batch_maxsize) :
 		grp(grp),
 		thread_id(thread_id),
-		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)) {}
+		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
+		policy_value_batch_maxsize(policy_value_batch_maxsize) {
+		// キューを動的に確保する
+		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		policy_value_hash_index = new unsigned int[policy_value_batch_maxsize];
+
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
+	}
 	UCTSearcher(UCTSearcher&& o) :
 		grp(grp),
 		thread_id(thread_id),
 		mt(move(o.mt)) {}
+	~UCTSearcher() {
+		checkCudaErrors(cudaFreeHost(features1));
+		checkCudaErrors(cudaFreeHost(features2));
+		delete[] policy_value_hash_index;
+		checkCudaErrors(cudaFreeHost(y1));
+		checkCudaErrors(cudaFreeHost(y2));
+	}
 
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
-	float UctSearch(Position *pos, const unsigned int current, const int depth);
+	float UctSearch(Position *pos, const unsigned int current, const int depth, vector<pair<unsigned int, unsigned int>>& trajectories);
 	// ノードの展開
 	unsigned int ExpandNode(Position *pos, const int depth);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(const Position *pos, const unsigned int current, const int depth);
+	// ノードをキューに追加
+	void QueuingNode(const Position *pos, unsigned int index);
+	// ノードを評価
+	void EvalNode();
 	// スレッド開始
 	void Run() {
-		grp->running_threads++;
 		handle = new thread([this]() { this->ParallelUctSearch(); });
 	}
 	// スレッド終了待機
 	void Join() {
 		handle->join();
-		grp->running_threads--;
 		delete handle;
 	}
 
@@ -272,13 +288,15 @@ private:
 	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
+
+	int policy_value_batch_maxsize;
+	features1_t* features1;
+	features2_t* features2;
+	float* y1;
+	float* y2;
+	unsigned int* policy_value_hash_index;
+	int current_policy_value_batch_index;
 };
-
-
-void UCTSearcherGroup::ClearEvalQueue() {
-	current_policy_value_queue_index = 0;
-	current_policy_value_batch_index = 0;
-}
 
 /////////////////////
 //  予測読みの設定  //
@@ -325,11 +343,15 @@ SetConstTime(double time)
 ////////////////////////////////
 //  使用するスレッド数の指定  //
 ////////////////////////////////
-void SetThread(const int new_thread[max_gpu])
+void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu])
 {
 	for (int i = 0; i < max_gpu; i++) {
-		if (new_thread[i] > 0)
-			search_groups[i].Initialize(new_thread[i], i);
+		if (new_thread[i] > 0) {
+			int policy_value_batch_maxsize = new_policy_value_batch_maxsize[i];
+			if (policy_value_batch_maxsize == 0)
+				policy_value_batch_maxsize = new_policy_value_batch_maxsize[0];
+			search_groups[i].Initialize(new_thread[i], i, policy_value_batch_maxsize);
+		}
 	}
 }
 
@@ -344,35 +366,20 @@ void SetResignThreshold(const int resign_threshold)
 }
 
 void
-UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id)
+UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize)
 {
 	this->gpu_id = gpu_id;
 	if (threads != new_thread) {
 		threads = new_thread;
 
-		// キューを動的に確保する
-		policy_value_batch_maxsize = threads;
-		for (size_t i = 0; i < 2; i++) {
-			checkCudaErrors(cudaFreeHost(features1[i]));
-			checkCudaErrors(cudaFreeHost(features2[i]));
-			delete[] policy_value_hash_index[i];
-			checkCudaErrors(cudaHostAlloc(&features1[i], sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-			checkCudaErrors(cudaHostAlloc(&features2[i], sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-			policy_value_hash_index[i] = new unsigned int[policy_value_batch_maxsize];
-		}
-
 		// UCTSearcher
 		searchers.clear();
 		searchers.reserve(threads);
 		for (int i = 0; i < threads; i++) {
-			searchers.emplace_back(this, i);
+			searchers.emplace_back(this, i, policy_value_batch_maxsize);
 		}
-
-		checkCudaErrors(cudaFreeHost(y1));
-		checkCudaErrors(cudaFreeHost(y2));
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
 	}
+	this->policy_value_batch_maxsize = policy_value_batch_maxsize;
 }
 
 // スレッド開始
@@ -384,9 +391,6 @@ UCTSearcherGroup::Run()
 		for (int i = 0; i < threads; i++) {
 			searchers[i].Run();
 		}
-
-		// 評価用スレッド
-		handle_eval = new thread([this]() { this->EvalNode(); });
 	}
 }
 
@@ -399,10 +403,6 @@ UCTSearcherGroup::Join()
 		for (int i = 0; i < threads; i++) {
 			searchers[i].Join();
 		}
-
-		// 評価用スレッド
-		handle_eval->join();
-		delete handle_eval;
 	}
 }
 
@@ -557,10 +557,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	else {
 		uct_hash->ClearUctHash();
 	}
-
-	// キューをクリア
-	for (int i = 0; i < max_gpu; i++)
-		search_groups[i].ClearEvalQueue();
 
 	// 探索開始時刻の記録
 	begin_time = ray_clock::now();
@@ -770,9 +766,6 @@ ExpandRoot(const Position *pos)
 		// 子ノード個数の設定
 		uct_node[index].child_num = child_num;
 
-		// ノードをキューに追加
-		search_groups[0].QueuingNode(pos, index);
-
 	}
 
 	return index;
@@ -817,15 +810,6 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	// 子ノードの個数を設定
 	uct_node[index].child_num = child_num;
 
-	// ノードをキューに追加
-	if (child_num > 0) {
-		grp->QueuingNode(pos, index);
-	}
-	else {
-		uct_node[index].value_win = 0.0f;
-		uct_node[index].evaled = 1;
-	}
-
 	return index;
 }
 
@@ -834,7 +818,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
+UCTSearcher::QueuingNode(const Position *pos, unsigned int index)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
@@ -843,11 +827,11 @@ UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
-	std::fill_n((float*)features2[current_policy_value_queue_index][current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
+	std::fill_n((float*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
+	std::fill_n((float*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
 
-	make_input_features(*pos, &features1[current_policy_value_queue_index][current_policy_value_batch_index], &features2[current_policy_value_queue_index][current_policy_value_batch_index]);
-	policy_value_hash_index[current_policy_value_queue_index][current_policy_value_batch_index] = index;
+	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	policy_value_hash_index[current_policy_value_batch_index] = index;
 	current_policy_value_batch_index++;
 }
 
@@ -933,19 +917,69 @@ ExtendTime(void)
 void
 UCTSearcher::ParallelUctSearch()
 {
+	// スレッドにGPUIDを関連付けてから初期化する
+	cudaSetDevice(grp->gpu_id);
+	grp->InitGPU();
+
+	// ルートノードを評価
+	LOCK_EXPAND;
+	if (uct_node[current_root].evaled == 0) {
+		current_policy_value_batch_index = 0;
+		QueuingNode(pos_root, current_root);
+		EvalNode();
+	}
+	UNLOCK_EXPAND;
+
 	bool interruption = false;
 	bool enough_size = true;
 
+	// 探索経路のバッチ
+	vector<vector<pair<unsigned int, unsigned int>>> trajectories_batch;
+
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
-		// 探索回数を1回増やす
-		atomic_fetch_add(&po_info.count, 1);
-		// 盤面のコピー
-		Position pos(*pos_root);
-		//cout << pos.toSFEN() << ":" << pos.getKey() << endl;
-		// 1回プレイアウトする
-		UctSearch(&pos, current_root, 0);
-		//cout << "root:" << current_root << " move_count:" << uct_node[current_root].move_count << endl;
+		trajectories_batch.clear();
+		current_policy_value_batch_index = 0;
+
+		// バッチサイズ分探索を繰り返す
+		for (int i = 0; i < policy_value_batch_maxsize; i++) {
+			// 探索回数を1回増やす
+			atomic_fetch_add(&po_info.count, 1);
+			// 盤面のコピー
+			Position pos(*pos_root);
+			
+			// 1回プレイアウトする
+			trajectories_batch.emplace_back();
+			float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+
+			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
+			if (result == DISCARDED || result != QUEUING) {
+				trajectories_batch.pop_back();
+			}
+		}
+
+		if (trajectories_batch.size() > 0) {
+			// 評価
+			EvalNode();
+
+			// バックアップ
+			for (auto& trajectories : trajectories_batch) {
+				float result;
+				for (int i = trajectories.size() - 1; i >= 0; i--) {
+					pair<unsigned int, unsigned int>& current_next = trajectories[i];
+					const unsigned int current = current_next.first;
+					const unsigned int next_index = current_next.second;
+					child_node_t* uct_child = uct_node[current].child;
+					if (i == trajectories.size() - 1) {
+						const unsigned int child_index = uct_child[next_index].index;
+						result = 1.0f - uct_node[child_index].value_win;
+					}
+					UpdateResult(&uct_child[next_index], result, current);
+					result = 1.0f - result;
+				}
+			}
+		}
+
 		// 探索を打ち切るか確認
 		interruption = InterruptionCheck();
 		// ハッシュに余裕があるか確認
@@ -962,7 +996,7 @@ UCTSearcher::ParallelUctSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int depth)
+UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int depth, vector<pair<unsigned int, unsigned int>>& trajectories)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
@@ -990,9 +1024,9 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		}
 	}
 
-	// policyが計算されるのを待つ(他のスレッドが同じノードを先に展開した場合、nnの計算を待つ必要がある)
-	while (uct_node[current].evaled == 0)
-		this_thread::yield();
+	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+	if (uct_node[current].evaled == 0)
+		return DISCARDED;
 
 	float result;
 	unsigned int next_index;
@@ -1006,6 +1040,9 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
+
+	// 経路を記録
+	trajectories.emplace_back(current, next_index);
 
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
@@ -1024,62 +1061,71 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
 
-		// 詰みチェック(ValueNet計算中にチェック)
-		int isMate = 0;
-		if (!pos->inCheck()) {
-			if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
-				isMate = 1;
-			}
+		// 合流検知
+		if (uct_node[child_index].evaled != 0) {
+			// 手番を入れ替えて1手深く読む
+			result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories);
 		}
-		else {
-			if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-				isMate = -1;
-			}
-		}
-
-		// 千日手チェック
-		int isDraw = 0;
-		switch (pos->isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionDraw: isDraw = 2; break; // Draw
-		case RepetitionWin: isDraw = 1; break;
-		case RepetitionLose: isDraw = -1; break;
-		case RepetitionSuperior: isDraw = 1; break;
-		case RepetitionInferior: isDraw = -1; break;
-		default: UNREACHABLE;
-		}
-
-		// valueが計算されるのを待つ
-		//cout << "wait value:" << child_index << ":" << uct_node[child_index].evaled << endl;
-		while (uct_node[child_index].evaled == 0)
-			this_thread::yield();
-
-		// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
-		if (isDraw != 0) {
-			uct_node[child_index].evaled = 2;
-			if (isDraw == 1) {
-				result = 0.0f;
-			}
-			else if (isDraw == -1) {
-				result = 1.0f;
-			}
-			else {
-				result = 0.5f;
-			}
-
-		}
-		// 詰みの場合、ValueNetの値を上書き
-		else if (isMate == 1) {
-			uct_node[child_index].value_win = VALUE_WIN;
-			result = 0.0f;
-		}
-		else if (isMate == -1) {
+		else if (uct_node[child_index].child_num == 0) {
+			// 詰み
 			uct_node[child_index].value_win = VALUE_LOSE;
+			uct_node[child_index].evaled = 1;
 			result = 1.0f;
 		}
 		else {
-			// valueを勝敗として返す
-			result = 1 - uct_node[child_index].value_win;
+			// 詰みチェック(ValueNet計算中にチェック)
+			int isMate = 0;
+			if (!pos->inCheck()) {
+				if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
+					isMate = 1;
+				}
+			}
+			else {
+				if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+					isMate = -1;
+				}
+			}
+
+			// 千日手チェック
+			int isDraw = 0;
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: isDraw = 2; break; // Draw
+			case RepetitionWin: isDraw = 1; break;
+			case RepetitionLose: isDraw = -1; break;
+			case RepetitionSuperior: isDraw = 1; break;
+			case RepetitionInferior: isDraw = -1; break;
+			default: UNREACHABLE;
+			}
+
+			// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
+			if (isDraw != 0) {
+				uct_node[child_index].evaled = 2;
+				if (isDraw == 1) {
+					result = 0.0f;
+				}
+				else if (isDraw == -1) {
+					result = 1.0f;
+				}
+				else {
+					result = 0.5f;
+				}
+
+			}
+			// 詰みの場合、ValueNetの値を上書き
+			else if (isMate == 1) {
+				uct_node[child_index].value_win = VALUE_WIN;
+				result = 0.0f;
+			}
+			else if (isMate == -1) {
+				uct_node[child_index].value_win = VALUE_LOSE;
+				result = 1.0f;
+			}
+			else {
+				// ノードをキューに追加
+				QueuingNode(pos, child_index);
+				return QUEUING;
+			}
 		}
 	}
 	else {
@@ -1087,13 +1133,21 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		UNLOCK_NODE(current);
 
 		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, uct_child[next_index].index, depth + 1);
+		result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories);
+	}
+
+	if (result == QUEUING)
+		return result;
+	else if (result == DISCARDED) {
+		// Virtual Lossを戻す
+		SubVirtualLoss(&uct_child[next_index], current);
+		return result;
 	}
 
 	// 探索結果の反映
 	UpdateResult(&uct_child[next_index], result, current);
 
-	return 1 - result;
+	return 1.0f - result;
 }
 
 
@@ -1107,6 +1161,13 @@ AddVirtualLoss(child_node_t *child, unsigned int current)
 	atomic_fetch_add(&child->move_count, VIRTUAL_LOSS);
 }
 
+// Virtual Lossを減算
+static void
+SubVirtualLoss(child_node_t *child, unsigned int current)
+{
+	atomic_fetch_add(&uct_node[current].move_count, -VIRTUAL_LOSS);
+	atomic_fetch_add(&child->move_count, -VIRTUAL_LOSS);
+}
 
 //////////////////////
 //  探索結果の更新  //
@@ -1251,80 +1312,42 @@ void SetModelPath(const std::string path[max_gpu])
 	}
 }
 
-void UCTSearcherGroup::EvalNode() {
-	cudaSetDevice(gpu_id);
+void UCTSearcher::EvalNode() {
+	const int policy_value_batch_size = current_policy_value_batch_index;
 
-	if (nn == nullptr) {
-		nn = new NN(policy_value_batch_maxsize);
-		nn->load_model(model_path[gpu_id].c_str());
-	}
+	// predict
+	grp->nn_foward(policy_value_batch_size, features1, features2, y1, y2);
 
-	bool enough_batch_size = true; // 初回はルートノードのため待たない
-	while (true) {
-		LOCK_EXPAND;
-		if (running_threads == 0 && current_policy_value_batch_index == 0) {
-			UNLOCK_EXPAND;
-			break;
+	const float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	const float *value = reinterpret_cast<float*>(y2);
+
+	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+		const unsigned int index = policy_value_hash_index[i];
+
+		LOCK_NODE(index);
+
+		const int child_num = uct_node[index].child_num;
+		child_node_t *uct_child = uct_node[index].child;
+		Color color = (Color)(*uct_hash)[index].color;
+
+		// 合法手一覧
+		std::vector<float> legal_move_probabilities;
+		legal_move_probabilities.reserve(child_num);
+		for (int j = 0; j < child_num; j++) {
+			Move move = uct_child[j].move;
+			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+			legal_move_probabilities.emplace_back((*logits)[move_label]);
 		}
 
-		if (running_threads > 0 && (current_policy_value_batch_index == 0 || !enough_batch_size && current_policy_value_batch_index < running_threads * 0.9)) {
-			UNLOCK_EXPAND;
-			this_thread::sleep_for(chrono::milliseconds(1));
-			enough_batch_size = true;
+		// Boltzmann distribution
+		softmax_tempature_with_normalize(legal_move_probabilities);
+
+		for (int j = 0; j < child_num; j++) {
+			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
-		else {
-			enough_batch_size = false;
-			int policy_value_batch_size = current_policy_value_batch_index;
-			int policy_value_queue_index = current_policy_value_queue_index;
-			current_policy_value_batch_index = 0;
-			current_policy_value_queue_index = current_policy_value_queue_index ^ 1;
-			UNLOCK_EXPAND;
-			//std::cout << policy_value_batch_size << std::endl;
 
-			// predict
-			nn->foward(policy_value_batch_size, features1[policy_value_queue_index], features2[policy_value_queue_index], y1, y2);
-
-			const float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-			const float *value = reinterpret_cast<float*>(y2);
-
-			for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-				const unsigned int index = policy_value_hash_index[policy_value_queue_index][i];
-
-				/*if (index == current_root) {
-					string str;
-					for (int sq = 0; sq < SquareNum; sq++) {
-						str += to_string((int)features1[policy_value_queue_index][i][0][0][sq]);
-						str += " ";
-					}
-					cout << str << endl;
-				}*/
-
-				LOCK_NODE(index);
-
-				const int child_num = uct_node[index].child_num;
-				child_node_t *uct_child = uct_node[index].child;
-				Color color = (Color)(*uct_hash)[index].color;
-
-				// 合法手一覧
-				std::vector<float> legal_move_probabilities;
-				legal_move_probabilities.reserve(child_num);
-				for (int j = 0; j < child_num; j++) {
-					Move move = uct_child[j].move;
-					const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-					legal_move_probabilities.emplace_back((*logits)[move_label]);
-				}
-
-				// Boltzmann distribution
-				softmax_tempature_with_normalize(legal_move_probabilities);
-
-				for (int j = 0; j < child_num; j++) {
-					uct_child[j].nnrate = legal_move_probabilities[j];
-				}
-
-				uct_node[index].value_win = *value;
-				uct_node[index].evaled = 1;
-				UNLOCK_NODE(index);
-			}
-		}
+		uct_node[index].value_win = *value;
+		uct_node[index].evaled = 1;
+		UNLOCK_NODE(index);
 	}
 }

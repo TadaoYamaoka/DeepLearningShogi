@@ -112,7 +112,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Move_Overhead"]               = USIOption(30, 0, 5000);
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
     (*this)["Threads"]                     = USIOption(1, 1, MaxThreads, onThreads, s);
-	(*this)["UCT_Threads"]                 = USIOption(std::min(cpuCoreCount() * 16, MaxThreads), 1, MaxThreads);
+	(*this)["UCT_Threads"]                 = USIOption(2, 1, MaxThreads);
 	(*this)["UCT_Threads2"]                = USIOption(0, 0, MaxThreads);
 	(*this)["UCT_Threads3"]                = USIOption(0, 0, MaxThreads);
 	(*this)["UCT_Threads4"]                = USIOption(0, 0, MaxThreads);
@@ -120,6 +120,10 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Model2"]                  = USIOption("");
 	(*this)["DNN_Model3"]                  = USIOption("");
 	(*this)["DNN_Model4"]                  = USIOption("");
+	(*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
+	(*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
+	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
+	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
 	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
 	(*this)["Mate_Root_Search"]            = USIOption(false);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
