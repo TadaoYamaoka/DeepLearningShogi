@@ -943,14 +943,17 @@ UCTSearcher::ParallelUctSearch()
 
 		// バッチサイズ分探索を繰り返す
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
-			// 探索回数を1回増やす
-			atomic_fetch_add(&po_info.count, 1);
 			// 盤面のコピー
 			Position pos(*pos_root);
 			
 			// 1回プレイアウトする
 			trajectories_batch.emplace_back();
 			float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+
+			if (result != DISCARDED) {
+				// 探索回数を1回増やす
+				atomic_fetch_add(&po_info.count, 1);
+			}
 
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
