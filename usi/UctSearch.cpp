@@ -966,14 +966,14 @@ UCTSearcher::ParallelUctSearch()
 			EvalNode();
 
 			// バックアップ
+			float result = 0.0f;
 			for (auto& trajectories : trajectories_batch) {
-				float result;
 				for (int i = trajectories.size() - 1; i >= 0; i--) {
 					pair<unsigned int, unsigned int>& current_next = trajectories[i];
 					const unsigned int current = current_next.first;
 					const unsigned int next_index = current_next.second;
 					child_node_t* uct_child = uct_node[current].child;
-					if (i == trajectories.size() - 1) {
+					if ((size_t)i == trajectories.size() - 1) {
 						const unsigned int child_index = uct_child[next_index].index;
 						result = 1.0f - uct_node[child_index].value_win;
 					}
