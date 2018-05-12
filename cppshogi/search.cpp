@@ -570,7 +570,7 @@ void Thread::search() {
                 if (searcher->signals.stop)
                     break;
 
-                if (mainThread
+                /*if (mainThread
                     && multiPV == 1
                     && (bestScore <= alpha || beta <= bestScore)
                     && searcher->timeManager.elapsed() > 3000
@@ -579,7 +579,7 @@ void Thread::search() {
                 {
                     lastInfoTime = searcher->timeManager.elapsed();
                     SYNCCOUT << pvInfoToUSI(rootPos, multiPV, rootDepth, alpha, beta) << SYNCENDL;
-                }
+                }*/
 
                 if (bestScore <= alpha) {
                     beta = (alpha + beta) / 2;
@@ -602,7 +602,7 @@ void Thread::search() {
 
             std::stable_sort(std::begin(rootMoves), std::begin(rootMoves) + pvIdx + 1);
 
-            if (!mainThread)
+            /*if (!mainThread)
                 continue;
 
             if (searcher->signals.stop) {
@@ -617,7 +617,7 @@ void Thread::search() {
             {
                 lastInfoTime = searcher->timeManager.elapsed();
                 SYNCCOUT << pvInfoToUSI(rootPos, multiPV, rootDepth, alpha, beta) << SYNCENDL;
-            }
+            }*/
         }
 
         if (!searcher->signals.stop)
@@ -1355,7 +1355,7 @@ void MainThread::search() {
     }
     Thread::search();
 #else
-    auto& options = searcher->options;
+	auto& options = searcher->options;
     auto& tt = searcher->tt;
     auto& signals = searcher->signals;
 
@@ -1363,18 +1363,18 @@ void MainThread::search() {
     Position& pos = rootPos;
     const Color us = pos.turn();
     searcher->timeManager.init(searcher->limits, us, pos.gamePly(), pos, searcher);
-    std::uniform_int_distribution<int> dist(options["Min_Book_Ply"], options["Max_Book_Ply"]);
-    const Ply book_ply = dist(g_randomTimeSeed);
+    //std::uniform_int_distribution<int> dist(options["Min_Book_Ply"], options["Max_Book_Ply"]);
+    //const Ply book_ply = dist(g_randomTimeSeed);
     bool searched = false;
 
-    bool nyugyokuWin = false;
+    /*bool nyugyokuWin = false;
     if (nyugyoku(pos)) {
         nyugyokuWin = true;
         goto finalize;
-    }
+    }*/
     pos.setNodesSearched(0);
 
-    SYNCCOUT << "info string book_ply " << book_ply << SYNCENDL;
+    /*SYNCCOUT << "info string book_ply " << book_ply << SYNCENDL;
     if (options["OwnBook"] && pos.gamePly() <= book_ply) {
         const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
         if (std::get<0>(bookMoveScore) && std::find(rootMoves.begin(),
@@ -1391,7 +1391,7 @@ void MainThread::search() {
             rootMoves[0].score = std::get<1>(bookMoveScore);
             goto finalize;
         }
-    }
+    }*/
 #if defined BISHOP_IN_DANGER
     {
         auto deleteFunc = [&](const std::string& str) {
@@ -1431,11 +1431,10 @@ void MainThread::search() {
     }
 
 finalize:
-
-    if (!signals.stop && (searcher->limits.ponder || searcher->limits.infinite)) {
+    /*if (!signals.stop && (searcher->limits.ponder || searcher->limits.infinite)) {
         signals.stopOnPonderHit = true;
         wait(signals.stop);
-    }
+    }*/
 
     signals.stop = true;
 
@@ -1465,10 +1464,10 @@ finalize:
     if (bestThread != this)
         SYNCCOUT << pvInfoToUSI(bestThread->rootPos, 1, bestThread->completedDepth, -ScoreInfinite, ScoreInfinite) << SYNCENDL;
 #else
-    SYNCCOUT << pvInfoToUSI(bestThread->rootPos, 1, bestThread->completedDepth, -ScoreInfinite, ScoreInfinite) << SYNCENDL;
+    //SYNCCOUT << pvInfoToUSI(bestThread->rootPos, 1, bestThread->completedDepth, -ScoreInfinite, ScoreInfinite) << SYNCENDL;
 #endif
 
-    if (nyugyokuWin)
+    /*if (nyugyokuWin)
         SYNCCOUT << "bestmove win" << SYNCENDL;
     else if (!bestThread->rootMoves[0].pv[0])
         SYNCCOUT << "bestmove resign" << SYNCENDL;
@@ -1477,7 +1476,7 @@ finalize:
         if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extractPonderFromTT(pos))
             std::cout << " ponder " << bestThread->rootMoves[0].pv[1].toUSI();
         std::cout << SYNCENDL;
-    }
+    }*/
 #endif
 }
 

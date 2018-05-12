@@ -207,8 +207,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	// 詰みの探索用
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		limits.infinite = true;
-		pos.searcher()->alpha = -ScoreMaxEvaluate;
-		pos.searcher()->beta = ScoreMaxEvaluate;
 		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
 	}
 

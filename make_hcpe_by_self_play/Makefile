@@ -1,5 +1,5 @@
 ﻿CC = g++
-CFLAGS = -std=c++11 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+CFLAGS = -std=c++11 -Wextra -Ofast -MMD -MP -fopenmp -DLEARN -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lcuda -lcudnn -lcudart -lcublas -lz -flto
 INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda-9.0/lib64

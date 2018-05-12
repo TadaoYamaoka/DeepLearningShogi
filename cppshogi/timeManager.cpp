@@ -112,6 +112,6 @@ void TimeManager::init(LimitsType& limits, const Color us, const Ply ply, const 
     }
 #endif
 
-    SYNCCOUT << "info string optimum_time = " << optimumTime_ << SYNCENDL;
-    SYNCCOUT << "info string maximum_time = " << maximumTime_ << SYNCENDL;
+    //SYNCCOUT << "info string optimum_time = " << optimumTime_ << SYNCENDL;
+    //SYNCCOUT << "info string maximum_time = " << maximumTime_ << SYNCENDL;
 }
