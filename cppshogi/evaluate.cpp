@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,26 +24,27 @@
 #include "search.hpp"
 #include "thread.hpp"
 
-KPPBoardIndexStartToPiece g_kppBoardIndexStartToPiece;
+EvalIndex KPPIndexBeginArray[fe_end];
+bool KPPIndexIsBlackArray[fe_end];
 
-KPPType Evaluator::KPP[SquareNum][fe_end][fe_end];
-KKPType Evaluator::KKP[SquareNum][SquareNum][fe_end];
-KKType  Evaluator::KK[SquareNum][SquareNum];
+bool Evaluator::allocated = false;
+KPPEvalElementType1 *Evaluator::KPP;
+KKPEvalElementType1 *Evaluator::KKP;
 EvaluateHashTable g_evalTable;
 
-const int kppArray[31] = {
-    0,        f_pawn,   f_lance,  f_knight,
-    f_silver, f_bishop, f_rook,   f_gold,
-    0,        f_gold,   f_gold,   f_gold,
-    f_gold,   f_horse,  f_dragon,
-    0,
-    0,        e_pawn,   e_lance,  e_knight,
-    e_silver, e_bishop, e_rook,   e_gold,
-    0,        e_gold,   e_gold,   e_gold,
-    e_gold,   e_horse,  e_dragon
+const EvalIndex kppArray[31] = {
+    (EvalIndex)0, f_pawn,   f_lance,  f_knight,
+    f_silver    , f_bishop, f_rook,   f_gold,
+    (EvalIndex)0, f_gold,   f_gold,   f_gold,
+    f_gold      , f_horse,  f_dragon,
+    (EvalIndex)0,
+    (EvalIndex)0, e_pawn,   e_lance,  e_knight,
+    e_silver    , e_bishop, e_rook,   e_gold,
+    (EvalIndex)0, e_gold,   e_gold,   e_gold,
+    e_gold      , e_horse,  e_dragon
 };
 
-const int kppHandArray[ColorNum][HandPieceNum] = {
+const EvalIndex kppHandArray[ColorNum][HandPieceNum] = {
     {f_hand_pawn, f_hand_lance, f_hand_knight, f_hand_silver,
      f_hand_gold, f_hand_bishop, f_hand_rook},
     {e_hand_pawn, e_hand_lance, e_hand_knight, e_hand_silver,
@@ -51,11 +52,11 @@ const int kppHandArray[ColorNum][HandPieceNum] = {
 };
 
 namespace {
-    EvalSum doapc(const Position& pos, const int index[2]) {
+    EvalSum doapc(const Position& pos, const EvalIndex index[2]) {
         const Square sq_bk = pos.kingSquare(Black);
         const Square sq_wk = pos.kingSquare(White);
-        const int* list0 = pos.cplist0();
-        const int* list1 = pos.cplist1();
+        const EvalIndex* list0 = pos.cplist0();
+        const EvalIndex* list1 = pos.cplist1();
 
         EvalSum sum;
         sum.p[2][0] = Evaluator::KKP[sq_bk][sq_wk][index[0]][0];
@@ -84,9 +85,9 @@ namespace {
 
         return sum;
     }
-    std::array<s32, 2> doablack(const Position& pos, const int index[2]) {
+    std::array<s32, 2> doablack(const Position& pos, const EvalIndex index[2]) {
         const Square sq_bk = pos.kingSquare(Black);
-        const int* list0 = pos.cplist0();
+        const EvalIndex* list0 = pos.cplist0();
 
         const auto* pkppb = Evaluator::KPP[sq_bk         ][index[0]];
         std::array<s32, 2> sum = {{pkppb[list0[0]][0], pkppb[list0[0]][1]}};
@@ -96,9 +97,9 @@ namespace {
         }
         return sum;
     }
-    std::array<s32, 2> doawhite(const Position& pos, const int index[2]) {
+    std::array<s32, 2> doawhite(const Position& pos, const EvalIndex index[2]) {
         const Square sq_wk = pos.kingSquare(White);
-        const int* list1 = pos.cplist1();
+        const EvalIndex* list1 = pos.cplist1();
 
         const auto* pkppw = Evaluator::KPP[inverse(sq_wk)][index[1]];
         std::array<s32, 2> sum = {{pkppw[list1[0]][0], pkppw[list1[0]][1]}};
@@ -173,12 +174,12 @@ namespace {
             EvalSum diff = (ss-1)->staticEvalRaw; // 本当は diff ではないので名前が良くない。
             const Square sq_bk = pos.kingSquare(Black);
             const Square sq_wk = pos.kingSquare(White);
-            diff.p[2][0] = Evaluator::KK[sq_bk][sq_wk][0];
-            diff.p[2][1] = Evaluator::KK[sq_bk][sq_wk][1];
+            diff.p[2][0] = 0;
+            diff.p[2][1] = 0;
             diff.p[2][0] += pos.material() * FVScale;
             if (pos.turn() == Black) {
                 const auto* ppkppw = Evaluator::KPP[inverse(sq_wk)];
-                const int* list1 = pos.plist1();
+                const EvalIndex* list1 = pos.plist1();
                 diff.p[1][0] = 0;
                 diff.p[1][1] = 0;
                 for (int i = 0; i < pos.nlist(); ++i) {
@@ -202,7 +203,7 @@ namespace {
             }
             else {
                 const auto* ppkppb = Evaluator::KPP[sq_bk         ];
-                const int* list0 = pos.plist0();
+                const EvalIndex* list0 = pos.plist0();
                 diff.p[0][0] = 0;
                 diff.p[0][1] = 0;
                 for (int i = 0; i < pos.nlist(); ++i) {
@@ -245,7 +246,6 @@ namespace {
                 pos.plist0()[listIndex] = pos.cl().clistpair[0].oldlist[0];
                 pos.plist1()[listIndex] = pos.cl().clistpair[0].oldlist[1];
                 diff -= doapc(pos, pos.cl().clistpair[0].oldlist);
-
                 diff -= doapc(pos, pos.cl().clistpair[1].oldlist);
                 diff.p[0] += Evaluator::KPP[pos.kingSquare(Black)         ][pos.cl().clistpair[0].oldlist[0]][pos.cl().clistpair[1].oldlist[0]];
                 diff.p[1] += Evaluator::KPP[inverse(pos.kingSquare(White))][pos.cl().clistpair[0].oldlist[1]][pos.cl().clistpair[1].oldlist[1]];
@@ -305,15 +305,15 @@ namespace {
 
         const Square sq_bk = pos.kingSquare(Black);
         const Square sq_wk = pos.kingSquare(White);
-        const int* list0 = pos.plist0();
-        const int* list1 = pos.plist1();
+        const EvalIndex* list0 = pos.plist0();
+        const EvalIndex* list1 = pos.plist1();
 
         const auto* ppkppb = Evaluator::KPP[sq_bk         ];
         const auto* ppkppw = Evaluator::KPP[inverse(sq_wk)];
 
         EvalSum sum;
-        sum.p[2][0] = Evaluator::KK[sq_bk][sq_wk][0];
-        sum.p[2][1] = Evaluator::KK[sq_bk][sq_wk][1];
+        sum.p[2][0] = 0;
+        sum.p[2][1] = 0;
 #if defined USE_AVX2_EVAL || defined USE_SSE_EVAL
         sum.m[0] = _mm_setzero_si128();
         for (int i = 0; i < pos.nlist(); ++i) {
@@ -332,13 +332,11 @@ namespace {
             sum.p[2] += Evaluator::KKP[sq_bk][sq_wk][k0];
         }
 #else
-        // loop 開始を i = 1 からにして、i = 0 の分のKKPを先に足す。
-        sum.p[2] += Evaluator::KKP[sq_bk][sq_wk][list0[0]];
         sum.p[0][0] = 0;
         sum.p[0][1] = 0;
         sum.p[1][0] = 0;
         sum.p[1][1] = 0;
-        for (int i = 1; i < pos.nlist(); ++i) {
+        for (int i = 0; i < pos.nlist(); ++i) {
             const int k0 = list0[i];
             const int k1 = list1[i];
             const auto* pkppb = ppkppb[k0];
@@ -382,7 +380,7 @@ Score evaluateUnUseDiff(const Position& pos) {
             ++nlist;
         }
     };
-func(handB, HPawn  , f_hand_pawn  , e_hand_pawn  );
+    func(handB, HPawn  , f_hand_pawn  , e_hand_pawn  );
     func(handW, HPawn  , e_hand_pawn  , f_hand_pawn  );
     func(handB, HLance , f_hand_lance , e_hand_lance );
     func(handW, HLance , e_hand_lance , f_hand_lance );
@@ -403,13 +401,12 @@ func(handB, HPawn  , f_hand_pawn  , e_hand_pawn  );
     const auto* ppkppw = Evaluator::KPP[inverse(sq_wk)];
 
     EvalSum score;
-    score.p[2][0] = Evaluator::KK[sq_bk][sq_wk][0];
-    score.p[2][1] = Evaluator::KK[sq_bk][sq_wk][1];
-
     score.p[0][0] = 0;
     score.p[0][1] = 0;
     score.p[1][0] = 0;
     score.p[1][1] = 0;
+    score.p[2][0] = 0;
+    score.p[2][1] = 0;
     for (int i = 0; i < nlist; ++i) {
         const int k0 = list0[i];
         const int k1 = list1[i];

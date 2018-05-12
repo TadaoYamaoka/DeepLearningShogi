@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -62,7 +62,9 @@ void TimeManager::init(LimitsType& limits, const Color us, const Ply ply, const 
     const int moveOverhead    = s->options["Move_Overhead"];
     const int slowMover       = (pos.gamePly() < 10 ? s->options["Slow_Mover_10"] :
                                  pos.gamePly() < 16 ? s->options["Slow_Mover_16"] :
-                                 pos.gamePly() < 20 ? s->options["Slow_Mover_20"] : s->options["Slow_Mover"]);
+                                 pos.gamePly() < 20 ? s->options["Slow_Mover_20"] :
+                                 pos.gamePly() < 30 ? s->options["Slow_Mover_30"] :
+                                 pos.gamePly() < 40 ? s->options["Slow_Mover_40"] : s->options["Slow_Mover"]);
     const Ply drawPly         = s->options["Draw_Ply"];
     // Draw_Ply までで引き分けになるから、そこまでで時間を使い切る。
     auto moveHorizon = [&](const Ply p) { return std::min(MoveHorizon, drawPly - p); };

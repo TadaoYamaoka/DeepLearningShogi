@@ -276,7 +276,7 @@ public:
 	}
 };
 void Engine::setup_eval_dir(const char* eval_dir) {
-	std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir, true);
+	std::unique_ptr<Evaluator>(new Evaluator)->init(eval_dir);
 }
 
 class States {

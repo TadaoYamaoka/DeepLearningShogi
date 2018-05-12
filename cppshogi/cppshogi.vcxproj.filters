@@ -13,7 +13,7 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="ソース ファイル\elmo">
+    <Filter Include="ソース ファイル\apery">
       <UniqueIdentifier>{144dbbe1-a1b8-4675-82b7-ca06ff27ec73}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -22,61 +22,61 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="bitboard.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="hand.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="init.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="move.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="mt64bit.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="pieceScore.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="position.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="square.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="tt.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="generateMoves.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="search.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="evalList.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="evaluate.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="thread.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="timeManager.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="usi.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="movePicker.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="common.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="book.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="python_module.cpp">
       <Filter>ソース ファイル</Filter>

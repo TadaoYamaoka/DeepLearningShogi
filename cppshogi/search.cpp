@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -225,55 +225,68 @@ namespace {
 
 #if defined BISHOP_IN_DANGER
     BishopInDangerFlag detectBishopInDanger(const Position& pos) {
-        if (pos.gamePly() <= 60) {
-            const Color them = oppositeColor(pos.turn());
-            if (pos.hand(pos.turn()).exists<HBishop>()
-                && pos.bbOf(Silver, them).isSet(inverseIfWhite(them, SQ27))
-                && (pos.bbOf(King  , them).isSet(inverseIfWhite(them, SQ48))
-                    || pos.bbOf(King  , them).isSet(inverseIfWhite(them, SQ47))
-                    || pos.bbOf(King  , them).isSet(inverseIfWhite(them, SQ59)))
-                && pos.bbOf(Pawn  , them).isSet(inverseIfWhite(them, SQ37))
-                && pos.piece(inverseIfWhite(them, SQ28)) == Empty
-                && pos.piece(inverseIfWhite(them, SQ38)) == Empty
-                && pos.piece(inverseIfWhite(them, SQ39)) == Empty)
-            {
-                return (pos.turn() == Black ? BlackBishopInDangerIn28 : WhiteBishopInDangerIn28);
-            }
-            else if (pos.hand(pos.turn()).exists<HBishop>()
-                     && pos.hand(them).exists<HBishop>()
-                     && pos.piece(inverseIfWhite(them, SQ78)) == Empty
-                     && pos.piece(inverseIfWhite(them, SQ79)) == Empty
-                     && pos.piece(inverseIfWhite(them, SQ68)) == Empty
-                     && pos.piece(inverseIfWhite(them, SQ69)) == Empty
-                     && pos.piece(inverseIfWhite(them, SQ98)) == Empty
-                     && (pieceToPieceType(pos.piece(inverseIfWhite(them, SQ77))) == Silver
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ88))) == Silver)
-                     && (pieceToPieceType(pos.piece(inverseIfWhite(them, SQ77))) == Knight
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ89))) == Knight)
-                     && ((pieceToPieceType(pos.piece(inverseIfWhite(them, SQ58))) == Gold
-                          && pieceToPieceType(pos.piece(inverseIfWhite(them, SQ59))) == King)
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ59))) == Gold))
-            {
-                return (pos.turn() == Black ? BlackBishopInDangerIn78 : WhiteBishopInDangerIn78);
-            }
-            else if (pos.hand(pos.turn()).exists<HBishop>()
-                     && pos.hand(them).exists<HBishop>()
-                     && pos.piece(inverseIfWhite(them, SQ38)) == Empty
-                     && pos.piece(inverseIfWhite(them, SQ18)) == Empty
-                     && pieceToPieceType(pos.piece(inverseIfWhite(them, SQ28))) == Silver
-                     && (pieceToPieceType(pos.piece(inverseIfWhite(them, SQ58))) == King
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ57))) == King
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ58))) == Gold
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ57))) == Gold)
-                     && (pieceToPieceType(pos.piece(inverseIfWhite(them, SQ59))) == King
-                         || pieceToPieceType(pos.piece(inverseIfWhite(them, SQ59))) == Gold))
-            {
-                return (pos.turn() == Black ? BlackBishopInDangerIn38 : WhiteBishopInDangerIn38);
-            }
+        const Color them = oppositeColor(pos.turn());
+        if (pos.hand(pos.turn()).exists<HBishop>()
+            && pos.hand(them).exists<HBishop>()
+            && !pos.hand(pos.turn()).exists<HRook>()
+            && !pos.hand(pos.turn()).exists<HGold>()
+            && !pos.hand(pos.turn()).exists<HSilver>())
+        {
+            return (pos.turn() == Black ? BlackBishopInDanger : WhiteBishopInDanger);
         }
         return NotBishopInDanger;
     }
 #endif
+}
+
+// 入玉勝ちかどうかを判定
+bool nyugyoku(const Position& pos) {
+	// CSA ルールでは、一 から 六 の条件を全て満たすとき、入玉勝ち宣言が出来る。
+	// 判定が高速に出来るものから順に判定していく事にする。
+
+	// 一 宣言側の手番である。
+
+	// この関数を呼び出すのは自分の手番のみとする。ponder では呼び出さない。
+
+	// 六 宣言側の持ち時間が残っている。
+
+	// 持ち時間が無ければ既に負けなので、何もチェックしない。
+
+	// 五 宣言側の玉に王手がかかっていない。
+	if (pos.inCheck())
+		return false;
+
+	const Color us = pos.turn();
+	// 敵陣のマスク
+	const Bitboard opponentsField = (us == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
+
+	// 二 宣言側の玉が敵陣三段目以内に入っている。
+	if (!pos.bbOf(King, us).andIsAny(opponentsField))
+		return false;
+
+	// 四 宣言側の敵陣三段目以内の駒は、玉を除いて10枚以上存在する。
+	const int ownPiecesCount = (pos.bbOf(us) & opponentsField).popCount() - 1;
+	if (ownPiecesCount < 10)
+		return false;
+
+	// 三 宣言側が、大駒5点小駒1点で計算して
+	//     先手の場合28点以上の持点がある。
+	//     後手の場合27点以上の持点がある。
+	//     点数の対象となるのは、宣言側の持駒と敵陣三段目以内に存在する玉を除く宣言側の駒のみである。
+	const int ownBigPiecesCount = (pos.bbOf(Rook, Dragon, Bishop, Horse) & opponentsField & pos.bbOf(us)).popCount();
+	const Hand hand = pos.hand(us);
+	const int val = ownPiecesCount + (ownBigPiecesCount + hand.numOf<HRook>() + hand.numOf<HBishop>()) * 4
+		+ hand.numOf<HPawn>() + hand.numOf<HLance>() + hand.numOf<HKnight>()
+		+ hand.numOf<HSilver>() + hand.numOf<HGold>();
+#if defined LAW_24
+	if (val < 31)
+		return false;
+#else
+	if (val < (us == Black ? 28 : 27))
+		return false;
+#endif
+
+	return true;
 }
 
 std::string pvInfoToUSI(Position& pos, const size_t pvSize, const Depth depth, const Score alpha, const Score beta) {
@@ -754,7 +767,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
         // step2
         // stop と最大探索深さのチェック
         switch (pos.isDraw(16)) {
-        case NotRepetition      : if (!signals.stop.load(std::memory_order_relaxed) && ss->ply <= MaxPly) break; // else の場合は fallthrough
+        case NotRepetition      : if (!signals.stop.load(std::memory_order_relaxed) && ss->ply <= MaxPly) break; // fallthrough
         case RepetitionDraw     : return ScoreDraw;
         case RepetitionWin      : return mateIn(ss->ply);
         case RepetitionLose     : return matedIn(ss->ply);
@@ -809,7 +822,15 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
         return ttScore;
     }
 
-#if 1
+    if (!RootNode) {
+        if (nyugyoku(pos)) {
+            ss->staticEval = bestScore = mateIn(ss->ply);
+            tte->save(posKey, scoreToTT(bestScore, ss->ply), BoundExact, depth,
+                      Move::moveNone(), ss->staticEval, tt.generation());
+            return bestScore;
+        }
+    }
+
     if (!RootNode
         && !inCheck)
     {
@@ -821,7 +842,6 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
             return bestScore;
         }
     }
-#endif
 
     // step5
     // evaluate the position statically
@@ -1153,6 +1173,18 @@ movesLoop:
 
         if (RootNode) {
             RootMove& rm = *std::find(std::begin(thisThread->rootMoves), std::end(thisThread->rootMoves), move);
+#if defined BISHOP_IN_DANGER
+            auto demeritPoints = [&] {
+                if (move.isDrop() && move.pieceTypeDropped() == Bishop && isOpponentField(pos.turn(), makeRank(move.to())))
+                    score -= (Score)300;
+            };
+            switch (detectBishopInDanger(pos)) {
+            case NotBishopInDanger: break;
+            case BlackBishopInDanger: demeritPoints(); break;
+            case WhiteBishopInDanger: demeritPoints(); break;
+            default: UNREACHABLE;
+            }
+#endif
             if (moveCount == 1 || score > alpha) {
                 rm.score = score;
 #if 0
@@ -1312,58 +1344,6 @@ void initSearchTable() {
     }
 }
 
-// 入玉勝ちかどうかを判定
-bool nyugyoku(const Position& pos) {
-    // CSA ルールでは、一 から 六 の条件を全て満たすとき、入玉勝ち宣言が出来る。
-
-    // 一 宣言側の手番である。
-
-    // この関数を呼び出すのは自分の手番のみとする。ponder では呼び出さない。
-
-    const Color us = pos.turn();
-    // 敵陣のマスク
-    const Bitboard opponentsField = (us == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
-
-    // 二 宣言側の玉が敵陣三段目以内に入っている。
-    if (!pos.bbOf(King, us).andIsAny(opponentsField))
-        return false;
-
-    // 三 宣言側が、大駒5点小駒1点で計算して
-    //     先手の場合28点以上の持点がある。
-    //     後手の場合27点以上の持点がある。
-    //     点数の対象となるのは、宣言側の持駒と敵陣三段目以内に存在する玉を除く宣言側の駒のみである。
-    const Bitboard bigBB = pos.bbOf(Rook, Dragon, Bishop, Horse) & opponentsField & pos.bbOf(us);
-    const Bitboard smallBB = (pos.bbOf(Pawn, Lance, Knight, Silver) | pos.goldsBB()) & opponentsField & pos.bbOf(us);
-    const Hand hand = pos.hand(us);
-    const int val = (bigBB.popCount() + hand.numOf<HRook>() + hand.numOf<HBishop>()) * 5
-        + smallBB.popCount()
-        + hand.numOf<HPawn>() + hand.numOf<HLance>() + hand.numOf<HKnight>()
-        + hand.numOf<HSilver>() + hand.numOf<HGold>();
-#if defined LAW_24
-    if (val < 31)
-        return false;
-#else
-    if (val < (us == Black ? 28 : 27))
-        return false;
-#endif
-
-    // 四 宣言側の敵陣三段目以内の駒は、玉を除いて10枚以上存在する。
-
-    // 玉は敵陣にいるので、自駒が敵陣に11枚以上あればよい。
-    if ((pos.bbOf(us) & opponentsField).popCount() < 11)
-        return false;
-
-    // 五 宣言側の玉に王手がかかっていない。
-    if (pos.inCheck())
-        return false;
-
-    // 六 宣言側の持ち時間が残っている。
-
-    // 持ち時間が無ければ既に負けなので、何もチェックしない。
-
-    return true;
-}
-
 void MainThread::search() {
 #if defined LEARN
     maxPly = 0;
@@ -1408,13 +1388,13 @@ void MainThread::search() {
                      << " score " << scoreToUSI(std::get<1>(bookMoveScore))
                      << " pv " << std::get<0>(bookMoveScore).toUSI()
                      << SYNCENDL;
-
+            rootMoves[0].score = std::get<1>(bookMoveScore);
             goto finalize;
         }
     }
 #if defined BISHOP_IN_DANGER
     {
-        auto deleteFunc = [](const std::string& str) {
+        auto deleteFunc = [&](const std::string& str) {
             auto it = std::find_if(std::begin(rootMoves), std::end(rootMoves), [&str](const RootMove& rm) {
                     return rm.pv[0].toCSA() == str;
                 });
@@ -1423,19 +1403,17 @@ void MainThread::search() {
         };
         switch (detectBishopInDanger(pos)) {
         case NotBishopInDanger: break;
-        case BlackBishopInDangerIn28: deleteFunc("0082KA"); break;
-        case WhiteBishopInDangerIn28: deleteFunc("0028KA"); break;
-        case BlackBishopInDangerIn78: deleteFunc("0032KA"); break;
-        case WhiteBishopInDangerIn78: deleteFunc("0078KA"); break;
-        case BlackBishopInDangerIn38: deleteFunc("0072KA"); break;
-        case WhiteBishopInDangerIn38: deleteFunc("0038KA"); break;
+        case BlackBishopInDangerIn28      : deleteFunc("0082KA"); break;
+        case WhiteBishopInDangerIn28      : deleteFunc("0028KA"); break;
+        case BlackBishopInDangerIn78584838: deleteFunc("0032KA"); deleteFunc("0052KA"); deleteFunc("0062KA"); deleteFunc("0072KA"); break;
+        case WhiteBishopInDangerIn78584838: deleteFunc("0078KA"); deleteFunc("0058KA"); deleteFunc("0048KA"); deleteFunc("0038KA"); break;
         default: UNREACHABLE;
         }
     }
 #endif
 
 #if defined INANIWA_SHIFT
-    detectInaniwa(pos);
+    searcher->detectInaniwa(pos);
 #endif
     if (rootMoves.empty()) {
         rootMoves.push_back(RootMove(Move::moveNone()));

@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -370,8 +370,8 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
         st_->cl.clistpair[0].oldlist[0] = evalList_.list0[listIndex];
         st_->cl.clistpair[0].oldlist[1] = evalList_.list1[listIndex];
 
-        evalList_.list0[listIndex] = kppArray[pcTo         ] + to;
-        evalList_.list1[listIndex] = kppArray[inverse(pcTo)] + inverse(to);
+        evalList_.list0[listIndex] = kppArray[pcTo         ] + (EvalIndex)to;
+        evalList_.list1[listIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
         evalList_.listToSquareHand[listIndex] = to;
         evalList_.squareHandToList[to] = listIndex;
 
@@ -450,8 +450,8 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
             st_->cl.clistpair[0].oldlist[0] = evalList_.list0[fromListIndex];
             st_->cl.clistpair[0].oldlist[1] = evalList_.list1[fromListIndex];
 
-            evalList_.list0[fromListIndex] = kppArray[pcTo         ] + to;
-            evalList_.list1[fromListIndex] = kppArray[inverse(pcTo)] + inverse(to);
+            evalList_.list0[fromListIndex] = kppArray[pcTo         ] + (EvalIndex)to;
+            evalList_.list1[fromListIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
             evalList_.listToSquareHand[fromListIndex] = to;
             evalList_.squareHandToList[to] = fromListIndex;
 
@@ -540,8 +540,8 @@ void Position::undoMove(const Move move) {
         else {
             const Piece pcFrom = colorAndPieceTypeToPiece(us, ptFrom);
             const int toListIndex = evalList_.squareHandToList[to];
-            evalList_.list0[toListIndex] = kppArray[pcFrom         ] + from;
-            evalList_.list1[toListIndex] = kppArray[inverse(pcFrom)] + inverse(from);
+            evalList_.list0[toListIndex] = kppArray[pcFrom         ] + (EvalIndex)from;
+            evalList_.list1[toListIndex] = kppArray[inverse(pcFrom)] + (EvalIndex)inverse(from);
             evalList_.listToSquareHand[toListIndex] = from;
             evalList_.squareHandToList[from] = toListIndex;
         }
@@ -556,8 +556,8 @@ void Position::undoMove(const Move move) {
 
             const int handnum = hand(us).numOf(hpCaptured);
             const int toListIndex = evalList_.squareHandToList[HandPieceToSquareHand[us][hpCaptured] + handnum];
-            evalList_.list0[toListIndex] = kppArray[pcCaptured         ] + to;
-            evalList_.list1[toListIndex] = kppArray[inverse(pcCaptured)] + inverse(to);
+            evalList_.list0[toListIndex] = kppArray[pcCaptured         ] + (EvalIndex)to;
+            evalList_.list1[toListIndex] = kppArray[inverse(pcCaptured)] + (EvalIndex)inverse(to);
             evalList_.listToSquareHand[toListIndex] = to;
             evalList_.squareHandToList[to] = toListIndex;
 
@@ -1583,10 +1583,10 @@ void Position::initZobrist() {
 void Position::print() const {
     std::cout << "'  9  8  7  6  5  4  3  2  1" << std::endl;
     int i = 0;
-    for (Rank r = Rank1; r < RankNum; ++r) {
+    for (Rank r = Rank1; r != Rank9Wall; r += RankDeltaS) {
         ++i;
         std::cout << "P" << i;
-        for (File f = File9; File1 <= f; --f)
+        for (File f = File9; f != File1Wall; f += FileDeltaE)
             std::cout << pieceToCharCSA(piece(makeSquare(f, r)));
         std::cout << std::endl;
     }
@@ -1601,8 +1601,8 @@ std::string Position::toSFEN(const Ply ply) const {
     std::stringstream ss;
     ss << "sfen ";
     int space = 0;
-    for (Rank rank = Rank1; rank <= Rank9; ++rank) {
-        for (File file = File9; file >= File1; --file) {
+    for (Rank rank = Rank1; rank != Rank9Wall; rank += RankDeltaS) {
+        for (File file = File9; file != File1Wall; file += FileDeltaE) {
             const Square sq = makeSquare(file, rank);
             const Piece pc = piece(sq);
             if (pc == Empty)
@@ -2047,6 +2047,235 @@ bool Position::set(const HuffmanCodedPos& hcp, Thread* th) {
 INCORRECT_HUFFMAN_CODE:
     std::cout << "incorrect Huffman code." << std::endl;
     return false;
+}
+
+// ランダムな局面を作成する。
+void Position::set(std::mt19937& mt, Thread* th) {
+    Searcher* s = std::move(searcher_);
+    clear();
+    setSearcher(s);
+
+    // 手番の設定。
+    std::uniform_int_distribution<int> colorDist(0, (int)ColorNum - 1);
+    turn_ = (Color)colorDist(mt);
+
+    // 先後両方の持ち駒の数を設定する。持ち駒が多くなるほど、確率が低くなるので、取り敢えずこれで良しとする。todo: 確率分布を指定出来るように。
+    auto setHandPieces = [&](const HandPiece hp, const int maxNum) {
+        std::uniform_int_distribution<int> handNumDist(0, maxNum);
+        while (true) {
+            const int nums[ColorNum] = {handNumDist(mt), handNumDist(mt)};
+            if (nums[Black] + nums[White] <= maxNum) {
+                setHand(hp, Black, nums[Black]);
+                setHand(hp, White, nums[White]);
+            }
+            break;
+        }
+    };
+    setHandPieces(HPawn  , 18);
+    setHandPieces(HLance ,  4);
+    setHandPieces(HKnight,  4);
+    setHandPieces(HSilver,  4);
+    setHandPieces(HGold  ,  4);
+    setHandPieces(HBishop,  2);
+    setHandPieces(HRook  ,  2);
+
+    // 玉の位置の設定。
+    std::uniform_int_distribution<int> squareDist(0, (int)SquareNum - 1);
+    while (true) {
+        const Square ksqs[ColorNum] = {(Square)squareDist(mt), (Square)squareDist(mt)};
+        // 玉同士が同じ位置、もしくは相手の玉の利きにいる事は絶対にない。その他なら何でも良い。
+        if (ksqs[Black] == ksqs[White])
+            continue;
+        if (kingAttack(ksqs[Black]) & setMaskBB(ksqs[White]))
+            continue;
+        // 先手の玉の利きに後手玉がいなければ、後手玉の利きにも先手玉はいない。
+        //if (kingAttack(ksqs[White]) & setMaskBB(ksqs[Black]))
+        //    continue;
+        setPiece(BKing, ksqs[Black]);
+        setPiece(WKing, ksqs[White]);
+        kingSquare_[Black] = ksqs[Black];
+        kingSquare_[White] = ksqs[White];
+        break;
+    }
+
+    // なる為の閾値。これ以上だと成っているとみなす。[0,99]
+    // todo: 1段目が選ばれて、成っていなければ、歩香桂はやり直し。分布が偏るが、どういう分布が良いかも分からないのである程度は適当に。
+    static const int promoteThresh[ColorNum][RankNum] = {{30, 30, 30, 40, 60, 90, 99, 99, 99},
+                                                         {99, 99, 99, 90, 60, 40, 30, 30, 30}};
+
+    int checkersNum = 0;
+    Square checkSquare = SquareNum; // 1つ目の王手している駒の位置。(1つしか保持する必要が無い。)
+    // 飛び利きの無い駒の配置。
+    auto shortPiecesSet = [&](const PieceType pt, const HandPiece hp, const int maxNum) {
+        for (int i = 0; i < maxNum - (int)(hand(Black).numOf(hp) + hand(White).numOf(hp)); ++i) {
+            while (true) {
+                const Square sq = (Square)squareDist(mt);
+                // その場所に既に駒があるか。
+                if (occupiedBB().isSet(sq))
+                    continue;
+                const File file = makeFile(sq);
+                const Rank rank = makeRank(sq);
+                const Color t = (Color)colorDist(mt);
+                // 出来るだけ前にいるほど成っている確率を高めに。
+                std::uniform_int_distribution<int> promoteDist(0, 99);
+                const Piece promoteFlag = (pt != Gold && promoteThresh[t][rank] <= promoteDist(mt) ? Promoted : UnPromoted);
+                const Piece pc = colorAndPieceTypeToPiece(t, pt) + promoteFlag;
+                if (promoteFlag == UnPromoted) {
+                    if (pt == Pawn) {
+                        // 二歩のチェック
+                        if (fileMask(file) & bbOf(Pawn, t))
+                            continue;
+                        // 行き所が無いかチェック
+                        if (t == Black)
+                            if (isInFrontOf<Black, Rank2, Rank8>(rank))
+                                continue;
+                        if (t == White)
+                            if (isInFrontOf<White, Rank2, Rank8>(rank))
+                                continue;
+                    }
+                    else if (pt == Knight) {
+                        // 行き所が無いかチェック
+                        if (t == Black)
+                            if (isInFrontOf<Black, Rank3, Rank7>(rank))
+                                continue;
+                        if (t == White)
+                            if (isInFrontOf<White, Rank3, Rank7>(rank))
+                                continue;
+                    }
+                }
+                if (t == turn()) {
+                    // 手番側が王手していてはいけない。
+                    if (attacksFrom(pieceToPieceType(pc), t, sq).isSet(kingSquare(oppositeColor(turn()))))
+                        continue;
+                }
+                else {
+                    if (attacksFrom(pieceToPieceType(pc), t, sq).isSet(kingSquare(turn()))) {
+                        // 王手の位置。
+                        // 飛び利きでない駒のみでは同時に1つの駒しか王手出来ない。
+                        if (checkersNum != 0)
+                            continue;
+                        ++checkersNum;
+                        checkSquare = sq;
+                    }
+                }
+                setPiece(pc, sq);
+                break;
+            }
+        }
+    };
+    shortPiecesSet(Pawn  , HPawn  , 18);
+    shortPiecesSet(Knight, HKnight,  4);
+    shortPiecesSet(Silver, HSilver,  4);
+    shortPiecesSet(Gold  , HGold  ,  4);
+
+    // 飛び利きの駒を配置。
+    auto longPiecesSet = [&](const PieceType pt, const HandPiece hp, const int maxNum) {
+        for (int i = 0; i < maxNum - (int)(hand(Black).numOf(hp) + hand(White).numOf(hp)); ++i) {
+            while (true) {
+                const Square sq = (Square)squareDist(mt);
+                // その場所に既に駒があるか。
+                if (occupiedBB().isSet(sq))
+                    continue;
+                const File file = makeFile(sq);
+                const Rank rank = makeRank(sq);
+                const Color t = (Color)colorDist(mt);
+                // 出来るだけ前にいるほど成っている確率を高めに。
+                std::uniform_int_distribution<int> promoteDist(0, 99);
+                const Piece promoteFlag = [&] {
+                    if (pt == Lance)
+                        return (promoteThresh[t][rank] <= promoteDist(mt) ? Promoted : UnPromoted);
+                    else // 飛角に関しては、成りと不成は同確率とする。
+                        return (50 <= promoteDist(mt) ? Promoted : UnPromoted);
+                }();
+                const Piece pc = colorAndPieceTypeToPiece(t, pt) + promoteFlag;
+                if (promoteFlag == UnPromoted) {
+                    if (pt == Lance) {
+                        // 行き所が無いかチェック
+                        if (t == Black)
+                            if (isInFrontOf<Black, Rank2, Rank8>(rank))
+                                continue;
+                        if (t == White)
+                            if (isInFrontOf<White, Rank2, Rank8>(rank))
+                                continue;
+                    }
+                }
+                // 手番側が王手していないか。
+                if (t == turn()) {
+                    if (attacksFrom(pieceToPieceType(pc), t, sq).isSet(kingSquare(oppositeColor(turn()))))
+                        continue;
+                }
+                else {
+                    if (attacksFrom(pieceToPieceType(pc), t, sq).isSet(kingSquare(turn()))) {
+                        // 王手の位置。
+                        // 飛び利きを含めて同時に王手する駒は2つまで。既に2つあるならそれ以上王手出来ない。
+                        if (checkersNum >= 2)
+                            continue;
+                        if (checkersNum == 1) {
+                            // 両王手。両王手は少なくとも1つは遠隔王手である必要がある。
+                            // この駒は近接王手か。
+                            if (kingAttack(kingSquare(turn())) & setMaskBB(sq)) {
+                                // もう1つの王手している駒も近接王手か。
+                                if (kingAttack(kingSquare(turn())) & setMaskBB(checkSquare))
+                                    continue; // 両方が近接王ではあり得ない。
+                                // もう1つの王手している駒が遠隔王手。
+                                // この駒の位置を戻すともう1つの王手を隠せる必要がある。
+                                if (!(attacksFrom(pieceToPieceType(piece(sq)), oppositeColor(t), sq) & betweenBB(kingSquare(turn()), checkSquare))) {
+                                    // 王手を隠せなかったので、この駒が成り駒であれば、成る前の動きでチェック。
+                                    if (!(piece(sq) & Promoted))
+                                        continue; // 成り駒ではなかった。
+                                    const Bitboard hiddenBB = attacksFrom(pieceToPieceType(piece(sq)) - Promoted, oppositeColor(t), sq) & betweenBB(kingSquare(turn()), checkSquare);
+                                    if (!hiddenBB)
+                                        continue;
+                                    // 成る前の利きならもう一方の王手を隠せた。
+                                    // 後は、この駒が成っていない状態から、sq に移動して成れたか。
+                                    if (!canPromote(t, makeRank(sq)) && !(hiddenBB & (t == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>())))
+                                        continue; // from, to 共に敵陣ではないので、成る事が出来ない。
+                                }
+                            }
+                            else {
+                                // この駒は遠隔王手。
+                                if (!(attacksFrom(pieceToPieceType(piece(checkSquare)), oppositeColor(t), checkSquare) & betweenBB(kingSquare(turn()), sq))) {
+                                    // この駒の王手を隠せなかった。
+                                    if (!(piece(checkSquare) & Promoted))
+                                        continue; // もう一方の王手している駒が成り駒ではなかった。
+                                    const Bitboard hiddenBB = attacksFrom(pieceToPieceType(piece(checkSquare)) - Promoted, oppositeColor(t), checkSquare) & betweenBB(kingSquare(turn()), sq);
+                                    if (!hiddenBB)
+                                        continue;
+                                    // 成る前の利きならこの駒の王手を隠せた。
+                                    // 後は、もう一方の王手している駒が成っていない状態から、checkSquare に移動して成れたか。
+                                    if (!canPromote(t, makeRank(checkSquare)) && !(hiddenBB & (t == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>())))
+                                        continue; // from, to 共に敵陣ではないので、成る事が出来ない。
+                                }
+                            }
+                            // 両王手でこの2つの駒が王手しているのはあり得る。
+                            // ただし、これ以上厳密には判定しないが、他の駒を盤上に置く事で、この両王手が成り立たなくなる可能性はある。
+                        }
+                        else // 最初の王手の駒なので、位置を保持する。
+                            checkSquare = sq;
+                        ++checkersNum;
+                    }
+                }
+                setPiece(pc, sq);
+                break;
+            }
+        }
+    };
+    longPiecesSet(Lance , HLance , 4);
+    longPiecesSet(Bishop, HBishop, 2);
+    longPiecesSet(Rook  , HRook  , 2);
+
+    goldsBB_ = bbOf(Gold, ProPawn, ProLance, ProKnight, ProSilver);
+
+    gamePly_ = 1; // ply の情報は持っていないので 1 にしておく。
+
+    st_->boardKey = computeBoardKey();
+    st_->handKey = computeHandKey();
+    st_->hand = hand(turn());
+
+    setEvalList();
+    findCheckers();
+    st_->material = computeMaterial();
+    thisThread_ = th;
 }
 
 bool Position::moveGivesCheck(const Move move) const {

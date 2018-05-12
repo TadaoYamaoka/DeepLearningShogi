@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2017 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include <memory>
 
 class Position;
+enum EvalIndex : int32_t;
 
 enum GameResult : int8_t {
     Draw, BlackWin, WhiteWin, GameResultNum
@@ -50,8 +51,8 @@ struct CheckInfo {
 };
 
 struct ChangedListPair {
-    int newlist[2];
-    int oldlist[2];
+    EvalIndex newlist[2];
+    EvalIndex oldlist[2];
 };
 
 struct ChangedLists {
@@ -204,6 +205,7 @@ public:
     Position& operator = (const Position& pos);
     void set(const std::string& sfen, Thread* th);
     bool set(const HuffmanCodedPos& hcp, Thread* th);
+    void set(std::mt19937& mt, Thread* th);
 
     Bitboard bbOf(const PieceType pt) const                                            { return byTypeBB_[pt]; }
     Bitboard bbOf(const Color c) const                                                 { return byColorBB_[c]; }
@@ -365,14 +367,14 @@ public:
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
 
     static constexpr int nlist() { return EvalList::ListSize; }
-    int list0(const int index) const { return evalList_.list0[index]; }
-    int list1(const int index) const { return evalList_.list1[index]; }
+    EvalIndex list0(const int index) const { return evalList_.list0[index]; }
+    EvalIndex list1(const int index) const { return evalList_.list1[index]; }
     int squareHandToList(const Square sq) const { return evalList_.squareHandToList[sq]; }
     Square listToSquareHand(const int i) const { return evalList_.listToSquareHand[i]; }
-    int* plist0() { return &evalList_.list0[0]; }
-    int* plist1() { return &evalList_.list1[0]; }
-    const int* cplist0() const { return &evalList_.list0[0]; }
-    const int* cplist1() const { return &evalList_.list1[0]; }
+    EvalIndex* plist0() { return &evalList_.list0[0]; }
+    EvalIndex* plist1() { return &evalList_.list1[0]; }
+    const EvalIndex* cplist0() const { return &evalList_.list0[0]; }
+    const EvalIndex* cplist1() const { return &evalList_.list1[0]; }
     const ChangedLists& cl() const { return st_->cl; }
 
     const Searcher* csearcher() const { return searcher_; }

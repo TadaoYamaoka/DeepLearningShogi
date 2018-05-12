@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ enum Square {
     SQ81, SQ82, SQ83, SQ84, SQ85, SQ86, SQ87, SQ88, SQ89,
     SQ91, SQ92, SQ93, SQ94, SQ95, SQ96, SQ97, SQ98, SQ99,
     SquareNum, // = 81
+    SquareBegin = 0,
     SquareNoLeftNum = SQ61,
     B_hand_pawn   = SquareNum     + -1,
     B_hand_lance  = B_hand_pawn   + 18,
@@ -63,14 +64,26 @@ OverloadEnumOperators(Square);
 // 筋
 enum File {
     File1, File2, File3, File4, File5, File6, File7, File8, File9, FileNum,
-    FileNoLeftNum = File6
+    FileNoLeftNum = File6,
+    FileBegin = 0,
+    // 画面表示など順序が決まっているループに使う。
+    // ループで <, > を使わない事で、レイアウトを変えても変更点が少なくて済む。
+    FileDeltaE = -1, FileDeltaW = 1,
+    File1Wall = File1 + FileDeltaE, // File1 の右の壁の位置。
+    File9Wall = File9 + FileDeltaW, // File9 の左の壁の位置。
 };
 OverloadEnumOperators(File);
 inline int abs(const File f) { return std::abs(static_cast<int>(f)); }
 
 // 段
 enum Rank {
-    Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9, RankNum
+    Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9, RankNum,
+    RankBegin = 0,
+    // 画面表示など順序が決まっているループに使う。
+    // ループで <, > を使わない事で、レイアウトを変えても変更点が少なくて済む。
+    RankDeltaN = -1, RankDeltaS = 1,
+    Rank1Wall = Rank1 + RankDeltaN, // Rank1 の上の壁の位置。
+    Rank9Wall = Rank9 + RankDeltaS, // Rank9 の下の壁の位置。
 };
 OverloadEnumOperators(Rank);
 inline int abs(const Rank r) { return std::abs(static_cast<int>(r)); }
@@ -239,6 +252,10 @@ inline bool canPromote(const Color c, const Rank fromOrToRank) {
     // 同じ意味。
     return (c == Black ? isInFrontOf<Black, Rank4, Rank6>(fromOrToRank) : isInFrontOf<White, Rank4, Rank6>(fromOrToRank));
 #endif
+}
+
+inline bool isOpponentField(const Color c, const Rank r) {
+    return canPromote(c, r);
 }
 
 #endif // #ifndef APERY_SQUARE_HPP

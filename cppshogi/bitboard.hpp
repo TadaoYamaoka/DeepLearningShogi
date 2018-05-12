@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -216,22 +216,13 @@ public:
     // for debug
     void printBoard() const {
         std::cout << "   A  B  C  D  E  F  G  H  I\n";
-        for (Rank r = Rank1; r < RankNum; ++r) {
+        for (Rank r = Rank1; r != Rank9Wall; r += RankDeltaS) {
             std::cout << (9 - r);
-            for (File f = File9; File1 <= f; --f)
+            for (File f = File9; f != File1Wall; f += FileDeltaE)
                 std::cout << (this->isSet(makeSquare(f, r)) ? "  X" : "  .");
             std::cout << "\n";
         }
 
-        std::cout << std::endl;
-    }
-
-    void printTable(const int part) const {
-        for (Rank r = Rank1; r < RankNum; ++r) {
-            for (File f = File7; File1 <= f; --f)
-                std::cout << (UINT64_C(1) & (this->p(part) >> makeSquare(f, r)));
-            std::cout << std::endl;
-        }
         std::cout << std::endl;
     }
 
@@ -306,7 +297,7 @@ extern const Bitboard InFrontMask[ColorNum][RankNum];
 
 inline Bitboard fileMask(const File f) { return FileMask[f]; }
 template <File F> inline Bitboard fileMask() {
-    static_assert(File1 <= F && F <= File9, "");
+    static_assert(FileBegin <= F && F < FileNum, "");
     return (F == File1 ? File1Mask
             : F == File2 ? File2Mask
             : F == File3 ? File3Mask
@@ -320,7 +311,7 @@ template <File F> inline Bitboard fileMask() {
 
 inline Bitboard rankMask(const Rank r) { return RankMask[r]; }
 template <Rank R> inline Bitboard rankMask() {
-    static_assert(Rank1 <= R && R <= Rank9, "");
+    static_assert(RankBegin <= R && R < RankNum, "");
     return (R == Rank1 ? Rank1Mask
             : R == Rank2 ? Rank2Mask
             : R == Rank3 ? Rank3Mask
@@ -367,7 +358,7 @@ const Bitboard InFrontOfRank1White = InFrontOfRank2White | rankMask<Rank2>();
 inline Bitboard inFrontMask(const Color c, const Rank r) { return InFrontMask[c][r]; }
 template <Color C, Rank R> inline Bitboard inFrontMask() {
     static_assert(C == Black || C == White, "");
-    static_assert(Rank1 <= R && R <= Rank9, "");
+    static_assert(RankBegin <= R && R < RankNum, "");
     return (C == Black ? (R == Rank1 ? InFrontOfRank1Black
                           : R == Rank2 ? InFrontOfRank2Black
                           : R == Rank3 ? InFrontOfRank3Black

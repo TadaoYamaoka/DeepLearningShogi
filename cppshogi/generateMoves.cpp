@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -624,7 +624,7 @@ namespace {
 			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
 			const Bitboard x =
 				(
-					(pos.bbOf(Pawn)   & pawnCheckTable(US, ksq)) |
+				(pos.bbOf(Pawn)   & pawnCheckTable(US, ksq)) |
 					(pos.bbOf(Lance)  & lanceCheckTable(US, ksq)) |
 					(pos.bbOf(Knight) & knightCheckTable(US, ksq)) |
 					(pos.bbOf(Silver) & silverCheckTable(US, ksq)) |
@@ -632,15 +632,15 @@ namespace {
 					(pos.bbOf(Bishop) & bishopCheckTable(US, ksq)) |
 					(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGONは無条件全域
 					(pos.bbOf(Horse)  & horseCheckTable(US, ksq))
-				) & pos.bbOf(US);
+					) & pos.bbOf(US);
 
 			// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
 			// 指し手生成の段階では除外しなくても良いと思う。
 
 			const Bitboard y = pos.discoveredCheckBB();
 			const Bitboard target = ~pos.bbOf(US); // 自駒がない場所が移動対象升
-												   
-			// yのみ。ただしxかつyである可能性もある。
+
+												   // yのみ。ただしxかつyである可能性もある。
 			auto src = y;
 			while (src)
 			{
@@ -655,7 +655,7 @@ namespace {
 				Bitboard toBB = pos.attacksFrom(pt, US, from) & target;
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
-					if (!isAligned<true>(from, to, ksq) || x.isSet(from) ) {
+					if (!isAligned<true>(from, to, ksq) || x.isSet(from)) {
 						moveList = generatCheckMoves(moveList, pos, from, to, US);
 					}
 				}

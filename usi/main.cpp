@@ -94,7 +94,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				if (!evalTableIsRead) {
 					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
 					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"]);
 					evalTableIsRead = true;
 				}
 			}

@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ Move MovePicker::nextMove() {
         endMoves_ = generateMoves<CapturePlusPro>(cur_, pos_);
         scoreCaptures();
         ++stage_;
+        // fallthrough
     case GoodTacticals:
         while (cur_ < endMoves_) {
             move = pickBest(cur_++, endMoves_);
@@ -101,6 +102,7 @@ Move MovePicker::nextMove() {
         {
             return move;
         }
+        // fallthrough
     case Killers:
         ++stage_;
         move = ss_->killers[1];
@@ -111,6 +113,7 @@ Move MovePicker::nextMove() {
         {
             return move;
         }
+        // fallthrough
     case Countermove:
         ++stage_;
         move = counterMove_;
@@ -123,6 +126,7 @@ Move MovePicker::nextMove() {
         {
             return move;
         }
+        // fallthrough
     case QuietInit:
         cur_ = endBadCaptures_;
         endMoves_ = generateMoves<NonCaptureMinusPro>(cur_, pos_);
@@ -138,6 +142,7 @@ Move MovePicker::nextMove() {
         else
             insertionSort<ExtMove*, false>(cur_, endMoves_);
         ++stage_;
+        // fallthrough
     case Quiet:
         while (cur_ < endMoves_) {
             move = (*cur_++).move;
@@ -151,6 +156,7 @@ Move MovePicker::nextMove() {
         }
         ++stage_;
         cur_ = first(); // Point to beginning of bad captures
+        // fallthrough
     case BadCaptures:
         if (cur_ < endBadCaptures_)
             return (*cur_++).move;
@@ -160,6 +166,7 @@ Move MovePicker::nextMove() {
         endMoves_ = generateMoves<Evasion>(cur_, pos_);
         scoreEvasions();
         ++stage_;
+        // fallthrough
     case AllEvasions:
         while (cur_ < endMoves_) {
             move = pickBest(cur_++, endMoves_);
@@ -172,6 +179,7 @@ Move MovePicker::nextMove() {
         endMoves_ = generateMoves<CapturePlusPro>(cur_, pos_);
         scoreCaptures();
         ++stage_;
+        // fallthrough
     case ProbcutCaptures:
         while (cur_ < endMoves_) {
             move = pickBest(cur_++, endMoves_);
@@ -190,10 +198,11 @@ Move MovePicker::nextMove() {
         endMoves_ = generateMoves<CapturePlusPro>(cur_, pos_);
         scoreCaptures();
         ++stage_;
+        // fallthrough
+    case QCaptures2:
 #if defined USE_QCHECKS
     case QCaptures1:
 #endif
-    case QCaptures2:
         while (cur_ < endMoves_) {
             move = pickBest(cur_++, endMoves_);
             if (move != ttMove_)
@@ -205,6 +214,7 @@ Move MovePicker::nextMove() {
         cur_ = first();
         endMoves_ = generateMoves<QuietChecks>(cur_, pos_);
         ++stage_;
+        // fallthrough
 #else
         break;
 #endif
@@ -222,6 +232,7 @@ Move MovePicker::nextMove() {
         endMoves_ = generateMoves<Recapture>(cur_, pos_, recaptureSquare_);
         scoreCaptures();
         ++stage_;
+        // fallthrough
     case QRecaptures:
         while (cur_ < endMoves_) {
             move = pickBest(cur_++, endMoves_);
