@@ -9,7 +9,7 @@
 http://tadaoyamaoka.hatenablog.com/
 
 ## 使用ライブラリ
-* [elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)
+* [Apery](https://github.com/HiraokaTakuya/apery)
 
 ※モンテカルロ木探索の実装は囲碁プログラムの[Ray+Rn](https://github.com/zakki/Ray)の実装を参考にしています。
 
@@ -34,4 +34,4 @@ http://tadaoyamaoka.hatenablog.com/
 ## ライセンス
 ライセンスはMITライセンスとします。
 
-cppshogiは[elmo_for_learn](https://github.com/mk-takizawa/elmo_for_learn)のソースを流用しているため、GPLライセンスとします。
+cppshogiは[Apery](https://github.com/HiraokaTakuya/apery)のソースを流用しているため、GPLライセンスとします。
