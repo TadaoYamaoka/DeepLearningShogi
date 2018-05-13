@@ -173,8 +173,7 @@ public:
 		uct_node(new uct_node_t[uct_hash_size]),
 		inputFileDist(0, entryNum - 1),
 		playout(0),
-		ply(0),
-		next_step(false) {
+		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 	}
 	UCTSearcher(UCTSearcher&& o) {} // not use
@@ -188,7 +187,7 @@ public:
 	unsigned int ExpandRoot(const Position *pos);
 	unsigned int ExpandNode(Position *pos, const int depth);
 	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
-	float Playout(vector<TrajectorEntry>& trajectories);
+	void Playout(vector<TrajectorEntry>& trajectories);
 	void NextStep();
 
 private:
@@ -204,7 +203,6 @@ private:
 
 	int playout;
 	int ply;
-	bool next_step;
 	GameResult gameResult;
 	unsigned int current_root;
 
@@ -257,42 +255,36 @@ void UCTSearcherGroup::SelfPlay()
 	running = 1;
 
 	// 探索経路のバッチ
-	vector<vector<TrajectorEntry>> trajectories_batch;
+	vector<vector<TrajectorEntry>> trajectories_batch(policy_value_batch_maxsize);
 
 	// 全スレッドが生成した局面数が生成局面数以上になったら終了
 	while (madeTeacherNodes < teacherNodes && !stopflg) {
-		trajectories_batch.clear();
 		current_policy_value_batch_index = 0;
 
-		// すべての対局について1回シミュレーションを行う
-		for (UCTSearcher& searcher : searchers) {
-			trajectories_batch.emplace_back();
-			float result = searcher.Playout(trajectories_batch.back());
-			// バックアップ済みため破棄する
-			if (result != QUEUING)
-				trajectories_batch.pop_back();
+		// すべての対局についてシミュレーションを行う
+		for (size_t i = 0; i < policy_value_batch_maxsize; i++) {
+			UCTSearcher& searcher = searchers[i];
+			searcher.Playout(trajectories_batch[i]);
 		}
 
-		if (trajectories_batch.size() > 0) {
-			// 評価
-			EvalNode();
+		// 評価
+		EvalNode();
 
-			// バックアップ
-			float result = 0.0f;
-			for (auto& trajectories : trajectories_batch) {
-				for (int i = trajectories.size() - 1; i >= 0; i--) {
-					TrajectorEntry& current_next = trajectories[i];
-					uct_node_t* uct_node = current_next.uct_node;
-					const unsigned int current = current_next.current;
-					const unsigned int next_index = current_next.next_index;
-					child_node_t* uct_child = uct_node[current].child;
-					if ((size_t)i == trajectories.size() - 1) {
-						const unsigned int child_index = uct_child[next_index].index;
-						result = 1.0f - uct_node[child_index].value_win;
-					}
-					UpdateResult(uct_node, &uct_child[next_index], result, current);
-					result = 1.0f - result;
+		// バックアップ
+		float result = 0.0f;
+		for (auto& trajectories : trajectories_batch) {
+			for (int i = trajectories.size() - 1; i >= 0; i--) {
+				TrajectorEntry& current_next = trajectories[i];
+				uct_node_t* uct_node = current_next.uct_node;
+				const unsigned int current = current_next.current;
+				const unsigned int next_index = current_next.next_index;
+				child_node_t* uct_child = uct_node[current].child;
+				if ((size_t)i == trajectories.size() - 1) {
+					const unsigned int child_index = uct_child[next_index].index;
+					result = 1.0f - uct_node[child_index].value_win;
 				}
+				UpdateResult(uct_node, &uct_child[next_index], result, current);
+				result = 1.0f - result;
 			}
 		}
 
@@ -357,7 +349,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 
 	float result;
 	unsigned int next_index;
-	double score;
 	child_node_t *uct_child = uct_node[current].child;
 
 	// UCB値最大の手を求める
@@ -481,7 +472,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	const int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
-	unsigned int max_index;
 	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
 
 	max_value = -1;
@@ -724,80 +714,81 @@ void UCTSearcherGroup::EvalNode() {
 }
 
 // シミュレーションを1回行う
-float UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
+void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 {
-	// 手番開始
-	if (playout == 0) {
-		// 新しいゲーム開始
-		if (ply == 0) {
-			ply = 1;
+	while (true) {
+		trajectories.clear();
+		// 手番開始
+		if (playout == 0) {
+			// 新しいゲーム開始
+			if (ply == 0) {
+				ply = 1;
 
-			// 開始局面を局面集からランダムに選ぶ
-			HuffmanCodedPos hcp;
-			{
-				std::unique_lock<Mutex> lock(imutex);
-				ifs.seekg(inputFileDist(*mt) * sizeof(HuffmanCodedPos), std::ios_base::beg);
-				ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
+				// 開始局面を局面集からランダムに選ぶ
+				HuffmanCodedPos hcp;
+				{
+					std::unique_lock<Mutex> lock(imutex);
+					ifs.seekg(inputFileDist(*mt) * sizeof(HuffmanCodedPos), std::ios_base::beg);
+					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
+				}
+				setPosition(*pos_root, hcp);
+				randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
+				SPDLOG_DEBUG(logger, "id:{} ply:{} sfen:{}", id, ply, pos_root->toSFEN());
+
+				keyHash.clear();
+				states = StateListPtr(new std::deque<StateInfo>(1));
+				hcpevec.clear();
 			}
-			setPosition(*pos_root, hcp);
-			randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
-			SPDLOG_DEBUG(logger, "id:{} ply:{} sfen:{}", id, ply, pos_root->toSFEN());
 
-			keyHash.clear();
-			states = StateListPtr(new std::deque<StateInfo>(1));
-			hcpevec.clear();
+			// ハッシュクリア
+			uct_hash->ClearUctHash();
+
+			// ルートノード展開
+			current_root = ExpandRoot(pos_root);
+
+			// 詰みのチェック
+			if (uct_node[current_root].child_num == 0) {
+				gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
+				NextGame();
+				continue;
+			}
+			else if (uct_node[current_root].child_num == 1) {
+				// 1手しかないときは、その手を指して次の手番へ
+				SPDLOG_DEBUG(logger, "id:{} ply:{} {} skip:{}", id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
+				states->push_back(StateInfo());
+				pos_root->doMove(uct_node[current_root].child[0].move, states->back());
+				playout = 0;
+				ply++;
+				continue;
+			}
+			else if (nyugyoku(*pos_root)) {
+				// 入玉宣言勝ち
+				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+				NextGame();
+				continue;
+			}
+
+			// ルート局面をキューに追加
+			grp->QueuingNode(pos_root, current_root, uct_node);
+			return;
 		}
 
-		// ハッシュクリア
-		uct_hash->ClearUctHash();
-
-		// ルートノード展開
-		current_root = ExpandRoot(pos_root);
-
-		// 詰みのチェック
-		if (uct_node[current_root].child_num == 0) {
-			gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
-			NextGame();
-			next_step = true;
-			return DISCARDED;
-		}
-		else if (uct_node[current_root].child_num == 1) {
-			// 1手しかないときは、その手を指して次の手番へ
-			SPDLOG_DEBUG(logger, "id:{} ply:{} {} skip:{}", id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
-			states->push_back(StateInfo());
-			pos_root->doMove(uct_node[current_root].child[0].move, states->back());
-			playout = 0;
-			ply++;
-			next_step = true;
-			return DISCARDED;
-		}
-		else if (nyugyoku(*pos_root)) {
-			// 入玉宣言勝ち
-			gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
-			NextGame();
-			next_step = true;
-			return DISCARDED;
+		// 盤面のコピー
+		Position pos_copy(*pos_root);
+		// プレイアウト
+		const float result = UctSearch(&pos_copy, current_root, 0, trajectories);
+		if (result != QUEUING) {
+			NextStep();
+			continue;
 		}
 
-		// ルート局面をキューに追加
-		grp->QueuingNode(pos_root, current_root, uct_node);
-		return QUEUING;
+		return;
 	}
-
-	// 盤面のコピー
-	Position pos_copy(*pos_root);
-	// プレイアウト
-	return UctSearch(&pos_copy, current_root, 0, trajectories);
 }
 
 // 次の手に進める
 void UCTSearcher::NextStep()
 {
-	if (next_step) {
-		next_step = false;
-		return;
-	}
-
 	// プレイアウト回数加算
 	playout++;
 
@@ -941,7 +932,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
 					gpu_id,
 					elapsed_msec / 1000,
-					std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)));
+					std::max<s64>(0, (s64)(elapsed_msec*(1.0 - progress) / (progress * 1000))));
 			int running_threads = 0;
 			for (int i = 0; i < threads; i++)
 				running_threads += search_group[i].running;
