@@ -262,7 +262,7 @@ void UCTSearcherGroup::SelfPlay()
 		current_policy_value_batch_index = 0;
 
 		// すべての対局についてシミュレーションを行う
-		for (size_t i = 0; i < policy_value_batch_maxsize; i++) {
+		for (size_t i = 0; i < (size_t)policy_value_batch_maxsize; i++) {
 			UCTSearcher& searcher = searchers[i];
 			searcher.Playout(trajectories_batch[i]);
 		}
@@ -796,9 +796,9 @@ void UCTSearcher::NextStep()
 	if (InterruptionCheck(current_root, playout)) {
 		// 探索回数最大の手を見つける
 		child_node_t* uct_child = uct_node[current_root].child;
-		int max_count = 0;
-		unsigned int select_index;
-		for (int i = 0; i < uct_node[current_root].child_num; i++) {
+		int max_count = uct_child[0].move_count;
+		unsigned int select_index = 0;
+		for (int i = 1; i < uct_node[current_root].child_num; i++) {
 			if (uct_child[i].move_count > max_count) {
 				select_index = i;
 				max_count = uct_child[i].move_count;
