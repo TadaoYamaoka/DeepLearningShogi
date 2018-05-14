@@ -58,10 +58,6 @@ mutex imutex;
 mutex omutex;
 size_t entryNum;
 
-const int threads = 2;
-// mutex for gpu
-mutex mutex_gpu;
-
 // 候補手の最大数(盤上全体)
 const int UCT_CHILD_MAX = 593;
 
@@ -119,9 +115,13 @@ bool nyugyoku(const Position& pos);
 Searcher s;
 
 class UCTSearcher;
+class UCTSearcherGroupPair;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup(const int group_id) : group_id(group_id), current_policy_value_batch_index(0), nn(nullptr), features1(nullptr), features2(nullptr), policy_value_queue_node(nullptr), y1(nullptr), y2(nullptr), running(false) {
+	UCTSearcherGroup(const int gpu_id, const int group_id, const int policy_value_batch_maxsize, UCTSearcherGroupPair* parent) :
+		gpu_id(gpu_id), group_id(group_id), policy_value_batch_maxsize(policy_value_batch_maxsize), parent(parent),
+		current_policy_value_batch_index(0), features1(nullptr), features2(nullptr), policy_value_queue_node(nullptr), y1(nullptr), y2(nullptr), running(false) {
+		Initialize();
 	}
 	UCTSearcherGroup(UCTSearcherGroup&& o) {} // not use
 	~UCTSearcherGroup() {
@@ -129,10 +129,8 @@ public:
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
-		delete nn;
 	}
 
-	void Initialize(const int policy_value_batch_maxsize, const int gpu_id);
 	void QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node);
 	void EvalNode();
 	void SelfPlay();
@@ -141,6 +139,9 @@ public:
 
 	int running;
 private:
+	void Initialize();
+
+	UCTSearcherGroupPair* parent;
 	int group_id;
 
 	// GPUID
@@ -157,8 +158,6 @@ private:
 	vector<UCTSearcher> searchers;
 	thread* handle_selfplay;
 
-	// neural network
-	NN* nn;
 	float* y1;
 	float* y2;
 };
@@ -215,14 +214,63 @@ private:
 	Position* pos_root;
 };
 
+class UCTSearcherGroupPair {
+public:
+	static const int threads = 2;
+
+	UCTSearcherGroupPair(const int gpu_id, const int policy_value_batch_maxsize) : nn(nullptr), policy_value_batch_maxsize(policy_value_batch_maxsize) {
+		groups.reserve(threads);
+		for (int i = 0; i < threads; i++)
+			groups.emplace_back(gpu_id, i, policy_value_batch_maxsize, this);
+	}
+	UCTSearcherGroupPair(UCTSearcherGroupPair&& o) {} // not use
+	~UCTSearcherGroupPair() {
+		delete nn;
+	}
+	void InitGPU() {
+		mutex_gpu.lock();
+		if (nn == nullptr) {
+			nn = new NN(policy_value_batch_maxsize);
+			nn->load_model(model_path.c_str());
+		}
+		mutex_gpu.unlock();
+	}
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2) {
+		mutex_gpu.lock();
+		nn->foward(batch_size, x1, x2, y1, y2);
+		mutex_gpu.unlock();
+	}
+	int Running() {
+		int running = 0;
+		for (int i = 0; i < threads; i++)
+			running += groups[i].running;
+		return running;
+	}
+	void Run() {
+		for (int i = 0; i < threads; i++)
+			groups[i].Run();
+	}
+	void Join() {
+		for (int i = 0; i < threads; i++)
+			groups[i].Join();
+	}
+
+private:
+	vector<UCTSearcherGroup> groups;
+	int policy_value_batch_maxsize;
+	int gpu_id;
+
+	// neural network
+	NN* nn;
+	// mutex for gpu
+	mutex mutex_gpu;
+};
+
 void randomMove(Position& pos, std::mt19937& mt);
 
 void
-UCTSearcherGroup::Initialize(const int policy_value_batch_maxsize, const int gpu_id)
+UCTSearcherGroup::Initialize()
 {
-	this->gpu_id = gpu_id;
-	this->policy_value_batch_maxsize = policy_value_batch_maxsize;
-
 	// キューを動的に確保する
 	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
@@ -232,7 +280,7 @@ UCTSearcherGroup::Initialize(const int policy_value_batch_maxsize, const int gpu
 	searchers.clear();
 	searchers.reserve(policy_value_batch_maxsize);
 	for (int i = 0; i < policy_value_batch_maxsize; i++) {
-		searchers.emplace_back(this, group_id * policy_value_batch_maxsize + i, entryNum);
+		searchers.emplace_back(this, gpu_id * 10000 + group_id * 1000 + i, entryNum);
 	}
 
 	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
@@ -245,12 +293,7 @@ void UCTSearcherGroup::SelfPlay()
 	// スレッドにGPUIDを関連付けてから初期化する
 	cudaSetDevice(gpu_id);
 
-	mutex_gpu.lock();
-	if (nn == nullptr) {
-		nn = new NN(policy_value_batch_maxsize);
-		nn->load_model(model_path.c_str());
-	}
-	mutex_gpu.unlock();
+	parent->InitGPU();
 
 	running = 1;
 
@@ -677,9 +720,7 @@ void UCTSearcherGroup::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	mutex_gpu.lock();
-	nn->foward(policy_value_batch_size, features1, features2, y1, y2);
-	mutex_gpu.unlock();
+	parent->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
 	float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	float *value = reinterpret_cast<float*>(y2);
@@ -733,7 +774,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				}
 				setPosition(*pos_root, hcp);
 				randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
-				SPDLOG_DEBUG(logger, "id:{} ply:{} sfen:{}", id, ply, pos_root->toSFEN());
+				SPDLOG_DEBUG(logger, "id:{} ply:{} {}", id, ply, pos_root->toSFEN());
 
 				keyHash.clear();
 				states = StateListPtr(new std::deque<StateInfo>(1));
@@ -803,7 +844,7 @@ void UCTSearcher::NextStep()
 				select_index = i;
 				max_count = uct_child[i].move_count;
 			}
-			SPDLOG_DEBUG(logger, "id:{} {}:{} move_count:{} win_rate:{}", id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+			SPDLOG_TRACE(logger, "id:{} {}:{} move_count:{} win_rate:{}", id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
 		}
 
 		// 選択した着手の勝率の算出
@@ -815,7 +856,6 @@ void UCTSearcher::NextStep()
 			// 勝率が閾値を超えた場合、ゲーム終了
 			const float winrate = (best_wp - 0.5f) * 2.0f;
 			if (WINRATE_THRESHOLD < abs(winrate)) {
-				SPDLOG_DEBUG(logger, "id:{} gameResult:{}", id, gameResult);
 				if (pos_root->turn() == Black)
 					gameResult = (winrate < 0 ? WhiteWin : BlackWin);
 				else
@@ -877,7 +917,7 @@ void UCTSearcher::NextGame()
 }
 
 // 教師局面生成
-void make_teacher(const char* recordFileName, const char* outputFileName, const int batchsize, const int gpu_id)
+void make_teacher(const char* recordFileName, const char* outputFileName, const vector<int>& gpu_id, const vector<int>& batchsize)
 {
 	s.init();
 	const std::string options[] = {
@@ -908,53 +948,56 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	// 初期設定
 	InitializeUctSearch();
 
-	vector<UCTSearcherGroup> search_group;
-	search_group.reserve(threads);
-	for (int i = 0; i < threads; i++) {
-		search_group.emplace_back(i);
-		search_group[i].Initialize(batchsize, gpu_id);
-	}
+	vector<UCTSearcherGroupPair> group_pairs;
+	group_pairs.reserve(gpu_id.size());
+	for (int i = 0; i < gpu_id.size(); i++)
+		group_pairs.emplace_back(gpu_id[i], batchsize[i]);
 
 	// 探索スレッド開始
-	for (int i = 0; i < threads; i++)
-		search_group[i].Run();
+	for (int i = 0; i < group_pairs.size(); i++)
+		group_pairs[i].Run();
 
 	// 進捗状況表示
-	auto progressFunc = [gpu_id, &search_group](Timer& t) {
+	auto progressFunc = [&gpu_id, &group_pairs](Timer& t) {
+		ostringstream ss;
+		for (int i = 0; i < gpu_id.size(); i++) {
+			if (i > 0) ss << " ";
+			ss << gpu_id[i];
+		}
 		while (!stopflg) {
 			std::this_thread::sleep_for(std::chrono::seconds(10)); // 指定秒だけ待機し、進捗を表示する。
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, gpu_id:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
-					gpu_id,
+					ss.str(),
 					elapsed_msec / 1000,
 					std::max<s64>(0, (s64)(elapsed_msec*(1.0 - progress) / (progress * 1000))));
-			int running_threads = 0;
-			for (int i = 0; i < threads; i++)
-				running_threads += search_group[i].running;
-			if (running_threads == 0)
+			int running = 0;
+			for (int i = 0; i < group_pairs.size(); i++)
+				running += group_pairs[i].Running();
+			if (running == 0)
 				break;
 		}
 	};
 
 	while (!stopflg) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		int running_threads = 0;
-		for (int i = 0; i < threads; i++)
-			running_threads += search_group[i].running;
-		if (running_threads > 0)
+		int running = 0;
+		for (int i = 0; i < group_pairs.size(); i++)
+			running += group_pairs[i].Running();
+		if (running > 0)
 			break;
 	}
 	Timer t = Timer::currentTime();
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
 	// 探索スレッド終了待機
-	for (int i = 0; i < threads; i++)
-		search_group[i].Join();
+	for (int i = 0; i < group_pairs.size(); i++)
+		group_pairs[i].Join();
 
 	progressThread.join();
 	ifs.close();
@@ -966,29 +1009,18 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 int main(int argc, char* argv[]) {
 	const int argnum = 8;
 	if (argc < argnum) {
-		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output> <batchsize> <gpu_id> <nodes> <playout_num>";
-		cout << endl;
+		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output> <nodes> <playout_num> <gpu_id> <batchsize> [<gpu_id> <batchsize>]*" << endl;
 		return 0;
 	}
 
 	model_path = argv[1];
 	char* recordFileName = argv[2];
 	char* outputFileName = argv[3];
-	const int batchsize = stoi(argv[4]);
-	const int gpu_id = stoi(argv[5]);
-	teacherNodes = stoi(argv[6]);
-	playout_num = stoi(argv[7]);
+	teacherNodes = stoi(argv[4]);
+	playout_num = stoi(argv[5]);
 
 	if (teacherNodes <= 0) {
 		cout << "too few teacherNodes" << endl;
-		return 0;
-	}
-	if (batchsize <= 0) {
-		cout << "too few batchsize" << endl;
-		return 0;
-	}
-	if (gpu_id < 0) {
-		cout << "invalid gpu id" << endl;
 		return 0;
 	}
 	if (playout_num <= 0)
@@ -996,7 +1028,26 @@ int main(int argc, char* argv[]) {
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
-	logger->info("{} {} {} {} {} {} {}", model_path, recordFileName, outputFileName, batchsize, gpu_id, teacherNodes, playout_num);
+	logger->info("modelfile:{} roots.hcp:{} output:{} nodes:{} playout_num:{}", model_path, recordFileName, outputFileName, teacherNodes, playout_num);
+
+	vector<int> gpu_id;
+	vector<int> batchsize;
+	for (int i = argnum - 2; i < argc; i += 2) {
+		gpu_id.push_back(stoi(argv[i]));
+		batchsize.push_back(stoi(argv[i + 1]));
+
+		logger->info("gpu_id:{} batchsize:{}", gpu_id.back(), batchsize.back());
+
+		if (gpu_id.back() < 0) {
+			cout << "invalid gpu id" << endl;
+			return 0;
+		}
+		if (batchsize.back() <= 0) {
+			cout << "too few batchsize" << endl;
+			return 0;
+		}
+	}
+
 
 	initTable();
 	Position::initZobrist();
@@ -1005,7 +1056,7 @@ int main(int argc, char* argv[]) {
 	signal(SIGINT, sigint_handler);
 
 	logger->info("make_teacher");
-	make_teacher(recordFileName, outputFileName, batchsize, gpu_id);
+	make_teacher(recordFileName, outputFileName, gpu_id, batchsize);
 
 	spdlog::drop_all();
 }
