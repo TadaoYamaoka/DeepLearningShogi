@@ -305,7 +305,73 @@ namespace {
                 LanceCheckTable[c][sq].andEqualNot(setMaskBB(sq) | pawnAttack(opp, sq));
             }
         }
-    }
+
+		// 歩
+		for (Color c = Black; c < ColorNum; ++c) {
+			const Color opp = oppositeColor(c);
+			for (Square sq = SQ11; sq < SquareNum; ++sq) {
+				// 歩で王手になる可能性のあるものは、敵玉から２つ離れた歩(不成での移動) + ksqに敵の金をおいた範囲(enemyGold)に成りで移動できる
+				PawnCheckTable[c][sq] = allZeroBB();
+
+				Bitboard checkBB = pawnAttack(opp, sq);
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					PawnCheckTable[c][sq] |= pawnAttack(opp, checkSq);
+				}
+				const Bitboard TRank123BB = (c == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
+				checkBB = goldAttack(opp, sq) & TRank123BB;
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					PawnCheckTable[c][sq] |= pawnAttack(opp, checkSq);
+				}
+				PawnCheckTable[c][sq].andEqualNot(setMaskBB(sq));
+			}
+		}
+
+		// 角
+		for (Color c = Black; c < ColorNum; ++c) {
+			const Color opp = oppositeColor(c);
+			for (Square sq = SQ11; sq < SquareNum; ++sq) {
+				BishopCheckTable[c][sq] = allZeroBB();
+
+				Bitboard checkBB = bishopAttack(sq, allZeroBB());
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					BishopCheckTable[c][sq] |= bishopAttack(checkSq, allZeroBB());
+				}
+				const Bitboard TRank123BB = (c == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
+				checkBB = kingAttack(sq) & TRank123BB;
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					// 移動先が敵陣 == 成れる == 王の動き
+					BishopCheckTable[c][sq] |= bishopAttack(checkSq, allZeroBB());
+				}
+
+				checkBB = kingAttack(sq);
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					// 移動元が敵陣 == 成れる == 王の動き
+					BishopCheckTable[c][sq] |= bishopAttack(checkSq, allZeroBB()) & TRank123BB;
+				}
+				BishopCheckTable[c][sq].andEqualNot(setMaskBB(sq));
+			}
+		}
+
+		// 馬
+		for (Color c = Black; c < ColorNum; ++c) {
+			const Color opp = oppositeColor(c);
+			for (Square sq = SQ11; sq < SquareNum; ++sq) {
+				HorseCheckTable[c][sq] = allZeroBB();
+
+				Bitboard checkBB = horseAttack(sq, allZeroBB());
+				while (checkBB) {
+					const Square checkSq = checkBB.firstOneFromSQ11();
+					HorseCheckTable[c][sq] |= horseAttack(checkSq, allZeroBB());
+				}
+				HorseCheckTable[c][sq].andEqualNot(setMaskBB(sq));
+			}
+		}
+	}
 
     void initSquareDistance() {
         for (Square sq0 = SQ11; sq0 < SquareNum; ++sq0) {
