@@ -672,13 +672,16 @@ namespace {
 				switch (pt) {
 				case Pawn: // 歩
 				{
-					Bitboard toBB = pawnAttack(US, from) & target;
+					Bitboard toBB = pawnAttack(US, from) & pawnAttack(opp, ksq) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
-						// 歩は成れる場合は成る
-						(*moveList++).move = canPromote(US, makeRank(to)) ?
-							makePromoteMove<Capture>(pt, from, to, pos) :
-							makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					}
+					// 成って王手
+					toBB = pawnAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 					}
 					break;
 				}

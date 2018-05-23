@@ -5,7 +5,7 @@
 
 using namespace std;
 
-#if 1
+#if 0
 #include "nn.h"
 int main() {
 	initTable();
@@ -145,14 +145,15 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 // 王手生成テスト
 int main() {
 	initTable();
 	Position pos;
 	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", nullptr); // 間接王手 銀
 	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", nullptr); // 間接王手 桂馬
-	pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", nullptr); // 間接王手 香車
+	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", nullptr); // 間接王手 香車
+	pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", nullptr); // 歩が成って王手
 
 	// 王手生成
 	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
