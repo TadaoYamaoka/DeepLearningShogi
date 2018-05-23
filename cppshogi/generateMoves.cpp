@@ -681,7 +681,9 @@ namespace {
 					toBB = pawnAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
-						(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+						if (canPromote(US, makeRank(to))) {
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+						}
 					}
 					break;
 				}
