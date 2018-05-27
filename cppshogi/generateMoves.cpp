@@ -649,14 +649,55 @@ namespace {
 				// 両王手候補なので指し手を生成してしまう。
 
 				// いまの敵玉とfromを通る直線上の升と違うところに移動させれば開き王手が確定する。
-				// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
-
 				const PieceType pt = pieceToPieceType(pos.piece(from));
 				Bitboard toBB = pos.attacksFrom(pt, US, from) & target;
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
-					if (!isAligned<true>(from, to, ksq) || x.isSet(from)) {
+					if (!isAligned<true>(from, to, ksq)) {
 						moveList = generatCheckMoves(moveList, pos, from, to, US);
+					}
+					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
+					else if (x.isSet(from)) {
+						const PieceType pt = pieceToPieceType(pos.piece(from));
+						switch (pt) {
+						case Silver: // 銀
+						{
+							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
+							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							// 成って王手
+							if ((goldAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
+								if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								}
+							}
+							break;
+						}
+						case Gold: // 金
+						case ProPawn: // と金
+						case ProLance: // 成香
+						case ProKnight: // 成桂
+						case ProSilver: // 成銀
+						{
+							if ((goldAttack(opp, ksq) & goldAttack(US, from)).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Pawn: // 歩
+						case Lance: // 香車
+						case Knight: // 桂馬
+						case Bishop: // 角
+						case Rook: // 飛車
+						case Horse: // 馬
+						case Dragon: // 竜
+						{
+							assert(false);
+							break;
+						}
+						default: UNREACHABLE;
+						}
 					}
 				}
 			}
