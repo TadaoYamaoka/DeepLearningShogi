@@ -660,6 +660,16 @@ namespace {
 					else if (x.isSet(from)) {
 						const PieceType pt = pieceToPieceType(pos.piece(from));
 						switch (pt) {
+						case Pawn: // 歩
+						{
+							if (pawnAttack(US, from).isSet(to)) {
+								// 歩は成れる場合は成る
+								(*moveList++).move = canPromote(US, makeRank(to)) ?
+									makePromoteMove<Capture>(pt, from, to, pos) :
+									makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
 						case Silver: // 銀
 						{
 							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
@@ -685,13 +695,28 @@ namespace {
 							}
 							break;
 						}
-						case Pawn: // 歩
+						case Horse: // 馬
+						{
+							// 玉が対角上にない場合
+							assert(abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from)));
+							if ((horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB())).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Dragon: // 竜
+						{
+							// 玉が直線上にない場合
+							assert(makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from));
+							if ((dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB())).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
 						case Lance: // 香車
 						case Knight: // 桂馬
 						case Bishop: // 角
 						case Rook: // 飛車
-						case Horse: // 馬
-						case Dragon: // 竜
 						{
 							assert(false);
 							break;
