@@ -628,7 +628,7 @@ namespace {
 					(pos.bbOf(Lance)  & lanceCheckTable(US, ksq)) |
 					(pos.bbOf(Knight) & knightCheckTable(US, ksq)) |
 					(pos.bbOf(Silver) & silverCheckTable(US, ksq)) |
-					(pos.bbOf(Gold)   & goldCheckTable(US, ksq)) |
+					(pos.bbOf(Gold, ProPawn, ProLance, ProKnight, ProSilver) & goldCheckTable(US, ksq)) |
 					(pos.bbOf(Bishop) & bishopCheckTable(US, ksq)) |
 					(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGONは無条件全域
 					(pos.bbOf(Horse)  & horseCheckTable(US, ksq))
