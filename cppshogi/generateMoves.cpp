@@ -570,17 +570,26 @@ namespace {
     };
 
 	// 王手用
-	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to, const Color us) {
+	template <Color US>
+	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to) {
 		const PieceType pt = pieceToPieceType(pos.piece(from));
 		switch (pt) {
 		case Empty: assert(false); break; // 最適化の為のダミー
 		case Pawn: case Bishop: case Rook:
-			(*moveList++).move = ((canPromote(us, makeRank(to)) | canPromote(us, makeRank(from))) ?
+			(*moveList++).move = ((canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) ?
 				makePromoteMove<Capture>(pt, from, to, pos) :
 				makeNonPromoteMove<Capture>(pt, from, to, pos));
 			break;
-		case Lance: case Knight: case Silver:
-			if (canPromote(us, makeRank(to)) | canPromote(us, makeRank(from))) {
+		case Lance:
+			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+			}
+			// 不成で移動する升
+			if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 2段目の不成を省く
+				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		case Knight: case Silver:
+			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 			}
 			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
@@ -654,7 +663,7 @@ namespace {
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
 					if (!isAligned<true>(from, to, ksq)) {
-						moveList = generatCheckMoves(moveList, pos, from, to, US);
+						moveList = generatCheckMoves<US>(moveList, pos, from, to);
 					}
 					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
 					else if (x.isSet(from)) {
