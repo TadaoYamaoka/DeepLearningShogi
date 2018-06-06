@@ -594,8 +594,13 @@ namespace {
 			}
 			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 			break;
-		case Gold: case King: case ProPawn: case ProLance: case ProKnight: case ProSilver: case Horse: case Dragon:
+		case Gold: case ProPawn: case ProLance: case ProKnight: case ProSilver: case Horse: case Dragon:
 			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		case King:
+			// 玉の移動先に相手の駒の利きがあれば、合法手でないので除く
+			if (!pos.attackersToIsAny(oppositeColor(US), to))
+				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 			break;
 		default: UNREACHABLE;
 		}
