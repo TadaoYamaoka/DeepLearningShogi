@@ -948,7 +948,7 @@ namespace {
 
 			// pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
-				if (!pos.pseudoLegalMoveIsLegal<false, true>(curr->move, pinned))
+				if (!pos.pseudoLegalMoveIsLegal<true, true>(curr->move, pinned))
 					curr->move = (--moveList)->move;
 				else
 					++curr;
