@@ -167,6 +167,7 @@ public:
 	UCTSearcher(UCTSearcherGroup* grp, const int id, const size_t entryNum) :
 		grp(grp),
 		id(id),
+		mt_64(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		uct_hash(new UctHash(uct_hash_size)),
 		uct_node(new uct_node_t[uct_hash_size]),
@@ -196,6 +197,7 @@ private:
 	int id;
 	unique_ptr<UctHash> uct_hash;
 	uct_node_t* uct_node;
+	unique_ptr<std::mt19937_64> mt_64;
 	unique_ptr<std::mt19937> mt;
 	// スレッドのハンドル
 	thread *handle;
@@ -769,7 +771,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				HuffmanCodedPos hcp;
 				{
 					std::unique_lock<Mutex> lock(imutex);
-					ifs.seekg(inputFileDist(*mt) * sizeof(HuffmanCodedPos), std::ios_base::beg);
+					ifs.seekg(inputFileDist(*mt_64) * sizeof(HuffmanCodedPos), std::ios_base::beg);
 					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
 				}
 				setPosition(*pos_root, hcp);
