@@ -51,6 +51,8 @@ const unsigned int uct_hash_size = 8192; // UCTハッシュサイズ
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
 std::atomic<s64> madeTeacherNodes(0);
+std::atomic<s64> games(0);
+std::atomic<s64> draws(0);
 
 ifstream ifs;
 ofstream ofs;
@@ -910,7 +912,11 @@ void UCTSearcher::NextGame()
 			po.set(hcpevec[0].hcp, nullptr);
 			ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 			madeTeacherNodes += hcpevec.size();
+			++games;
 		}
+	}
+	else {
+		++draws;
 	}
 
 	// 新しいゲーム
@@ -971,10 +977,13 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draws:{}, ply/game:{}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
+					games,
+					draws,
+					static_cast<double>(madeTeacherNodes) / games,
 					ss.str(),
 					elapsed_msec / 1000,
 					std::max<s64>(0, (s64)(elapsed_msec*(1.0 - progress) / (progress * 1000))));
@@ -1005,7 +1014,11 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ifs.close();
 	ofs.close();
 
-	logger->info("Made {} teacher nodes in {} seconds.", madeTeacherNodes, t.elapsed() / 1000);
+	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}",
+		madeTeacherNodes, t.elapsed() / 1000,
+		games,
+		draws,
+		static_cast<double>(madeTeacherNodes) / games);
 }
 
 int main(int argc, char* argv[]) {
