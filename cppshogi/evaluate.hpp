@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 // f_xxx が味方の駒、e_xxx が敵の駒
 // Bonanza の影響で持ち駒 0 の場合のインデックスが存在するが、参照する事は無い。
 // todo: 持ち駒 0 の位置を詰めてテーブルを少しでも小さくする。(キャッシュに少しは乗りやすい?)
-enum {
+enum EvalIndex : int32_t { // TriangularArray で計算する為に 32bit にしている。
     f_hand_pawn   = 0, // 0
     e_hand_pawn   = f_hand_pawn   + 19,
     f_hand_lance  = e_hand_pawn   + 19,
@@ -70,93 +70,90 @@ enum {
     e_dragon      = f_dragon      + 81,
     fe_end        = e_dragon      + 81
 };
+OverloadEnumOperators(EvalIndex);
 
 const int FVScale = 32;
 
-const int KPPIndexArray[] = {
-    f_hand_pawn, e_hand_pawn, f_hand_lance, e_hand_lance, f_hand_knight,
-    e_hand_knight, f_hand_silver, e_hand_silver, f_hand_gold, e_hand_gold,
-    f_hand_bishop, e_hand_bishop, f_hand_rook, e_hand_rook, /*fe_hand_end,*/
-    f_pawn, e_pawn, f_lance, e_lance, f_knight, e_knight, f_silver, e_silver,
-    f_gold, e_gold, f_bishop, e_bishop, f_horse, e_horse, f_rook, e_rook,
-    f_dragon, e_dragon, fe_end
-};
+extern EvalIndex KPPIndexBeginArray[fe_end];
+extern bool KPPIndexIsBlackArray[fe_end];
 
-inline Square kppIndexToSquare(const int i) {
-    const auto it = std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i);
-    return static_cast<Square>(i - *(it - 1));
+inline EvalIndex kppIndexBegin(const EvalIndex i) {
+    return KPPIndexBeginArray[i];
 }
-inline int kppIndexBegin(const int i) {
-    return *(std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i) - 1);
+inline bool kppIndexIsBlack(const EvalIndex i) {
+    return KPPIndexIsBlackArray[i];
 }
-inline bool kppIndexIsBlack(const int i) {
-    // f_xxx と e_xxx が交互に配列に格納されているので、インデックスが偶数の時は Black
-    return !((std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i) - 1) - std::begin(KPPIndexArray) & 1);
+inline EvalIndex kppIndexBeginToOpponentBegin(const EvalIndex indexBegin) {
+    switch (indexBegin) {
+    case f_hand_pawn  : return e_hand_pawn;
+    case e_hand_pawn  : return f_hand_pawn;
+    case f_hand_lance : return e_hand_lance;
+    case e_hand_lance : return f_hand_lance;
+    case f_hand_knight: return e_hand_knight;
+    case e_hand_knight: return f_hand_knight;
+    case f_hand_silver: return e_hand_silver;
+    case e_hand_silver: return f_hand_silver;
+    case f_hand_gold  : return e_hand_gold;
+    case e_hand_gold  : return f_hand_gold;
+    case f_hand_bishop: return e_hand_bishop;
+    case e_hand_bishop: return f_hand_bishop;
+    case f_hand_rook  : return e_hand_rook;
+    case e_hand_rook  : return f_hand_rook;
+    case f_pawn       : return e_pawn;
+    case e_pawn       : return f_pawn;
+    case f_lance      : return e_lance;
+    case e_lance      : return f_lance;
+    case f_knight     : return e_knight;
+    case e_knight     : return f_knight;
+    case f_silver     : return e_silver;
+    case e_silver     : return f_silver;
+    case f_gold       : return e_gold;
+    case e_gold       : return f_gold;
+    case f_bishop     : return e_bishop;
+    case e_bishop     : return f_bishop;
+    case f_horse      : return e_horse;
+    case e_horse      : return f_horse;
+    case f_rook       : return e_rook;
+    case e_rook       : return f_rook;
+    case f_dragon     : return e_dragon;
+    case e_dragon     : return f_dragon;
+    default: UNREACHABLE;
+    }
 }
-inline int kppBlackIndexToWhiteBegin(const int i) {
-    assert(kppIndexIsBlack(i));
-    return *std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i);
-}
-inline int kppWhiteIndexToBlackBegin(const int i) {
-    return *(std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i) - 2);
-}
-inline int kppIndexToOpponentBegin(const int i, const bool isBlack) {
-    return *(std::upper_bound(std::begin(KPPIndexArray), std::end(KPPIndexArray), i) - static_cast<int>(!isBlack) * 2);
-}
-inline int kppIndexToOpponentBegin(const int i) {
-    // todo: 高速化
-    return kppIndexToOpponentBegin(i, kppIndexIsBlack(i));
-}
-
-inline int inverseFileIndexIfLefterThanMiddle(const int index) {
+inline EvalIndex inverseFileIndexIfLefterThanMiddle(const EvalIndex index) {
     if (index < fe_hand_end) return index;
-    const int begin = kppIndexBegin(index);
+    const auto begin = kppIndexBegin(index);
     const Square sq = static_cast<Square>(index - begin);
     if (sq <= SQ59) return index;
-    return static_cast<int>(begin + inverseFile(sq));
+    return static_cast<EvalIndex>(begin + inverseFile(sq));
 };
-inline int inverseFileIndexIfOnBoard(const int index) {
-    if (index < fe_hand_end) return index;
-    const int begin = kppIndexBegin(index);
-    const Square sq = static_cast<Square>(index - begin);
-    return static_cast<int>(begin + inverseFile(sq));
-};
-inline int inverseFileIndexOnBoard(const int index) {
+inline EvalIndex inverseFileIndexOnBoard(const EvalIndex index, const EvalIndex indexBegin) {
     assert(f_pawn <= index);
-    const int begin = kppIndexBegin(index);
-    const Square sq = static_cast<Square>(index - begin);
-    return static_cast<int>(begin + inverseFile(sq));
+    assert(kppIndexBegin(index) == indexBegin); // この前提で引数を取る。
+    const Square sq = static_cast<Square>(index - indexBegin);
+    return static_cast<EvalIndex>(indexBegin + inverseFile(sq));
 };
-
-struct KPPBoardIndexStartToPiece : public std::unordered_map<int, Piece> {
-    KPPBoardIndexStartToPiece() {
-        (*this)[f_pawn  ] = BPawn;
-        (*this)[e_pawn  ] = WPawn;
-        (*this)[f_lance ] = BLance;
-        (*this)[e_lance ] = WLance;
-        (*this)[f_knight] = BKnight;
-        (*this)[e_knight] = WKnight;
-        (*this)[f_silver] = BSilver;
-        (*this)[e_silver] = WSilver;
-        (*this)[f_gold  ] = BGold;
-        (*this)[e_gold  ] = WGold;
-        (*this)[f_bishop] = BBishop;
-        (*this)[e_bishop] = WBishop;
-        (*this)[f_horse ] = BHorse;
-        (*this)[e_horse ] = WHorse;
-        (*this)[f_rook  ] = BRook;
-        (*this)[e_rook  ] = WRook;
-        (*this)[f_dragon] = BDragon;
-        (*this)[e_dragon] = WDragon;
-    }
-    Piece value(const int i) const {
-        const auto it = find(i);
-        if (it == std::end(*this))
-            return PieceNone;
-        return it->second;
-    }
+inline EvalIndex inverseFileIndexOnBoard(const EvalIndex index) {
+    return inverseFileIndexOnBoard(index, kppIndexBegin(index));
 };
-extern KPPBoardIndexStartToPiece g_kppBoardIndexStartToPiece;
+inline EvalIndex inverseFileIndexIfOnBoard(const EvalIndex index, const EvalIndex indexBegin) {
+    if (index < fe_hand_end) return index;
+    return inverseFileIndexOnBoard(index, indexBegin);
+};
+inline EvalIndex inverseFileIndexIfOnBoard(const EvalIndex index) {
+    if (index < fe_hand_end) return index;
+    return inverseFileIndexOnBoard(index, kppIndexBegin(index));
+};
+inline EvalIndex kppIndexToOpponentIndex(const EvalIndex index, const EvalIndex indexBegin, const EvalIndex opponentBegin) {
+    return opponentBegin + (index < fe_hand_end ? index - indexBegin : (EvalIndex)inverse((Square)(index - indexBegin)));
+}
+inline EvalIndex kppIndexToOpponentIndex(const EvalIndex index, const EvalIndex indexBegin) {
+    return kppIndexToOpponentIndex(index, indexBegin, kppIndexBeginToOpponentBegin(indexBegin));
+}
+inline EvalIndex kppIndexToOpponentIndex(const EvalIndex index) {
+    const EvalIndex indexBegin = kppIndexBegin(index);
+    return kppIndexToOpponentIndex(index, indexBegin);
+}
 
 template <typename Tl, typename Tr>
 inline std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
@@ -171,167 +168,63 @@ inline std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<T
     return lhs;
 }
 
-const int KPPIndicesMax = 3000;
-const int KKPIndicesMax = 130;
-const int KKIndicesMax = 7;
-
-template <typename KPPType, typename KKPType, typename KKType> struct EvaluatorBase {
-    static const int R_Mid = 8; // 相対位置の中心のindex
-#if defined EVAL_ONLINE
-    constexpr int MaxWeight() const { return 1; }
-#else
-    // todo: Bonanza Method とか 低次元要素を削除する時にこれも消す。
-    constexpr int MaxWeight() const { return 1 << 22; } // KPE自体が1/32の寄与。更にKPEの遠隔駒の利きが1マスごとに1/2に減衰する分(最大でKEEの際に8マス離れが2枚)
-                                                        // 更に重みを下げる場合、MaxWeightを更に大きくしておく必要がある。
-                                                        // なぜか clang で static const int MaxWeight を使っても Undefined symbols for architecture x86_64 と言われる。
-#endif
-    constexpr int TurnWeight() const { return 8; }
-    // 冗長に配列を確保しているが、対称な関係にある時は常に若いindexの方にアクセスすることにする。
-    // 例えば kpp だったら、k が優先的に小さくなるようする。左右の対称も含めてアクセス位置を決める。
-    // ただし、kkp に関する項目 (kkp, r_kkp_b, r_kkp_h) のみ、p は味方の駒として扱うので、k0 < k1 となるとは限らない。
+template <typename EvalElementType> struct EvaluatorBase {
     struct KPPElements {
-        KPPType dummy; // 一次元配列に変換したとき、符号で +- を表すようにしているが、index = 0 の時は符号を付けられないので、ダミーを置く。
-        KPPType kpp[SquareNoLeftNum][fe_end][fe_end];
+        EvalElementType kpp[SquareNum][fe_end][fe_end];
     };
     KPPElements kpps;
 
     struct KKPElements {
-        KKPType dummy; // 一次元配列に変換したとき、符号で +- を表すようにしているが、index = 0 の時は符号を付けられないので、ダミーを置く。
-        KKPType kkp[SquareNoLeftNum][SquareNum][fe_end];
+        EvalElementType kkp[SquareNum][SquareNum][fe_end];
     };
     KKPElements kkps;
-
-    struct KKElements {
-        KKType dummy; // 一次元配列に変換したとき、符号で +- を表すようにしているが、index = 0 の時は符号を付けられないので、ダミーを置く。
-        KKType kk[SquareNoLeftNum][SquareNum];
-    };
-    KKElements kks;
 
     // これらは↑のメンバ変数に一次元配列としてアクセスする為のもの。
     // 配列の要素数は上のstructのサイズから分かるはずだが無名structなのでsizeof()使いにくいから使わない。
     // 先頭さえ分かれば良いので要素数1で良い。
-    KPPType* oneArrayKPP(const u64 i) { return reinterpret_cast<KPPType*>(&kpps) + i; }
-    KKPType* oneArrayKKP(const u64 i) { return reinterpret_cast<KKPType*>(&kkps) + i; }
-    KKType* oneArrayKK(const u64 i) { return reinterpret_cast<KKType*>(&kks) + i; }
+    EvalElementType*    oneArrayKPP(const u64 i) { return reinterpret_cast<EvalElementType*   >(&kpps) + i; }
+    EvalElementType*    oneArrayKKP(const u64 i) { return reinterpret_cast<EvalElementType*   >(&kkps) + i; }
 
     // todo: これらややこしいし汚いので使わないようにする。
     //       型によっては kkps_begin_index などの値が異なる。
     //       ただ、end - begin のサイズは型によらず一定。
-    constexpr size_t kpps_end_index() const { return sizeof(kpps)/sizeof(KPPType); }
-    constexpr size_t kkps_end_index() const { return sizeof(kkps)/sizeof(KKPType); }
-    constexpr size_t kks_end_index() const { return sizeof(kks)/sizeof(KKType); }
+    constexpr size_t kpps_end_index() const { return sizeof(kpps)/sizeof(EvalElementType); }
+    constexpr size_t kkps_end_index() const { return sizeof(kkps)/sizeof(EvalElementType); }
 
-    // KPP に関する相対位置などの次元を落とした位置などのインデックスを全て返す。
+    // KPP に関する対称な位置を若いインデックスに直したインデックスを返す。
     // 負のインデックスは、正のインデックスに変換した位置の点数を引く事を意味する。
-    // 0 の時だけは正負が不明だが、0 は歩の持ち駒 0 枚を意味していて無効な値なので問題なし。
-    // ptrdiff_t はインデックス、int は寄与の大きさ。MaxWeight分のいくつかで表記することにする。
-    void kppIndices(ptrdiff_t ret[KPPIndicesMax], Square ksq, int i, int j) {
-        int retIdx = 0;
-        auto pushLastIndex = [&] {
-            ret[retIdx++] = std::numeric_limits<ptrdiff_t>::max();
-            assert(retIdx <= KPPIndicesMax);
-        };
+    int64_t minKPPIndex(Square ksq, EvalIndex i, EvalIndex j) {
         // i == j のKP要素はKKPの方で行うので、こちらでは何も有効なindexを返さない。
-        if (i == j) {
-            pushLastIndex();
-            return;
-        }
-        if (j < i) std::swap(i, j);
-        // 盤上の駒のSquareが同じ位置の場合と、持ち駒の0枚目は参照する事は無いので、有効なindexを返さない。
-        if (j < fe_hand_end) {
-            // i, j 共に持ち駒
-            if ((i < fe_hand_end && i == kppIndexBegin(i)) // 0 枚目の持ち駒
-                || (j < fe_hand_end && j == kppIndexBegin(j))) // 0 枚目の持ち駒
-            {
-                pushLastIndex();
-                return;
-            }
-        }
-        else if (i < fe_hand_end) {
-            // i 持ち駒、 j 盤上
-            const Square jsq = static_cast<Square>(j - kppIndexBegin(j));
-            if ((i < fe_hand_end && i == kppIndexBegin(i)) // 0 枚目の持ち駒
-                || ksq == jsq)
-            {
-                pushLastIndex();
-                return;
-            }
-        }
-        else {
-            // i, j 共に盤上
-            const Square isq = static_cast<Square>(i - kppIndexBegin(i));
-            const Square jsq = static_cast<Square>(j - kppIndexBegin(j));
-            if (ksq == isq || ksq == jsq || isq == jsq) {
-                pushLastIndex();
-                return;
-            }
-        }
+        if (i == j)
+            return std::numeric_limits<int64_t>::max();
 
-        if (SQ59 < ksq) {
-            ksq = inverseFile(ksq);
-            i = inverseFileIndexIfOnBoard(i);
-            j = inverseFileIndexIfOnBoard(j);
-            if (j < i) std::swap(i, j);
-        }
-        else if (makeFile(ksq) == File5) {
-            assert(i < j);
-            if (f_pawn <= i) {
-                const int ibegin = kppIndexBegin(i);
-                const Square isq = static_cast<Square>(i - ibegin);
-                const int jbegin = kppIndexBegin(j);
-                const Square jsq = static_cast<Square>(j - jbegin);
-                if (ibegin == jbegin) {
-                    if (std::min(inverseFile(isq), inverseFile(jsq)) < std::min(isq, jsq)) {
-                        i = ibegin + inverseFile(isq);
-                        j = jbegin + inverseFile(jsq);
-                    }
-                }
-                else if (SQ59 < isq) {
-                    i = ibegin + inverseFile(isq);
-                    j = jbegin + inverseFile(jsq);
-                }
-                else if (makeFile(isq) == File5)
-                    j = inverseFileIndexIfLefterThanMiddle(j);
-            }
-            else if (f_pawn <= j)
-                j = inverseFileIndexIfLefterThanMiddle(j);
-        }
-        if (j < i) std::swap(i, j);
-        ret[retIdx++] = &kpps.kpp[ksq][i][j] - oneArrayKPP(0);
-        pushLastIndex();
+        // 左右対称や、玉以外の2駒の入れ替えにより本質的に同じ位置関係のものは、常に同じアドレスを参照するようにする。
+        const auto invk = inverseFile(ksq);
+        const auto invi = inverseFileIndexIfOnBoard(i);
+        const auto invj = inverseFileIndexIfOnBoard(j);
+        auto p = std::min({&kpps.kpp[ksq][i][j], &kpps.kpp[ksq][j][i], &kpps.kpp[invk][invi][invj], &kpps.kpp[invk][invj][invi]});
+        return p - oneArrayKPP(0);
     }
-    void kkpIndices(ptrdiff_t ret[KKPIndicesMax], Square ksq0, Square ksq1, int i) {
-        int retIdx = 0;
-        auto pushLastIndex = [&] {
-            ret[retIdx++] = std::numeric_limits<ptrdiff_t>::max();
-            assert(retIdx <= KKPIndicesMax);
-        };
-        if (ksq0 == ksq1) {
-            ret[retIdx++] = std::numeric_limits<ptrdiff_t>::max();
-            assert(retIdx <= KKPIndicesMax);
-            return;
-        }
+    // KKP で対称な位置の中で最小のものを選ぶ。ただし、KKP の P は必ず味方の駒として扱うようにする。
+    int64_t minKKPIndex(Square ksq0, Square ksq1, EvalIndex i) {
+        if (ksq0 == ksq1)
+            return std::numeric_limits<int64_t>::max();
+
         if (i < fe_hand_end) { // i 持ち駒
-            if (i == kppIndexBegin(i)) {
-                pushLastIndex();
-                return;
-            }
+            if (i == kppIndexBegin(i))
+                return std::numeric_limits<int64_t>::max();
         }
         else { // i 盤上
             const Square isq = static_cast<Square>(i - kppIndexBegin(i));
-            if (ksq0 == isq || ksq1 == isq) {
-                pushLastIndex();
-                return;
-            }
+            if (ksq0 == isq || ksq1 == isq)
+                return std::numeric_limits<int64_t>::max();
         }
         int sign = 1;
         if (!kppIndexIsBlack(i)) {
             const Square tmp = ksq0;
             ksq0 = inverse(ksq1);
             ksq1 = inverse(tmp);
-            const int ibegin = kppIndexBegin(i);
-            const int opp_ibegin = kppWhiteIndexToBlackBegin(i);
-            i = opp_ibegin + (i < fe_hand_end ? i - ibegin : inverse(static_cast<Square>(i - ibegin)));
+            i = kppIndexToOpponentIndex(i);
             sign = -1;
         }
         if (SQ59 < ksq0) {
@@ -345,54 +238,113 @@ template <typename KPPType, typename KKPType, typename KKType> struct EvaluatorB
         }
         else if (makeFile(ksq0) == File5 && makeFile(ksq1) == File5)
             i = inverseFileIndexIfLefterThanMiddle(i);
-        ret[retIdx++] = sign*(&kkps.kkp[ksq0][ksq1][i] - oneArrayKKP(0));
-        ret[retIdx++] = std::numeric_limits<ptrdiff_t>::max();
-        assert(retIdx <= KKPIndicesMax);
-    }
-    void kkIndices(ptrdiff_t ret[KKIndicesMax], Square ksq0, Square ksq1) {
-        int retIdx = 0;
-        auto kk_func = [this, &retIdx, &ret](Square ksq0, Square ksq1, int sign) {
-            {
-                // 常に ksq0 < ksq1 となるテーブルにアクセスする為の変換
-                const Square ksq0Arr[] = {
-                    ksq0,
-                    inverseFile(ksq0),
-                };
-                const Square ksq1Arr[] = {
-                    inverse(ksq1),
-                    inverse(inverseFile(ksq1)),
-                };
-                auto ksq0ArrIdx = std::min_element(std::begin(ksq0Arr), std::end(ksq0Arr)) - std::begin(ksq0Arr);
-                auto ksq1ArrIdx = std::min_element(std::begin(ksq1Arr), std::end(ksq1Arr)) - std::begin(ksq1Arr);
-                if (ksq0Arr[ksq0ArrIdx] <= ksq1Arr[ksq1ArrIdx]) {
-                    ksq0 = ksq0Arr[ksq0ArrIdx];
-                    ksq1 = inverse(ksq1Arr[ksq0ArrIdx]);
-                }
-                else {
-                    sign = -sign; // ksq0 と ksq1 を入れ替えるので符号反転
-                    ksq0 = ksq1Arr[ksq1ArrIdx];
-                    ksq1 = inverse(ksq0Arr[ksq1ArrIdx]);
-                }
-            }
-            ret[retIdx++] = sign*(&kks.kk[ksq0][ksq1] - oneArrayKK(0));
-            assert(ksq0 <= SQ59);
-        };
-        kk_func(ksq0         , ksq1         ,  1);
-        kk_func(inverse(ksq1), inverse(ksq0), -1);
-        ret[retIdx++] = std::numeric_limits<ptrdiff_t>::max();
-        assert(retIdx <= KKIndicesMax);
+        return sign*(&kkps.kkp[ksq0][ksq1][i] - oneArrayKKP(0));
     }
     void clear() { memset(this, 0, sizeof(*this)); } // float 型とかだと規格的に 0 は保証されなかった気がするが実用上問題ないだろう。
 };
 
-using KPPType = std::array<s16, 2>;
-using KKPType = std::array<s32, 2>;
-using KKType = std::array<s32, 2>;
-struct Evaluator : public EvaluatorBase<KPPType, KKPType, KKType> {
-    using Base = EvaluatorBase<KPPType, KKPType, KKType>;
-    static KPPType KPP[SquareNum][fe_end][fe_end];
-    static KKPType KKP[SquareNum][SquareNum][fe_end];
-    static KKType KK[SquareNum][SquareNum];
+// float, double 型の atomic 加算。T は float, double を想定。
+template <typename T0, typename T1>
+inline T0 atomicAdd(std::atomic<T0> &x, const T1& diff) {
+    T0 old = x.load(std::memory_order_consume);
+    T0 desired = old + diff;
+    while (!x.compare_exchange_weak(old, desired, std::memory_order_release, std::memory_order_consume))
+        desired = old + diff;
+    return desired;
+}
+// float, double 型の atomic 減算
+template <typename T0, typename T1>
+inline T0 atomicSub(std::atomic<T0> &x, const T1& diff) { return atomicAdd(x, -diff); }
+
+struct EvaluatorGradient : public EvaluatorBase<std::array<std::atomic<float>, 2>> {
+    void incParam(const Position& pos, const std::array<float, 2>& dinc) {
+        const Square sq_bk = pos.kingSquare(Black);
+        const Square sq_wk = pos.kingSquare(White);
+        const EvalIndex* list0 = pos.cplist0();
+        const EvalIndex* list1 = pos.cplist1();
+        const std::array<float, 2> f = {{dinc[0] / FVScale, dinc[1] / FVScale}};
+
+        for (int i = 0; i < pos.nlist(); ++i) {
+            const EvalIndex k0 = list0[i];
+            const EvalIndex k1 = list1[i];
+            atomicAdd(kkps.kkp[sq_bk][sq_wk][k0][0], f[0]);
+            atomicAdd(kkps.kkp[sq_bk][sq_wk][k0][1], f[1]);
+            for (int j = 0; j < i; ++j) {
+                const EvalIndex l0 = list0[j];
+                const EvalIndex l1 = list1[j];
+                atomicAdd(kpps.kpp[sq_bk         ][k0][l0][0], f[0]);
+                atomicAdd(kpps.kpp[sq_bk         ][k0][l0][1], f[1]);
+                atomicSub(kpps.kpp[inverse(sq_wk)][k1][l1][0], f[0]);
+                atomicAdd(kpps.kpp[inverse(sq_wk)][k1][l1][1], f[1]);
+            }
+        }
+    }
+
+    // 点対称や線対称や、駒を入れ替えたような本質的に同じ価値の位置関係の値を、
+    // その中で最も若いインデックスの位置関係の部分に全て足し込む。
+    void sumMirror() {
+#if defined _OPENMP
+#pragma omp parallel
+#endif
+        {
+#ifdef _OPENMP
+#pragma omp for
+#endif
+            for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
+                for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                    for (EvalIndex j = (EvalIndex)0; j < fe_end; ++j) {
+                        const int64_t index = minKPPIndex((Square)ksq, i, j);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            atomicSub((*oneArrayKPP(-index))[0], kpps.kpp[ksq][i][j][0]);
+                            atomicAdd((*oneArrayKPP(-index))[1], kpps.kpp[ksq][i][j][1]);
+                        }
+                        else if (&kpps.kpp[ksq][i][j] != oneArrayKPP(index)) {
+                            atomicAdd((*oneArrayKPP( index))[0], kpps.kpp[ksq][i][j][0]);
+                            atomicAdd((*oneArrayKPP( index))[1], kpps.kpp[ksq][i][j][1]);
+                        }
+                    }
+                }
+            }
+#ifdef _OPENMP
+#pragma omp for
+#endif
+            for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
+                for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
+                    for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                        const int64_t index = minKKPIndex((Square)ksq0, ksq1, i);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            atomicSub((*oneArrayKKP(-index))[0], kkps.kkp[ksq0][ksq1][i][0]);
+                            atomicAdd((*oneArrayKKP(-index))[1], kkps.kkp[ksq0][ksq1][i][1]);
+                        }
+                        else if (&kkps.kkp[ksq0][ksq1][i] != oneArrayKKP(index)) {
+                            atomicAdd((*oneArrayKKP( index))[0], kkps.kkp[ksq0][ksq1][i][0]);
+                            atomicAdd((*oneArrayKKP( index))[1], kkps.kkp[ksq0][ksq1][i][1]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
+
+using EvalElementType = std::array<s16, 2>;
+using KPPEvalElementType0 = EvalElementType[fe_end];
+using KPPEvalElementType1 = KPPEvalElementType0[fe_end];
+using KPPEvalElementType2 = KPPEvalElementType1[SquareNum];
+using KKPEvalElementType0 = EvalElementType[fe_end];
+using KKPEvalElementType1 = KKPEvalElementType0[SquareNum];
+using KKPEvalElementType2 = KKPEvalElementType1[SquareNum];
+struct Evaluator /*: public EvaluatorBase<EvalElementType>*/ {
+    using Base = EvaluatorBase<EvalElementType>;
+    static bool allocated;
+    static KPPEvalElementType1* KPP;
+    static KKPEvalElementType1* KKP;
 
     static std::string addSlashIfNone(const std::string& str) {
         std::string ret = str;
@@ -403,252 +355,54 @@ struct Evaluator : public EvaluatorBase<KPPType, KKPType, KKType> {
         return ret;
     }
 
-    void setEvaluate() {
-#if !defined LEARN
-        SYNCCOUT << "info string start setting eval table" << SYNCENDL;
-#endif
-#define FOO(indices, oneArray, sum)                                     \
-        for (auto index : indices) {                                    \
-            if (index == std::numeric_limits<ptrdiff_t>::max()) break;  \
-            if (0 <= index) {                                           \
-                sum[0] += static_cast<s64>((*oneArray( index))[0]);     \
-                sum[1] += static_cast<s64>((*oneArray( index))[1]);     \
-            }                                                           \
-            else {                                                      \
-                sum[0] -= static_cast<s64>((*oneArray(-index))[0]);     \
-                sum[1] += static_cast<s64>((*oneArray(-index))[1]);     \
-            }                                                           \
-        }                                                               \
-        sum[1] /= Base::TurnWeight();
-
-#if defined _OPENMP
-#pragma omp parallel
-#endif
-        // KPP
-        {
-#ifdef _OPENMP
-#pragma omp for
-#endif
-            // OpenMP対応したら何故か ksq を Square 型にすると ++ksq が定義されていなくてコンパイルエラーになる。
-            for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
-                // indices は更に for ループの外側に置きたいが、OpenMP 使っているとアクセス競合しそうなのでループの中に置く。
-                ptrdiff_t indices[KPPIndicesMax];
-                for (int i = 0; i < fe_end; ++i) {
-                    for (int j = 0; j < fe_end; ++j) {
-                        EvaluatorBase<KPPType, KKPType, KKType>::kppIndices(indices, static_cast<Square>(ksq), i, j);
-                        std::array<s64, 2> sum = {{}};
-                        FOO(indices, Base::oneArrayKPP, sum);
-                        KPP[ksq][i][j] += sum;
-                    }
-                }
-            }
+    static void init(const std::string& dirName) {
+        if (!allocated) {
+            allocated = true;
+            KPP = new KPPEvalElementType1[SquareNum];
+            KKP = new KKPEvalElementType1[SquareNum];
+            memset(KPP, 0, sizeof(KPPEvalElementType1) * (size_t)SquareNum);
+            memset(KKP, 0, sizeof(KKPEvalElementType1) * (size_t)SquareNum);
         }
-        // KKP
-        {
-#ifdef _OPENMP
-#pragma omp for
-#endif
-            for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-                ptrdiff_t indices[KKPIndicesMax];
-                for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
-                    for (int i = 0; i < fe_end; ++i) {
-                        EvaluatorBase<KPPType, KKPType, KKType>::kkpIndices(indices, static_cast<Square>(ksq0), ksq1, i);
-                        std::array<s64, 2> sum = {{}};
-                        FOO(indices, Base::oneArrayKKP, sum);
-                        KKP[ksq0][ksq1][i] += sum;
-                    }
-                }
-            }
-        }
-        // KK
-        {
-#ifdef _OPENMP
-#pragma omp for
-#endif
-            for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-                ptrdiff_t indices[KKIndicesMax];
-                for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
-                    EvaluatorBase<KPPType, KKPType, KKType>::kkIndices(indices, static_cast<Square>(ksq0), ksq1);
-                    std::array<s64, 2> sum = {{}};
-                    FOO(indices, Base::oneArrayKK, sum);
-                    KK[ksq0][ksq1][0] += sum[0] / 2;
-                    KK[ksq0][ksq1][1] += sum[1] / 2;
-                }
-            }
-        }
-#undef FOO
-
-#if !defined LEARN
-        SYNCCOUT << "info string end setting eval table" << SYNCENDL;
-#endif
+        readEvalFile(dirName);
     }
 
-    void init(const std::string& dirName, const bool Synthesized, const bool readBase = true) {
-        // 合成された評価関数バイナリがあればそちらを使う。
-        if (Synthesized) {
-            if (readSynthesized(dirName))
-                return;
-        }
-        if (readBase)
-            clear();
-        readSomeSynthesized(dirName);
-        if (readBase)
-            read(dirName);
-        setEvaluate();
-    }
-
-#define ALL_SYNTHESIZED_EVAL {                  \
-        FOO(KPP);                               \
-        FOO(KKP);                               \
-        FOO(KK);                                \
-    }
-    static bool readSynthesized(const std::string& dirName) {
+    // 2GB を超えるファイルは Msys2 環境では std::ifstream では一度に read 出来ず、分割して read する必要がある。
+    static bool readEvalFile(const std::string& dirName) {
 #define FOO(x) {                                                        \
-            std::ifstream ifs((addSlashIfNone(dirName) + #x "_synthesized.bin").c_str(), std::ios::binary); \
-            if (ifs) ifs.read(reinterpret_cast<char*>(x), sizeof(x));   \
-            else     return false;                                      \
+            std::ifstream fs((addSlashIfNone(dirName) + #x ".bin").c_str(), std::ios::binary); \
+            if (!fs)                                                    \
+                return false;                                           \
+            auto end = (char*)x + sizeof(x ## EvalElementType2);        \
+            for (auto it = (char*)x; it < end; it += (1 << 30)) {       \
+                size_t size = (it + (1 << 30) < end ? (1 << 30) : end - it); \
+                fs.read(it, size);                                      \
+            }                                                           \
         }
-        ALL_SYNTHESIZED_EVAL;
+        FOO(KPP);
+        FOO(KKP);
 #undef FOO
         return true;
     }
-    static void writeSynthesized(const std::string& dirName) {
+    static bool writeEvalFile(const std::string& dirName) {
 #define FOO(x) {                                                        \
-            std::ofstream ofs((addSlashIfNone(dirName) + #x "_synthesized.bin").c_str(), std::ios::binary); \
-            ofs.write(reinterpret_cast<char*>(x), sizeof(x));           \
+            std::ofstream fs((addSlashIfNone(dirName) + #x ".bin").c_str(), std::ios::binary); \
+            if (!fs)                                                    \
+                return false;                                           \
+            auto end = (char*)x + sizeof(x ## EvalElementType2);        \
+            for (auto it = (char*)x; it < end; it += (1 << 30)) {       \
+                size_t size = (it + (1 << 30) < end ? (1 << 30) : end - it); \
+                fs.write(it, size);                                     \
+            }                                                           \
         }
-        ALL_SYNTHESIZED_EVAL;
+        FOO(KPP);
+        FOO(KKP);
 #undef FOO
+        return true;
     }
-    static void readSomeSynthesized(const std::string& dirName) {
-#define FOO(x) {                                                        \
-            std::ifstream ifs((addSlashIfNone(dirName) + #x "_some_synthesized.bin").c_str(), std::ios::binary); \
-            if (ifs) ifs.read(reinterpret_cast<char*>(x), sizeof(x));   \
-            else     memset(x, 0, sizeof(x));                           \
-        }
-        ALL_SYNTHESIZED_EVAL;
-#undef FOO
-    }
-    static void writeSomeSynthesized(const std::string& dirName) {
-#define FOO(x) {                                                        \
-            std::ofstream ofs((addSlashIfNone(dirName) + #x "_some_synthesized.bin").c_str(), std::ios::binary); \
-            ofs.write(reinterpret_cast<char*>(x), sizeof(x));           \
-        }
-        ALL_SYNTHESIZED_EVAL;
-#undef FOO
-    }
-#undef ALL_SYNTHESIZED_EVAL
-
-#if defined EVAL_PHASE1
-#define BASE_PHASE1 {                           \
-        FOO(kpps.kee);                          \
-        FOO(kpps.r_kpe_b);                      \
-        FOO(kpps.r_kpe_h);                      \
-        FOO(kpps.r_kee);                        \
-        FOO(kpps.xee);                          \
-        FOO(kpps.yee);                          \
-        FOO(kpps.pe);                           \
-        FOO(kpps.ee);                           \
-        FOO(kpps.r_pe_b);                       \
-        FOO(kpps.r_pe_h);                       \
-        FOO(kpps.r_ee);                         \
-        FOO(kkps.ke);                           \
-        FOO(kkps.r_kke);                        \
-        FOO(kkps.r_ke);                         \
-        FOO(kks.k);                             \
-    }
-#else
-#define BASE_PHASE1
-#endif
-
-#if defined EVAL_PHASE2
-#define BASE_PHASE2 {                           \
-        FOO(kpps.r_pp_bb);                      \
-        FOO(kpps.r_pp_hb);                      \
-        FOO(kkps.r_kp_b);                       \
-        FOO(kkps.r_kp_h);                       \
-        FOO(kks.r_kk);                          \
-    }
-#else
-#define BASE_PHASE2
-#endif
-
-#if defined EVAL_PHASE3
-#define BASE_PHASE3 {                           \
-        FOO(kpps.r_kpp_bb);                     \
-        FOO(kpps.r_kpp_hb);                     \
-        FOO(kpps.pp);                           \
-        FOO(kpps.kpe);                          \
-        FOO(kpps.xpe);                          \
-        FOO(kpps.ype);                          \
-        FOO(kkps.kp);                           \
-        FOO(kkps.r_kkp_b);                      \
-        FOO(kkps.r_kkp_h);                      \
-        FOO(kkps.kke);                          \
-        FOO(kks.kk);                            \
-    }
-#else
-#define BASE_PHASE3
-#endif
-
-#if defined EVAL_PHASE4
-#define BASE_PHASE4 {                           \
-        FOO(kpps.kpp);                          \
-        FOO(kpps.xpp);                          \
-        FOO(kpps.ypp);                          \
-        FOO(kkps.kkp);                          \
-    }
-#else
-#define BASE_PHASE4
-#endif
-
-#if defined EVAL_ONLINE
-#define BASE_ONLINE {                           \
-        FOO(kpps.kpp);                          \
-        FOO(kkps.kkp);                          \
-        FOO(kks.kk);                            \
-    }
-#else
-#define BASE_ONLINE
-#endif
-
-#define READ_BASE_EVAL {                        \
-        BASE_PHASE1;                            \
-        BASE_PHASE2;                            \
-        BASE_PHASE3;                            \
-        BASE_PHASE4;                            \
-        BASE_ONLINE;                            \
-    }
-#define WRITE_BASE_EVAL {                       \
-        BASE_PHASE1;                            \
-        BASE_PHASE2;                            \
-        BASE_PHASE3;                            \
-        BASE_PHASE4;                            \
-        BASE_ONLINE;                            \
-    }
-    void read(const std::string& dirName) {
-#define FOO(x) {                                                        \
-            std::ifstream ifs((addSlashIfNone(dirName) + #x ".bin").c_str(), std::ios::binary); \
-            ifs.read(reinterpret_cast<char*>(x), sizeof(x));            \
-        }
-        READ_BASE_EVAL;
-#undef FOO
-    }
-    void write(const std::string& dirName) {
-#define FOO(x) {                                                        \
-            std::ofstream ofs((addSlashIfNone(dirName) + #x ".bin").c_str(), std::ios::binary); \
-            ofs.write(reinterpret_cast<char*>(x), sizeof(x));           \
-        }
-        WRITE_BASE_EVAL;
-#undef FOO
-    }
-#undef READ_BASE_EVAL
-#undef WRITE_BASE_EVAL
 };
 
-extern const int kppArray[31];
-extern const int kkpArray[15];
-extern const int kppHandArray[ColorNum][HandPieceNum];
+extern const EvalIndex kppArray[31];
+extern const EvalIndex kppHandArray[ColorNum][HandPieceNum];
 
 struct EvalSum {
 #if defined USE_AVX2_EVAL
@@ -722,7 +476,7 @@ struct EvalSum {
     void decode() { encode(); }
 
     union {
-        std::array<std::array<s32, 2>, 3> p;
+        std::array<std::array<s32, 2>, 4> p;
         struct {
             u64 data[3];
             u64 key; // ehash用。

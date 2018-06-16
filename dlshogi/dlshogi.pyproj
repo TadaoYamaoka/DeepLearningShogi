@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_policy_depth6_1 ..\..\elmo_for_learn\bin\elmo_teacher_rnd8_depth8_10 --lr 0.01 -b 32</CommandLineArguments>
+    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-01 ..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-02</CommandLineArguments>
     <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -30,7 +30,11 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="predict.py" />
+    <Compile Include="sigmoid_cross_entropy2.py" />
     <Compile Include="test.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="test_predict_using_hcpe.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train_rl_policy_with_value.py" />
@@ -39,6 +43,7 @@
     <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
     <Compile Include="train_rl_policy_using_hcpe.py" />
     <Compile Include="train_sl_policy_with_value.py" />
+    <Compile Include="train_sl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="train_val_network_bootstrap.py" />
     <Compile Include="train_val_network.py" />
     <Compile Include="transfer_policy_to_value.py">

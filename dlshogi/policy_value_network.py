@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import chainer
 from chainer import cuda, Variable
 from chainer import Chain
@@ -26,13 +26,23 @@ class PolicyValueNetwork(Chain):
             l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
             l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l12=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
-            l12_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
+            l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l13=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l14=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l15=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l16=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l17=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l18=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l19=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l20=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            l21=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+            # policy network
+            l22=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
+            l22_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
             # value network
-            l12_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
-            l12_2_v=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
-            l13=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
-            l14=L.Linear(fcl, 1),
+            l22_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1),
+            l23_v=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
+            l24_v=L.Linear(fcl, 1),
             norm1=L.BatchNormalization(k),
             norm2=L.BatchNormalization(k),
             norm3=L.BatchNormalization(k),
@@ -42,7 +52,19 @@ class PolicyValueNetwork(Chain):
             norm7=L.BatchNormalization(k),
             norm8=L.BatchNormalization(k),
             norm9=L.BatchNormalization(k),
-            norm10=L.BatchNormalization(k)
+            norm10=L.BatchNormalization(k),
+            norm11=L.BatchNormalization(k),
+            norm12=L.BatchNormalization(k),
+            norm13=L.BatchNormalization(k),
+            norm14=L.BatchNormalization(k),
+            norm15=L.BatchNormalization(k),
+            norm16=L.BatchNormalization(k),
+            norm17=L.BatchNormalization(k),
+            norm18=L.BatchNormalization(k),
+            norm19=L.BatchNormalization(k),
+            norm20=L.BatchNormalization(k),
+            norm21=L.BatchNormalization(k),
+            norm22_v=L.BatchNormalization(MAX_MOVE_LABEL_NUM)
         )
 
     def __call__(self, x1, x2):
@@ -70,11 +92,31 @@ class PolicyValueNetwork(Chain):
         h9 = F.relu(self.norm9(u9))
         h10 = F.dropout(F.relu(self.norm10(self.l10(h9))), ratio=dropout_ratio)
         u11 = self.l11(h10) + u9
-        # output
-        h12 = self.l12(u11)
-        h12_1 = self.l12_2(F.reshape(h12, (len(h12.data), 9*9*MAX_MOVE_LABEL_NUM)))
+        # Residual block
+        h11 = F.relu(self.norm11(u11))
+        h12 = F.dropout(F.relu(self.norm12(self.l12(h11))), ratio=dropout_ratio)
+        u13 = self.l13(h12) + u11
+        # Residual block
+        h13 = F.relu(self.norm13(u13))
+        h14 = F.dropout(F.relu(self.norm14(self.l14(h13))), ratio=dropout_ratio)
+        u15 = self.l15(h14) + u13
+        # Residual block
+        h15 = F.relu(self.norm15(u15))
+        h16 = F.dropout(F.relu(self.norm16(self.l16(h15))), ratio=dropout_ratio)
+        u17 = self.l17(h16) + u15
+        # Residual block
+        h17 = F.relu(self.norm17(u17))
+        h18 = F.dropout(F.relu(self.norm18(self.l18(h17))), ratio=dropout_ratio)
+        u19 = self.l19(h18) + u17
+        # Residual block
+        h19 = F.relu(self.norm19(u19))
+        h20 = F.dropout(F.relu(self.norm20(self.l20(h19))), ratio=dropout_ratio)
+        u21 = self.l21(h20) + u19
+        h21 = F.relu(self.norm21(u21))
+        # policy network
+        h22 = self.l22(h21)
+        h22_1 = self.l22_2(F.reshape(h22, (len(h22.data), 9*9*MAX_MOVE_LABEL_NUM)))
         # value network
-        h12_v = self.l12_v(u11)
-        h12_2 = F.relu(self.l12_2_v(F.reshape(h12_v, (len(h12_v.data), 9*9*MAX_MOVE_LABEL_NUM))))
-        h13 = F.relu(self.l13(h12_2))
-        return h12_1, self.l14(h13)
+        h22_v = F.relu(self.norm22_v(self.l22_v(h21)))
+        h23_v = F.relu(self.l23_v(h22_v))
+        return h22_1, self.l24_v(h23_v)

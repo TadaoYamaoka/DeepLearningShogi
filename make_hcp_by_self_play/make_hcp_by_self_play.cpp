@@ -1,14 +1,12 @@
-#include <cstdlib>
+ï»¿#include <cstdlib>
 
+#include "nn.h"
 #include "cppshogi.h"
-
-namespace py = boost::python;
-namespace np = boost::python::numpy;
 
 void randomMove(Position& pos, std::mt19937& mt);
 
 const Move select_move(const Position pos, float *logits) {
-	// ‡–@èˆê——
+	// åˆæ³•æ‰‹ä¸€è¦§
 	std::vector<Move> legal_moves;
 	std::vector<float> legal_move_probabilities;
 	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
@@ -27,7 +25,7 @@ const Move select_move(const Position pos, float *logits) {
 	// Boltzmann distribution
 	softmax_tempature_with_normalize(legal_move_probabilities);
 
-	// Šm—¦‚É‰‚¶‚Äè‚ğ‘I‘ğ
+	// ç¢ºç‡ã«å¿œã˜ã¦æ‰‹ã‚’é¸æŠ
 	std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
 	int move_idx = distribution(g_randomTimeSeed);
 
@@ -43,22 +41,11 @@ int main(int argc, char** argv)
 
 	const char* model_path = argv[1];
 	const char* outfile = argv[2];
-	int batch_size = std::atoi(argv[3]);
+	int max_batch_size = std::atoi(argv[3]);
 	int position_num = std::atoi(argv[4]);
 
-	// Boost.Python‚ÆBoost.Numpy‚Ì‰Šú‰»
-	Py_Initialize();
-	np::initialize();
-
-	// Pythonƒ‚ƒWƒ…[ƒ‹“Ç‚İ‚İ
-	py::object dlshogi_ns = py::import("dlshogi.test").attr("__dict__");
-
-	// modelƒ[ƒh
-	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(model_path);
-
-	// —\‘ªŠÖ”æ“¾
-	py::object dlshogi_predict = dlshogi_ns["predict"];
+	std::unique_ptr<NN> nn(new NN(max_batch_size));
+	nn->load_model(model_path);
 
 	initTable();
 	Position::initZobrist();
@@ -66,11 +53,18 @@ int main(int argc, char** argv)
 	Searcher s;
 	s.init();
 
-	// ƒ{ƒ‹ƒcƒ}ƒ“‰·“xİ’è
+	// ãƒœãƒ«ãƒ„ãƒãƒ³æ¸©åº¦è¨­å®š
 	set_softmax_tempature(1.25f);
 
-	float (*features1)[ColorNum][MAX_FEATURES1_NUM][SquareNum] = new float[batch_size][ColorNum][MAX_FEATURES1_NUM][SquareNum];
-	float (*features2)[MAX_FEATURES2_NUM][SquareNum] = new float[batch_size][MAX_FEATURES2_NUM][SquareNum];
+	features1_t *features1;
+	features2_t *features2;
+	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * max_batch_size, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * max_batch_size, cudaHostAllocPortable));
+
+	float* y1;
+	float* y2;
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * max_batch_size * sizeof(float), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y2, max_batch_size * sizeof(float), cudaHostAllocPortable));
 
 	std::mt19937 mt(std::chrono::system_clock::now().time_since_epoch().count());
 	std::uniform_int_distribution<int> dist(4, 250);
@@ -84,16 +78,16 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
 	}
 
-	// i’»ó‹µ•\¦
+	// é€²æ—çŠ¶æ³è¡¨ç¤º
 	std::atomic<s64> index = 0;
 	Timer t = Timer::currentTime();
 	auto progressFunc = [&position_num](std::atomic<s64>& index, Timer& t) {
 		while (true) {
-			std::this_thread::sleep_for(std::chrono::seconds(5)); // w’è•b‚¾‚¯‘Ò‹@‚µAi’»‚ğ•\¦‚·‚éB
+			std::this_thread::sleep_for(std::chrono::seconds(5)); // æŒ‡å®šç§’ã ã‘å¾…æ©Ÿã—ã€é€²æ—ã‚’è¡¨ç¤ºã™ã‚‹ã€‚
 			const s64 madeTeacherNodes = index;
 			const double progress = static_cast<double>(madeTeacherNodes) / position_num;
 			auto elapsed_msec = t.elapsed();
-			if (progress > 0.0) // 0 œZ‚ğ‰ñ”ğ‚·‚éB
+			if (progress > 0.0) // 0 é™¤ç®—ã‚’å›é¿ã™ã‚‹ã€‚
 				std::cout << std::fixed << "Progress: " << std::setprecision(2) << std::min(100.0, progress * 100.0)
 				<< "%, Elapsed: " << elapsed_msec / 1000
 				<< "[s], Remaining: " << std::max<s64>(0, elapsed_msec*(1.0 - progress) / (progress * 1000)) << "[s]" << std::endl;
@@ -109,11 +103,11 @@ int main(int argc, char** argv)
 	std::vector<int> tmpply2;
 	std::vector<int> ply;
 	std::vector<StateListPtr> stateLists;
-	std::vector<HuffmanCodedPos> hcptmp(batch_size);
-	std::vector<HuffmanCodedPos> hcptmp2(batch_size);
+	std::vector<HuffmanCodedPos> hcptmp(max_batch_size);
+	std::vector<HuffmanCodedPos> hcptmp2(max_batch_size);
 
-	// ‹Ç–Ê‰Šú‰»
-	for (int i = 0; i < batch_size; i++) {
+	// å±€é¢åˆæœŸåŒ–
+	for (int i = 0; i < max_batch_size; i++) {
 		positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 		maxply.emplace_back(dist(mt));
 		int maxply2 = std::uniform_int_distribution<int>(8, maxply[i])(mt);
@@ -135,23 +129,8 @@ int main(int argc, char** argv)
 		}
 
 		// predict
-		np::ndarray ndfeatures1 = np::from_data(
-			features1,
-			np::dtype::get_builtin<float>(),
-			py::make_tuple(positions.size(), (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-			py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-			py::object());
-
-		np::ndarray ndfeatures2 = np::from_data(
-			features2,
-			np::dtype::get_builtin<float>(),
-			py::make_tuple(positions.size(), MAX_FEATURES2_NUM, 9, 9),
-			py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-			py::object());
-
-		auto ret = dlshogi_predict(ndfeatures1, ndfeatures2);
-		np::ndarray y_data = py::extract<np::ndarray>(ret);
-		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y_data.get_data());
+		nn->foward(max_batch_size, features1, features2, y1, y2);
+		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 
 		// do move
 		for (int idx = 0; idx < positions.size(); idx++, logits++) {
@@ -164,7 +143,7 @@ int main(int argc, char** argv)
 
 				ply[idx]++;
 
-				// o—Í”»’è
+				// å‡ºåŠ›åˆ¤å®š
 				if (ply[idx] == maxply[idx]) {
 					hcpvec.emplace_back(positions[idx].toHuffmanCodedPos());
 					index++;
@@ -177,7 +156,7 @@ int main(int argc, char** argv)
 				}
 			}
 			else {
-				// I‹Ç‚Ìê‡Ab’è‚Å•Û‘¶‚µ‚½‹Ç–Ê‚ğo—Í
+				// çµ‚å±€ã®å ´åˆã€æš«å®šã§ä¿å­˜ã—ãŸå±€é¢ã‚’å‡ºåŠ›
 				if (ply[idx] > tmpply[idx]) {
 					hcpvec.emplace_back(hcptmp[idx]);
 					index++;
@@ -188,7 +167,7 @@ int main(int argc, char** argv)
 				}
 			}
 
-			// Ÿ‚ÌƒQ[ƒ€
+			// æ¬¡ã®ã‚²ãƒ¼ãƒ 
 			if (move == Move::moveNone() || ply[idx] >= maxply[idx]) {
 				positions[idx].set(DefaultStartPositionSFEN, s.threads.main());
 				maxply[idx] = dist(mt);
@@ -199,7 +178,7 @@ int main(int argc, char** argv)
 				stateLists[idx]->clear();
 			}
 			else {
-				// ’á‚¢Šm—¦‚Åƒ‰ƒ“ƒ_ƒ€ƒ€[ƒu‚ğ“ü‚ê‚é
+				// ä½ã„ç¢ºç‡ã§ãƒ©ãƒ³ãƒ€ãƒ ãƒ ãƒ¼ãƒ–ã‚’å…¥ã‚Œã‚‹
 				if (doRandomDist(mt) == 0 && !positions[idx].inCheck()) {
 					randomMove(positions[idx], mt);
 				}
@@ -207,11 +186,15 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// o—Í
+	// å‡ºåŠ›
 	ofs.write(reinterpret_cast<char*>(hcpvec.data()), sizeof(HuffmanCodedPos) * hcpvec.size());
 
 	progressThread.join();
-	Py_Finalize();
+
+	checkCudaErrors(cudaFreeHost(features1));
+	checkCudaErrors(cudaFreeHost(features2));
+	checkCudaErrors(cudaFreeHost(y1));
+	checkCudaErrors(cudaFreeHost(y2));
 
 	return 0;
 }

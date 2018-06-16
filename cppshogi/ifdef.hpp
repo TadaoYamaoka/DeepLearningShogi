@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,16 +22,10 @@
 #ifndef APERY_IFDEF_HPP
 #define APERY_IFDEF_HPP
 
-#if 1
+#if 0
 // 機械学習を行う際に使う。
 #define LEARN
 #endif
-
-//#define EVAL_PHASE1
-//#define EVAL_PHASE2
-//#define EVAL_PHASE3
-//#define EVAL_PHASE4
-#define EVAL_ONLINE
 
 #if 1 && !defined LEARN
 // 対局時は1つの局面に対してしか探索を実行しないので、置換表などのデータをグローバルに置いて高速化する。
@@ -56,7 +50,7 @@
 #endif
 #endif
 
-#if 1
+#if 0
 // 定跡作成時に探索を用いて定跡に点数を付ける。
 #define MAKE_SEARCHED_BOOK
 #endif

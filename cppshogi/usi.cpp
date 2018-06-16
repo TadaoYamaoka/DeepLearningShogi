@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2017 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "generateMoves.hpp"
 #include "search.hpp"
 #include "tt.hpp"
-//#include "book.hpp"
+#include "book.hpp"
 #include "thread.hpp"
 //#include "benchmark.hpp"
 //#include "learner.hpp"
@@ -45,6 +45,18 @@ bool CaseInsensitiveLess::operator () (const std::string& s1, const std::string&
             return c1 < c2;
     }
     return s1.size() < s2.size();
+}
+
+inline void printEvalTable(const Square ksq, const int p0, const int p1_base, const bool isTurn) {
+    for (Rank r = Rank1; r != Rank9Wall; r += RankDeltaS) {
+        for (File f = File9; f != File1Wall; f += FileDeltaE) {
+            const Square sq = makeSquare(f, r);
+            printf("%5d", Evaluator::KPP[ksq][p0][p1_base + sq][isTurn]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    fflush(stdout);
 }
 
 namespace {
@@ -85,34 +97,52 @@ namespace {
 
 void OptionsMap::init(Searcher* s) {
     const int MaxHashMB = 1024 * 1024;
-    (*this)["USI_Hash"]                    = USIOption(256, 1, MaxHashMB, onHashSize, s);
-    (*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
-    (*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
-    (*this)["Eval_Dir"]                    = USIOption("20161007");
-    //(*this)["Best_Book_Move"]              = USIOption(false);
+#ifdef SELF_PLAY
+	(*this)["USI_Hash"] = USIOption(1, 1, MaxHashMB, onHashSize, s);
+#else
+	(*this)["USI_Hash"] = USIOption(256, 1, MaxHashMB, onHashSize, s);
+#endif // SELF_PLAY
+	(*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
+    (*this)["Book_File"]                   = USIOption("book/20180505/book.bin");
+    (*this)["Eval_Dir"]                    = USIOption("20180416");
+    (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(true);
     //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    (*this)["Min_Book_Score"]              = USIOption(-300, -ScoreInfinite, ScoreInfinite);
+    (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
-    (*this)["Byoyomi_Margin"]              = USIOption(100, 0, INT_MAX);
-    (*this)["Time_Margin"]                 = USIOption(100, 0, INT_MAX);
+    (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
+    (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
     (*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
     (*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    (*this)["Slow_Mover_10"]               = USIOption(10, 1, 1000); // 持ち時間15分, 秒読み10秒では10, 持ち時間2時間では3にした。(sdt4)
-    (*this)["Slow_Mover_16"]               = USIOption(20, 1, 1000); // 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では20にした。(sdt4)
-    (*this)["Slow_Mover_20"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
-    (*this)["Slow_Mover"]                  = USIOption(89, 1, 1000);
+    (*this)["Slow_Mover_10"]               = USIOption(10, 1, 1000); // 持ち時間15分, 秒読み10秒では10 にした。(sdt5) 持ち時間15分, 秒読み10秒では10, 持ち時間2時間では3にした。(sdt4)
+    (*this)["Slow_Mover_16"]               = USIOption(20, 1, 1000); // 持ち時間15分, 秒読み10秒では20 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では20にした。(sdt4)
+    (*this)["Slow_Mover_20"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では30 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
+    (*this)["Slow_Mover_30"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では50 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
+    (*this)["Slow_Mover_40"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では60 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
+    (*this)["Slow_Mover"]                  = USIOption(89, 1, 1000); // 持ち時間15分, 秒読み10秒では65 にした。(sdt5)
     (*this)["Draw_Ply"]                    = USIOption(256, 1, INT_MAX);
     (*this)["Move_Overhead"]               = USIOption(30, 0, 5000);
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
-    (*this)["Threads"]                     = USIOption(1, 1, MaxThreads, onThreads, s);
-	(*this)["UCT_Threads"]                 = USIOption(cpuCoreCount(), 1, MaxThreads);
-	(*this)["DNN_Model"]                   = USIOption("H:\\src\\DeepLearningShogi\\dlshogi\\model_rl_val_005");
+	(*this)["Threads"]                     = USIOption(1, 1, MaxThreads, onThreads, s);
+	(*this)["UCT_Threads"]                 = USIOption(2, 1, MaxThreads);
+	(*this)["UCT_Threads2"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads3"]                = USIOption(0, 0, MaxThreads);
+	(*this)["UCT_Threads4"]                = USIOption(0, 0, MaxThreads);
+	(*this)["DNN_Model"]                   = USIOption(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
+	(*this)["DNN_Model2"]                  = USIOption("");
+	(*this)["DNN_Model3"]                  = USIOption("");
+	(*this)["DNN_Model4"]                  = USIOption("");
+	(*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
+	(*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
+	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
+	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
 	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
-	(*this)["Mate_Search_Depth"]           = USIOption(0, 0, 20); // 詰み探索の深さ(0の場合探索しない)
+	(*this)["Mate_Root_Search"]            = USIOption(false);
 	(*this)["Leaf_Search_Depth"]           = USIOption(0, 0, 20); // 末端ノードで探索を行う深さ(0の場合探索しない)
+	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
+	(*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
 #else
@@ -411,10 +441,6 @@ void make_teacher(std::istringstream& ssCmd) {
             }
             setPosition(pos, hcp);
             randomMove(pos, mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
-	    for(int i=0; i< 5 ; ++i) // tkzw: N(6)回ランダムムーブ、もう少し大きい方が良いと考えています。
-		if (!pos.inCheck()) // tkzw: 「王手じゃないという条件」は不要かもしれません。
-		    randomMove(pos, mt);
-		else break;
             std::unordered_set<Key> keyHash;
             StateListPtr states = StateListPtr(new std::deque<StateInfo>(1));
             std::vector<HuffmanCodedPosAndEval> hcpevec;
@@ -429,10 +455,10 @@ void make_teacher(std::istringstream& ssCmd) {
                 }
                 pos.searcher()->alpha = -ScoreMaxEvaluate;
                 pos.searcher()->beta  =  ScoreMaxEvaluate;
-                go(pos, static_cast<Depth>(6));
+                go(pos, static_cast<Depth>(8));
                 const Score score = pos.searcher()->threads.main()->rootMoves[0].score;
                 const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-                const int ScoreThresh = 3000; // 自己対局を決着がついたとして止める閾値
+                const int ScoreThresh = 10000; // 自己対局を決着がついたとして止める閾値
                 if (ScoreThresh < abs(score)) { // 差が付いたので投了した事にする。
                     if (pos.turn() == Black)
                         gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
@@ -474,16 +500,6 @@ void make_teacher(std::istringstream& ssCmd) {
             for (auto& elem : hcpevec)
                 elem.gameResult = gameResult;
             std::unique_lock<Mutex> lock(omutex);
-            std::cout << "length: " << hcpevec.size() << std::endl;
-            std::cout << "size: " << sizeof(HuffmanCodedPosAndEval) << std::endl;
-            std::cout << "sum size: " << sizeof(HuffmanCodedPosAndEval) * hcpevec.size() << std::endl;
-            std::cout << "data: " << std::hex << (unsigned short)(hcpevec[0].hcp.data[0]) << (unsigned short)(hcpevec[0].hcp.data[1]) << std::endl;
-            Position po;
-            po.set(hcpevec[0].hcp, nullptr);
-            std::cout << "sfen: " << po.toSFEN() << std::endl;
-            std::cout << "eval: " << std::dec << hcpevec[0].eval << std::endl;
-            std::cout << "bestMove16: " << std::dec << hcpevec[0].bestMove16 << std::endl;
-            std::cout << "gameResult: " << std::dec << hcpevec[0].gameResult << std::endl;
             ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
         }
     };
@@ -518,334 +534,228 @@ void make_teacher(std::istringstream& ssCmd) {
 namespace {
     // Learner とほぼ同じもの。todo: Learner と共通化する。
 
-    using LowerDimensionedEvaluatorGradient = EvaluatorBase<std::array<std::atomic<double>, 2>,
-                                                            std::array<std::atomic<double>, 2>,
-                                                            std::array<std::atomic<double>, 2> >;
-    using EvalBaseType = EvaluatorBase<std::array<double, 2>,
-                                       std::array<double, 2>,
-                                       std::array<double, 2> >;
+    using LowerDimensionedEvaluatorGradient = EvaluatorBase<std::array<std::atomic<float>, 2>>;
+    using EvalBaseType = EvaluatorBase<std::array<float, 2>>;
 
     // 小数の評価値を round して整数に直す。
-    void copyEval(Evaluator& eval, EvalBaseType& evalBase) {
+    void copyEvalToInteger(EvalBaseType& evalBase) {
 #if defined _OPENMP
 #pragma omp parallel
 #endif
+        {
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for (size_t i = 0; i < eval.kpps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*eval.oneArrayKPP(i))[boardTurn] = round((*evalBase.oneArrayKPP(i))[boardTurn]);
+            for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
+                for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                    for (EvalIndex j = (EvalIndex)0; j < fe_end; ++j) {
+                        const int64_t index = evalBase.minKPPIndex((Square)ksq, i, j);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            Evaluator::KPP[ksq][i][j][0] = -round((*evalBase.oneArrayKPP(-index))[0]);
+                            Evaluator::KPP[ksq][i][j][1] =  round((*evalBase.oneArrayKPP(-index))[1]);
+                        }
+                        else {
+                            Evaluator::KPP[ksq][i][j][0] =  round((*evalBase.oneArrayKPP( index))[0]);
+                            Evaluator::KPP[ksq][i][j][1] =  round((*evalBase.oneArrayKPP( index))[1]);
+                        }
+                    }
+                }
+            }
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for (size_t i = 0; i < eval.kkps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*eval.oneArrayKKP(i))[boardTurn] = round((*evalBase.oneArrayKKP(i))[boardTurn]);
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < eval.kks_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*eval.oneArrayKK(i))[boardTurn] = round((*evalBase.oneArrayKK(i))[boardTurn]);
+            for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
+                for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
+                    for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                        const int64_t index = evalBase.minKKPIndex((Square)ksq0, ksq1, i);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            Evaluator::KKP[ksq0][ksq1][i][0] = -round((*evalBase.oneArrayKKP(-index))[0]);
+                            Evaluator::KKP[ksq0][ksq1][i][1] =  round((*evalBase.oneArrayKKP(-index))[1]);
+                        }
+                        else {
+                            Evaluator::KKP[ksq0][ksq1][i][0] =  round((*evalBase.oneArrayKKP( index))[0]);
+                            Evaluator::KKP[ksq0][ksq1][i][1] =  round((*evalBase.oneArrayKKP( index))[1]);
+                        }
+                    }
+                }
+            }
+        }
     }
     // 整数の評価値を小数に直す。
-    void copyEval(EvalBaseType& evalBase, Evaluator& eval) {
+    void copyEvalToDecimal(EvalBaseType& evalBase) {
 #if defined _OPENMP
 #pragma omp parallel
 #endif
+        {
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for (size_t i = 0; i < evalBase.kpps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*evalBase.oneArrayKPP(i))[boardTurn] = (*eval.oneArrayKPP(i))[boardTurn];
+            for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
+                for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                    for (EvalIndex j = (EvalIndex)0; j < fe_end; ++j) {
+                        const int64_t index = evalBase.minKPPIndex((Square)ksq, i, j);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            (*evalBase.oneArrayKPP(-index))[0] = -Evaluator::KPP[ksq][i][j][0];
+                            (*evalBase.oneArrayKPP(-index))[1] =  Evaluator::KPP[ksq][i][j][1];
+                        }
+                        else {
+                            (*evalBase.oneArrayKPP( index))[0] =  Evaluator::KPP[ksq][i][j][0];
+                            (*evalBase.oneArrayKPP( index))[1] =  Evaluator::KPP[ksq][i][j][1];
+                        }
+                    }
+                }
+            }
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for (size_t i = 0; i < evalBase.kkps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*evalBase.oneArrayKKP(i))[boardTurn] = (*eval.oneArrayKKP(i))[boardTurn];
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < evalBase.kks_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*evalBase.oneArrayKK(i))[boardTurn] = (*eval.oneArrayKK(i))[boardTurn];
+            for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
+                for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
+                    for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                        const int64_t index = evalBase.minKKPIndex((Square)ksq0, ksq1, i);
+                        if (index == std::numeric_limits<int64_t>::max())
+                            continue;
+                        else if (index < 0) {
+                            // 内容を負として扱う。
+                            (*evalBase.oneArrayKKP(-index))[0] = -Evaluator::KKP[ksq0][ksq1][i][0];
+                            (*evalBase.oneArrayKKP(-index))[1] =  Evaluator::KKP[ksq0][ksq1][i][1];
+                        }
+                        else {
+                            (*evalBase.oneArrayKKP( index))[0] =  Evaluator::KKP[ksq0][ksq1][i][0];
+                            (*evalBase.oneArrayKKP( index))[1] =  Evaluator::KKP[ksq0][ksq1][i][1];
+                        }
+                    }
+                }
+            }
+        }
     }
-    void averageEval(EvalBaseType& averagedEvalBase, EvalBaseType& evalBase) {
-        constexpr double AverageDecay = 0.8; // todo: 過去のデータの重みが強すぎる可能性あり。
-#if defined _OPENMP
-#pragma omp parallel
-#endif
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < averagedEvalBase.kpps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*averagedEvalBase.oneArrayKPP(i))[boardTurn] = AverageDecay * (*averagedEvalBase.oneArrayKPP(i))[boardTurn] + (1.0 - AverageDecay) * (*evalBase.oneArrayKPP(i))[boardTurn];
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < averagedEvalBase.kkps_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*averagedEvalBase.oneArrayKKP(i))[boardTurn] = AverageDecay * (*averagedEvalBase.oneArrayKKP(i))[boardTurn] + (1.0 - AverageDecay) * (*evalBase.oneArrayKKP(i))[boardTurn];
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < averagedEvalBase.kks_end_index(); ++i)
-            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
-                (*averagedEvalBase.oneArrayKK(i))[boardTurn] = AverageDecay * (*averagedEvalBase.oneArrayKK(i))[boardTurn] + (1.0 - AverageDecay) * (*evalBase.oneArrayKK(i))[boardTurn];
-    }
+//    void averageEval(EvalBaseType& averagedEvalBase, EvalBaseType& evalBase) {
+//        constexpr double AverageDecay = 0.8; // todo: 過去のデータの重みが強すぎる可能性あり。
+//#if defined _OPENMP
+//#pragma omp parallel
+//#endif
+//#ifdef _OPENMP
+//#pragma omp for
+//#endif
+//        for (size_t i = 0; i < averagedEvalBase.kpps_end_index(); ++i)
+//            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
+//                (*averagedEvalBase.oneArrayKPP(i))[boardTurn] = AverageDecay * (*averagedEvalBase.oneArrayKPP(i))[boardTurn] + (1.0 - AverageDecay) * (*evalBase.oneArrayKPP(i))[boardTurn];
+//#ifdef _OPENMP
+//#pragma omp for
+//#endif
+//        for (size_t i = 0; i < averagedEvalBase.kkps_end_index(); ++i)
+//            for (int boardTurn = 0; boardTurn < 2; ++boardTurn)
+//                (*averagedEvalBase.oneArrayKKP(i))[boardTurn] = AverageDecay * (*averagedEvalBase.oneArrayKKP(i))[boardTurn] + (1.0 - AverageDecay) * (*evalBase.oneArrayKKP(i))[boardTurn];
+//    }
     constexpr double FVPenalty() { return (0.001/static_cast<double>(FVScale)); }
     // RMSProp(実質、改造してAdaGradになっている) でパラメータを更新する。
     template <typename T>
-    void updateFV(std::array<T, 2>& v, const std::array<std::atomic<double>, 2>& grad, std::array<std::atomic<double>, 2>& msGrad, std::atomic<double>& max) {
+    void updateFV(std::array<T, 2>& v, const std::array<std::atomic<float>, 2>& grad, std::array<std::atomic<float>, 2>& msGrad) {
         //constexpr double AttenuationRate = 0.99999;
-        constexpr double UpdateParam = 30.0; // 更新用のハイパーパラメータ。大きいと不安定になり、小さいと学習が遅くなる。 tkzw:小さめが良い
+        constexpr double UpdateParam = 30.0; // 更新用のハイパーパラメータ。大きいと不安定になり、小さいと学習が遅くなる。
         constexpr double epsilon = 0.000001; // 0除算防止の定数
+        constexpr double params[2] = {UpdateParam, UpdateParam / 8.0}; // 手番評価は重みを少し減らす。
 
         for (int i = 0; i < 2; ++i) {
             // ほぼAdaGrad
             msGrad[i] = /*AttenuationRate * */msGrad[i] + /*(1.0 - AttenuationRate) * */grad[i] * grad[i];
-            const double updateStep = UpdateParam * grad[i] / sqrt(msGrad[i] + epsilon);
+            const double updateStep = params[i] * grad[i] / sqrt(msGrad[i] + epsilon);
             v[i] += updateStep;
-            const double fabsmax = fabs(updateStep);
-            if (max < fabsmax)
-                max = fabsmax;
         }
     }
+    template <typename T>
+    void updateFV(T& v, const std::atomic<float>& grad, std::atomic<float>& msGrad) {
+        //constexpr double AttenuationRate = 0.99999;
+        constexpr double UpdateParam = 30.0; // 更新用のハイパーパラメータ。大きいと不安定になり、小さいと学習が遅くなる。
+        constexpr double epsilon = 0.000001; // 0除算防止の定数
+        constexpr double param = UpdateParam;
+
+        // ほぼAdaGrad
+        msGrad = /*AttenuationRate * */msGrad + /*(1.0 - AttenuationRate) * */grad * grad;
+        const double updateStep = param * grad / sqrt(msGrad + epsilon);
+        v += updateStep;
+    }
     void updateEval(EvalBaseType& evalBase,
-                    LowerDimensionedEvaluatorGradient& lowerDimentionedEvaluatorGradient,
-                    LowerDimensionedEvaluatorGradient& meanSquareOfLowerDimensionedEvaluatorGradient)
+                    EvaluatorGradient& evaluatorGradient,
+                    EvaluatorGradient& meanSquareOfEvaluatorGradient)
     {
-        std::atomic<double> max;
-        max = 0.0;
 #if defined _OPENMP
 #pragma omp parallel
 #endif
+        {
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for (size_t i = 0; i < evalBase.kpps_end_index(); ++i)
-            updateFV(*evalBase.oneArrayKPP(i), *lowerDimentionedEvaluatorGradient.oneArrayKPP(i), *meanSquareOfLowerDimensionedEvaluatorGradient.oneArrayKPP(i), max);
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < evalBase.kkps_end_index(); ++i)
-            updateFV(*evalBase.oneArrayKKP(i), *lowerDimentionedEvaluatorGradient.oneArrayKKP(i), *meanSquareOfLowerDimensionedEvaluatorGradient.oneArrayKKP(i), max);
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (size_t i = 0; i < evalBase.kks_end_index(); ++i)
-            updateFV(*evalBase.oneArrayKK(i), *lowerDimentionedEvaluatorGradient.oneArrayKK(i), *meanSquareOfLowerDimensionedEvaluatorGradient.oneArrayKK(i), max);
-
-        std::cout << "max update step : " << std::fixed << std::setprecision(2) << max << std::endl;
-    }
-}
-
-constexpr s64 NodesPerIteration = 1000000; // 1回評価値を更新するのに使う教師局面数
-/*
-void use_teacher(Position& pos, std::istringstream& ssCmd) {
-    std::string teacherFileName;
-    int threadNum;
-    ssCmd >> teacherFileName;
-    ssCmd >> threadNum;
-    if (threadNum <= 0)
-        exit(EXIT_FAILURE);
-    std::vector<Searcher> searchers(threadNum);
-    std::vector<Position> positions;
-    // std::vector<TriangularEvaluatorGradient> だと、非常に大きな要素が要素数分メモリ上に連続する必要があり、
-    // 例えメモリ量が余っていても、連続で確保出来ない場合は bad_alloc してしまうので、unordered_map にする。
-    std::unordered_map<int, std::unique_ptr<TriangularEvaluatorGradient> > evaluatorGradients;
-    // evaluatorGradients(threadNum) みたいにコンストラクタで確保するとスタックを使い切って落ちたので emplace_back する。
-    for (int i = 0; i < threadNum; ++i)
-        evaluatorGradients.emplace(i, std::move(std::unique_ptr<TriangularEvaluatorGradient>(new TriangularEvaluatorGradient)));
-    for (auto& s : searchers) {
-        s.init();
-        const std::string options[] = {"name Threads value 1",
-                                       "name MultiPV value 1",
-                                       "name USI_Hash value 256",
-                                       "name OwnBook value false",
-                                       "name Max_Random_Score_Diff value 0"};
-        for (auto& str : options) {
-            std::istringstream is(str);
-            s.setOption(is);
-        }
-        positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
-    }
-    if (teacherFileName == "-") // "-" なら棋譜ファイルを読み込まない。
-        exit(EXIT_FAILURE);
-    std::ifstream ifs(teacherFileName.c_str(), std::ios::binary);
-    if (!ifs)
-        exit(EXIT_FAILURE);
-
-    Mutex mutex;
-    auto func = [&mutex, &ifs](Position& pos, TriangularEvaluatorGradient& evaluatorGradient, double& loss, std::atomic<s64>& nodes) {
-        SearchStack ss[2];
-        HuffmanCodedPosAndEval hcpe;
-        evaluatorGradient.clear();
-        pos.searcher()->tt.clear();
-        while (true) {
-            {
-                std::unique_lock<Mutex> lock(mutex);
-                if (NodesPerIteration < nodes++)
-                    return;
-                ifs.read(reinterpret_cast<char*>(&hcpe), sizeof(hcpe));
-                if (ifs.eof())
-                    return;
+#if 1
+            // 次元下げをしていないので、絶対に線対称や点対称の若いindexの位置関係がある場合はupdateを省く。
+            for (int ksq = SQ11; ksq < SquareNoLeftNum; ++ksq) { // 5筋より左は使わない。
+                for (EvalIndex i = (EvalIndex)0; i < fe_end; ++i) {
+                    for (EvalIndex j = i + 1; j < fe_end; ++j) { // i >= j の位置関係は使わない。
+                        updateFV(evalBase.kpps.kpp[ksq][i][j], evaluatorGradient.kpps.kpp[ksq][i][j], meanSquareOfEvaluatorGradient.kpps.kpp[ksq][i][j]);
+                    }
+                }
             }
-	    if( hcpe.gameResult == Draw ) continue; // 引き分けは今のところ使わない
-            auto setpos = [](HuffmanCodedPosAndEval& hcpe, Position& pos) {
-                setPosition(pos, hcpe.hcp);
-            };
-            setpos(hcpe, pos);
-            const Color rootColor = pos.turn();
-            pos.searcher()->alpha = -ScoreMaxEvaluate;
-            pos.searcher()->beta  =  ScoreMaxEvaluate;
-            if (!qsearch<false>(pos, hcpe.bestMove16)) // 末端の局面に移動する。
-                continue;
-            // pv を辿って評価値を返す。pos は pv を辿る為に状態が変わる。
-            auto pvEval = [&ss, &rootColor](Position& pos) {
-                ss[0].staticEvalRaw.p[0][0] = ss[1].staticEvalRaw.p[0][0] = ScoreNotEvaluated;
-                // evaluate() は手番側から見た点数なので、eval は rootColor から見た点数。
-                const Score eval = (rootColor == pos.turn() ? evaluate(pos, ss+1) : -evaluate(pos, ss+1));
-                return eval;
-            };
-            const Score eval = pvEval(pos);
-            const Score teacherEval = static_cast<Score>(hcpe.eval); // root から見た評価値が入っている。
-            const Color leafColor = pos.turn(); // pos は末端の局面になっている。
-	    const double eval_winrate = sigmoidWinningRate(eval);
-	    const double teacher_winrate = sigmoidWinningRate(teacherEval);
-	    double t = -1; // tkzw: 勝っていれば1, 負けていれば0
-	    if( rootColor == Black ){
-		if( hcpe.gameResult == BlackWin )
-		    t = 1.0;
-		else if( hcpe.gameResult == WhiteWin )
-		    t = 0.0;
-	    }
-	    else{
-		if( hcpe.gameResult == BlackWin )
-		    t = 0.0;
-		else if( hcpe.gameResult == WhiteWin )
-		    t = 1.0;
-	    }
-	    const double LAMBDA = 0.5; // tkzw: 適当に変えてください。WCSC27は0.5で実行しています。
-            const double dsig = (eval_winrate -t) + LAMBDA * (eval_winrate - teacher_winrate);
-            const double tmp = -1 * ( log( eval_winrate/(1-eval_winrate) ) ) \
-				+ LAMBDA * (-teacher_winrate*log(eval_winrate) - (1-teacher_winrate)*log(1-eval_winrate));
-            loss += tmp; // tkzw: lossの計算は不要なので通常、上の行とこの行はコメントアウトして使っています。
-            std::array<double, 2> dT = {{(rootColor == Black ? -dsig : dsig), (rootColor == leafColor ? -dsig : dsig)}};
-            evaluatorGradient.incParam(pos, dT);
+#else
+            for (size_t i = 0; i < evalBase.kpps_end_index(); ++i)
+                updateFV(*evalBase.oneArrayKPP(i), *evaluatorGradient.oneArrayKPP(i), *meanSquareOfEvaluatorGradient.oneArrayKPP(i));
+#endif
+#ifdef _OPENMP
+#pragma omp for
+#endif
+            // KKP は KPP よりサイズが小さいので、全て update しておく。
+            for (size_t i = 0; i < evalBase.kkps_end_index(); ++i)
+                updateFV(*evalBase.oneArrayKKP(i), *evaluatorGradient.oneArrayKKP(i), *meanSquareOfEvaluatorGradient.oneArrayKKP(i));
         }
-    };
-
-    auto lowerDimensionedEvaluatorGradient = std::unique_ptr<LowerDimensionedEvaluatorGradient>(new LowerDimensionedEvaluatorGradient);
-    auto meanSquareOfLowerDimensionedEvaluatorGradient = std::unique_ptr<LowerDimensionedEvaluatorGradient>(new LowerDimensionedEvaluatorGradient); // 過去の gradient の mean square (二乗総和)
-    auto evalBase = std::unique_ptr<EvalBaseType>(new EvalBaseType); // double で保持した評価関数の要素。相対位置などに分解して保持する。
-    auto averagedEvalBase = std::unique_ptr<EvalBaseType>(new EvalBaseType); // ファイル保存する際に評価ベクトルを平均化したもの。
-    auto eval = std::unique_ptr<Evaluator>(new Evaluator); // 整数化した評価関数。相対位置などに分解して保持する。
-    eval->init(pos.searcher()->options["Eval_Dir"], false);
-    copyEval(*evalBase, *eval); // 小数に直してコピー。
-    memcpy(averagedEvalBase.get(), evalBase.get(), sizeof(EvalBaseType));
-    const size_t fileSize = static_cast<size_t>(ifs.seekg(0, std::ios::end).tellg());
-    ifs.clear(); // 読み込み完了をクリアする。
-    ifs.seekg(0, std::ios::beg); // ストリームポインタを先頭に戻す。
-    const s64 MaxNodes = fileSize / sizeof(HuffmanCodedPosAndEval);
-    std::atomic<s64> nodes; // 今回のイテレーションで読み込んだ学習局面数。
-    auto writeEval = [&] {
-        // ファイル保存
-        copyEval(*eval, *averagedEvalBase); // 平均化した物を整数の評価値にコピー
-        //copyEval(*eval, *evalBase); // 平均化せずに整数の評価値にコピー
-        std::cout << "write eval ... " << std::flush;
-        eval->write(pos.searcher()->options["Eval_Dir"]);
-        std::cout << "done" << std::endl;
-    };
-    // 平均化していない合成後の評価関数バイナリも出力しておく。
-    auto writeSyn = [&] {
-        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KPP_synthesized.bin").c_str()).write((char*)Evaluator::KPP, sizeof(Evaluator::KPP));
-        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KKP_synthesized.bin").c_str()).write((char*)Evaluator::KKP, sizeof(Evaluator::KKP));
-        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KK_synthesized.bin" ).c_str()).write((char*)Evaluator::KK , sizeof(Evaluator::KK ));
-    };
-    Timer t;
-    // 教師データ全てから学習した時点で終了する。
-    for (s64 iteration = 0; NodesPerIteration * iteration + nodes <= MaxNodes; ++iteration) {
-        t.restart();
-        nodes = 0;
-        std::cout << "iteration: " << iteration << ", nodes: " << NodesPerIteration * iteration + nodes << "/" << MaxNodes
-                  << " (" << std::fixed << std::setprecision(2) << static_cast<double>(NodesPerIteration * iteration + nodes) * 100 / MaxNodes << "%)" << std::endl;
-        std::vector<std::thread> threads(threadNum);
-        std::vector<double> losses(threadNum, 0.0);
-        for (int i = 0; i < threadNum; ++i)
-            threads[i] = std::thread([&positions, i, &func, &evaluatorGradients, &losses, &nodes] { func(positions[i], *(evaluatorGradients[i]), losses[i], nodes); });
-        for (int i = 0; i < threadNum; ++i)
-            threads[i].join();
-        if (nodes < NodesPerIteration)
-            break; // パラメータ更新するにはデータが足りなかったので、パラメータ更新せずに終了する。
-
-        for (size_t size = 1; size < (size_t)threadNum; ++size)
-            *(evaluatorGradients[0]) += *(evaluatorGradients[size]); // 複数スレッドで個別に保持していた gradients を [0] の要素に集約する。
-        lowerDimensionedEvaluatorGradient->clear();
-        lowerDimension(*lowerDimensionedEvaluatorGradient, *(evaluatorGradients[0]));
-
-        updateEval(*evalBase, *lowerDimensionedEvaluatorGradient, *meanSquareOfLowerDimensionedEvaluatorGradient);
-        averageEval(*averagedEvalBase, *evalBase); // 平均化する。
-        // if (iteration < 10) // 最初は値の変動が大きいので適当に変動させないでおく。tkzw:追加学習前提なので不要
-        //    memset(&(*evalBase), 0, sizeof(EvalBaseType));
-        if (iteration % 100 == 0 && iteration > 0) { // tkzw: iteration==0を除外
-            writeEval();
-            writeSyn();
-        }
-        copyEval(*eval, *evalBase); // 整数の評価値にコピー
-        eval->init(pos.searcher()->options["Eval_Dir"], false, false); // 探索で使う評価関数の更新
-        g_evalTable.clear(); // 評価関数のハッシュテーブルも更新しないと、これまで探索した評価値と矛盾が生じる。
-        std::cout << "iteration elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
-        std::cout << "loss: " << std::accumulate(std::begin(losses), std::end(losses), 0.0) << std::endl;
-        printEvalTable(SQ88, f_gold + SQ78, f_gold, false);
     }
-    writeEval();
-    writeSyn();
-}
-*/
-// 教師データが壊れていないかチェックする。
-// todo: 教師データがたまに壊れる原因を調べる。
-void check_teacher(std::istringstream& ssCmd) {
-    std::string teacherFileName;
-    int threadNum;
-    ssCmd >> teacherFileName;
-    ssCmd >> threadNum;
-    if (threadNum <= 0)
-        exit(EXIT_FAILURE);
-    std::vector<Searcher> searchers(threadNum);
-    std::vector<Position> positions;
-    for (auto& s : searchers) {
-        s.init();
-        positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
-    }
-    std::ifstream ifs(teacherFileName.c_str(), std::ios::binary);
-    if (!ifs)
-        exit(EXIT_FAILURE);
-    Mutex mutex;
-    auto func = [&mutex, &ifs](Position& pos) {
-        HuffmanCodedPosAndEval hcpe;
-        while (true) {
-            {
-                std::unique_lock<Mutex> lock(mutex);
-                ifs.read(reinterpret_cast<char*>(&hcpe), sizeof(hcpe));
-                if (ifs.eof())
-                    return;
-            }
-            if (!setPosition(pos, hcpe.hcp))
-                exit(EXIT_FAILURE);
+
+    constexpr s64 NodesPerIteration = 1000000; // 1回評価値を更新するのに使う教師局面数
+
+    // 別スレッドで読み込む教師データを読み込む為のstruct。
+    // ファイルの終端では、buffer の途中までしか値を入れる事が出来ないので、
+    // データがどこまで有効かはこの構造体の外で管理しておく必要がある。
+    struct TeacherBuffer {
+        enum State : int8_t {
+            WaitFilling, Filling, WaitUsing, Using
+        };
+        std::vector<HuffmanCodedPosAndEval> buffer;
+        std::atomic<State> state;
+
+        void init() {
+            buffer.assign(NodesPerIteration, HuffmanCodedPosAndEval());
+            state = WaitFilling;
+        }
+
+        void fill(std::ifstream& ifs) {
+            assert(state == WaitFilling);
+            state = Filling;
+            ifs.read((char*)buffer.data(), sizeof(HuffmanCodedPosAndEval) * NodesPerIteration);
+            state = WaitUsing;
         }
     };
-    std::vector<std::thread> threads(threadNum);
-    for (int i = 0; i < threadNum; ++i)
-        threads[i] = std::thread([&positions, i, &func] { func(positions[i]); });
-    for (int i = 0; i < threadNum; ++i)
-        threads[i].join();
-    exit(EXIT_SUCCESS);
+
+    // 教師データ読み込みの待ち時間を無くす為、２つのバッファを切り替えて使う。
+    struct TeacherBuffers {
+        TeacherBuffer teacherBuffers[2];
+        std::atomic<int> index;
+
+        void init() {
+            for (auto& elem : teacherBuffers)
+                elem.init();
+            index = 0;
+        }
+        TeacherBuffer& currentBuffer() { return teacherBuffers[index]; }
+        void setAnotherBuffer() { index = index ^ 1; }
+    };
 }
+
 #endif
 
 Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
@@ -1098,7 +1008,7 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
             if (!evalTableIsRead) {
                 // 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
                 // 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+                Evaluator::init(options["Eval_Dir"]);
                 evalTableIsRead = true;
             }
             SYNCCOUT << "readyok" << SYNCENDL;
@@ -1106,38 +1016,34 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
         else if (token == "setoption") setOption(ssCmd);
         else if (token == "write_eval") { // 対局で使う為の評価関数バイナリをファイルに書き出す。
             if (!evalTableIsRead)
-                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
-            Evaluator::writeSynthesized(options["Eval_Dir"]);
+                Evaluator::init(options["Eval_Dir"]);
+            Evaluator::writeEvalFile(options["Eval_Dir"]);
         }
-/*#if defined LEARN
-        else if (token == "l"        ) {
-            auto learner = std::unique_ptr<Learner>(new Learner);
-            learner->learn(pos, ssCmd);
-        }
+#if defined LEARN
         else if (token == "make_teacher") {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+                Evaluator::init(options["Eval_Dir"]);
                 evalTableIsRead = true;
             }
             make_teacher(ssCmd);
         }
-        else if (token == "use_teacher") {
+        /*else if (token == "use_teacher") {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+                Evaluator::init(options["Eval_Dir"]);
                 evalTableIsRead = true;
             }
             use_teacher(pos, ssCmd);
         }
         else if (token == "check_teacher") {
             check_teacher(ssCmd);
-        }
+        }*/
         else if (token == "print"    ) printEvalTable(SQ88, f_gold + SQ78, f_gold, false);
-#endif*/
+#endif
 #if !defined MINIMUL
         // 以下、デバッグ用
         /*else if (token == "bench"    ) {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+                Evaluator::init(options["Eval_Dir"]);
                 evalTableIsRead = true;
             }
             benchmark(pos);

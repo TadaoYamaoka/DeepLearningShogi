@@ -5,27 +5,17 @@
 
 #include "position.hpp"
 #include "move.hpp"
+#include "thread.hpp"
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-#define USE_VALUENET
+const unsigned int uct_hash_size = 1048576; // UCTハッシュサイズ
 
-const int THREAD_MAX = 20;              // 使用するスレッド数の最大値
-const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
-const double ALL_THINKING_TIME = 1.0;  // 持ち時間(デフォルト)
+const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
+const double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
-const double CONST_TIME = 3.0;         // 1手あたりの思考時間(デフォルト)
+const double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
 const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
-
-										// 思考時間の割り振り
-const int TIME_RATE_9 = 100;
-const int TIME_C_13 = 30;
-const int TIME_MAXPLY_13 = 30;
-const int TIME_C_19 = 60;
-const int TIME_MAXPLY_19 = 80;
-
-// 先頭打着緊急度
-const double FPU = 5.0;
 
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
@@ -33,10 +23,7 @@ const double FPU = 5.0;
 const int UCT_CHILD_MAX = 593;
 
 // 未展開のノードのインデックス
-const int NOT_EXPANDED = -1;
-
-// 投了する勝率の閾値
-const double RESIGN_THRESHOLD = 0.01;
+unsigned const int NOT_EXPANDED = -1;
 
 // Virtual Loss (Best Parameter)
 const int VIRTUAL_LOSS = 1;
@@ -51,32 +38,20 @@ enum SEARCH_MODE {
 };
 
 
-struct thread_arg_t {
-	const Position *pos; // 探索対象の局面
-	int thread_id;   // スレッド識別番号
-};
-
-struct statistic_t {
-	std::atomic<int> colors[3];  // その箇所を領地にした回数
-};
-
 struct child_node_t {
 	Move move;  // 着手する座標
 	std::atomic<int> move_count;  // 探索回数
 	std::atomic<float> win;         // 勝った回数
-	int index;   // インデックス
+	unsigned int index;   // インデックス
 	float nnrate; // ニューラルネットワークでのレート
 };
 
-//  9x9  : 1828bytes
-// 13x13 : 3764bytes
-// 19x19 : 7988bytes
 struct uct_node_t {
 	std::atomic<int> move_count;
 	std::atomic<float> win;
 	int child_num;                      // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
-	bool evaled;
+	std::atomic<int> evaled; // 0:未評価 1:評価済 2:千日手の可能性あり
 	std::atomic<float> value_win;
 };
 
@@ -86,11 +61,6 @@ struct po_info_t {
 	std::atomic<int> count;       // 現在の探索回数
 };
 
-struct rate_order_t {
-	int index;    // ノードのインデックス
-	double rate;  // その手のレート
-};
-
 
 // 残り時間
 extern double remaining_time[ColorNum];
@@ -98,7 +68,7 @@ extern double remaining_time[ColorNum];
 extern uct_node_t *uct_node;
 
 // 現在のルートのインデックス
-extern int current_root;
+extern unsigned int current_root;
 
 
 // 予測読みを止める
@@ -118,30 +88,24 @@ void SetPlayout(int po);
 void SetConstTime(double time);
 
 // 使用するスレッド数の指定
-void SetThread(int new_thread);
+const int max_gpu = 4;
+void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu]);
 
 // 持ち時間の指定
 void SetTime(double time);
 void SetRemainingTime(double time, Color c);
 void SetIncTime(double time, Color c);
 
-// 相手がパスしたらパスする
-void SetEarlyPass(bool pass);
-
-// ノード展開の有無指定
-void SetNoExpand(bool flag);
-
-//
-void ToggleLiveBestSequence();
-
-// パラメータの設定
-void SetParameter(void);
-
 // time_settingsコマンドによる設定
 void SetTimeSettings(int main_time, int byoyomi, int stones);
 
+// 投了の閾値設定（1000分率）
+void SetResignThreshold(const int resign_threshold);
+
 // UCT探索の初期設定
-void InitializeUctSearch(void);
+void InitializeUctSearch();
+// UCT探索の終了処理
+void TerminateUctSearch();
 
 // 探索設定の初期化
 void InitializeSearchSetting(void);
@@ -150,13 +114,19 @@ void InitializeSearchSetting(void);
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position *pos);
-
+Move UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder = false);
+inline Move UctSearchGenmoveNoPonder(Position *pos) {
+	Move move = Move::moveNone();
+	return UctSearchGenmove(pos, move);
+}
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);
 
 // モデルパスの設定
-void SetModelPath(const char* path);
+void SetModelPath(const std::string path[max_gpu]);
+
+// ゲーム終了
+void GameOver();
 
 // スレッドごとのSearcher初期化
-void InitSearcher();
+void InitSearcher(const int depth);

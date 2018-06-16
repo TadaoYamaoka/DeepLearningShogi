@@ -13,7 +13,7 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="ソース ファイル\elmo">
+    <Filter Include="ソース ファイル\cppshogi">
       <UniqueIdentifier>{66386437-0ab6-4d2c-83c2-2d42c08934e7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -22,64 +22,73 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\bitboard.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\common.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\evalList.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\evaluate.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\generateMoves.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\hand.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\init.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\move.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\movePicker.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\mt64bit.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\pieceScore.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\position.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\search.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\square.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\thread.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\timeManager.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\tt.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\usi.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\book.cpp">
-      <Filter>ソース ファイル\elmo</Filter>
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\nn.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\npz.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

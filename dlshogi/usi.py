@@ -1,4 +1,4 @@
-from dlshogi.policy_network import *
+﻿from dlshogi.policy_network import *
 from dlshogi.common import *
 
 import cppshogi

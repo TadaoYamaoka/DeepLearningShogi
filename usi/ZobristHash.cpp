@@ -6,20 +6,11 @@
 
 using namespace std;
 
-node_hash_t *node_hash;
-static unsigned int used;
-static int oldest_move;
-
-unsigned int uct_hash_size = UCT_HASH_SIZE;
-unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10;
-
-bool enough_size;
-
 ////////////////////////////////////
 //  ハッシュテーブルのサイズの設定  //
 ////////////////////////////////////
 void
-SetHashSize(const unsigned int new_size)
+UctHash::SetHashSize(const unsigned int new_size)
 {
 	if (!(new_size & (new_size - 1))) {
 		uct_hash_size = new_size;
@@ -36,36 +27,27 @@ SetHashSize(const unsigned int new_size)
 }
 
 
-/////////////////////////
-//  インデックスの取得  //
-/////////////////////////
-unsigned int
-TransHash(const unsigned long long hash)
-{
-	return ((hash & 0xffffffff) ^ ((hash >> 32) & 0xffffffff)) & (uct_hash_size - 1);
-}
-
-
 //////////////////////////////////
 //  UCTノードのハッシュの初期化  //
 //////////////////////////////////
-void
-InitializeUctHash(void)
+UctHash::UctHash(const unsigned int hash_size) :
+	node_hash(new node_hash_t[hash_size])
 {
-	node_hash = (node_hash_t *)malloc(sizeof(node_hash_t) * uct_hash_size);
+	SetHashSize(hash_size);
 
-	if (node_hash == NULL) {
+	if (node_hash == nullptr) {
 		cerr << "Cannot allocate memory" << endl;
 		exit(1);
 	}
 
-	oldest_move = 1;
 	used = 0;
+	enough_size = true;
 
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		node_hash[i].flag = false;
 		node_hash[i].hash = 0;
 		node_hash[i].color = 0;
+		node_hash[i].moves = 0;
 	}
 }
 
@@ -74,7 +56,7 @@ InitializeUctHash(void)
 //  UCTノードのハッシュ情報のクリア  //
 /////////////////////////////////////
 void
-ClearUctHash(void)
+UctHash::ClearUctHash(void)
 {
 	used = 0;
 	enough_size = true;
@@ -88,34 +70,11 @@ ClearUctHash(void)
 }
 
 
-///////////////////////
-//  古いデータの削除  //
-///////////////////////
-void
-DeleteOldHash(const Position* pos)
-{
-	while (oldest_move < pos->gamePly()) {
-		for (unsigned int i = 0; i < uct_hash_size; i++) {
-			if (node_hash[i].flag && node_hash[i].moves == oldest_move) {
-				node_hash[i].flag = false;
-				node_hash[i].hash = 0;
-				node_hash[i].color = 0;
-				node_hash[i].moves = 0;
-				used--;
-			}
-		}
-		oldest_move++;
-	}
-
-	enough_size = true;
-}
-
-
 //////////////////////////////////////
 //  未使用のインデックスを探して返す  //
 //////////////////////////////////////
 unsigned int
-SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
+UctHash::SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -143,7 +102,7 @@ SearchEmptyIndex(const unsigned long long hash, const int color, const int moves
 //  ハッシュ値に対応するインデックスを返す  //
 ////////////////////////////////////////////
 unsigned int
-FindSameHashIndex(const unsigned long long hash, const int color, const int moves)
+UctHash::FindSameHashIndex(const unsigned long long hash, const int color, const int moves) const
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -163,11 +122,3 @@ FindSameHashIndex(const unsigned long long hash, const int color, const int move
 
 	return uct_hash_size;
 }
-
-
-bool
-CheckRemainingHashSize(void)
-{
-	return enough_size;
-}
-

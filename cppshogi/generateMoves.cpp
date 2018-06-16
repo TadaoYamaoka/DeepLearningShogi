@@ -2,8 +2,8 @@
   Apery, a USI shogi playing engine derived from Stockfish, a UCI chess playing engine.
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2011-2018 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -568,6 +568,483 @@ namespace {
             return moveList;
         }
     };
+
+	// 王手用
+	template <Color US>
+	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to) {
+		const PieceType pt = pieceToPieceType(pos.piece(from));
+		switch (pt) {
+		case Empty: assert(false); break; // 最適化の為のダミー
+		case Pawn: case Bishop: case Rook:
+			(*moveList++).move = ((canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) ?
+				makePromoteMove<Capture>(pt, from, to, pos) :
+				makeNonPromoteMove<Capture>(pt, from, to, pos));
+			break;
+		case Lance:
+			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+			}
+			// 不成で移動する升
+			if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 2段目の不成を省く
+				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		case Knight: case Silver:
+			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+			}
+			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		case Gold: case King: case ProPawn: case ProLance: case ProKnight: case ProSilver: case Horse: case Dragon:
+			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		default: UNREACHABLE;
+		}
+		return moveList;
+	}
+
+	// 部分特殊化
+	// 王手をかける手を生成する。
+	template <Color US> struct GenerateMoves<Check, US> {
+		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos) {
+			ExtMove* curr = moveList;
+
+			// やねうら王の実装を参考にした
+			// https://github.com/yaneurao/YaneuraOu/blob/master/source/movegen.cpp
+
+			// --- 駒の移動による王手
+
+			// 王手になる指し手
+			//  1) 成らない移動による直接王手
+			//  2) 成る移動による直接王手
+			//  3) pinされている駒の移動による間接王手
+			// 集合としては1),2) <--> 3)は被覆している可能性があるのでこれを除外できるような指し手生成をしなくてはならない。
+			// これを綺麗に実装するのは結構難しい。
+
+			// x = 直接王手となる候補
+			// y = 間接王手となる候補
+
+			// ほとんどのケースにおいて y == emptyなのでそれを前提に最適化をする。
+			// yと、yを含まないxとに分けて処理する。
+			// すなわち、y と (x | y)^y
+
+			const Color opp = oppositeColor(US);
+			const Square ksq = pos.kingSquare(opp);
+
+			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
+			const Bitboard x =
+				(
+				(pos.bbOf(Pawn)   & pawnCheckTable(US, ksq)) |
+					(pos.bbOf(Lance)  & lanceCheckTable(US, ksq)) |
+					(pos.bbOf(Knight) & knightCheckTable(US, ksq)) |
+					(pos.bbOf(Silver) & silverCheckTable(US, ksq)) |
+					(pos.bbOf(Gold, ProPawn, ProLance, ProKnight, ProSilver) & goldCheckTable(US, ksq)) |
+					(pos.bbOf(Bishop) & bishopCheckTable(US, ksq)) |
+					(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGONは無条件全域
+					(pos.bbOf(Horse)  & horseCheckTable(US, ksq))
+					) & pos.bbOf(US);
+
+			// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
+			// 指し手生成の段階では除外しなくても良いと思う。
+
+			const Bitboard y = pos.discoveredCheckBB();
+			const Bitboard target = ~pos.bbOf(US); // 自駒がない場所が移動対象升
+
+												   // yのみ。ただしxかつyである可能性もある。
+			auto src = y;
+			while (src)
+			{
+				const Square from = src.firstOneFromSQ11();
+
+				// 両王手候補なので指し手を生成してしまう。
+
+				// いまの敵玉とfromを通る直線上の升と違うところに移動させれば開き王手が確定する。
+				const PieceType pt = pieceToPieceType(pos.piece(from));
+				Bitboard toBB = pos.attacksFrom(pt, US, from) & target;
+				while (toBB) {
+					const Square to = toBB.firstOneFromSQ11();
+					if (!isAligned<true>(from, to, ksq)) {
+						moveList = generatCheckMoves<US>(moveList, pos, from, to);
+					}
+					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
+					else if (x.isSet(from)) {
+						const PieceType pt = pieceToPieceType(pos.piece(from));
+						switch (pt) {
+						case Pawn: // 歩
+						{
+							if (pawnAttack(US, from).isSet(to)) {
+								// 歩は成れる場合は成る
+								(*moveList++).move = canPromote(US, makeRank(to)) ?
+									makePromoteMove<Capture>(pt, from, to, pos) :
+									makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Silver: // 銀
+						{
+							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
+							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							// 成って王手
+							if ((goldAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
+								if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								}
+							}
+							break;
+						}
+						case Gold: // 金
+						case ProPawn: // と金
+						case ProLance: // 成香
+						case ProKnight: // 成桂
+						case ProSilver: // 成銀
+						{
+							if ((goldAttack(opp, ksq) & goldAttack(US, from)).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Horse: // 馬
+						{
+							// 玉が対角上にない場合
+							assert(abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from)));
+							if ((horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB())).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Dragon: // 竜
+						{
+							// 玉が直線上にない場合
+							assert(makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from));
+							if ((dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB())).isSet(to)) {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+							break;
+						}
+						case Lance: // 香車
+						case Knight: // 桂馬
+						case Bishop: // 角
+						case Rook: // 飛車
+						{
+							assert(false);
+							break;
+						}
+						default: UNREACHABLE;
+						}
+					}
+				}
+			}
+
+			// yに被覆しないx
+			src = (x | y) ^ y;
+			while (src)
+			{
+				const Square from = src.firstOneFromSQ11();
+
+				// 直接王手のみ。
+				const PieceType pt = pieceToPieceType(pos.piece(from));
+				switch (pt) {
+				case Pawn: // 歩
+				{
+					Bitboard toBB = pawnAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						// 歩は成れる場合は成る
+						(*moveList++).move = canPromote(US, makeRank(to)) ?
+							makePromoteMove<Capture>(pt, from, to, pos) :
+							makeNonPromoteMove<Capture>(pt, from, to, pos);
+					}
+					break;
+				}
+				case Lance: // 香車
+				{
+					// 玉と筋が異なる場合
+					if (makeFile(ksq) != makeFile(from)) {
+						Bitboard toBB = goldAttack(opp, ksq) & lanceAttack(US, from, pos.occupiedBB()) & target;
+						while (toBB) {
+							const Square to = toBB.firstOneFromSQ11();
+							// 成る
+							if (canPromote(US, makeRank(to))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+						}
+					}
+					// 筋が同じ場合
+					else {
+						// 間にある駒が一つで、敵駒の場合
+						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+							const Square to = dstBB.firstOneFromSQ11();
+							// 成れる場合
+							if (pawnAttack(opp, ksq).isSet(to) && canPromote(US, makeRank(to))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+							// 成らない手を後に生成
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					break;
+				}
+				case Knight: // 桂馬
+				{
+					Bitboard toBB = knightAttack(opp, ksq) & knightAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					}
+					// 成って王手
+					toBB = goldAttack(opp, ksq) & knightAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						if (canPromote(US, makeRank(to))) {
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					break;
+				}
+				case Silver: // 銀
+				{
+					Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					}
+					// 成って王手
+					toBB = goldAttack(opp, ksq) & silverAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					break;
+				}
+				case Gold: // 金
+				case ProPawn: // と金
+				case ProLance: // 成香
+				case ProKnight: // 成桂
+				case ProSilver: // 成銀
+				{
+					Bitboard toBB = goldAttack(opp, ksq) & goldAttack(US, from) & target;
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					}
+					break;
+				}
+				case Bishop: // 角
+				{
+					// 玉が対角上にない場合
+					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
+						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
+						while (toBB) {
+							const Square to = toBB.firstOneFromSQ11();
+							// 成る
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+						}
+					}
+					// 対角上にある場合
+					else {
+						// 間にある駒が一つで、敵駒の場合
+						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+							const Square to = dstBB.firstOneFromSQ11();
+							// 成れる場合は必ず成る
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+							else {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+						}
+					}
+					break;
+				}
+				case Rook: // 飛車
+				{
+					// 玉が直線上にない場合
+					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
+						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
+						while (toBB) {
+							const Square to = toBB.firstOneFromSQ11();
+							// 成る
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+						}
+					}
+					// 直線上にある場合
+					else {
+						// 間にある駒が一つで、敵駒の場合
+						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+							const Square to = dstBB.firstOneFromSQ11();
+							// 成れる場合は必ず成る
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							}
+							else {
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
+						}
+					}
+					break;
+				}
+				case Horse: // 馬
+				{
+					// 玉が対角上にない場合
+					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
+						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB()) & target;
+						while (toBB) {
+							const Square to = toBB.firstOneFromSQ11();
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					// 対角上にある場合
+					else {
+						// 間にある駒が一つで、敵駒の場合
+						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+							const Square to = dstBB.firstOneFromSQ11();
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					break;
+				}
+				case Dragon: // 竜
+				{
+					// 玉が直線上にない場合
+					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
+						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB()) & target;
+						while (toBB) {
+							const Square to = toBB.firstOneFromSQ11();
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					// 直線上にある場合
+					else {
+						// 間にある駒が一つで、敵駒の場合
+						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+							const Square to = dstBB.firstOneFromSQ11();
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						}
+					}
+					break;
+				}
+				default: UNREACHABLE;
+				}
+			}
+
+			const Bitboard pinned = pos.pinnedBB();
+
+			// pinされている駒の移動による自殺手を削除
+			while (curr != moveList) {
+				if (!pos.pseudoLegalMoveIsLegal<true, false>(curr->move, pinned))
+					curr->move = (--moveList)->move;
+				else
+					++curr;
+			}
+
+			// --- 駒打ちによる王手
+
+			const Bitboard dropTarget = pos.nOccupiedBB(); // emptyBB() ではないので注意して使うこと。
+			const Hand ourHand = pos.hand(US);
+
+			// 歩打ち
+			if (ourHand.exists<HPawn>()) {
+				Bitboard toBB = dropTarget & pawnAttack(opp, ksq);
+				// 二歩の回避
+				Bitboard pawnsBB = pos.bbOf(Pawn, US);
+				Square pawnsSquare;
+				foreachBB(pawnsBB, pawnsSquare, [&](const int part) {
+					toBB.set(part, toBB.p(part) & ~squareFileMask(pawnsSquare).p(part));
+				});
+
+				// 打ち歩詰めの回避
+				const Rank TRank9 = (US == Black ? Rank9 : Rank1);
+				const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
+
+				const Square ksq = pos.kingSquare(oppositeColor(US));
+				// 相手玉が九段目なら、歩で王手出来ないので、打ち歩詰めを調べる必要はない。
+				if (makeRank(ksq) != TRank9) {
+					const Square pawnDropCheckSquare = ksq + TDeltaS;
+					assert(isInSquare(pawnDropCheckSquare));
+					if (toBB.isSet(pawnDropCheckSquare) && pos.piece(pawnDropCheckSquare) == Empty) {
+						if (!pos.isPawnDropCheckMate(US, pawnDropCheckSquare))
+							// ここで clearBit だけして MakeMove しないことも出来る。
+							// 指し手が生成される順番が変わり、王手が先に生成されるが、後で問題にならないか?
+							(*moveList++).move = makeDropMove(Pawn, pawnDropCheckSquare);
+						toBB.xorBit(pawnDropCheckSquare);
+					}
+				}
+
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Pawn, to);
+				});
+			}
+
+			// 香車打ち
+			if (ourHand.exists<HLance>()) {
+				Bitboard toBB = dropTarget & lanceAttack(opp, ksq, pos.occupiedBB());
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Lance, to);
+				});
+			}
+
+			// 桂馬打ち
+			if (ourHand.exists<HKnight>()) {
+				Bitboard toBB = dropTarget & knightAttack(opp, ksq);
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Knight, to);
+				});
+			}
+
+			// 銀打ち
+			if (ourHand.exists<HSilver>()) {
+				Bitboard toBB = dropTarget & silverAttack(opp, ksq);
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Silver, to);
+				});
+			}
+
+			// 金打ち
+			if (ourHand.exists<HGold>()) {
+				Bitboard toBB = dropTarget & goldAttack(opp, ksq);
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Gold, to);
+				});
+			}
+
+			// 角打ち
+			if (ourHand.exists<HBishop>()) {
+				Bitboard toBB = dropTarget & bishopAttack(ksq, pos.occupiedBB());
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Bishop, to);
+				});
+			}
+
+			// 飛車打ち
+			if (ourHand.exists<HRook>()) {
+				Bitboard toBB = dropTarget & rookAttack(ksq, pos.occupiedBB());
+				Square to;
+				FOREACH_BB(toBB, to, {
+					(*moveList++).move = makeDropMove(Rook, to);
+				});
+			}
+
+			return moveList;
+		}
+	};
 }
 
 template <MoveType MT>
@@ -597,3 +1074,4 @@ template ExtMove* generateMoves<Legal             >(ExtMove* moveList, const Pos
 template ExtMove* generateMoves<LegalAll          >(ExtMove* moveList, const Position& pos);
 #endif
 template ExtMove* generateMoves<Recapture         >(ExtMove* moveList, const Position& pos, const Square to);
+template ExtMove* generateMoves<Check             >(ExtMove* moveList, const Position& pos);

@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import chainer
 from chainer import cuda, Variable
 from chainer import optimizers, serializers
@@ -8,6 +8,7 @@ import chainer.links as L
 
 from dlshogi.policy_value_network import *
 from dlshogi.common import *
+from dlshogi.sigmoid_cross_entropy2 import sigmoid_cross_entropy2
 
 import cppshogi
 
@@ -27,17 +28,23 @@ parser.add_argument('--initmodel', '-m', default='', help='Initialize the model 
 parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
-parser.add_argument('--val_lambda', type=float, default=0.5, help='regularization factor')
+parser.add_argument('--weightdecay_rate', type=float, default=0, help='weightdecay rate')
+parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+logging.info('batchsize={}'.format(args.batchsize))
+logging.info('MomentumSGD(lr={})'.format(args.lr))
+logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
+logging.info('val_lambda={}'.format(args.val_lambda))
 
 model = PolicyValueNetwork()
 model.to_gpu()
 
-alpha = args.lr
-optimizer = optimizers.SGD(lr=alpha)
+optimizer = optimizers.MomentumSGD(lr=args.lr)
 optimizer.setup(model)
+if args.weightdecay_rate > 0:
+    optimizer.add_hook(chainer.optimizer.WeightDecay(args.weightdecay_rate))
 
 # Init/Resume
 if args.initmodel:
@@ -75,9 +82,6 @@ def mini_batch(hcpevec):
             Variable(cuda.to_gpu(value.reshape((len(value), 1))))
             )
 
-def cross_entropy(p, q):
-    return F.mean(-p * F.log(q + 1.0e-16) - (1 - p) * F.log(1 - q + 1.0e-16))
-
 # train
 itr = 0
 sum_loss1 = 0
@@ -97,8 +101,8 @@ for e in range(args.epoch):
         model.cleargrads()
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
-        loss = loss1 + loss2 + args.val_lambda * loss3
+        loss3 = sigmoid_cross_entropy2(y2, value)
+        loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         loss.backward()
         optimizer.update()
 
@@ -118,8 +122,8 @@ for e in range(args.epoch):
                     y1, y2 = model(x1, x2)
             loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
             loss2 = F.sigmoid_cross_entropy(y2, t2)
-            loss3 = cross_entropy(F.sigmoid(y2), value)
-            loss = loss1 + loss2 + args.val_lambda * loss3
+            loss3 = sigmoid_cross_entropy2(y2, value)
+            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
             logging.info('epoch = {}, iteration = {}, loss = {}, {}, {}, {}, test loss = {}, {}, {}, {}, test accuracy = {}, {}'.format(
                 optimizer.epoch + 1, optimizer.t,
                 sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
@@ -139,7 +143,7 @@ for e in range(args.epoch):
     sum_test_loss = 0
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
-    for i in range(0, len(test_data) - args.batchsize, args.batchsize):
+    for i in range(0, len(test_data) - args.batchsize, 640):
         x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.batchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
@@ -147,8 +151,8 @@ for e in range(args.epoch):
         itr_test += 1
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
         loss2 = F.sigmoid_cross_entropy(y2, t2)
-        loss3 = cross_entropy(F.sigmoid(y2), value)
-        loss = loss1 + loss2 + args.val_lambda * loss3
+        loss3 = sigmoid_cross_entropy2(y2, value)
+        loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
         sum_test_loss1 += loss1.data
         sum_test_loss2 += loss2.data
         sum_test_loss3 += loss3.data
