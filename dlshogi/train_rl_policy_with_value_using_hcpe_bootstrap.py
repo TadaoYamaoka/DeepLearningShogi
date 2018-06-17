@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser(description='Traning RL policy network using hc
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=64, help='Number of positions in each mini-batch')
+parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
@@ -116,7 +117,7 @@ for e in range(args.epoch):
 
         # print train loss
         if optimizer.t % eval_interval == 0:
-            x1, x2, t1, t2, z, value = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t1, t2, z, value = mini_batch(np.random.choice(test_data, args.testbatchsize))
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y1, y2 = model(x1, x2)
@@ -143,8 +144,8 @@ for e in range(args.epoch):
     sum_test_loss = 0
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
-    for i in range(0, len(test_data) - args.batchsize, 640):
-        x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.batchsize])
+    for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
+        x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
                 y1, y2 = model(x1, x2)
