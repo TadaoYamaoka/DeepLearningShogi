@@ -104,11 +104,13 @@ uniform_int_distribution<int> rnd(0, 999);
 // スレッドごとのSearcher
 Searcher* searchers;
 //
+bool leaf_search = false;
 int leaf_search_depth = 0;
 
 // スレッドごとのSearcher初期化
 void InitSearcher(const int depth)
 {
+	leaf_search = true;
 	leaf_search_depth = depth;
 	if (searchers != nullptr) {
 		delete[] searchers;
@@ -1100,17 +1102,35 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		// ノード展開のロックの解除
 		UNLOCK_EXPAND;
 
-		if (leaf_search_depth > 0) {
+		if (leaf_search) {
 			// 従来の評価関数を使う
-			LimitsType limits;
-			limits.depth = static_cast<Depth>(leaf_search_depth);
-			pos->searcher()->alpha = -ScoreMaxEvaluate;
-			pos->searcher()->beta = ScoreMaxEvaluate;
-			pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
-			pos->searcher()->threads.main()->waitForSearchFinished();
-			Score score = pos->searcher()->threads.main()->rootMoves[0].score;
+			Score score;
+			if (leaf_search_depth == 0) {
+				// 静止探索
+				Move pv[MaxPly + 1];
+				SearchStack stack[MaxPly + 7];
+				SearchStack* ss = stack + 5;
+				memset(ss - 5, 0, 8 * sizeof(SearchStack));
+				(ss - 1)->staticEvalRaw.p[0][0] = (ss + 0)->staticEvalRaw.p[0][0] = ScoreNotEvaluated;
+				ss->pv = pv;
+
+				if (pos->inCheck())
+					score = pos->searcher()->qsearch<PV, true >(*pos, ss, -ScoreInfinite, ScoreInfinite, Depth0);
+				else
+					score = pos->searcher()->qsearch<PV, false>(*pos, ss, -ScoreInfinite, ScoreInfinite, Depth0);
+			}
+			else {
+				LimitsType limits;
+				limits.depth = static_cast<Depth>(leaf_search_depth);
+				pos->searcher()->alpha = -ScoreMaxEvaluate;
+				pos->searcher()->beta = ScoreMaxEvaluate;
+				pos->searcher()->threads.startThinking(*pos, limits, pos->searcher()->states);
+				pos->searcher()->threads.main()->waitForSearchFinished();
+				score = pos->searcher()->threads.main()->rootMoves[0].score;
+				//std::cout << score << std::endl;
+			}
+
 			uct_node[child_index].value_win = score_to_value(score);
-			//std::cout << score << std::endl;
 	}
 
 		// 現在見ているノードのロックを解除
@@ -1401,7 +1421,7 @@ void UCTSearcher::EvalNode() {
 			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
 
-		if (leaf_search_depth == 0)
+		if (!leaf_search)
 			uct_node[index].value_win = *value;
 		uct_node[index].evaled = 1;
 		UNLOCK_NODE(index);

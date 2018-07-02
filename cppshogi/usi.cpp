@@ -140,6 +140,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
 	(*this)["Softmax_Tempature"]           = USIOption(67, 1, 200);
 	(*this)["Mate_Root_Search"]            = USIOption(false);
+	(*this)["Leaf_Search"]                 = USIOption(false);
 	(*this)["Leaf_Search_Depth"]           = USIOption(0, 0, 20); // 末端ノードで探索を行う深さ(0の場合探索しない)
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
 	(*this)["DebugMessage"]                = USIOption(false);

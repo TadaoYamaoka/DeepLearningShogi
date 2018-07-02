@@ -88,7 +88,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
-			if (options["Mate_Root_Search"] > 0 || options["Leaf_Search_Depth"] > 0) {
+			if (options["Mate_Root_Search"] > 0 || options["Leaf_Search"]) {
 				tt.clear();
 				threads.main()->previousScore = ScoreInfinite;
 				if (!evalTableIsRead) {
@@ -102,7 +102,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// 各種初期化
 			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
 			const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"] };
-			if (options["Leaf_Search_Depth"] > 0) {
+			if (options["Leaf_Search"]) {
 				InitSearcher(options["Leaf_Search_Depth"]); // スレッドごとのSearcher初期化(末端ノードでの探索用)
 			}
 			SetModelPath(model_paths);
@@ -110,6 +110,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"] };
 			SetThread(new_thread, new_policy_value_batch_maxsize);
 			SetResignThreshold(options["Resign_Threshold"]);
+
+			// 固定プレイアウトモード
+			SetMode(CONST_PLAYOUT_MODE);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
@@ -119,7 +122,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			InitializeSearchSetting();
 			Move ponder;
 			UctSearchGenmove(&pos_tmp, ponder);
-			SetPlayout(CONST_PLAYOUT); // 元に戻す
+
+			SetPlayout(1000); // 固定プレイアウト数
 
 			SetMode(search_mode); // 元に戻す
 			if (search_mode == TIME_SETTING_MODE || search_mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
