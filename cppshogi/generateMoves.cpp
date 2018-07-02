@@ -585,10 +585,18 @@ namespace {
 				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 			}
 			// 不成で移動する升
-			if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 2段目の不成を省く
+			if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 1, 2段目の不成を省く
 				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 			break;
-		case Knight: case Silver:
+		case Knight:
+			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
+				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+			}
+			// 不成で移動する升
+			if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 1, 2段目の不成は省く
+				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			break;
+		case Silver:
 			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 			}
