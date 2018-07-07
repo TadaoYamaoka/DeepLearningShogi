@@ -165,7 +165,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索計測
 int main() {
@@ -243,6 +243,107 @@ int main() {
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+
+	return 0;
+}
+#endif
+
+#if 1
+// cuDNN推論テスト
+#include "nn.h"
+
+// 検証用
+#define BOOST_PYTHON_STATIC_LIB
+#define BOOST_NUMPY_STATIC_LIB
+#include <boost/python/numpy.hpp>
+namespace py = boost::python;
+namespace np = boost::python::numpy;
+py::object dlshogi_predict;
+
+int main() {
+	// Boost.PythonとBoost.Numpyの初期化
+	Py_Initialize();
+	np::initialize();
+	// Pythonモジュール読み込み
+	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
+	// modelロード
+	py::object dlshogi_load_model = dlshogi_ns["load_model"];
+	dlshogi_load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
+	// 予測関数取得
+	dlshogi_predict = dlshogi_ns["predict"];
+
+	initTable();
+	// 入力データ作成
+	const int batchsize = 20;
+	features1_t* features1 = new features1_t[batchsize];
+	features2_t* features2 = new features2_t[batchsize];
+	// set all zero
+	std::fill_n((float*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
+	std::fill_n((float*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+
+	vector<Position> pos(batchsize);
+	pos[0].set("l5snl/4ggkb1/1rn2p2p/p1ps2pp1/1p1pp3P/P1PP1PPP1/1PBSP1NS1/3RG1GK1/LN6L b - 1 : 372 : 1 : 6f6e", nullptr);
+	pos[1].set("l4pk2/4+B1s1g/3+N3p1/p+B7/2P2PL2/3P1GPK1/PS2+p2P1/1p1+n5/L5+sN1 w R2GSN7Prl 1 : -5828 : -1 : L*2d", nullptr);
+	pos[2].set("1+Bs3+P+R1/l2kg2p1/2+B1p1p1p/p1pp1p3/9/2P1P1P2/PP1PGP2P/9/LNSGK1SNL w RGS2NLP 1 : -9493 : -1 : 6b7c", nullptr);
+	pos[3].set("l3p2+R1/1Ss1gr2l/1pnp2p1p/kss2P3/8P/pG3+B2L/1PBP1GP1N/L1K1G4/1N7 w 6Pnp 1 : -5163 : -1 : N*9e", nullptr);
+	pos[4].set("ln1l1R3/2k6/1p5p+P/p1pp+S1p2/6b2/2P1P4/PP1P1PSPL/1+bSGKR3/LN1GG2N1 b GS4Pn 1 : 6923 : 1 : 3g4f", nullptr);
+	pos[5].set("ln4b1l/r2n5/3p1S3/ppp1pP2p/3SPkpl1/P1P5P/1PSP5/1KGB2+n2/LNG5+r b 2Gs4p 1 : 3503 : 1 : G*4f", nullptr);
+	pos[6].set("lns3g2/2kgrs1bl/p1pppp1pp/1p7/5n3/2P3P2/PPSPPP1PP/L2G2R2/1N1K1GSNL b BP 1 : 920 : 1 : 3i2h", nullptr);
+	pos[7].set("ln1gp+P2+R/2kss4/1pp2pp1l/p2pP3p/2P4+b1/P1S3P2/1PGP+p1G2/1K2+p4/LN5N+b w RGSLPn 1 : -1307 : -1 : 1i2i", nullptr);
+	pos[8].set("l4kbnl/1r1g2s2/2Pp3pp/p2snpp2/2p1p1PP1/1P4N2/PS1GP1S1P/1B3R2L/L1K4N1 w 2P2gp 1 : 1715 : 1 : P*8e", nullptr);
+	pos[9].set("2g+bk1+Bn1/1s2g3l/5P1p1/3Pp1p1p/1+R3p1P1/2P1N4/pKS1P1P1P/5S1R1/LN5NL w 2GS4Plp 1 : -6691 : -1 : L*4a", nullptr);
+	pos[10].set("ln1gk1gn1/8l/2p1s2+Rp/pr1+bp1+P2/3p2p2/1l6P/N1PPPS2N/2GKS+bP2/L1S2G3 w 5Pp 1 : -986 : -1 : 4h4g", nullptr);
+	pos[11].set("+Bn4gnl/2g1ssk2/2+N2p1p1/prSPpb2p/1p7/2p1P3P/PP2GPPP1/3+p1SK2/LR1G3NL b 2Pl 1 : -585 : -1 : 6d6c+", nullptr);
+	pos[12].set("lnB3knl/1rs1g1gs1/p3p2pp/2pp1pp2/1p7/2PP1P1P1/PPS1P1P1P/2GKS2R1/LN3G1NL w b 1 : 724 : 1 : 8b8c", nullptr);
+	pos[13].set("1n1rg2n1/1Bs2k3/lpp1psgpl/p2p2p1p/1P3R3/2P1S4/P2PP1PPP/2GS5/LN1K2GNL b Pbp 1 : 485 : 1 : 4e4i", nullptr);
+	pos[14].set("ln7/3+R5/1ppSpgS1p/k8/b2P1Pp2/2S1P1P2/B1PKG+p2P/7S1/LN1G3NL b G4Prnl2p 1 : 4563 : 1 : G*8e", nullptr);
+	pos[15].set("ln7/1r3g2G/2p1pksp1/5pp1P/2Pp2lP1/p1n1P3+b/1l2B4/2+r6/1N2K2N1 b 2g3sl7p 1 : -9389 : -1 : 1d1c+", nullptr);
+	pos[16].set("1n5+P1/lks1r1p2/1p2gn3/1l1pg2+B1/2Pspp3/p1G3P2/1PNS1PG2/L1KS4+p/L3R4 b BN4P2p 1 : 3016 : 1 : 7g6e", nullptr);
+	pos[17].set("1ns1k1s+B1/lrg3g2/pppppp1p1/6p2/9/2P5p/PPNPPPPPP/2SK2SRL/+b2GG2N1 w NLl 1 : -739 : -1 : L*7d", nullptr);
+	pos[18].set("6pn1/4g3l/3kpp1+Bp/pN1p1bP2/1sP1P3P/2+n4P1/1P1P1PN1L/4GSS2/L+p+r1GK3 w Grsl3p 1 : 2989 : 1 : L*5f", nullptr);
+	pos[19].set("1n1gk1snl/lrs2g3/pp2ppppb/2pp4p/9/4PP1P1/PPPP2P1P/LBKSG1R2/1N3GSNL b - 1 : 60 : -1 : 1g1f", nullptr);
+
+	for (int i = 0; i < batchsize; i++) {
+		make_input_features(pos[i], features1 + i, features2 + i);
+	}
+
+	NN nn(batchsize);
+
+	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
+
+	float y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
+	float y2[batchsize];
+	nn.foward(batchsize, features1, features2, (float*)y1, y2);
+
+
+	// predict
+	np::ndarray ndfeatures1 = np::from_data(
+		features1,
+		np::dtype::get_builtin<float>(),
+		py::make_tuple(batchsize, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
+		py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+		py::object());
+	np::ndarray ndfeatures2 = np::from_data(
+		features2,
+		np::dtype::get_builtin<float>(),
+		py::make_tuple(batchsize, MAX_FEATURES2_NUM, 9, 9),
+		py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
+		py::object());
+	auto ret = dlshogi_predict(ndfeatures1, ndfeatures2);
+	py::tuple ret_list = py::extract<py::tuple>(ret);
+	np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
+	np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
+	float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
+	float *value = reinterpret_cast<float*>(y2_data.get_data());
+
+	for (int i = 0; i < batchsize; i++) {
+		// policyの結果
+		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
+			cout << y1[i][j] << "\t" << logits[i][j] << endl;
+		}
+		// valueの結果
+		cout << y2[i] << "\t" << value[i] << endl;
+	}
 
 	return 0;
 }
