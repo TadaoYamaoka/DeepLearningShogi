@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="filter_kif_in_dir.py" />
     <Compile Include="filter_csa_in_dir.py" />
     <Compile Include="kifustat.py" />
     <Compile Include="plot_log_policy_value.py" />
