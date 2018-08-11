@@ -695,7 +695,7 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 {
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
-	const int rest = playout_num - playout_count;
+	int rest = playout_num - playout_count;
 	child_node_t *uct_child = uct_node[current_root].child;
 
 	// 探索回数が最も多い手と次に多い手を求める
@@ -707,6 +707,12 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 		else if (uct_child[i].move_count > second) {
 			second = uct_child[i].move_count;
 		}
+	}
+
+	// 最善手の探索回数が次善手の探索回数の
+	// 1.2倍未満なら探索延長
+	if (max < second * 1.2) {
+		rest += playout_num * 0.5;
 	}
 
 	// 残りの探索を全て次善手に費やしても
