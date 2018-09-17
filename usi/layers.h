@@ -17,9 +17,8 @@ public:
 	void init(cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t yDesc) {
 		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
 		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-		checkCUDNN(cudnnGetConvolutionForwardAlgorithm(handle, xDesc, wDesc, convDesc, yDesc, CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, &algo));
-		checkCUDNN(cudnnGetConvolutionForwardWorkspaceSize(handle, xDesc, wDesc, convDesc, yDesc, algo, &workSpaceSizeInBytes));
-		checkCudaErrors(cudaMalloc(&workSpace, workSpaceSizeInBytes));
+		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 1, &returnedAlgoCount, &algo_perf));
+		checkCudaErrors(cudaMalloc(&workSpace, algo_perf.memory));
 	}
 
 	int get_yh(const int h) {
@@ -54,14 +53,14 @@ public:
 	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, cudnnTensorDescriptor_t yDesc, float* y) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
-		checkCUDNN(cudnnConvolutionForward(handle, &alpha, xDesc, x, wDesc, W, convDesc, algo, workSpace, workSpaceSizeInBytes, &beta, yDesc, y));
+		checkCUDNN(cudnnConvolutionForward(handle, &alpha, xDesc, x, wDesc, W, convDesc, algo_perf.algo, workSpace, algo_perf.memory, &beta, yDesc, y));
 	}
 
 private:
 	CudnnFilterDescriptor wDesc;
 	CudnnConvolutionDescriptor convDesc;
-	cudnnConvolutionFwdAlgo_t algo;
-	size_t workSpaceSizeInBytes;
+	int returnedAlgoCount;
+	cudnnConvolutionFwdAlgoPerf_t algo_perf;
 	float* W;
 	void* workSpace;
 };
