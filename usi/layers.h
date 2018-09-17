@@ -17,6 +17,7 @@ public:
 	void init(cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t yDesc) {
 		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
 		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+		int returnedAlgoCount;
 		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 1, &returnedAlgoCount, &algo_perf));
 		checkCudaErrors(cudaMalloc(&workSpace, algo_perf.memory));
 	}
@@ -59,7 +60,6 @@ public:
 private:
 	CudnnFilterDescriptor wDesc;
 	CudnnConvolutionDescriptor convDesc;
-	int returnedAlgoCount;
 	cudnnConvolutionFwdAlgoPerf_t algo_perf;
 	float* W;
 	void* workSpace;
