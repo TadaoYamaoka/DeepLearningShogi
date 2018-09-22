@@ -10,6 +10,20 @@ using namespace std;
 // GPUベンチマーク
 #include "nn.h"
 
+static void  showDevices(int i)
+{
+	struct cudaDeviceProp prop;
+	checkCudaErrors(cudaGetDeviceProperties(&prop, i));
+	cout << "device " << i
+		<< " sms " << prop.multiProcessorCount
+		<< " Capabilities " << prop.major << "." << prop.minor
+		<< ", SmClock " << (float)prop.clockRate*1e-3 << " Mhz"
+		<< ", MemSize (Mb) " << (int)(prop.totalGlobalMem / (1024 * 1024))
+		<< ", MemClock " << (float)prop.memoryClockRate*1e-3 << " Mhz"
+		<< ", Ecc=" << prop.ECCEnabled
+		<< ", boardGroupID=" << prop.multiGpuBoardGroupID << endl;
+}
+
 int main(int argc, char* argv[]) {
 	if (argc < 5) {
 		cout << "test <modelfile> <hcpe> <num> <gpu_id> <batchsize>" << endl;
@@ -41,6 +55,7 @@ int main(int argc, char* argv[]) {
 	std::mt19937_64 mt_64(0); // シード固定
 	uniform_int_distribution<s64> inputFileDist(0, entry_num - 1);
 
+	showDevices(gpu_id);
 	cudaSetDevice(gpu_id);
 	NN nn(batchsize);
 	nn.load_model(model_path);
