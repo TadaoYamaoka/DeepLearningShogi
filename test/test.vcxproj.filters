@@ -93,6 +93,9 @@
     <ClCompile Include="..\usi\npz.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="gpubenchmark.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

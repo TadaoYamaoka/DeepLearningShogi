@@ -248,7 +248,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // cuDNN推論テスト
 #include "nn.h"
 

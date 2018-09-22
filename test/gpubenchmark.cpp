@@ -1,0 +1,133 @@
+#include <iostream>
+#include <chrono>
+#include <random>
+
+#include "cppshogi.h"
+
+using namespace std;
+
+#if 1
+// GPUベンチマーク
+#include "nn.h"
+
+int main(int argc, char* argv[]) {
+	if (argc < 5) {
+		cout << "test <modelfile> <hcpe> <num> <gpu_id> <batchsize>" << endl;
+		return 0;
+	}
+
+	char* model_path = argv[1];
+	char* hcpe_path = argv[2];
+	int num = stoi(argv[3]);
+	int gpu_id = stoi(argv[4]);
+	int batchsize = stoi(argv[5]);
+
+	cout << "num = " << num << endl;
+	cout << "gpu_id = " << gpu_id << endl;
+	cout << "batchsize = " << batchsize << endl;
+
+	initTable();
+	HuffmanCodedPos::init();
+
+	// 初期局面集
+	ifstream ifs(hcpe_path, ifstream::in | ifstream::binary | ios::ate);
+	if (!ifs) {
+		cerr << "Error: cannot open " << hcpe_path << endl;
+		exit(EXIT_FAILURE);
+	}
+	auto entry_num = ifs.tellg() / sizeof(HuffmanCodedPosAndEval);
+	cout << "entry_num = " << entry_num << endl;
+
+	std::mt19937_64 mt_64(0); // シード固定
+	uniform_int_distribution<s64> inputFileDist(0, entry_num - 1);
+
+	NN nn(batchsize);
+	nn.load_model(model_path);
+
+	features1_t* features1;
+	features2_t* features2;
+	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * batchsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * batchsize, cudaHostAllocPortable));
+
+	float* y1;
+	float* y2;
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * batchsize * sizeof(float), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y2, batchsize * sizeof(float), cudaHostAllocPortable));
+
+	Color* color = new Color[batchsize];
+
+	// 指し手の正解数
+	int move_corrent = 0;
+
+	// 勝敗の正解数
+	int result_corrent = 0;
+
+	// 評価値の2乗誤差
+	float se_sum = 0;
+
+	// 推論時間
+	long long elapsed = 0;
+
+	Position pos;
+	HuffmanCodedPosAndEval* hcpe = new HuffmanCodedPosAndEval[batchsize];
+
+	for (int n = 0; n < num / batchsize; n++) {
+		// set all zero
+		std::fill_n((float*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
+		std::fill_n((float*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
+
+		// hcpeをデコードして入力特徴作成
+		for (int i = 0; i < batchsize; i++) {
+			// hcpe読み込み
+			ifs.seekg(inputFileDist(mt_64) * sizeof(HuffmanCodedPosAndEval), std::ios_base::beg);
+			ifs.read(reinterpret_cast<char*>(&hcpe[i]), sizeof(HuffmanCodedPosAndEval));
+
+			pos.set(hcpe[i].hcp, nullptr);
+			color[i] = pos.turn();
+			make_input_features(pos, features1 + i, features2 + i);
+		}
+
+		// 推論
+		auto start = std::chrono::system_clock::now();
+		nn.foward(batchsize, features1, features2, (float*)y1, y2);
+		auto end = std::chrono::system_clock::now();
+
+		// 時間集計
+		elapsed += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+		// 評価
+		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+		float *value = reinterpret_cast<float*>(y2);
+		for (int i = 0; i < batchsize; i++, logits++, value++) {
+			const float* l = *logits;
+			const int move_label = (int)distance(l, max_element(l, l + MAX_MOVE_LABEL_NUM * SquareNum));
+
+			// 指し手の比較
+			const int t_move_label = make_move_label(hcpe[i].bestMove16, color[i]);
+			if (move_label == t_move_label) {
+				++move_corrent;
+			}
+
+			// 勝敗の比較
+			if ((color[i] == Black && (hcpe[i].gameResult == BlackWin && *value > 0.5f || hcpe[i].gameResult == WhiteWin && *value < 0.5f)) ||
+				(color[i] == White && (hcpe[i].gameResult == BlackWin && *value < 0.5f || hcpe[i].gameResult == WhiteWin && *value > 0.5f))) {
+				++result_corrent;
+			}
+
+			// 評価値の誤差計算
+			const float error = *value - score_to_value((Score)hcpe[i].eval);
+			se_sum += error * error;
+		}
+	}
+
+	// 結果表示
+	int num_actual = num / batchsize * batchsize;
+	cout << "num_actual = " << num_actual << endl;
+	cout << "elapsed = " << elapsed << " ns" << endl;
+	cout << "move accuracy = " << (double)move_corrent / num_actual << endl;
+	cout << "value accuracy = " << (double)result_corrent / num_actual << endl;
+	cout << "value mse = " << (double)se_sum / num_actual << endl;
+
+	return 0;
+}
+#endif
