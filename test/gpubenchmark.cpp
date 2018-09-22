@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 	std::mt19937_64 mt_64(0); // ÉVÅ[Éhå≈íË
 	uniform_int_distribution<s64> inputFileDist(0, entry_num - 1);
 
+	cudaSetDevice(gpu_id);
 	NN nn(batchsize);
 	nn.load_model(model_path);
 
