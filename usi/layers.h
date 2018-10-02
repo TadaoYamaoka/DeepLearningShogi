@@ -23,7 +23,7 @@ public:
 		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 4, &returnedAlgoCount, algo_perf));
 		int algo_index = 0;
 		for (int i = 0; i < returnedAlgoCount; i++) {
-			if (algo_perf[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM) {
+			if (algo_perf[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && algo_perf[i].mathType == CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION) {
 				algo_index = i;
 				break;
 			}
