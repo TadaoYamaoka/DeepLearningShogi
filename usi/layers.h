@@ -7,7 +7,7 @@ class ConvLayer {
 public:
 	ConvLayer() : W(nullptr), workSpace(nullptr) {
 		const size_t size = c * k * fsize * fsize;
-		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(DType)));
 	}
 	~ConvLayer() {
 		checkCudaErrors(cudaFree(W));
@@ -15,19 +15,25 @@ public:
 	}
 
 	void init(cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t yDesc) {
-		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
-		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_TYPE, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
+		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_TYPE));
+#ifdef FP16
+		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
+#else
 		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION));
+#endif
 		cudnnConvolutionFwdAlgoPerf_t algo_perf[4];
 		int returnedAlgoCount;
 		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 4, &returnedAlgoCount, algo_perf));
 		int algo_index = 0;
+#ifndef FP16
 		for (int i = 0; i < returnedAlgoCount; i++) {
 			if (algo_perf[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && algo_perf[i].mathType == CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION) {
 				algo_index = i;
 				break;
 			}
 		}
+#endif
 		algo = algo_perf[algo_index].algo;
 		workSpaceSizeInBytes = algo_perf[algo_index].memory;
 		checkCudaErrors(cudaMalloc(&workSpace, workSpaceSizeInBytes));
@@ -42,27 +48,35 @@ public:
 	}
 
 	void get_xdesc(cudnnTensorDescriptor_t xDesc, const int n, const int h, const int w) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n, c, h, w));
+		checkCUDNN(cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, n, c, h, w));
 	}
 
 	void get_ydesc(cudnnTensorDescriptor_t yDesc, const int n, const int h, const int w) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n, k, h, w));
+		checkCUDNN(cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, n, k, h, w));
 	}
 
 	int get_xsize(const int n, const int h, const int w) {
-		return n * c * h * w * sizeof(float);
+		return n * c * h * w * sizeof(DType);
 	}
 
 	int get_ysize(const int n, const int h, const int w) {
-		return n * k * h * w * sizeof(float);
+		return n * k * h * w * sizeof(DType);
 	}
 
 	void set_param(float* data) {
 		const size_t size = c * k * fsize * fsize;
-		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(float), cudaMemcpyHostToDevice));
+#ifdef FP16
+		__half* tmp = new __half[size];
+		for (size_t i = 0; i < size; i++)
+			tmp[i] = __float2half(data[i]);
+		checkCudaErrors(cudaMemcpy(W, tmp, size * sizeof(__half), cudaMemcpyHostToDevice));
+		delete[] tmp;
+#else
+		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(DType), cudaMemcpyHostToDevice));
+#endif
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, cudnnTensorDescriptor_t yDesc, float* y) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x, cudnnTensorDescriptor_t yDesc, DType* y) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		checkCUDNN(cudnnConvolutionForward(handle, &alpha, xDesc, x, wDesc, W, convDesc, algo, workSpace, workSpaceSizeInBytes, &beta, yDesc, y));
@@ -73,7 +87,7 @@ private:
 	CudnnConvolutionDescriptor convDesc;
 	cudnnConvolutionFwdAlgo_t algo;
 	size_t workSpaceSizeInBytes;
-	float* W;
+	DType* W;
 	void* workSpace;
 };
 
@@ -81,9 +95,9 @@ template<const int c, const int h, const int w>
 class Bias {
 public:
 	Bias() : b(nullptr) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(biasTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, c, h, w));
+		checkCUDNN(cudnnSetTensor4dDescriptor(biasTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, 1, c, h, w));
 		const size_t size = c * h * w;
-		checkCudaErrors(cudaMalloc((void**)&b, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&b, size * sizeof(DType)));
 	}
 	~Bias() {
 		checkCudaErrors(cudaFree(b));
@@ -91,10 +105,18 @@ public:
 
 	void set_bias(float* data) {
 		const size_t size = c * h * w;
-		checkCudaErrors(cudaMemcpy(b, data, size * sizeof(float), cudaMemcpyHostToDevice));
+#ifdef FP16
+		__half* tmp = new __half[size];
+		for (size_t i = 0; i < size; i++)
+			tmp[i] = __float2half(data[i]);
+		checkCudaErrors(cudaMemcpy(b, tmp, size * sizeof(__half), cudaMemcpyHostToDevice));
+		delete[] tmp;
+#else
+		checkCudaErrors(cudaMemcpy(b, data, size * sizeof(DType), cudaMemcpyHostToDevice));
+#endif
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x) {
 		const float alpha = 1.0f;
 		const float beta = 1.0f;
 		checkCUDNN(cudnnAddTensor(handle, &alpha, biasTensorDesc, b, &beta, xDesc, x));
@@ -102,7 +124,7 @@ public:
 
 private:
 	CudnnTensorDescriptor biasTensorDesc;
-	float *b;
+	DType *b;
 };
 
 class ReLU {
@@ -111,7 +133,7 @@ public:
 		checkCUDNN(cudnnSetActivationDescriptor(activDesc, CUDNN_ACTIVATION_RELU, CUDNN_PROPAGATE_NAN, 0.0/*reluCeiling*/));
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		checkCUDNN(cudnnActivationForward(handle, activDesc, &alpha, xDesc, x, &beta, xDesc, x));
@@ -126,35 +148,43 @@ class Linear {
 public:
 	Linear() : W(nullptr) {
 		const size_t size = k * n;
-		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(DType)));
 	}
 	~Linear() {
 		checkCudaErrors(cudaFree(W));
 	}
 
 	void get_xdesc(cudnnTensorDescriptor_t xDesc, const int m) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, m, k, 1, 1));
+		checkCUDNN(cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, m, k, 1, 1));
 	}
 
 	void get_ydesc(cudnnTensorDescriptor_t yDesc, const int m) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, m, n, 1, 1));
+		checkCUDNN(cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, m, n, 1, 1));
 	}
 
 	void set_param(float* data) {
 		const size_t size = k * n;
-		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(float), cudaMemcpyHostToDevice));
+#ifdef FP16
+		__half* tmp = new __half[size];
+		for (size_t i = 0; i < size; i++)
+			tmp[i] = __float2half(data[i]);
+		checkCudaErrors(cudaMemcpy(W, tmp, size * sizeof(__half), cudaMemcpyHostToDevice));
+		delete[] tmp;
+#else
+		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(DType), cudaMemcpyHostToDevice));
+#endif
 	}
 
-	void operator() (cublasHandle_t handle, const int m, float* x, float* y) {
-		const float alpha = 1.0f;
-		const float beta = 0.0f;
+	void operator() (cublasHandle_t handle, const int m, DType* x, DType* y) {
+		const DType alpha = _one;
+		const DType beta = _zero;
 		// C = α op ( A ) op ( B ) + β C
 		// op ( A ) m × k , op ( B ) k × n and C m × n
-		checkCublasErrors(cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, k, x, k, &beta, y, n));
+		checkCublasErrors(cublasGemmEx(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, CUDA_DATA_TYPE, k, x, CUDA_DATA_TYPE, k, &beta, y, CUDA_DATA_TYPE, n, CUDA_DATA_TYPE, CUBLAS_GEMM_DEFAULT_TENSOR_OP));
 	}
 
 private:
-	float* W;
+	DType* W;
 };
 
 template<const int window, const int stride = window, const int pad = 0>
@@ -173,10 +203,10 @@ public:
 	}
 
 	void get_desc(cudnnTensorDescriptor_t desc, const int n, const int c, const int h, const int w) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n, c, h, w));
+		checkCUDNN(cudnnSetTensor4dDescriptor(desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, n, c, h, w));
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, cudnnTensorDescriptor_t yDesc, float* y) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x, cudnnTensorDescriptor_t yDesc, DType* y) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		checkCUDNN(cudnnPoolingForward(handle, poolingDesc, &alpha, xDesc, x, &beta, yDesc, y));
@@ -189,10 +219,10 @@ private:
 class Softmax {
 public:
 	void get_desc(cudnnTensorDescriptor_t desc, const int n, const int c) {
-		checkCUDNN(cudnnSetTensor4dDescriptor(desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n, c, 1, 1));
+		checkCUDNN(cudnnSetTensor4dDescriptor(desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, n, c, 1, 1));
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		checkCUDNN(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, xDesc, x, &beta, xDesc, x));
@@ -205,7 +235,7 @@ public:
 		checkCUDNN(cudnnSetActivationDescriptor(activDesc, CUDNN_ACTIVATION_SIGMOID, CUDNN_PROPAGATE_NAN, 0.0));
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		checkCUDNN(cudnnActivationForward(handle, activDesc, &alpha, xDesc, x, &beta, xDesc, x));
@@ -232,7 +262,7 @@ public:
 		checkCudaErrors(cudaFree(estimatedVariance));
 	}
 
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, float* y) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x, DType* y) {
 		const float alpha = 1.0f;
 		const float beta = 0.0f;
 		const double eps = 2e-5;
@@ -258,7 +288,7 @@ private:
 
 class Add {
 public:
-	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, float* y) {
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x, DType* y) {
 		const float alpha = 1.0f;
 		const float beta = 1.0f;
 		checkCUDNN(cudnnAddTensor(handle, &alpha, xDesc, x, &beta, xDesc, y));

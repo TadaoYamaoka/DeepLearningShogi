@@ -16,6 +16,9 @@
     <Filter Include="ソース ファイル\apery">
       <UniqueIdentifier>{144dbbe1-a1b8-4675-82b7-ca06ff27ec73}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\usi">
+      <UniqueIdentifier>{34191031-3db1-48a1-a9db-23daa22c6382}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cppshogi.cpp">

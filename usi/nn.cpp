@@ -159,7 +159,7 @@ void NN::load_model(const char* filepath)
 	bias24v.set_bias(params["l24_v/b.npy"].data);
 }
 
-void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2)
+void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
 	prepare_desc(batch_size);
 
@@ -176,6 +176,7 @@ void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, float* y
 
 	// residual block1
 	bn1(cudnnHandle, h1Desc, h1_1_1_dev, h1_bn_dev);
+
 	relu(cudnnHandle, h1Desc, h1_bn_dev);
 	conv2(cudnnHandle, h1Desc, h1_bn_dev, h1Desc, h2_dev);
 	bn2(cudnnHandle, h1Desc, h2_dev, h2_bn_dev);
@@ -286,5 +287,5 @@ void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, float* y
 
 	// output
 	checkCudaErrors(cudaMemcpy(y1, y1_dev, conv22.get_ysize(batch_size, 9, 9), cudaMemcpyDeviceToHost));
-	checkCudaErrors(cudaMemcpy(y2, y2_dev, batch_size * sizeof(float), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(y2, y2_dev, batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
 }

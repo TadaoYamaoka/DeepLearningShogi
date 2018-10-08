@@ -10,7 +10,7 @@ public:
 
 	void load_model(const char* filename);
 
-	void foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2);
+	void foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
 private:
 	void prepare_desc(const int batch_size);
@@ -95,32 +95,32 @@ private:
 	CudnnTensorDescriptor y2Desc;
 
 	// input layer
-	float* x1_dev;
-	float* x2_dev;
-	float* h1_1_1_dev;
-	float* h1_1_2_dev;
-	float* h1_2_dev;
+	DType* x1_dev;
+	DType* x2_dev;
+	DType* h1_1_1_dev;
+	DType* h1_1_2_dev;
+	DType* h1_2_dev;
 	// residual block
-	float* h1_bn_dev;
-	float* h2_dev;
-	float* h2_bn_dev;
-	float* h3_dev;
-	float* h5_dev;
-	float* h7_dev;
-	float* h9_dev;
-	float* h11_dev;
-	float* h13_dev;
-	float* h15_dev;
-	float* h17_dev;
-	float* h19_dev;
-	float* h21_dev;
+	DType* h1_bn_dev;
+	DType* h2_dev;
+	DType* h2_bn_dev;
+	DType* h3_dev;
+	DType* h5_dev;
+	DType* h7_dev;
+	DType* h9_dev;
+	DType* h11_dev;
+	DType* h13_dev;
+	DType* h15_dev;
+	DType* h17_dev;
+	DType* h19_dev;
+	DType* h21_dev;
 	// after residual blocks
-	float* h21_bn_dev;
+	DType* h21_bn_dev;
 	// policy network
-	float* y1_dev;
+	DType* y1_dev;
 	// value network
-	float* h22v_dev;
-	float* h22v_bn_dev;
-	float* h23v_dev;
-	float* y2_dev;
+	DType* h22v_dev;
+	DType* h22v_bn_dev;
+	DType* h23v_dev;
+	DType* y2_dev;
 };

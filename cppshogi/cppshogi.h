@@ -4,6 +4,7 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "generateMoves.hpp"
+#include "../usi/cudnn_dtype.h"
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -46,8 +47,8 @@ const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
 // 指し手を表すラベルの数
 const int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
-typedef float features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
-typedef float features2_t[MAX_FEATURES2_NUM][SquareNum];
+typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
+typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
 void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
 int make_move_label(const u16 move16, const Position& position);

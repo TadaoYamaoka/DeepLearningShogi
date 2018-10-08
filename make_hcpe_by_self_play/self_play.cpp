@@ -160,8 +160,8 @@ private:
 	vector<UCTSearcher> searchers;
 	thread* handle_selfplay;
 
-	float* y1;
-	float* y2;
+	DType* y1;
+	DType* y2;
 };
 
 class UCTSearcher {
@@ -239,7 +239,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2) {
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->foward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -287,8 +287,8 @@ UCTSearcherGroup::Initialize()
 		searchers.emplace_back(this, gpu_id * 10000 + group_id * 1000 + i, entryNum);
 	}
 
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 }
 
 // 連続自己対局
@@ -678,8 +678,8 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node)
 {
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
-	std::fill_n((float*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_queue_node[current_policy_value_batch_index].node = &uct_node[index];
@@ -732,8 +732,8 @@ void UCTSearcherGroup::EvalNode() {
 	// predict
 	parent->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
-	float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-	float *value = reinterpret_cast<float*>(y2);
+	DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 		policy_value_queue_node_t& queue_node = policy_value_queue_node[i];
@@ -749,7 +749,12 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			legal_move_probabilities.emplace_back((*logits)[move_label]);
+#ifdef FP16
+			const float logit = __half2float((*logits)[move_label]);
+#else
+			const float logit = (*logits)[move_label];
+#endif
+			legal_move_probabilities.emplace_back(logit);
 		}
 
 		// Boltzmann distribution
@@ -759,7 +764,11 @@ void UCTSearcherGroup::EvalNode() {
 			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
 
+#ifdef FP16
+		queue_node.node->value_win = __half2float(*value);
+#else
 		queue_node.node->value_win = *value;
+#endif
 		queue_node.node->evaled = 1;
 	}
 }
