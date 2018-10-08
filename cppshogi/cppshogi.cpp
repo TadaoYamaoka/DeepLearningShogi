@@ -239,7 +239,8 @@ int make_move_label(const u16 move16, const Color color) {
 
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
-float beta = 1.0f / 0.67f;
+const float default_softmax_tempature = 1.0f;
+float beta = 1.0f / default_softmax_tempature;
 void set_softmax_tempature(const float tempature) {
 	beta = 1.0f / tempature;
 }
