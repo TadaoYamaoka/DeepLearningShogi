@@ -205,7 +205,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_foward(const int batch_size, features1_t* x1, features2_t* x2, float* y1, float* y2) {
+	void nn_foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->foward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -243,8 +243,8 @@ public:
 		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		policy_value_hash_index = new unsigned int[policy_value_batch_maxsize];
 
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(float), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	}
 	UCTSearcher(UCTSearcher&& o) :
 		grp(grp),
@@ -292,8 +292,8 @@ private:
 	int policy_value_batch_maxsize;
 	features1_t* features1;
 	features2_t* features2;
-	float* y1;
-	float* y2;
+	DType* y1;
+	DType* y2;
 	unsigned int* policy_value_hash_index;
 	int current_policy_value_batch_index;
 };
@@ -827,8 +827,8 @@ UCTSearcher::QueuingNode(const Position *pos, unsigned int index)
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((float*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(float), 0.0f);
-	std::fill_n((float*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(float), 0.0f);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_hash_index[current_policy_value_batch_index] = index;
@@ -1321,8 +1321,8 @@ void UCTSearcher::EvalNode() {
 	// predict
 	grp->nn_foward(policy_value_batch_size, features1, features2, y1, y2);
 
-	const float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-	const float *value = reinterpret_cast<float*>(y2);
+	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	const DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 		const unsigned int index = policy_value_hash_index[i];
@@ -1339,7 +1339,12 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			legal_move_probabilities.emplace_back((*logits)[move_label]);
+#ifdef FP16
+			const float logit = __half2float((*logits)[move_label]);
+#else
+			const float logit = (*logits)[move_label];
+#endif
+			legal_move_probabilities.emplace_back(logit);
 		}
 
 		// Boltzmann distribution
@@ -1349,7 +1354,11 @@ void UCTSearcher::EvalNode() {
 			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
 
+#ifdef FP16
+		uct_node[index].value_win = __half2float(*value);
+#else
 		uct_node[index].value_win = *value;
+#endif
 		uct_node[index].evaled = 1;
 		UNLOCK_NODE(index);
 	}

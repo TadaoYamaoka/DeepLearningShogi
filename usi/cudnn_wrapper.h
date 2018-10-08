@@ -5,6 +5,7 @@
 #include <cublas_v2.h>
 
 #include "error_util.h"
+#include "cudnn_dtype.h"
 
 class CudnnHandle
 {
@@ -146,6 +147,9 @@ private:
 public:
 	CublasHandle() {
 		checkCublasErrors(cublasCreate(&cublasHandle));
+#ifdef FP16
+		checkCublasErrors(cublasSetMathMode(cublasHandle, CUBLAS_TENSOR_OP_MATH));
+#endif
 	}
 	~CublasHandle() {
 		checkCublasErrors(cublasDestroy(cublasHandle));

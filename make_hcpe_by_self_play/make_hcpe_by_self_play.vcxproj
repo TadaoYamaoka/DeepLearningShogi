@@ -245,6 +245,7 @@
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\tt.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn.cpp" />
     <ClCompile Include="..\usi\npz.cpp" />
