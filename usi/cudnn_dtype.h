@@ -11,6 +11,6 @@ extern const DType _one;
 typedef float DType;
 #define CUDNN_DATA_TYPE CUDNN_DATA_FLOAT
 #define CUDA_DATA_TYPE CUDA_R_32F
-const DType _zero = 0.0f;
-const DType _one = 1.0f;
+constexpr const DType _zero = 0.0f;
+constexpr const DType _one = 1.0f;
 #endif

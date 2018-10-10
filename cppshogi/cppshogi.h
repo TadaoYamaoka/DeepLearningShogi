@@ -8,13 +8,13 @@
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
 
-const int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
-const int MAX_HLANCE_NUM = 4;
-const int MAX_HKNIGHT_NUM = 4;
-const int MAX_HSILVER_NUM = 4;
-const int MAX_HGOLD_NUM = 4;
-const int MAX_HBISHOP_NUM = 2;
-const int MAX_HROOK_NUM = 2;
+constexpr int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
+constexpr int MAX_HLANCE_NUM = 4;
+constexpr int MAX_HKNIGHT_NUM = 4;
+constexpr int MAX_HSILVER_NUM = 4;
+constexpr int MAX_HGOLD_NUM = 4;
+constexpr int MAX_HBISHOP_NUM = 2;
+constexpr int MAX_HROOK_NUM = 2;
 
 const u32 MAX_PIECES_IN_HAND[] = {
 	MAX_HPAWN_NUM, // PAWN
@@ -25,13 +25,13 @@ const u32 MAX_PIECES_IN_HAND[] = {
 	MAX_HBISHOP_NUM, // BISHOP
 	MAX_HROOK_NUM, // ROOK
 };
-const u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
-const u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
+constexpr u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
+constexpr u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 
-const int PIECETYPE_NUM = 14; // 駒の種類
-const int MAX_ATTACK_NUM = 3; // 利き数の最大値
-const u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
-const u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
+constexpr int PIECETYPE_NUM = 14; // 駒の種類
+constexpr int MAX_ATTACK_NUM = 3; // 利き数の最大値
+constexpr u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
+constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
 
 // 移動の定数
 enum MOVE_DIRECTION {
@@ -45,7 +45,7 @@ const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
 };
 
 // 指し手を表すラベルの数
-const int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
+constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];

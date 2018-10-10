@@ -17,8 +17,8 @@ private:
 
 	CudnnHandle cudnnHandle;
 	CublasHandle cublasHandle;
-	static const int k = 192;
-	static const int fcl = 256;
+	static constexpr int k = 192;
+	static constexpr int fcl = 256;
 
 	const int max_batch_size;
 
