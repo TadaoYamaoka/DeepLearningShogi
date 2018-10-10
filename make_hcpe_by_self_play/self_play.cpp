@@ -39,14 +39,14 @@ void sigint_handler(int signum)
 }
 
 // 終局とする勝率の閾値
-const float WINRATE_THRESHOLD = 0.985f;
+constexpr float WINRATE_THRESHOLD = 0.985f;
 
 // モデルのパス
 string model_path;
 
 int playout_num = 1000;
 
-const unsigned int uct_hash_size = 8192; // UCTハッシュサイズ
+constexpr unsigned int uct_hash_size = 8192; // UCTハッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -61,7 +61,7 @@ mutex omutex;
 size_t entryNum;
 
 // 候補手の最大数(盤上全体)
-const int UCT_CHILD_MAX = 593;
+constexpr int UCT_CHILD_MAX = 593;
 
 struct child_node_t {
 	Move move;          // 着手する座標
@@ -89,19 +89,19 @@ struct policy_value_queue_node_t {
 uniform_int_distribution<int> rnd(0, 999);
 
 // 末端ノードでの詰み探索の深さ(奇数であること)
-const int MATE_SEARCH_DEPTH = 7;
+constexpr int MATE_SEARCH_DEPTH = 7;
 
 // 詰み探索で詰みの場合のvalue_winの定数
-const float VALUE_WIN = FLT_MAX;
-const float VALUE_LOSE = -FLT_MAX;
+constexpr float VALUE_WIN = FLT_MAX;
+constexpr float VALUE_LOSE = -FLT_MAX;
 
 // 探索の結果を評価のキューに追加したか、破棄したか
-const float QUEUING = FLT_MAX;
-const float DISCARDED = -FLT_MAX;
+constexpr float QUEUING = FLT_MAX;
+constexpr float DISCARDED = -FLT_MAX;
 
-unsigned const int NOT_EXPANDED = -1; // 未展開のノードのインデックス
+constexpr unsigned int NOT_EXPANDED = -1; // 未展開のノードのインデックス
 
-const float c_puct = 1.0f;
+constexpr float c_puct = 1.0f;
 
 // 探索経路のノード
 struct TrajectorEntry {

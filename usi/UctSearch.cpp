@@ -102,15 +102,15 @@ string model_path[max_gpu];
 uniform_int_distribution<int> rnd(0, 999);
 
 // 末端ノードでの詰み探索の深さ(奇数であること)
-const int MATE_SEARCH_DEPTH = 7;
+constexpr int MATE_SEARCH_DEPTH = 7;
 
 // 詰み探索で詰みの場合のvalue_winの定数
-const float VALUE_WIN = FLT_MAX;
-const float VALUE_LOSE = -FLT_MAX;
+constexpr float VALUE_WIN = FLT_MAX;
+constexpr float VALUE_LOSE = -FLT_MAX;
 
 // 探索の結果を評価のキューに追加したか、破棄したか
-const float QUEUING = FLT_MAX;
-const float DISCARDED = -FLT_MAX;
+constexpr float QUEUING = FLT_MAX;
+constexpr float DISCARDED = -FLT_MAX;
 
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {

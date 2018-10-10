@@ -9,26 +9,26 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-const unsigned int uct_hash_size = 1048576; // UCTハッシュサイズ
+constexpr unsigned int uct_hash_size = 1048576; // UCTハッシュサイズ
 
-const int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
-const double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
-const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
-const double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
-const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
+constexpr int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
+constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
+constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
+constexpr double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
+constexpr int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
 
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.
-const int UCT_CHILD_MAX = 593;
+constexpr int UCT_CHILD_MAX = 593;
 
 // 未展開のノードのインデックス
-unsigned const int NOT_EXPANDED = -1;
+constexpr unsigned int NOT_EXPANDED = -1;
 
 // Virtual Loss (Best Parameter)
-const int VIRTUAL_LOSS = 1;
+constexpr int VIRTUAL_LOSS = 1;
 
-const float c_puct = 1.0f;
+constexpr float c_puct = 1.0f;
 
 enum SEARCH_MODE {
 	CONST_PLAYOUT_MODE,             // 1手のプレイアウト回数を固定したモード
@@ -88,7 +88,7 @@ void SetPlayout(int po);
 void SetConstTime(double time);
 
 // 使用するスレッド数の指定
-const int max_gpu = 4;
+constexpr int max_gpu = 4;
 void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu]);
 
 // 持ち時間の指定
