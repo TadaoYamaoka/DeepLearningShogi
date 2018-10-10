@@ -17,6 +17,8 @@ import random
 
 import logging
 
+chainer.global_config.autotune = True
+
 parser = argparse.ArgumentParser(description='Traning RL policy network using hcpe')
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
