@@ -440,6 +440,11 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				}
 			}
 
+			// 入玉勝ちかどうかを判定
+			if (nyugyoku(*pos)) {
+				isMate = 1;
+			}
+
 			// 千日手チェック
 			int isDraw = 0;
 			switch (pos->isDraw(16)) {
