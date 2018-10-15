@@ -187,6 +187,9 @@ static bool InterruptionCheck(void);
 // 結果の更新
 static void UpdateResult(child_node_t *child, float result, unsigned int current);
 
+// 入玉宣言勝ち
+bool nyugyoku(const Position& pos);
+
 class UCTSearcher;
 class UCTSearcherGroup {
 public:
@@ -1087,6 +1090,11 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 				if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
 					isMate = -1;
 				}
+			}
+
+			// 入玉勝ちかどうかを判定
+			if (nyugyoku(*pos)) {
+				isMate = 1;
 			}
 
 			// 千日手チェック
