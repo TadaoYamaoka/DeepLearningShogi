@@ -300,7 +300,7 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-model.save('./model-final.hdf5', save_format="h5")
+tf.contrib.saved_model.save_keras_model(model, './model-final.hdf5')
 
 import gc; gc.collect()
 logging.info('Done')
