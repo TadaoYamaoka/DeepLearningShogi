@@ -1,12 +1,14 @@
+# -*- coding:utf-8 -*-
+
 import numpy as np
-from keras import backend as K
-from keras.models import Sequential
-from keras.layers.convolutional import Conv2D
-from keras.layers.normalization import BatchNormalization
-from keras.layers import Input, Activation, Flatten
-from keras.engine.topology import Layer
-from keras.callbacks import ModelCheckpoint
-from keras.utils.np_utils import to_categorical
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Input, Activation, Flatten
+from tensorflow.keras.layers import Layer
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.utils import to_categorical
 
 import shogi
 import shogi.CSA
@@ -125,7 +127,8 @@ def read_kifu(kifu_list_file):
     positions = []
     for line in f.readlines():
         filepath = line.rstrip('\r\n')
-        kifu = shogi.CSA.Parser.parse_file(filepath, encoding='utf-8')[0]
+        # kifu = shogi.CSA.Parser.parse_file(filepath, encoding='utf-8')[0]
+        kifu = shogi.CSA.Parser.parse_file(filepath)[0]
         board = shogi.Board()
         for move in kifu['moves']:
             move_to = shogi.SQUARE_NAMES.index(move[2:4])
@@ -245,21 +248,18 @@ def datagen(positions):
             yield x, t
 
 class Bias(Layer):
-    """Custom keras layer that simply adds a scalar bias to each location in the input
-    Largely copied from the keras docs:
-    http://keras.io/layers/writing-your-own-keras-layers/#writing-your-own-keras-layers
-
-    See https://github.com/Rochester-NRT/RocAlphaGo/blob/develop/AlphaGo/models/nn_util.py
-    """
 
     def __init__(self, **kwargs):
         super(Bias, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.W = K.zeros(input_shape[1:])
-        self.trainable_weights = [self.W]
+        self.W = self.add_weight(name='W',
+                                 shape=(input_shape[1:]),
+                                 initializer='uniform',
+                                 trainable=True)
+        super(Bias, self).build(input_shape)
 
-    def call(self, x, mask=None):
+    def call(self, x):
         return x + self.W
 
 k = 256
@@ -284,6 +284,15 @@ model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accura
 
 checkpoint = ModelCheckpoint('model-best.hdf5', verbose=1, save_best_only=True)
 
+# TPU
+import os
+import tensorflow as tf
+from tensorflow.contrib.tpu.python.tpu import keras_support
+tpu_grpc_url = "grpc://"+os.environ["COLAB_TPU_ADDR"]
+tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu_grpc_url)
+strategy = keras_support.TPUDistributionStrategy(tpu_cluster_resolver)
+model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
+
 logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
           epochs=args.epoch,
@@ -291,9 +300,7 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-model.save_weights('model-final.hdf5')
-with open('model.json', 'w') as fjson:
-    fjson.write(model.to_json())
+model.save('./model-final.hdf5', save_format="h5")
 
 import gc; gc.collect()
 logging.info('Done')
