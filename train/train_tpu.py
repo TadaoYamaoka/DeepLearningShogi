@@ -102,6 +102,8 @@ PIECE_MOVE_DIRECTION_LABEL = [
     PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 ]
 
+NUM_CLASSES=MOVE_DIRECTION_LABEL_NUM*9*9
+
 # rotate 180degree
 SQUARES_R180 = [
     shogi.I1, shogi.I2, shogi.I3, shogi.I4, shogi.I5, shogi.I6, shogi.I7, shogi.I8, shogi.I9,
@@ -237,7 +239,7 @@ def mini_batch(positions, i):
         mini_batch_move.append(move)
 
     return (np.array(mini_batch_data, dtype=np.float32),
-            to_categorical(mini_batch_move, num_classes=MOVE_DIRECTION_LABEL_NUM*9*9))
+            to_categorical(mini_batch_move, NUM_CLASSES))
 
 # data generator
 def datagen(positions):
@@ -277,8 +279,8 @@ for i in range(11):
 # layer13
 model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
 model.add(Flatten())
-model.add(Bias())
-model.add(Activation('softmax'))
+#model.add(Bias())
+model.add(Dense(NUM_CLASSES, activation='softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
