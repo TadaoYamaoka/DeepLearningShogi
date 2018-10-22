@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 
+import tensorflow as tf
 import numpy as np
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
@@ -7,6 +8,7 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Input, Activation, Flatten
 from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.utils import to_categorical
 
@@ -18,6 +20,7 @@ import random
 import copy
 
 import logging
+import os
 
 parser = argparse.ArgumentParser(description='Deep Learning Shogi')
 parser.add_argument('train_kifu_list', type=str, help='train kifu list')
@@ -25,6 +28,8 @@ parser.add_argument('test_kifu_list', type=str, help='test kifu list')
 parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--log', default=None, help='log file path')
+parser.add_argument('--model_dir', '-m', default='model', help='The directory where the model and training/evaluation summaries are stored.')
+parser.add_argument('--use_tpu', '-t', action='store_true', help='Use TPU model instead of CPU')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -279,21 +284,27 @@ for i in range(11):
 # layer13
 model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
 model.add(Flatten())
-#model.add(Bias())
-model.add(Dense(NUM_CLASSES, activation='softmax'))
+model.add(Bias())
+# model.add(Dense(NUM_CLASSES, activation='softmax'))
+model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
-checkpoint = ModelCheckpoint('model-best.hdf5', verbose=1, save_best_only=True)
+if not os.path.isdir(args.model_dir):
+    os.mkdir(args.model_dir)
 
-# TPU
-import os
-import tensorflow as tf
-from tensorflow.contrib.tpu.python.tpu import keras_support
-tpu_grpc_url = "grpc://"+os.environ["COLAB_TPU_ADDR"]
-tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu_grpc_url)
-strategy = keras_support.TPUDistributionStrategy(tpu_cluster_resolver)
-model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
+checkpoint_path = args.model_dir + "/model-best.hdf5"
+
+checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
+
+if args.use_tpu:
+    # TPU
+    import tensorflow as tf
+    from tensorflow.contrib.tpu.python.tpu import keras_support
+    tpu_grpc_url = "grpc://"+os.environ["COLAB_TPU_ADDR"]
+    tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu_grpc_url)
+    strategy = keras_support.TPUDistributionStrategy(tpu_cluster_resolver)
+    model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
 
 logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
@@ -302,7 +313,7 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-tf.contrib.saved_model.save_keras_model(model, './model-final.hdf5')
+tf.contrib.saved_model.save_keras_model(model, args.model_dir)
 
 import gc; gc.collect()
 logging.info('Done')
