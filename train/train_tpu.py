@@ -27,8 +27,9 @@ parser.add_argument('train_kifu_list', type=str, help='train kifu list')
 parser.add_argument('test_kifu_list', type=str, help='test kifu list')
 parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
+parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given folder')
 parser.add_argument('--log', default=None, help='log file path')
-parser.add_argument('--model_dir', '-m', default='model', help='The directory where the model and training/evaluation summaries are stored.')
+parser.add_argument('--model', default='model', help='The directory where the model and training/evaluation summaries are stored.')
 parser.add_argument('--use_tpu', '-t', action='store_true', help='Use TPU model instead of CPU')
 args = parser.parse_args()
 
@@ -269,31 +270,39 @@ class Bias(Layer):
     def call(self, x):
         return x + self.W
 
-k = 256
-model = Sequential()
-# layer1
-model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
-model.add(BatchNormalization(axis=1))
-model.add(Activation('relu'))
-# layer2 - 12
-for i in range(11):
-    model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first'))
-    if i < 8:
-        model.add(BatchNormalization(axis=1))
-    model.add(Activation('relu'))
-# layer13
-model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
-model.add(Flatten())
-model.add(Bias())
-# model.add(Dense(NUM_CLASSES, activation='softmax'))
-model.add(Activation('softmax'))
+def create_model():
+   k = 256
+   model = Sequential()
+   # layer1
+   model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
+   model.add(BatchNormalization(axis=1))
+   model.add(Activation('relu'))
+   # layer2 - 12
+   for i in range(11):
+       model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first'))
+       if i < 8:
+           model.add(BatchNormalization(axis=1))
+       model.add(Activation('relu'))
+   # layer13
+   model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
+   model.add(Flatten())
+   model.add(Bias())
+   # model.add(Dense(NUM_CLASSES, activation='softmax'))
+   model.add(Activation('softmax'))
+   
+   return model
+
+model = create_model()
+
+if os.path.isfile(args.initmodel):
+    model.load_weights(args.initmodel)
 
 model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
-if not os.path.isdir(args.model_dir):
-    os.mkdir(args.model_dir)
+if not os.path.isdir(args.model):
+    os.mkdir(args.model)
 
-checkpoint_path = args.model_dir + "/model-best.hdf5"
+checkpoint_path = args.model + "/model-best.hdf5"
 
 checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
 
@@ -313,7 +322,8 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-tf.contrib.saved_model.save_keras_model(model, args.model_dir)
+model_path = args.model + "/model-final.hdf5"
+model.save_weights(model_path, save_format="h5")
 
 import gc; gc.collect()
 logging.info('Done')
