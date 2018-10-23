@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 
+import tensorflow as tf
 import numpy as np
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
@@ -7,6 +8,7 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Input, Activation, Flatten
 from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.utils import to_categorical
 
@@ -18,13 +20,17 @@ import random
 import copy
 
 import logging
+import os
 
 parser = argparse.ArgumentParser(description='Deep Learning Shogi')
 parser.add_argument('train_kifu_list', type=str, help='train kifu list')
 parser.add_argument('test_kifu_list', type=str, help='test kifu list')
 parser.add_argument('--batchsize', '-b', type=int, default=8, help='Number of positions in each mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
+parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given folder')
 parser.add_argument('--log', default=None, help='log file path')
+parser.add_argument('--model', default='model', help='The directory where the model and training/evaluation summaries are stored.')
+parser.add_argument('--use_tpu', '-t', action='store_true', help='Use TPU model instead of CPU')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -101,6 +107,8 @@ PIECE_MOVE_DIRECTION_LABEL = [
     PROM_PAWN_MOVE_DIRECTION_LABEL, PROM_LANCE_MOVE_DIRECTION_LABEL, PROM_KNIGHT_MOVE_DIRECTION_LABEL, PROM_SILVER_MOVE_DIRECTION_LABEL,
     PROM_BISHOP_MOVE_DIRECTION_LABEL, PROM_ROOK_MOVE_DIRECTION_LABEL
 ]
+
+NUM_CLASSES=MOVE_DIRECTION_LABEL_NUM*9*9
 
 # rotate 180degree
 SQUARES_R180 = [
@@ -237,7 +245,7 @@ def mini_batch(positions, i):
         mini_batch_move.append(move)
 
     return (np.array(mini_batch_data, dtype=np.float32),
-            to_categorical(mini_batch_move, num_classes=MOVE_DIRECTION_LABEL_NUM*9*9))
+            to_categorical(mini_batch_move, NUM_CLASSES))
 
 # data generator
 def datagen(positions):
@@ -262,36 +270,50 @@ class Bias(Layer):
     def call(self, x):
         return x + self.W
 
-k = 256
-model = Sequential()
-# layer1
-model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
-model.add(BatchNormalization(axis=1))
-model.add(Activation('relu'))
-# layer2 - 12
-for i in range(11):
-    model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first'))
-    if i < 8:
-        model.add(BatchNormalization(axis=1))
-    model.add(Activation('relu'))
-# layer13
-model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
-model.add(Flatten())
-model.add(Bias())
-model.add(Activation('softmax'))
+def create_model():
+   k = 256
+   model = Sequential()
+   # layer1
+   model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
+   model.add(BatchNormalization(axis=1))
+   model.add(Activation('relu'))
+   # layer2 - 12
+   for i in range(11):
+       model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first'))
+       if i < 8:
+           model.add(BatchNormalization(axis=1))
+       model.add(Activation('relu'))
+   # layer13
+   model.add(Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False))
+   model.add(Flatten())
+   model.add(Bias())
+   # model.add(Dense(NUM_CLASSES, activation='softmax'))
+   model.add(Activation('softmax'))
+   
+   return model
+
+model = create_model()
+
+if os.path.isfile(args.initmodel):
+    model.load_weights(args.initmodel)
 
 model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
-checkpoint = ModelCheckpoint('model-best.hdf5', verbose=1, save_best_only=True)
+if not os.path.isdir(args.model):
+    os.mkdir(args.model)
 
-# TPU
-import os
-import tensorflow as tf
-from tensorflow.contrib.tpu.python.tpu import keras_support
-tpu_grpc_url = "grpc://"+os.environ["COLAB_TPU_ADDR"]
-tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu_grpc_url)
-strategy = keras_support.TPUDistributionStrategy(tpu_cluster_resolver)
-model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
+checkpoint_path = args.model + "/model-best.hdf5"
+
+checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
+
+if args.use_tpu:
+    # TPU
+    import tensorflow as tf
+    from tensorflow.contrib.tpu.python.tpu import keras_support
+    tpu_grpc_url = "grpc://"+os.environ["COLAB_TPU_ADDR"]
+    tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu_grpc_url)
+    strategy = keras_support.TPUDistributionStrategy(tpu_cluster_resolver)
+    model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
 
 logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
@@ -300,7 +322,8 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-tf.contrib.saved_model.save_keras_model(model, './model-final.hdf5')
+model_path = args.model + "/model-final.hdf5"
+model.save_weights(model_path, save_format="h5")
 
 import gc; gc.collect()
 logging.info('Done')
