@@ -1,4 +1,7 @@
-﻿import argparse
+# -*- coding:utf-8 -*-
+
+import argparse
+import codecs
 import os
 import sys
 import re
@@ -22,7 +25,7 @@ for filepath in find_all_files(args.dir):
     rate = {}
     move_len = 0
     toryo = False
-    for line in open(filepath, 'r', encoding='utf-8'):
+    for line in codecs.open(filepath, 'r', 'utf-8', 'ignore'):
         line = line.strip()
         m = ptn_rate.match(line)
         if m:
