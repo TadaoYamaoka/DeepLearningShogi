@@ -14,6 +14,9 @@ MOVE_DIRECTION_PROMOTED = [
 # 指し手を表すラベルの数
 MOVE_DIRECTION_LABEL_NUM = len(MOVE_DIRECTION) + 7 # 7は持ち駒の種類
 
+# 分類クラス数
+NUM_CLASSES=MOVE_DIRECTION_LABEL_NUM*9*9
+
 # rotate 180degree
 SQUARES_R180 = [
     shogi.I1, shogi.I2, shogi.I3, shogi.I4, shogi.I5, shogi.I6, shogi.I7, shogi.I8, shogi.I9,
