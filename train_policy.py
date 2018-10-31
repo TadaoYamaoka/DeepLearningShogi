@@ -9,6 +9,7 @@ from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.optimizers import SGD
 
 from dlshogi.common import *
 from dlshogi.network.policy import *
@@ -46,8 +47,6 @@ logging.debug('read kifu end')
 logging.info('train position num = {}'.format(len(positions_train)))
 logging.info('test position num = {}'.format(len(positions_test)))
 
-NUM_CLASSES=MOVE_DIRECTION_LABEL_NUM*9*9
-
 # mini batch
 def mini_batch(positions, i, batchsize):
     mini_batch_data = []
@@ -59,6 +58,7 @@ def mini_batch(positions, i, batchsize):
 
     return (np.array(mini_batch_data, dtype=np.float32),
             to_categorical(mini_batch_move, NUM_CLASSES))
+            # np.array(mini_batch_move, dtype=np.int32))
 
 # data generator
 def datagen(positions):
@@ -74,7 +74,10 @@ model = network.model
 if os.path.isfile(args.initmodel):
     model.load_weights(args.initmodel)
 
-model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+# model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+# sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
+sgd = SGD(lr=0.001)
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)

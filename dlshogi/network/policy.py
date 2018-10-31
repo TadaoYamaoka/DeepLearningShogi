@@ -50,7 +50,7 @@ class PolicyNetwork():
         model = Sequential()
         # layer1
         # model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2+1, 9, 9)))
-        model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=((len(shogi.PIECE_TYPES) + sum(shogi.MAX_PIECES_IN_HAND))*2, 9, 9)))
+        model.add(Conv2D(k, (3, 3), padding='same', data_format='channels_first', input_shape=(104, 9, 9)))
         model.add(BatchNormalization(axis=1))
         model.add(Activation('relu'))
         # layer2 - 12
@@ -64,7 +64,7 @@ class PolicyNetwork():
         model.add(Flatten())
         model.add(Bias())
         # model.add(Dense(NUM_CLASSES, activation='softmax'))
-        # model.add(Activation('softmax'))
+        model.add(Activation('softmax'))
         
         return model
 
