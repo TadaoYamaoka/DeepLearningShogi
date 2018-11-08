@@ -205,7 +205,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
+	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		limits.infinite = true;
 		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
 	}
@@ -214,16 +214,16 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	Move ponderMove = Move::moveNone();
 	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
 
-	// Ponderの場合、結果を返さない
-	if (limits.ponder)
-		return;
-
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		pos.searcher()->signals.stop = true;
 		pos.searcher()->threads.main()->waitForSearchFinished();
 	}
 
+	// Ponderの場合、結果を返さない
+	if (limits.ponder)
+		return;
+	
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 
