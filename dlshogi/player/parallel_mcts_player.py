@@ -20,7 +20,9 @@ import time
 import copy
 
 import tensorflow as tf
-graph = tf.get_default_graph()
+from tensorflow.keras import backend as K
+from tensorflow.contrib import predictor
+# graph = tf.get_default_graph()
 
 # UCBのボーナス項の定数
 C_PUCT = 1.0
@@ -38,13 +40,17 @@ THREAD_NUM = 4
 import numpy as np
 @np.vectorize
 def sigmoid(x):
-    # sigmoid_range = 34.538776394910684
-    # 
-    # if x <= -sigmoid_range:
-    #     return 1e-15
-    # if x >= sigmoid_range:
-    #     return 1.0 - 1e-15
+    sigmoid_range = 34.538776394910684
+    
+    if x <= -sigmoid_range:
+        return 1e-15
+    if x >= sigmoid_range:
+        return 1.0 - 1e-15
     return 1.0 / (1.0 + np.exp(-x))
+
+# init = tf.global_variables_initializer()
+# sess = tf.Session()
+# sess.run(init)
 
 def softmax_temperature_with_normalize(logits, temperature):
     # 温度パラメータを適用
@@ -70,6 +76,7 @@ class ParallelMCTSPlayer(BasePlayer):
         super().__init__()
         # モデルファイルのパス
         # self.modelfile = r'H:\src\python-dlshogi\model\model_policy_value_resnet'
+        self.modeldir_path = os.path.join(os.path.dirname(__file__), '../../model/1541862528')
         modelfile_path = os.path.join(os.path.dirname(__file__), '../../model/model-final.hdf5')
         self.modelfile = modelfile_path
         self.model = None # モデル
@@ -99,6 +106,16 @@ class ParallelMCTSPlayer(BasePlayer):
 
         # スレッド数
         self.thread_num = THREAD_NUM
+
+        # # tf
+        # config = tf.ConfigProto()
+        # config.gpu_options.per_process_gpu_memory_fraction = 0.8 / THREAD_NUM
+        # K.set_session(tf.Session(config=config))
+        # 
+        # self.graph = tf.get_default_graph()
+        # init = tf.global_variables_initializer()
+        # self.sess = tf.Session()
+        # self.sess.run(init)
 
     # UCB値が最大の手を求める
     def select_max_ucb_child(self, board, current_node):
@@ -257,8 +274,10 @@ class ParallelMCTSPlayer(BasePlayer):
 
     # ノードを評価
     def eval_node(self):
-        global graph
-        with graph.as_default():
+        # global graph
+        # with graph.as_default():
+        # with self.graph.as_default():
+        # with tf.Session() as sess:
             enough_batch_size = False
             while True:
                 if not self.running:
@@ -295,13 +314,51 @@ class ParallelMCTSPlayer(BasePlayer):
                 # 
                 #     logits_batch = cuda.to_cpu(y1.data)
                 #     values_batch = cuda.to_cpu(F.sigmoid(y2).data)
-                x = np.array(eval_features, dtype=np.float32)
-                y1, y2 = self.model.predict(x)
+                
+                # x = np.array(eval_features, dtype=np.float32)
+                # y1, y2 = self.model.predict(x)
+                # 
+                # # predictions_y1, predictions_y2 = self.predict_fn({'input_1': eval_features})
+                # # print(predictions_y1['policy_head'])
+                # # print(predictions_y2['value_head'])
+                # # print(predictions_y1.dtype)
+                # # print(predictions_y2.dtype)
+                predictions = self.predict_fn({'input_1': eval_features})
+                
+                # # for k, v in predictions.items():
+                # #     # print(k, v)
+                # #     print(v)
+                # 
+                # # print(sorted(predictions.keys())[len(predictions.keys()) - 1])
+                # # print(type('predictions'))
+                # # print(predictions[0])
+                # # print(predictions[1])
+                # 
+                # # print(np.array(predictions['policy_head']))
+                # # print(np.array(predictions['value_head']))
+                # 
+                # # for val in predictions_y1:
+                # #     print(val)
+                # 
+                # # print(y1)
+                # # print(y2)
+                
+                y1 = np.array(predictions['policy_head'])
+                y2 = np.array(predictions['value_head'])
+                
                 logits_batch = y1
                 # values_batch = (1.0 / (1.0 + np.exp(-y2)))
+                # values_batch = sigmoid(y2)
+                # values_batch = sigmoid(-y2)
+                # values_batch = sigmoid(y2).reshape(-1)
                 values_batch = sigmoid(y2)
+                
                 # values_batch = tf.keras.activations.sigmoid(x)
-                # values_batch = tf.keras.backend.sigmoid(x)
+
+                # values_batch = tf.keras.backend.sigmoid(tf.convert_to_tensor(y2)).eval(session=sess)
+                # values_batch = tf.math.sigmoid(tf.convert_to_tensor(y2)).eval(session=sess)
+                # values_batch = tf.math.sigmoid(tf.convert_to_tensor(y2)).eval(session=self.sess)
+                # values_batch = tf.sigmoid(tf.convert_to_tensor(y2)).eval(session=self.sess)
 
                 for index, logits, value in zip(eval_hash_index_queue, logits_batch, values_batch):
                     self.lock_node[index].acquire()
@@ -329,7 +386,8 @@ class ParallelMCTSPlayer(BasePlayer):
     def usi(self):
         print('id name parallel_mcts_player')
         print('option name modelfile type string default ' + self.modelfile)
-        print('option name playout type spin default ' + str(self.playout) + ' min 100 max 10000')
+        # print('option name playout type spin default ' + str(self.playout) + ' min 100 max 10000')
+        print('option name playout type spin default ' + str(self.playout) + ' min 100 max 100000')
         print('option name temperature type spin default ' + str(int(self.temperature * 100)) + ' min 10 max 1000')
         print('option name thread type spin default ' + str(self.thread_num) + ' min 1 max 10')
         print('usiok')
@@ -353,7 +411,10 @@ class ParallelMCTSPlayer(BasePlayer):
             # self.network = PolicyValueNetwork()
             self.network = PolicyValueResnet()
             self.model = self.network.model
+        # K.set_session(self.sess)
         self.model.load_weights(self.modelfile)
+        self.predict_fn = predictor.from_saved_model(self.modeldir_path)
+
         # ハッシュを初期化
         self.node_hash.initialize()
         print('readyok')
