@@ -116,7 +116,7 @@ logging.info('Training end')
 
 model_path = args.model + "/model-final.hdf5"
 model.save_weights(model_path, save_format="h5")
-tf.contrib.saved_model.save_keras_model(model, args.model)
+# tf.contrib.saved_model.save_keras_model(model, args.model)
 
 import gc; gc.collect()
 logging.info('Done')
