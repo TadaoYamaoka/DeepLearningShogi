@@ -76,9 +76,11 @@ class ParallelMCTSPlayer(BasePlayer):
         super().__init__()
         # モデルファイルのパス
         # self.modelfile = r'H:\src\python-dlshogi\model\model_policy_value_resnet'
-        self.modeldir_path = os.path.join(os.path.dirname(__file__), '../../model/1541862528')
-        modelfile_path = os.path.join(os.path.dirname(__file__), '../../model/model-final.hdf5')
-        self.modelfile = modelfile_path
+        # self.modeldir_path = os.path.join(os.path.dirname(__file__), '../../model/1541862528')
+        # modelfile_path = os.path.join(os.path.dirname(__file__), '../../model/model-final.hdf5')
+        # self.modeldir_path = os.path.join(os.path.dirname(__file__), '../../model/1541862528')
+        # self.modelfile = modelfile_path
+        self.modelfile = os.path.join(os.path.dirname(__file__), '../../model/1541862528')
         self.model = None # モデル
 
         # ノードの情報
@@ -343,8 +345,12 @@ class ParallelMCTSPlayer(BasePlayer):
                 # # print(y1)
                 # # print(y2)
                 
-                y1 = np.array(predictions['policy_head'])
-                y2 = np.array(predictions['value_head'])
+                # print(predictions['policy_head'])
+                # print(predictions['policy_head'].data)
+                # print(predictions['value_head'])
+                # print(predictions['value_head'].data)
+                y1 = np.array(predictions['policy_head'].data)
+                y2 = np.array(predictions['value_head'].data)
                 
                 logits_batch = y1
                 # values_batch = (1.0 / (1.0 + np.exp(-y2)))
@@ -352,6 +358,7 @@ class ParallelMCTSPlayer(BasePlayer):
                 # values_batch = sigmoid(-y2)
                 # values_batch = sigmoid(y2).reshape(-1)
                 values_batch = sigmoid(y2)
+                # values_batch = tf.sigmoid(tf.convert_to_tensor(y2.data)).eval(session=self.sess)
                 
                 # values_batch = tf.keras.activations.sigmoid(x)
 
@@ -412,8 +419,9 @@ class ParallelMCTSPlayer(BasePlayer):
             self.network = PolicyValueResnet()
             self.model = self.network.model
         # K.set_session(self.sess)
-        self.model.load_weights(self.modelfile)
-        self.predict_fn = predictor.from_saved_model(self.modeldir_path)
+        # self.model.load_weights(self.modelfile)
+        # self.predict_fn = predictor.from_saved_model(self.modeldir_path)
+        self.predict_fn = predictor.from_saved_model(self.modelfile)
 
         # ハッシュを初期化
         self.node_hash.initialize()
