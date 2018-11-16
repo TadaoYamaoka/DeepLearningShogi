@@ -120,6 +120,26 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, true);
 
+		// 千日手チェック
+		switch (pos.isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionWin:
+		case RepetitionSuperior:
+		{
+			// 詰みが見つかった時点で終了
+			pos.undoMove(ml.move);
+			return ml.move;
+		}
+		case RepetitionDraw:
+		case RepetitionLose:
+		case RepetitionInferior:
+		{
+			pos.undoMove(ml.move);
+			continue;
+		}
+		default: UNREACHABLE;
+		}
+
 		//std::cout << ml.move().toUSI() << std::endl;
 		// 偶数手詰めチェック
 		if (mateMoveInEvenPly(pos, depth - 1)) {
@@ -146,6 +166,26 @@ bool mateMoveInOddPly(Position& pos, const int depth)
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, true);
+
+		// 千日手チェック
+		switch (pos.isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionWin:
+		case RepetitionSuperior:
+		{
+			// 詰みが見つかった時点で終了
+			pos.undoMove(ml.move);
+			return true;
+		}
+		case RepetitionDraw:
+		case RepetitionLose:
+		case RepetitionInferior:
+		{
+			pos.undoMove(ml.move);
+			continue;
+		}
+		default: UNREACHABLE;
+		}
 
 		//std::cout << ml.move().toUSI() << std::endl;
 		// 王手の場合
@@ -177,9 +217,29 @@ bool mateMoveInEvenPly(Position& pos, const int depth)
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, givesCheck);
 
+		// 千日手チェック
+		switch (pos.isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionWin:
+		case RepetitionSuperior:
+		{
+			pos.undoMove(ml.move);
+			continue;
+		}
+		case RepetitionDraw:
+		case RepetitionLose:
+		case RepetitionInferior:
+		{
+			// 詰みが見つからなかった時点で終了
+			pos.undoMove(ml.move);
+			return false;
+		}
+		default: UNREACHABLE;
+		}
+
 		if (depth == 4) {
 			// 3手詰めかどうか
-			if (givesCheck? !mateMoveIn3Ply<true>(pos) : !mateMoveIn3Ply<false>(pos)) {
+			if (givesCheck ? !mateMoveIn3Ply<true>(pos) : !mateMoveIn3Ply<false>(pos)) {
 				// 3手詰めでない場合
 				// 詰みが見つからなかった時点で終了
 				pos.undoMove(ml.move);
