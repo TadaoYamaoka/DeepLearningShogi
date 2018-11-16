@@ -49,36 +49,6 @@ private:
 	ExtMove* last_;
 };
 
-// 2手詰めチェック
-// 手番側が王手されていること
-FORCE_INLINE bool mateMoveIn2Ply(Position& pos)
-{
-	// AND節点
-
-	// すべてのEvasionについて
-	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<false, false>(pos)) {
-		//std::cout << " " << ml.move().toUSI() << std::endl;
-		if (pos.moveGivesCheck(ml.move, ci))
-			return false;
-
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move, state, ci, false);
-
-		// 1手詰めかどうか
-		if (pos.mateMoveIn1Ply() == Move::moveNone()) {
-			// 1手詰めでない場合
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move);
-			return false;
-		}
-
-		pos.undoMove(ml.move);
-	}
-	return true;
-}
-
 // 3手詰めチェック
 // 手番側が王手でないこと
 template <bool INCHECK>
@@ -86,23 +56,51 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 {
 	// OR節点
 
-	// すべての合法手について
-	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<true, INCHECK>(pos)) {
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move, state, ci, true);
+	StateInfo si;
+	StateInfo si2;
 
-		//std::cout << ml.move().toUSI() << std::endl;
-		// 王手の場合
-		// 2手詰めチェック
-		if (mateMoveIn2Ply(pos)) {
-			// 詰みが見つかった時点で終了
-			pos.undoMove(ml.move);
+	const CheckInfo ci(pos);
+	for (const auto& ml : MovePicker<true, INCHECK>(pos))
+	{
+		const Move& m = ml.move;
+
+		pos.doMove(m, si, ci, true);
+
+		// この局面ですべてのevasionを試す
+		MovePicker<false, false> move_picker2(pos);
+
+		if (move_picker2.size() == 0) {
+			// 1手で詰んだ
+			pos.undoMove(m);
 			return true;
 		}
 
-		pos.undoMove(ml.move);
+		const CheckInfo ci2(pos);
+		for (const auto& move : move_picker2)
+		{
+			const Move& m2 = move.move;
+
+			// この指し手で逆王手になるなら、不詰めとして扱う
+			if (pos.moveGivesCheck(m2, ci2))
+				goto NEXT_CHECK;
+
+			pos.doMove(m2, si2, ci2, false);
+
+			if (!pos.mateMoveIn1Ply()) {
+				// 詰んでないので、m2で詰みを逃れている。
+				pos.undoMove(m2);
+				goto NEXT_CHECK;
+			}
+
+			pos.undoMove(m2);
+		}
+
+		// すべて詰んだ
+		pos.undoMove(m);
+		return true;
+
+	NEXT_CHECK:;
+		pos.undoMove(m);
 	}
 	return false;
 }
