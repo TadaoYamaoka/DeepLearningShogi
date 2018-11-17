@@ -1220,7 +1220,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	const int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
-	unsigned int max_index;
 	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
 
 	max_value = -1;
