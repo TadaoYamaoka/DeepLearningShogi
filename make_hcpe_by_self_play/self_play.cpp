@@ -388,8 +388,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 		case RepetitionDraw: return 0.5f;
 		case RepetitionWin: return 0.0f;
 		case RepetitionLose: return 1.0f;
-		case RepetitionSuperior: return 0.0f;
-		case RepetitionInferior: return 1.0f;
+		case RepetitionSuperior: break;
+		case RepetitionInferior: break;
 		default: UNREACHABLE;
 		}
 	}
@@ -427,24 +427,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 			result = 1.0f;
 		}
 		else {
-			// 詰みチェック(ValueNet計算中にチェック)
-			int isMate = 0;
-			if (!pos->inCheck()) {
-				if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
-					isMate = 1;
-				}
-			}
-			else {
-				if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-					isMate = -1;
-				}
-			}
-
-			// 入玉勝ちかどうかを判定
-			if (nyugyoku(*pos)) {
-				isMate = 1;
-			}
-
 			// 千日手チェック
 			int isDraw = 0;
 			switch (pos->isDraw(16)) {
@@ -452,8 +434,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 			case RepetitionDraw: isDraw = 2; break; // Draw
 			case RepetitionWin: isDraw = 1; break;
 			case RepetitionLose: isDraw = -1; break;
-			case RepetitionSuperior: isDraw = 1; break;
-			case RepetitionInferior: isDraw = -1; break;
+			case RepetitionSuperior: break;
+			case RepetitionInferior: break;
 			default: UNREACHABLE;
 			}
 
@@ -471,19 +453,39 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				}
 
 			}
-			// 詰みの場合、ValueNetの値を上書き
-			else if (isMate == 1) {
-				uct_node[child_index].value_win = VALUE_WIN;
-				result = 0.0f;
-			}
-			else if (isMate == -1) {
-				uct_node[child_index].value_win = VALUE_LOSE;
-				result = 1.0f;
-			}
 			else {
-				// ノードをキューに追加
-				grp->QueuingNode(pos, child_index, uct_node);
-				return QUEUING;
+				// 詰みチェック(ValueNet計算中にチェック)
+				int isMate = 0;
+				if (!pos->inCheck()) {
+					if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
+					}
+				}
+				else {
+					if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+						isMate = -1;
+					}
+				}
+
+				// 入玉勝ちかどうかを判定
+				if (nyugyoku(*pos)) {
+					isMate = 1;
+				}
+
+				// 詰みの場合、ValueNetの値を上書き
+				if (isMate == 1) {
+					uct_node[child_index].value_win = VALUE_WIN;
+					result = 0.0f;
+				}
+				else if (isMate == -1) {
+					uct_node[child_index].value_win = VALUE_LOSE;
+					result = 1.0f;
+				}
+				else {
+					// ノードをキューに追加
+					grp->QueuingNode(pos, child_index, uct_node);
+					return QUEUING;
+				}
 			}
 		}
 	}

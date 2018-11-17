@@ -122,7 +122,6 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionWin:
-		case RepetitionSuperior:
 		{
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
@@ -130,11 +129,12 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 		}
 		case RepetitionDraw:
 		case RepetitionLose:
-		case RepetitionInferior:
+		case RepetitionSuperior: // 相手が駒得
 		{
 			pos.undoMove(ml.move);
 			continue;
 		}
+		case RepetitionInferior: break; // 相手が駒損
 		default: UNREACHABLE;
 		}
 
@@ -161,6 +161,7 @@ bool mateMoveInOddPly(Position& pos, const int depth)
 	// すべての合法手について
 	const CheckInfo ci(pos);
 	for (const auto& ml : MovePicker<true, INCHECK>(pos)) {
+		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, true);
@@ -169,7 +170,6 @@ bool mateMoveInOddPly(Position& pos, const int depth)
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionWin:
-		case RepetitionSuperior:
 		{
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
@@ -177,15 +177,15 @@ bool mateMoveInOddPly(Position& pos, const int depth)
 		}
 		case RepetitionDraw:
 		case RepetitionLose:
-		case RepetitionInferior:
+		case RepetitionSuperior: // 相手が駒得
 		{
 			pos.undoMove(ml.move);
 			continue;
 		}
+		case RepetitionInferior: break; // 相手が駒損
 		default: UNREACHABLE;
 		}
 
-		//std::cout << ml.move().toUSI() << std::endl;
 		// 王手の場合
 		// 偶数手詰めチェック
 		if (mateMoveInEvenPly(pos, depth - 1)) {
@@ -208,7 +208,7 @@ bool mateMoveInEvenPly(Position& pos, const int depth)
 	// すべてのEvasionについて
 	const CheckInfo ci(pos);
 	for (const auto& ml : MovePicker<false, false>(pos)) {
-		//std::cout << " " << ml.move().toUSI() << std::endl;
+		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		const bool givesCheck = pos.moveGivesCheck(ml.move, ci);
 
 		// 1手動かす
@@ -219,19 +219,19 @@ bool mateMoveInEvenPly(Position& pos, const int depth)
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionWin:
-		case RepetitionSuperior:
 		{
 			pos.undoMove(ml.move);
 			continue;
 		}
 		case RepetitionDraw:
 		case RepetitionLose:
-		case RepetitionInferior:
+		case RepetitionInferior: // 自分が駒損
 		{
 			// 詰みが見つからなかった時点で終了
 			pos.undoMove(ml.move);
 			return false;
 		}
+		case RepetitionSuperior: break; // 自分が駒得
 		default: UNREACHABLE;
 		}
 
