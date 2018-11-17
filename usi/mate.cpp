@@ -121,14 +121,14 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
-		case RepetitionWin:
+		case RepetitionLose: // 相手が負け
 		{
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
 			return ml.move;
 		}
 		case RepetitionDraw:
-		case RepetitionLose:
+		case RepetitionWin: // 相手が勝ち
 		case RepetitionSuperior: // 相手が駒得
 		{
 			pos.undoMove(ml.move);
@@ -169,14 +169,14 @@ bool mateMoveInOddPly(Position& pos, const int depth)
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
-		case RepetitionWin:
+		case RepetitionLose: // 相手が負け
 		{
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
 			return true;
 		}
 		case RepetitionDraw:
-		case RepetitionLose:
+		case RepetitionWin: // 相手の勝ち
 		case RepetitionSuperior: // 相手が駒得
 		{
 			pos.undoMove(ml.move);
@@ -218,13 +218,13 @@ bool mateMoveInEvenPly(Position& pos, const int depth)
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
-		case RepetitionWin:
+		case RepetitionWin: // 自分が勝ち
 		{
 			pos.undoMove(ml.move);
 			continue;
 		}
 		case RepetitionDraw:
-		case RepetitionLose:
+		case RepetitionLose: // 自分が負け
 		case RepetitionInferior: // 自分が駒損
 		{
 			// 詰みが見つからなかった時点で終了
