@@ -74,7 +74,7 @@ private:
 	// value network
 	ConvLayer<MAX_MOVE_LABEL_NUM, k, 1, 0> conv22v;
 	Bias<MAX_MOVE_LABEL_NUM, 1, 1> bias22v;
-	BatchNormalization<k> bn22v;
+	BatchNormalization<MAX_MOVE_LABEL_NUM> bn22v;
 	Linear<9 * 9 * MAX_MOVE_LABEL_NUM, fcl> l23v;
 	Bias<fcl, 1, 1> bias23v;
 	Linear<fcl, 1> l24v;
