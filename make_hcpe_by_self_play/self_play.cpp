@@ -930,8 +930,6 @@ void UCTSearcher::NextGame()
 		// 局面出力
 		if (hcpevec.size() > 0) {
 			std::unique_lock<Mutex> lock(omutex);
-			Position po;
-			po.set(hcpevec[0].hcp, nullptr);
 			ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 			madeTeacherNodes += hcpevec.size();
 			++games;
