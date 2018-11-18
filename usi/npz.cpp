@@ -87,6 +87,7 @@ void load_npz(const char* file, ParamMap& params)
 
 		params.emplace(file_name, std::move(npy));
 
-		delete[]  file_name;
+		delete[] file_data;
+		delete[] file_name;
 	}
 }
