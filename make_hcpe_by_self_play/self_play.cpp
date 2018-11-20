@@ -603,7 +603,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 unsigned int
 UCTSearcher::ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -645,7 +645,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す

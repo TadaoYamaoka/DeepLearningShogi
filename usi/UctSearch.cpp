@@ -87,8 +87,11 @@ bool pondering_stop = false;
 
 double time_limit;
 
-//
+// ハッシュの再利用
 bool reuse_subtree = true;
+
+// ハッシュの世代
+int generation = 0;
 
 ray_clock::time_point begin_time;
 
@@ -118,45 +121,6 @@ double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
 		;
 	return expected;
-}
-
-///////////////////////
-//  古いデータの削除  //
-///////////////////////
-void
-UctHash::delete_hash_recursively(Position &pos, const unsigned int index) {
-	node_hash[index].flag = true;
-	used++;
-
-	child_node_t *child_node = uct_node[index].child;
-	for (int i = 0; i < uct_node[index].child_num; i++) {
-		if (child_node[i].index != NOT_EXPANDED && node_hash[child_node[i].index].flag == false) {
-			StateInfo st;
-			pos.doMove(child_node[i].move, st);
-			delete_hash_recursively(pos, child_node[i].index);
-			pos.undoMove(child_node[i].move);
-		}
-	}
-}
-
-void
-UctHash::DeleteOldHash(const Position* pos)
-{
-	// 現在の局面をルートとする局面以外を削除する
-	unsigned int root = FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
-
-	used = 0;
-	for (unsigned int i = 0; i < uct_hash_size; i++) {
-		node_hash[i].flag = false;
-	}
-
-	if (root != uct_hash_size) {
-		// 盤面のコピー
-		Position pos_copy(*pos);
-		delete_hash_recursively(pos_copy, root);
-	}
-
-	enough_size = true;
 }
 
 ////////////
@@ -555,7 +519,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	po_info.count = 0;
 
 	if (reuse_subtree) {
-		uct_hash->DeleteOldHash(pos);
+		uct_hash->DeleteOldHash(pos->gamePly());
 	}
 	else {
 		uct_hash->ClearUctHash();
@@ -735,7 +699,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 static unsigned int
 ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -782,7 +746,7 @@ ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
-	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
