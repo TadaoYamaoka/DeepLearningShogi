@@ -47,6 +47,7 @@ string model_path;
 int playout_num = 1000;
 
 constexpr unsigned int uct_hash_size = 8192; // UCTハッシュサイズ
+constexpr int MAX_PLY = 200; // 最大手数
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -171,7 +172,7 @@ public:
 		id(id),
 		mt_64(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + id)),
-		uct_hash(new UctHash(uct_hash_size)),
+		uct_hash(uct_hash_size),
 		uct_node(new uct_node_t[uct_hash_size]),
 		inputFileDist(0, entryNum - 1),
 		playout(0),
@@ -197,7 +198,7 @@ private:
 
 	UCTSearcherGroup* grp;
 	int id;
-	unique_ptr<UctHash> uct_hash;
+	UctHash uct_hash;
 	uct_node_t* uct_node;
 	unique_ptr<std::mt19937_64> mt_64;
 	unique_ptr<std::mt19937> mt;
@@ -210,7 +211,7 @@ private:
 	unsigned int current_root;
 
 	std::unordered_set<Key> keyHash;
-	StateListPtr states = nullptr;
+	StateInfo states[MAX_PLY + 1];
 	std::vector<HuffmanCodedPosAndEval> hcpevec;
 	uniform_int_distribution<s64> inputFileDist;
 
@@ -602,7 +603,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 unsigned int
 UCTSearcher::ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly());
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -612,7 +613,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 	}
 	else {
 		// 空のインデックスを探す
-		index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
+		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
 
 		assert(index != uct_hash_size);
 
@@ -644,7 +645,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
-	unsigned int index = uct_hash->FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -653,7 +654,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	}
 
 	// 空のインデックスを探す
-	index = uct_hash->SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != uct_hash_size);
 
@@ -803,12 +804,11 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				SPDLOG_DEBUG(logger, "id:{} ply:{} {}", id, ply, pos_root->toSFEN());
 
 				keyHash.clear();
-				states = StateListPtr(new std::deque<StateInfo>(1));
 				hcpevec.clear();
 			}
 
 			// ハッシュクリア
-			uct_hash->ClearUctHash();
+			uct_hash.ClearUctHash();
 
 			// ルートノード展開
 			current_root = ExpandRoot(pos_root);
@@ -822,8 +822,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			else if (uct_node[current_root].child_num == 1) {
 				// 1手しかないときは、その手を指して次の手番へ
 				SPDLOG_DEBUG(logger, "id:{} ply:{} {} skip:{}", id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
-				states->push_back(StateInfo());
-				pos_root->doMove(uct_node[current_root].child[0].move, states->back());
+				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
 				playout = 0;
 				ply++;
 				continue;
@@ -902,15 +901,14 @@ void UCTSearcher::NextStep()
 		idx++;
 
 		// 一定の手数以上で引き分け
-		if (ply > 200) {
+		if (ply >= MAX_PLY) {
 			gameResult = Draw;
 			NextGame();
 			return;
 		}
 
 		// 着手
-		states->push_back(StateInfo());
-		pos_root->doMove(best_move, states->back());
+		pos_root->doMove(best_move, states[ply]);
 
 		// 次の手番
 		playout = 0;
