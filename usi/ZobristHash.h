@@ -12,6 +12,7 @@ struct node_hash_t {
 class UctHash
 {
 public:
+	UctHash() {};
 	UctHash(const unsigned int hash_size);
 	UctHash(UctHash&& o) :
 		uct_hash_size(o.uct_hash_size),
