@@ -4,7 +4,7 @@
 
 struct node_hash_t {
 	unsigned long long hash;
-	int color;
+	Color color;
 	int moves;
 	bool flag;
 };
@@ -21,17 +21,17 @@ public:
 		used(o.used),
 		enough_size(o.enough_size) {}
 
-	//  UCTノードのハッシュ情報のクリア
-	void ClearUctHash(void);
+	// UCTノードのハッシュ情報のクリア
+	void ClearUctHash();
 
-	//  古いデータの削除
-	void DeleteOldHash(const Position *pos);
+	// 古いデータの削除
+	void DeleteOldHash(int moves);
 
-	//  未使用のインデックスを探す
-	unsigned int SearchEmptyIndex(const unsigned long long hash, const int color, const int moves);
+	// 未使用のインデックスを探す
+	unsigned int SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves);
 
-	//  ハッシュ値に対応するインデックスを返す
-	unsigned int FindSameHashIndex(const unsigned long long hash, const int color, const int moves) const;
+	// ハッシュ値に対応するインデックスを返す
+	unsigned int FindSameHashIndex(const unsigned long long hash, const int moves) const;
 
 	//  ハッシュ表が埋まっていないか確認
 	bool CheckRemainingHashSize(void) const { return enough_size; }
@@ -59,7 +59,4 @@ private:
 	unsigned int TransHash(const unsigned long long hash) const {
 		return ((hash & 0xffffffff) ^ ((hash >> 32) & 0xffffffff)) & (uct_hash_size - 1);
 	}
-
-	// 古いハッシュの削除
-	void delete_hash_recursively(Position &pos, const unsigned int index);
 };

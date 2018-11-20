@@ -45,8 +45,6 @@ UctHash::UctHash(const unsigned int hash_size) :
 
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		node_hash[i].flag = false;
-		node_hash[i].hash = 0;
-		node_hash[i].color = 0;
 		node_hash[i].moves = 0;
 	}
 }
@@ -63,9 +61,28 @@ UctHash::ClearUctHash(void)
 
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		node_hash[i].flag = false;
-		node_hash[i].hash = 0;
-		node_hash[i].color = 0;
 		node_hash[i].moves = 0;
+	}
+}
+
+
+///////////////////////
+//  古いデータの削除  //
+///////////////////////
+void
+UctHash::DeleteOldHash(int moves)
+{
+	used = 0;
+	enough_size = true;
+
+	for (unsigned int i = 0; i < uct_hash_size; i++) {
+		if (node_hash[i].moves < moves) {
+			node_hash[i].flag = false;
+			node_hash[i].moves = 0;
+		}
+		else {
+			used++;
+		}
 	}
 }
 
@@ -74,7 +91,7 @@ UctHash::ClearUctHash(void)
 //  未使用のインデックスを探して返す  //
 //////////////////////////////////////
 unsigned int
-UctHash::SearchEmptyIndex(const unsigned long long hash, const int color, const int moves)
+UctHash::SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves)
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -102,7 +119,7 @@ UctHash::SearchEmptyIndex(const unsigned long long hash, const int color, const 
 //  ハッシュ値に対応するインデックスを返す  //
 ////////////////////////////////////////////
 unsigned int
-UctHash::FindSameHashIndex(const unsigned long long hash, const int color, const int moves) const
+UctHash::FindSameHashIndex(const unsigned long long hash, const int moves) const
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
@@ -112,7 +129,6 @@ UctHash::FindSameHashIndex(const unsigned long long hash, const int color, const
 			return uct_hash_size;
 		}
 		else if (node_hash[i].hash == hash &&
-			node_hash[i].color == color &&
 			node_hash[i].moves == moves) {
 			return i;
 		}
