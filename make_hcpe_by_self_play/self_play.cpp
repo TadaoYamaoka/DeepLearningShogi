@@ -389,8 +389,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 		case RepetitionDraw: return 0.5f;
 		case RepetitionWin: return 0.0f;
 		case RepetitionLose: return 1.0f;
-		case RepetitionSuperior: break;
-		case RepetitionInferior: break;
+		case RepetitionSuperior: return 0.0f;
+		case RepetitionInferior: return 1.0f;
 		default: UNREACHABLE;
 		}
 	}
@@ -435,8 +435,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 			case RepetitionDraw: isDraw = 2; break; // Draw
 			case RepetitionWin: isDraw = 1; break;
 			case RepetitionLose: isDraw = -1; break;
-			case RepetitionSuperior: break;
-			case RepetitionInferior: break;
+			case RepetitionSuperior: isDraw = 1; break;
+			case RepetitionInferior: isDraw = -1; break;
 			default: UNREACHABLE;
 			}
 
