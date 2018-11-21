@@ -23,7 +23,7 @@
 #include "cppshogi.h"
 
 //#define SPDLOG_TRACE_ON
-//#define SPDLOG_DEBUG_ON
+#define SPDLOG_DEBUG_ON
 #define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
 auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
@@ -46,7 +46,7 @@ string model_path;
 
 int playout_num = 1000;
 
-constexpr unsigned int uct_hash_size = 8192; // UCTハッシュサイズ
+constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 200; // 最大手数
 
 s64 teacherNodes; // 教師局面数
@@ -75,15 +75,10 @@ struct child_node_t {
 struct uct_node_t {
 	int move_count;
 	float win;
+	std::atomic<int> evaled;            // 0:未評価 1:評価済 2:千日手の可能性あり
+	float value_win;
 	int child_num;                      // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
-	std::atomic<int> evaled; // 0:未評価 1:評価済 2:千日手の可能性あり
-	float value_win;
-};
-
-struct policy_value_queue_node_t {
-	uct_node_t* node;
-	Color color;
 };
 
 // ランダム
@@ -123,18 +118,21 @@ class UCTSearcherGroup {
 public:
 	UCTSearcherGroup(const int gpu_id, const int group_id, const int policy_value_batch_maxsize, UCTSearcherGroupPair* parent) :
 		gpu_id(gpu_id), group_id(group_id), policy_value_batch_maxsize(policy_value_batch_maxsize), parent(parent),
-		current_policy_value_batch_index(0), features1(nullptr), features2(nullptr), policy_value_queue_node(nullptr), y1(nullptr), y2(nullptr), running(false) {
+		uct_hash(uct_hash_size),
+		uct_node(new uct_node_t[uct_hash_size]),
+		current_policy_value_batch_index(0), features1(nullptr), features2(nullptr), policy_value_hash_index(nullptr), y1(nullptr), y2(nullptr), running(false) {
 		Initialize();
 	}
 	UCTSearcherGroup(UCTSearcherGroup&& o) {} // not use
 	~UCTSearcherGroup() {
+		delete[] uct_node;
 		checkCudaErrors(cudaFreeHost(features1));
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
 	}
 
-	void QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node);
+	void QueuingNode(const Position *pos, unsigned int index);
 	void EvalNode();
 	void SelfPlay();
 	void Run();
@@ -150,11 +148,15 @@ private:
 	// GPUID
 	int gpu_id;
 
+	// ハッシュ
+	UctHash uct_hash;
+	uct_node_t* uct_node;
+
 	// キュー
 	int policy_value_batch_maxsize; // 最大バッチサイズ
 	features1_t* features1;
 	features2_t* features2;
-	policy_value_queue_node_t* policy_value_queue_node;
+	unsigned int* policy_value_hash_index;
 	int current_policy_value_batch_index;
 
 	// UCTSearcher
@@ -167,21 +169,20 @@ private:
 
 class UCTSearcher {
 public:
-	UCTSearcher(UCTSearcherGroup* grp, const int id, const size_t entryNum) :
+	UCTSearcher(UCTSearcherGroup* grp, UctHash& uct_hash, uct_node_t* uct_node, const int id, const size_t entryNum) :
 		grp(grp),
+		uct_hash(uct_hash),
+		uct_node(uct_node),
 		id(id),
 		mt_64(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + id)),
-		uct_hash(uct_hash_size),
-		uct_node(new uct_node_t[uct_hash_size]),
 		inputFileDist(0, entryNum - 1),
 		playout(0),
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
 	}
-	UCTSearcher(UCTSearcher&& o) {} // not use
+	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash) {} // not use
 	~UCTSearcher() {
-		delete[] uct_node;
 		delete pos_root;
 	}
 
@@ -198,12 +199,14 @@ private:
 
 	UCTSearcherGroup* grp;
 	int id;
-	UctHash uct_hash;
-	uct_node_t* uct_node;
 	unique_ptr<std::mt19937_64> mt_64;
 	unique_ptr<std::mt19937> mt;
 	// スレッドのハンドル
 	thread *handle;
+
+	// ハッシュ(UCTSearcherGroupで共有)
+	UctHash& uct_hash;
+	uct_node_t* uct_node;
 
 	int playout;
 	int ply;
@@ -279,13 +282,13 @@ UCTSearcherGroup::Initialize()
 	// キューを動的に確保する
 	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-	policy_value_queue_node = new policy_value_queue_node_t[policy_value_batch_maxsize];
+	policy_value_hash_index = new unsigned int[policy_value_batch_maxsize];
 
 	// UCTSearcher
 	searchers.clear();
 	searchers.reserve(policy_value_batch_maxsize);
 	for (int i = 0; i < policy_value_batch_maxsize; i++) {
-		searchers.emplace_back(this, gpu_id * 10000 + group_id * 1000 + i, entryNum);
+		searchers.emplace_back(this, uct_hash, uct_node, gpu_id * 10000 + group_id * 1000 + i, entryNum);
 	}
 
 	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -484,7 +487,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				}
 				else {
 					// ノードをキューに追加
-					grp->QueuingNode(pos, child_index, uct_node);
+					grp->QueuingNode(pos, child_index);
 					return QUEUING;
 				}
 			}
@@ -603,7 +606,7 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 unsigned int
 UCTSearcher::ExpandRoot(const Position *pos)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly());
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly(), id);
 	child_node_t *uct_child;
 	int child_num = 0;
 
@@ -613,7 +616,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 	}
 	else {
 		// 空のインデックスを探す
-		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly());
+		index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly(), id);
 
 		assert(index != uct_hash_size);
 
@@ -645,7 +648,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth, id);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -654,7 +657,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	}
 
 	// 空のインデックスを探す
-	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
+	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth, id);
 
 	assert(index != uct_hash_size);
 
@@ -683,15 +686,14 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index, uct_node_t* uct_node)
+UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 {
 	// set all zero
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
-	policy_value_queue_node[current_policy_value_batch_index].node = &uct_node[index];
-	policy_value_queue_node[current_policy_value_batch_index].color = pos->turn();
+	policy_value_hash_index[current_policy_value_batch_index] = index;
 	current_policy_value_batch_index++;
 }
 
@@ -744,12 +746,12 @@ void UCTSearcherGroup::EvalNode() {
 	DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-		policy_value_queue_node_t& queue_node = policy_value_queue_node[i];
+		const unsigned int index = policy_value_hash_index[i];
 
 		// 対局は1スレッドで行うためロックは不要
-		const int child_num = queue_node.node->child_num;
-		child_node_t *uct_child = queue_node.node->child;
-		const Color color = queue_node.color;
+		const int child_num = uct_node[index].child_num;
+		child_node_t *uct_child = uct_node[index].child;
+		Color color = uct_hash[index].color;
 
 		// 合法手一覧
 		vector<float> legal_move_probabilities;
@@ -773,11 +775,11 @@ void UCTSearcherGroup::EvalNode() {
 		}
 
 #ifdef FP16
-		queue_node.node->value_win = __half2float(*value);
+		uct_node[index].value_win = __half2float(*value);
 #else
-		queue_node.node->value_win = *value;
+		uct_node[index].value_win = *value;
 #endif
-		queue_node.node->evaled = 1;
+		uct_node[index].evaled = 1;
 	}
 }
 
@@ -808,7 +810,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			}
 
 			// ハッシュクリア
-			uct_hash.ClearUctHash();
+			uct_hash.ClearUctHash(id);
 
 			// ルートノード展開
 			current_root = ExpandRoot(pos_root);
@@ -835,7 +837,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			}
 
 			// ルート局面をキューに追加
-			grp->QueuingNode(pos_root, current_root, uct_node);
+			grp->QueuingNode(pos_root, current_root);
 			return;
 		}
 

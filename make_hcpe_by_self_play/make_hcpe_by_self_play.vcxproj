@@ -249,14 +249,17 @@
     <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn.cpp" />
     <ClCompile Include="..\usi\npz.cpp" />
-    <ClCompile Include="..\usi\ZobristHash.cpp" />
     <ClCompile Include="self_play.cpp" />
+    <ClCompile Include="ZobristHash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ZobristHash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
