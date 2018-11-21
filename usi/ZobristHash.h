@@ -13,13 +13,20 @@ class UctHash
 {
 public:
 	UctHash() {};
-	UctHash(const unsigned int hash_size);
+	UctHash(const unsigned int hash_size) { Init(hash_size); }
 	UctHash(UctHash&& o) :
 		uct_hash_size(o.uct_hash_size),
 		uct_hash_limit(o.uct_hash_limit),
-		node_hash(std::move(o.node_hash)),
+		node_hash(o.node_hash),
 		used(o.used),
-		enough_size(o.enough_size) {}
+		enough_size(o.enough_size) {
+		o.node_hash = nullptr;
+	}
+	~UctHash() {
+		delete[] node_hash;
+	}
+
+	void Init(const unsigned int hash_size);
 
 	// UCTノードのハッシュ情報のクリア
 	void ClearUctHash();
@@ -48,7 +55,7 @@ private:
 	unsigned int uct_hash_limit;
 
 	//  UCT用ハッシュテーブル
-	std::unique_ptr<node_hash_t[]> node_hash;
+	node_hash_t* node_hash;
 	unsigned int used;
 	bool enough_size;
 

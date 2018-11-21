@@ -30,10 +30,12 @@ UctHash::SetHashSize(const unsigned int new_size)
 //////////////////////////////////
 //  UCTノードのハッシュの初期化  //
 //////////////////////////////////
-UctHash::UctHash(const unsigned int hash_size) :
-	node_hash(new node_hash_t[hash_size])
+void
+UctHash::Init(const unsigned int hash_size)
 {
 	SetHashSize(hash_size);
+
+	node_hash = new node_hash_t[hash_size];
 
 	if (node_hash == nullptr) {
 		cerr << "Cannot allocate memory" << endl;
