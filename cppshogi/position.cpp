@@ -1580,6 +1580,117 @@ void Position::initZobrist() {
     zobExclusion_ = g_mt64bit.random() & ~UINT64_C(1);
 }
 
+// ある指し手を指した後のhash keyを返す。
+Key Position::getKeyAfter(const Move m) const {
+	Color Us = this->turn(); // 現局面の手番
+	Key k = getBoardKey() ^ zobTurn();
+	Key h = getHandKey();
+
+	// 移動先の升
+	Square to = m.to();
+
+	if (m.isDrop())
+	{
+		// --- 駒打ち
+		PieceType pt = m.pieceTypeDropped();
+
+		// Zobrist keyの更新
+		h -= zobHand(pieceTypeToHandPiece(pt), Us);
+		k += zobrist(pt, to, Us);
+	}
+	else
+	{
+		// -- 駒の移動
+		Square from = m.from();
+
+		// 移動させる駒
+		Piece moved_pc = piece(from);
+
+		// 移動先に駒の配置
+		// もし成る指し手であるなら、成った後の駒を配置する。
+		Piece moved_after_pc;
+
+		if (m.isPromotion())
+		{
+			moved_after_pc = moved_pc + Piece::Promoted;
+		}
+		else {
+			moved_after_pc = moved_pc;
+		}
+
+		// 移動先の升にある駒
+		Piece to_pc = piece(to);
+		if (to_pc != Piece::Empty)
+		{
+			PieceType pt = pieceToPieceType(to_pc);
+
+			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
+			k -= zobrist(pt, to, pieceToColor(to_pc));
+			h += zobHand(pieceTypeToHandPiece(pt), Us);
+		}
+
+		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
+		k -= zobrist(pieceToPieceType(moved_pc), from, Us);
+		k += zobrist(pieceToPieceType(moved_after_pc), to, Us);
+	}
+
+	return k + h;
+}
+
+// ある指し手を指した後のhash keyを返す。
+Key Position::getBoardKeyAfter(const Move m) const {
+	Color Us = this->turn(); // 現局面の手番
+	Key k = getBoardKey() ^ zobTurn();
+
+	// 移動先の升
+	Square to = m.to();
+
+	if (m.isDrop())
+	{
+		// --- 駒打ち
+		PieceType pt = m.pieceTypeDropped();
+
+		// Zobrist keyの更新
+		k += zobrist(pt, to, Us);
+	}
+	else
+	{
+		// -- 駒の移動
+		Square from = m.from();
+
+		// 移動させる駒
+		Piece moved_pc = piece(from);
+
+		// 移動先に駒の配置
+		// もし成る指し手であるなら、成った後の駒を配置する。
+		Piece moved_after_pc;
+
+		if (m.isPromotion())
+		{
+			moved_after_pc = moved_pc + Piece::Promoted;
+		}
+		else {
+			moved_after_pc = moved_pc;
+		}
+
+		// 移動先の升にある駒
+		Piece to_pc = piece(to);
+		if (to_pc != Piece::Empty)
+		{
+			PieceType pt = pieceToPieceType(to_pc);
+
+			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
+			k -= zobrist(pt, to, pieceToColor(to_pc));
+		}
+
+		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
+		k -= zobrist(pieceToPieceType(moved_pc), from, Us);
+		k += zobrist(pieceToPieceType(moved_after_pc), to, Us);
+	}
+
+	return k;
+}
+
 void Position::print() const {
     std::cout << "'  9  8  7  6  5  4  3  2  1" << std::endl;
     int i = 0;

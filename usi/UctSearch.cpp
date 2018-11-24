@@ -83,15 +83,12 @@ bool pondering_mode = false;
 
 bool pondering = false;
 
-bool pondering_stop = false;
+atomic<bool> uct_search_stop = false;
 
 double time_limit;
 
 // ハッシュの再利用
 bool reuse_subtree = true;
-
-// ハッシュの世代
-int generation = 0;
 
 ray_clock::time_point begin_time;
 
@@ -390,6 +387,7 @@ void
 SetIncTime(double time, Color c)
 {
 	inc_time[c] = time;
+	uct_search_stop = false;
 }
 
 //////////////////////////
@@ -495,9 +493,9 @@ FinalizeUctSearch(void)
 }
 
 void
-StopPondering(void)
+StopUctSearch(void)
 {
-	pondering_stop = true;
+	uct_search_stop = true;
 }
 
 /////////////////////////////////////
@@ -513,7 +511,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	pos_root = pos;
 
 	pondering = ponder;
-	pondering_stop = false;
 
 	// 探索情報をクリア
 	po_info.count = 0;
@@ -810,7 +807,10 @@ static bool
 InterruptionCheck(void)
 {
 	if (pondering)
-		return pondering_stop;
+		return uct_search_stop;
+
+	if (uct_search_stop)
+		return true;
 
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
