@@ -103,8 +103,8 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["USI_Hash"] = USIOption(256, 1, MaxHashMB, onHashSize, s);
 #endif // SELF_PLAY
 	(*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
-    (*this)["Book_File"]                   = USIOption("book/20180505/book.bin");
-    (*this)["Eval_Dir"]                    = USIOption("20180416");
+    (*this)["Book_File"]                   = USIOption("book.bin");
+    //(*this)["Eval_Dir"]                    = USIOption("20180416");
     (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(true);
     //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
@@ -139,7 +139,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
 	(*this)["Softmax_Tempature"]           = USIOption(100, 1, 200);
-	(*this)["Mate_Root_Search"]            = USIOption(false);
+	(*this)["Mate_Root_Search"]            = USIOption(25, 0, 30);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
 	(*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG

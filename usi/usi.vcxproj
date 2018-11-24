@@ -250,6 +250,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\tt.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="cudnn_dtype.cpp" />
+    <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mate.cpp" />
     <ClCompile Include="Message.cpp" />
@@ -261,6 +262,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
   <ItemGroup>
     <ClInclude Include="cudnn_dtype.h" />
     <ClInclude Include="cudnn_wrapper.h" />
+    <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="layers.h" />
     <ClInclude Include="mate.h" />

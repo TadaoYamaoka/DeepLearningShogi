@@ -11,7 +11,7 @@
 #include "cppshogi.h"
 #include "UctSearch.h"
 #include "Message.h"
-#include "mate.h"
+#include "dfpn.h"
 
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
@@ -30,6 +30,7 @@ int main(int argc, char* argv[]) {
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
+	dfpn_init();
 	InitializeUctSearch();
 
 	s->init();
@@ -63,7 +64,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			GameOver();
 		}
 		else if (token == "stop") {
-			StopPondering();
+			StopUctSearch();
 			if (th.joinable())
 				th.join();
 			// 無視されるがbestmoveを返す
@@ -71,7 +72,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "ponderhit" || token == "go") {
 			if (token == "ponderhit") {
-				StopPondering();
+				StopUctSearch();
 			}
 			if (th.joinable())
 				th.join();
@@ -89,14 +90,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
 			if (options["Mate_Root_Search"] > 0) {
-				tt.clear();
+				/*tt.clear();
 				threads.main()->previousScore = ScoreInfinite;
 				if (!evalTableIsRead) {
 					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
 					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
 					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"]);
 					evalTableIsRead = true;
-				}
+				}*/
+				dfpn_set_maxdepth(options["Mate_Root_Search"]);
 			}
 
 			// 各種初期化
@@ -205,37 +207,37 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// 詰みの探索用
-	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
-		limits.infinite = true;
-		pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->states);
+	std::unique_ptr<std::thread> t;
+	bool mate = false;
+	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
+		t.reset(new std::thread([&pos, &mate]() {
+			if (!pos.inCheck()) {
+				Position pos_copy(pos);
+				mate = dfpn(pos_copy);
+				if (mate)
+					StopUctSearch();
+			}
+		}));
 	}
 
 	// UCTによる探索
 	Move ponderMove = Move::moveNone();
 	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
 
-	// 詰み探索待ち
-	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
-		pos.searcher()->signals.stop = true;
-		pos.searcher()->threads.main()->waitForSearchFinished();
-	}
-
 	// Ponderの場合、結果を返さない
 	if (limits.ponder)
 		return;
-	
-	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
-		Score score = pos.searcher()->threads.main()->rootMoves[0].score;
 
-		if (score >= ScoreMaxEvaluate) {
+	// 詰み探索待ち
+	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+		dfpn_stop();
+		t->join();
+		if (mate) {
 			// 詰み
-			Move move2 = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-			std::cout << "info score mate ";
-			if (score == ScoreMaxEvaluate)
-				std::cout << "+";
-			else
-				std::cout << ScoreMate0Ply - score;
-			std::cout << " pv " << move2.toUSI() << std::endl;
+			Move move2 = dfpn_move(pos);
+			// PV表示
+			std::cout << "info score mate + pv " << move2.toUSI();
+			std::cout << std::endl;
 			std::cout << "bestmove " << move2.toUSI() << std::endl;
 			return;
 		}
@@ -491,7 +493,7 @@ void make_book(std::istringstream& ssCmd) {
 }
 
 void mate_test(Position& pos, std::istringstream& ssCmd) {
-	auto start = std::chrono::system_clock::now();
+	/*auto start = std::chrono::system_clock::now();
 	bool isCheck;
 	int depth;
 	ssCmd >> depth;
@@ -510,7 +512,7 @@ void mate_test(Position& pos, std::istringstream& ssCmd) {
 	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
 	std::cout << "mateMoveIn" << depth << "Ply : " << isCheck << std::endl;
-	std::cout << msec << " msec" << std::endl;
+	std::cout << msec << " msec" << std::endl;*/
 }
 
 void test(Position& pos, std::istringstream& ssCmd) {

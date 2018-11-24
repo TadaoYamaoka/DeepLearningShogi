@@ -72,7 +72,7 @@ extern unsigned int current_root;
 
 
 // 予測読みを止める
-void StopPondering(void);
+void StopUctSearch(void);
 
 // 予測読みのモードの設定
 void SetPonderingMode(bool flag);

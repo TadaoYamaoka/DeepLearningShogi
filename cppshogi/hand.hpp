@@ -88,6 +88,25 @@ public:
         return ((this->value() - ref.value()) & BorrowMask) == 0;
 #endif
     }
+	// 証明駒用メソッド
+	void set(const u32 value) { value_ = value; }
+	// 相手が一枚も持っていない種類の持駒を加算
+	void setPP(const Hand us, const Hand them) {
+		u32 mask = 0;
+		if (them.exists<HPawn>() == 0) mask |= HPawnMask;
+		if (them.exists<HLance>() == 0) mask |= HLanceMask;
+		if (them.exists<HKnight>() == 0) mask |= HKnightMask;
+		if (them.exists<HSilver>() == 0) mask |= HSilverMask;
+		if (them.exists<HGold>() == 0) mask |= HGoldMask;
+		if (them.exists<HBishop>() == 0) mask |= HBishopMask;
+		if (them.exists<HRook>() == 0) mask |= HRookMask;
+
+		// 相手が一枚も持っていない種類の持駒を一旦0にする
+		value_ &= ~mask;
+
+		// 相手が一枚も持っていない種類の持駒を設定する
+		value_ |= (us.value() & mask);
+	}
 
 private:
     static const int HPawnShiftBits   =  0;
