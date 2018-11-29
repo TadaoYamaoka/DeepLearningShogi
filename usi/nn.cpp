@@ -55,8 +55,8 @@ NN::NN(const int max_batch_size) : max_batch_size(max_batch_size)
 	checkCudaErrors(cudaMalloc((void**)&y1_dev, conv22.get_ysize(max_batch_size, 9, 9)));
 	checkCudaErrors(cudaMalloc((void**)&h22v_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
 	checkCudaErrors(cudaMalloc((void**)&h22v_bn_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
-	checkCudaErrors(cudaMalloc((void**)&h23v_dev, max_batch_size * fcl * sizeof(float)));
-	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(float)));
+	checkCudaErrors(cudaMalloc((void**)&h23v_dev, max_batch_size * fcl * sizeof(DType)));
+	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
 }
 
 NN::~NN() {
