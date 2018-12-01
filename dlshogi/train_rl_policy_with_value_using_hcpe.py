@@ -16,10 +16,13 @@ import random
 
 import logging
 
+chainer.global_config.autotune = True
+
 parser = argparse.ArgumentParser(description='Traning RL policy network using hcpe')
 parser.add_argument('train_data', type=str, help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=256, help='Number of positions in each mini-batch')
+parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
@@ -30,12 +33,13 @@ parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+logging.info('batchsize={}'.format(args.batchsize))
+logging.info('MomentumSGD(lr={})'.format(args.lr))
 
 model = PolicyValueNetwork()
 model.to_gpu()
 
-alpha = args.lr
-optimizer = optimizers.SGD(lr=alpha)
+optimizer = optimizers.MomentumSGD(lr=args.lr)
 optimizer.setup(model)
 
 # Init/Resume
@@ -104,13 +108,17 @@ for e in range(args.epoch):
 
         # print train loss
         if optimizer.t % eval_interval == 0:
-            x1, x2, t1, t2, z = mini_batch(np.random.choice(test_data, 640))
+            x1, x2, t1, t2, z = mini_batch(np.random.choice(test_data, args.testbatchsize))
             with chainer.no_backprop_mode():
                 with chainer.using_config('train', False):
                     y1, y2 = model(x1, x2)
-            logging.info('epoch = {}, iteration = {}, train loss = {}, {}, {}, test accuracy = {}, {}'.format(
+            loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
+            loss2 = F.sigmoid_cross_entropy(y2, t2)
+            loss = loss1 + loss2
+            logging.info('epoch = {}, iteration = {}, loss = {}, {}, {}, test loss = {}, {}, {}, test accuracy = {}, {}'.format(
                 optimizer.epoch + 1, optimizer.t,
                 sum_loss1 / itr, sum_loss2 / itr, sum_loss / itr,
+                loss1.data, loss2.data, loss.data,
                 F.accuracy(y1, t1).data, F.binary_accuracy(y2, t2).data))
             itr = 0
             sum_loss1 = 0
@@ -119,17 +127,29 @@ for e in range(args.epoch):
 
     # print train loss for each epoch
     itr_test = 0
+    sum_test_loss1 = 0
+    sum_test_loss2 = 0
+    sum_test_loss = 0
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
-    for i in range(0, len(test_data) - args.batchsize, args.batchsize):
-        x1, x2, t1, t2, z = mini_batch(test_data[i:i+args.batchsize])
+    for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
+        x1, x2, t1, t2, z = mini_batch(test_data[i:i+args.testbatchsize])
         with chainer.no_backprop_mode():
             with chainer.using_config('train', False):
                 y1, y2 = model(x1, x2)
         itr_test += 1
+        loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
+        loss2 = F.sigmoid_cross_entropy(y2, t2)
+        loss = loss1 + loss2
+        sum_test_loss1 += loss1.data
+        sum_test_loss2 += loss2.data
+        sum_test_loss += loss.data
         sum_test_accuracy1 += F.accuracy(y1, t1).data
         sum_test_accuracy2 += F.binary_accuracy(y2, t2).data
-    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test accuracy1 = {}, test accuracy2 = {}'.format(optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch, sum_test_accuracy1 / itr_test, sum_test_accuracy2 / itr_test))
+    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test_loss = {}, {}, {}, test accuracy = {}, {}'.format(
+        optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch,
+        sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss / itr_test,
+        sum_test_accuracy1 / itr_test, sum_test_accuracy2 / itr_test))
 
     optimizer.new_epoch()
 
