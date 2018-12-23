@@ -28,7 +28,8 @@ constexpr unsigned int NOT_EXPANDED = -1;
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
 
-constexpr float c_puct = 1.0f;
+extern float c_init;
+extern float c_base;
 
 enum SEARCH_MODE {
 	CONST_PLAYOUT_MODE,             // 1手のプレイアウト回数を固定したモード

@@ -95,6 +95,10 @@ ray_clock::time_point begin_time;
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
 
+// PUCTの定数
+float c_init;
+float c_base;
+
 // モデルのパス
 string model_path[max_gpu];
 
@@ -1219,11 +1223,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 			rate = std::min(rate * 1.5f, 1.0f);
 		}
 
-		ucb_value = q + c_puct * u * rate;
-
-		/*if (debug) {
-			cerr << " Q:" << q << " U:" << c_puct * u * rate << " UCB:" << ucb_value << endl;
-		}*/
+		const float c = logf((sum + c_base + 1.0f) / c_base) + c_init;
+		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;

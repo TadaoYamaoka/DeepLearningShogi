@@ -109,6 +109,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"] };
 			SetThread(new_thread, new_policy_value_batch_maxsize);
 			SetResignThreshold(options["Resign_Threshold"]);
+			c_init = options["C_init"] / 100.0f;
+			c_base = options["C_base"];
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
