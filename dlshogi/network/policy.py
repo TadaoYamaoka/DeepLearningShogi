@@ -1,41 +1,63 @@
-﻿from chainer import Chain
-import chainer.functions as F
-import chainer.links as L
+﻿import tensorflow as tf
+import numpy as np
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Input, Activation, Flatten
+from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Dense
 
-from pydlshogi.common import *
+import shogi
 
-ch = 192
-class PolicyNetwork(Chain):
+from dlshogi.common import *
+
+class Bias(Layer):
+
+    def __init__(self, **kwargs):
+        super(Bias, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.W = self.add_weight(name='W',
+                                 shape=(input_shape[1:]),
+                                 initializer='zeros',
+                                 trainable=True)
+        super(Bias, self).build(input_shape)
+
+    def call(self, x):
+        return x + self.W
+
+class PolicyNetwork():
     def __init__(self):
-        super(PolicyNetwork, self).__init__()
-        with self.init_scope():
-            self.l1=L.Convolution2D(in_channels = 104, out_channels = ch, ksize = 3, pad = 1)
-            self.l2=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l3=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l4=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l5=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l6=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l7=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l8=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l9=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l10=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l11=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l12=L.Convolution2D(in_channels = ch, out_channels = ch, ksize = 3, pad = 1)
-            self.l13=L.Convolution2D(in_channels = ch, out_channels = MOVE_DIRECTION_LABEL_NUM, ksize = 1, nobias = True)
-            self.l13_bias=L.Bias(shape=(9*9*MOVE_DIRECTION_LABEL_NUM))
+        self.model = self._build_model()
 
-    def __call__(self, x):
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
-        h3 = F.relu(self.l3(h2))
-        h4 = F.relu(self.l4(h3))
-        h5 = F.relu(self.l5(h4))
-        h6 = F.relu(self.l6(h5))
-        h7 = F.relu(self.l7(h6))
-        h8 = F.relu(self.l8(h7))
-        h9 = F.relu(self.l9(h8))
-        h10 = F.relu(self.l10(h9))
-        h11 = F.relu(self.l11(h10))
-        h12 = F.relu(self.l12(h11))
-        h13 = self.l13(h12)
-        return self.l13_bias(F.reshape(h13, (-1, 9*9*MOVE_DIRECTION_LABEL_NUM)))
+    def _build_model(self):
+        k = 192
+        main_input = Input(shape=(104, 9, 9))
+        
+        # layer1
+        x = Conv2D(k, (3, 3), padding='same', data_format='channels_first')(main_input)
+        x = BatchNormalization(axis=1)(x)
+        x = Activation('relu')(x)
+        
+        # layer2 - 12
+        for i in range(11):
+            x = Conv2D(k, (3, 3), padding='same', data_format='channels_first')(x)
+            if i < 8:
+                x = BatchNormalization(axis=1)(x)
+            x = Activation('relu')(x)
+        
+        # policy network
+        # layer13
+        x = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
+        x = Flatten()(x)
+        x = Bias(name = 'policy_head_notop')(x)
+        x = Activation('softmax', name = 'policy_head')(x)
+        
+        model = Model(inputs=main_input, outputs=x)
+        
+        return model
+
+if __name__ == '__main__':
+    network = PolicyNetwork()
+    model = network.model
