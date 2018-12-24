@@ -1,2 +1,3 @@
 @echo off
-python -m pydlshogi.usi.usi_mcts_player
+call activate DeepLearningShogi
+python -m dlshogi.usi.usi_mcts_player

@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{b1194544-1e7d-4f6e-8c32-fc6887dcdff5}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>setup.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId />
+    <InterpreterVersion />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="dlshogi\common.py" />
+    <Compile Include="dlshogi\features.py" />
+    <Compile Include="dlshogi\network\policy.py" />
+    <Compile Include="dlshogi\network\policy_value.py" />
+    <Compile Include="dlshogi\network\policy_value_resnet.py" />
+    <Compile Include="dlshogi\network\value.py" />
+    <Compile Include="dlshogi\player\base_player.py" />
+    <Compile Include="dlshogi\player\mcts_player.py" />
+    <Compile Include="dlshogi\player\parallel_mcts_player.py" />
+    <Compile Include="dlshogi\player\policy_player.py" />
+    <Compile Include="dlshogi\player\search1_player.py" />
+    <Compile Include="dlshogi\read_kifu.py" />
+    <Compile Include="dlshogi\uct\uct_node.py" />
+    <Compile Include="dlshogi\usi\usi.py" />
+    <Compile Include="dlshogi\usi\usi_mcts_player.py" />
+    <Compile Include="dlshogi\usi\usi_parallel_mcts_player.py" />
+    <Compile Include="dlshogi\usi\usi_policy_player.py" />
+    <Compile Include="dlshogi\usi\usi_search1_player.py" />
+    <Compile Include="old\prepare_kifu_list.py" />
+    <Compile Include="old\train.py" />
+    <Compile Include="old\train_tpu.py" />
+    <Compile Include="setup.py" />
+    <Compile Include="train_policy.py" />
+    <Compile Include="train_policy_value.py" />
+    <Compile Include="train_policy_value_resnet.py" />
+    <Compile Include="train_value.py" />
+    <Compile Include="utils\filter_csa_in_dir.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="dlshogi" />
+    <Folder Include="dlshogi\network" />
+    <Folder Include="dlshogi\player" />
+    <Folder Include="dlshogi\uct" />
+    <Folder Include="dlshogi\usi" />
+    <Folder Include="old" />
+    <Folder Include="utils" />
+  </ItemGroup>
+  <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />
+</Project>
