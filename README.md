@@ -83,7 +83,7 @@ wget http://iij.dl.osdn.jp/shogi-server/68500/wdoor2016.7z
 
 ``` dos
 python ./utils/filter_csa_in_dir.py C:/work/DeepLearningShogi/data/floodgate/2016
-python ./train/prepare_kifu_list.py C:/work/DeepLearningShogi/data/floodgate/2016 kifulist
+python ./utils/prepare_kifu_list.py C:/work/DeepLearningShogi/data/floodgate/2016 kifulist
 ```
 
 ## 学習
