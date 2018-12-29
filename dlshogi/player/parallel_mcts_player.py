@@ -32,10 +32,6 @@ VIRTUAL_LOSS = 1
 # 探索スレッド数
 THREAD_NUM = 4
 
-init = tf.global_variables_initializer()
-sess = tf.Session()
-sess.run(init)
-
 @np.vectorize
 def sigmoid(x):
     sigmoid_range = 34.538776394910684
