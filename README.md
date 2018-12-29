@@ -93,7 +93,11 @@ python ./utils/prepare_kifu_list.py C:/work/DeepLearningShogi/data/floodgate/201
 ## 学習
 
 ``` dos
+### GPU
 python train_policy_value_resnet.py --batchsize 32 --epoch 1 --log log kifulist_train.txt kifulist_test.txt
+
+### TPU
+python train_policy_value_resnet.py --use_tpu --batchsize 32 --epoch 1 --log log kifulist_train.txt kifulist_test.txt
 
 -> ./model/model_policy_value_resnet-best.hdf5
 ```
@@ -101,7 +105,11 @@ python train_policy_value_resnet.py --batchsize 32 --epoch 1 --log log kifulist_
 ## 学習の継続
 
 ``` dos
+### GPU
 python train_policy_value_resnet.py --batchsize 32 --epoch 1 --log log -m ./model/model_policy_value_resnet-best.hdf5 kifulist_train.txt kifulist_test.txt
+
+### TPU
+python train_policy_value_resnet.py --use_tpu --batchsize 32 --epoch 1 --log log -m ./model/model_policy_value_resnet-best.hdf5 kifulist_train.txt kifulist_test.txt
 ```
 
 ## 将棋所で対局
