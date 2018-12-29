@@ -42,15 +42,6 @@ conda create --name=DeepLearningShogi python=3.6
 activate DeepLearningShogi
 ```
 
-## パッケージのインストール
-
-``` dos
-pip install tensorflow-gpu
-pip install keras
-pip install matplotlib
-pip install python-shogi
-```
-
 ## GitHub リポジトリのクローン
 
 ``` dos
@@ -67,12 +58,24 @@ git branch -a
 git checkout remotes/origin/keras
 ```
 
+## パッケージのインストール
+
+``` dos
+pip install tensorflow-gpu
+pip install keras
+pip install matplotlib
+pip install python-shogi
+python setup.py install
+```
+
 ## 事前準備
 
 * [floodgate] (https://ja.osdn.net/projects/shogi-server/releases/) の棋譜をダウンロード
 * [7-Zip] (https://sevenzip.osdn.jp/) で解凍する
 
 ``` dos
+mkdir data\floodgate
+cd data\floodgate
 wget http://iij.dl.osdn.jp/shogi-server/68500/wdoor2016.7z
 7z x wdoor2016.7z
 
@@ -82,6 +85,7 @@ wget http://iij.dl.osdn.jp/shogi-server/68500/wdoor2016.7z
 * 棋譜リストのフィルター／ファイル準備
 
 ``` dos
+cd C:/work/DeepLearningShogi
 python ./utils/filter_csa_in_dir.py C:/work/DeepLearningShogi/data/floodgate/2016
 python ./utils/prepare_kifu_list.py C:/work/DeepLearningShogi/data/floodgate/2016 kifulist
 ```
