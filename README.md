@@ -65,7 +65,8 @@ pip install tensorflow-gpu
 pip install keras
 pip install matplotlib
 pip install python-shogi
-python setup.py install
+
+pip install --no-cache-dir -e .
 ```
 
 ## 事前準備
