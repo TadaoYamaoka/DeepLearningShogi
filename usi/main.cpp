@@ -31,7 +31,6 @@ int main(int argc, char* argv[]) {
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
 	dfpn_init();
-	InitializeUctSearch();
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -102,7 +101,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 
 			// 各種初期化
-			set_softmax_tempature(options["Softmax_Tempature"] / 100.0);
+			InitializeUctSearch(options["UCT_Hash"]);
+			set_softmax_tempature(options["Softmax_Tempature"] / 100.0f);
 			const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"] };
 			SetModelPath(model_paths);
 			const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"] };

@@ -67,7 +67,8 @@ const Position *pos_root;
 // 現在のルートのインデックス
 unsigned int current_root;
 
-mutex mutex_nodes[uct_hash_size];
+unsigned int uct_hash_size;
+mutex* mutex_nodes;
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 // 探索の設定
@@ -433,8 +434,13 @@ SetTimeSettings(int main_time, int byoyomi, int stone)
 //  UCT探索の初期設定  //
 /////////////////////////
 void
-InitializeUctSearch()
+InitializeUctSearch(const unsigned int hash_size)
 {
+	uct_hash_size = hash_size;
+
+	// ミューテックスを初期化
+	mutex_nodes = new mutex[uct_hash_size];
+
 	// UCTのノードのメモリを確保
 	uct_hash.Init(uct_hash_size);
 	uct_node = new uct_node_t[uct_hash_size];
@@ -452,6 +458,7 @@ InitializeUctSearch()
 void TerminateUctSearch()
 {
 	delete[] search_groups;
+	delete[] mutex_nodes;
 }
 
 ////////////////////////
@@ -705,7 +712,7 @@ ExpandRoot(const Position *pos)
 	int child_num = 0;
 
 	// 既に展開されていた時は, 探索結果を再利用する
-	if (index != uct_hash_size) {
+	if (index != EXPANDED) {
 		PrintReuseCount(uct_node[index].move_count);
 
 		return index;
@@ -751,14 +758,14 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
-	if (index != uct_hash_size) {
+	if (index != EXPANDED) {
 		return index;
 	}
 
 	// 空のインデックスを探す
 	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
-	assert(index != uct_hash_size);
+	assert(index != EXPANDED);
 
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;

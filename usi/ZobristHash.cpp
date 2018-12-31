@@ -113,7 +113,7 @@ UctHash::SearchEmptyIndex(const unsigned long long hash, const Color color, cons
 		if (i >= uct_hash_size) i = 0;
 	} while (i != key);
 
-	return uct_hash_size;
+	return EXPANDED;
 }
 
 
@@ -128,7 +128,7 @@ UctHash::FindSameHashIndex(const unsigned long long hash, const int moves) const
 
 	do {
 		if (!node_hash[i].flag) {
-			return uct_hash_size;
+			return EXPANDED;
 		}
 		else if (node_hash[i].hash == hash &&
 			node_hash[i].moves == moves) {
@@ -138,5 +138,5 @@ UctHash::FindSameHashIndex(const unsigned long long hash, const int moves) const
 		if (i >= uct_hash_size) i = 0;
 	} while (i != key);
 
-	return uct_hash_size;
+	return EXPANDED;
 }

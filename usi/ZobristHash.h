@@ -2,6 +2,9 @@
 
 #include "position.hpp"
 
+// 展開済みのノードのインデックス
+constexpr unsigned int EXPANDED = -1;
+
 struct node_hash_t {
 	unsigned long long hash;
 	Color color;

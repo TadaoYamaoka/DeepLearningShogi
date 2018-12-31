@@ -9,8 +9,6 @@
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-constexpr unsigned int uct_hash_size = 1048576; // UCTハッシュサイズ
-
 constexpr int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
 constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
@@ -104,7 +102,7 @@ void SetTimeSettings(int main_time, int byoyomi, int stones);
 void SetResignThreshold(const int resign_threshold);
 
 // UCT探索の初期設定
-void InitializeUctSearch();
+void InitializeUctSearch(const unsigned int hash_size);
 // UCT探索の終了処理
 void TerminateUctSearch();
 
