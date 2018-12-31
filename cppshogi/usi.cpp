@@ -97,11 +97,7 @@ namespace {
 
 void OptionsMap::init(Searcher* s) {
     const int MaxHashMB = 1024 * 1024;
-#ifdef SELF_PLAY
-	(*this)["USI_Hash"] = USIOption(1, 1, MaxHashMB, onHashSize, s);
-#else
-	(*this)["USI_Hash"] = USIOption(256, 1, MaxHashMB, onHashSize, s);
-#endif // SELF_PLAY
+	(*this)["USI_Hash"]                    = USIOption(1, 1, MaxHashMB, onHashSize, s);
 	(*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
     (*this)["Book_File"]                   = USIOption("book.bin");
     //(*this)["Eval_Dir"]                    = USIOption("20180416");
@@ -143,6 +139,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
 	(*this)["C_init"]                      = USIOption(80, 0, 100);
 	(*this)["C_base"]                      = USIOption(30000, 10000, 100000);
+	(*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
 	(*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
