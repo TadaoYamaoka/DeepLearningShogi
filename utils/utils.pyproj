@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>stat_csa_in_dir.py</StartupFile>
+    <StartupFile>mcts_params_optimizer.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -28,6 +28,9 @@
     <Compile Include="plot_log_policy_value.py" />
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="throughput.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mcts_params_optimizer.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
