@@ -137,7 +137,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Softmax_Tempature"]           = USIOption(100, 1, 200);
 	(*this)["Mate_Root_Search"]            = USIOption(25, 0, 30);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
-	(*this)["C_init"]                      = USIOption(80, 0, 100);
+	(*this)["C_init"]                      = USIOption(80, 0, 200);
 	(*this)["C_base"]                      = USIOption(30000, 10000, 100000);
 	(*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
 	(*this)["DebugMessage"]                = USIOption(false);
