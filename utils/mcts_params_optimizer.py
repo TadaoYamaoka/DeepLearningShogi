@@ -14,9 +14,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--command1', default=r'H:\src\DeepLearningShogi\x64\Release\usi.exe')
 parser.add_argument('--command2', default=r'E:\game\shogi\ShogiGUI\gpsfish\gpsfish.exe')
 parser.add_argument('--trials', type=int, default=100)
-parser.add_argument('--model', default=r'H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1')
-parser.add_argument('--batch_size', type=int, default=128)
-parser.add_argument('--hash_size', type=int, default=262144)
+parser.add_argument('--model')
+parser.add_argument('--batch_size', type=int)
+parser.add_argument('--hash_size', type=int)
 parser.add_argument('--games', type=int, default=100)
 parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--resign', type=float, default=0.95)
@@ -27,7 +27,7 @@ parser.add_argument('--name')
 parser.add_argument('--log', default=None)
 args = parser.parse_args()
 
-logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.INFO)
 
 KIFU_TO_SQUARE_NAMES = [
     '９一', '８一', '７一', '６一', '５一', '４一', '３一', '２一', '１一',
@@ -98,6 +98,10 @@ def kifu_pv(board, items, i):
         move_str = ' ▲'
     else:
         move_str = ' △'
+    move = shogi.Move.from_usi(items[i])
+    if move.promotion and board.piece_type_at(move.from_square) > shogi.KING:
+        # 強制的に成った駒を移動する場合、PVを打ち切り
+        return ''
     move_str += kifu_move(board, items[i])
 
     if i < len(items) - 1:
@@ -176,10 +180,13 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
         kifu.write(comment + '\n')
 
 def objective(trial):
-    C_init = int(trial.suggest_uniform('C_init', 0.5, 1.5) * 100)
-    C_base = int(trial.suggest_uniform('C_base', 1.0, 4.0) * 10000)
+    C_init = trial.suggest_int('C_init', 50, 150)
+    C_base = trial.suggest_int('C_base', 10000, 40000)
+
+    logging.info('C_init = {}, C_base = {}'.format(C_init, C_base))
 
     win_count = 0
+    draw_count = 0
 
     # 初期局面読み込み
     init_positions = []
@@ -189,16 +196,29 @@ def objective(trial):
                 init_positions.append(line.strip()[15:].split(' '))
 
     for n in range(args.games):
-        command1 = args.command1 if n % 2 == 0 else args.command2
-        command2 = args.command2 if n % 2 == 0 else args.command1
+        logging.info('game {} start'.format(n))
+
+        # 先後入れ替え
+        if n % 2 == 0:
+            command1 = args.command1
+            command2 = args.command2
+        else:
+            command1 = args.command2
+            command2 = args.command1
+
+        # USIエンジン起動
         procs = [subprocess.Popen([command1], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=os.path.dirname(command1)),
                  subprocess.Popen([command2], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=os.path.dirname(command2))]
+
         names = []
         for i, p in enumerate(procs):
             logging.debug('pid = {}'.format(p.pid))
-            p.stdin.write(b'setoption name DNN_Model value ' + args.model.encode('ascii') + b'\n')
-            p.stdin.write(b'setoption name DNN_Batch_Size value ' + str(args.batch_size).encode('ascii') + b'\n')
-            p.stdin.write(b'setoption name UCT_Hash value ' + str(args.hash_size).encode('ascii') + b'\n')
+            if args.model is not None:
+                p.stdin.write(b'setoption name DNN_Model value ' + args.model.encode('ascii') + b'\n')
+            if args.batch_size is not None:
+                p.stdin.write(b'setoption name DNN_Batch_Size value ' + str(args.batch_size).encode('ascii') + b'\n')
+            if args.hash_size is not None:
+                p.stdin.write(b'setoption name UCT_Hash value ' + str(args.hash_size).encode('ascii') + b'\n')
             p.stdin.write(b'setoption name Resign_Threshold value ' + str(args.resign).encode('ascii') + b'\n')
             p.stdin.write(b'setoption name USI_Ponder value false\n')
 
@@ -249,7 +269,7 @@ def objective(trial):
                 init_position = random.choice(init_positions)
             for move_usi in init_position:
                 kifu_line(kifu, board, move_usi, 0, 0, None)
-                logging.debug('{:>3} {}'.format(board.move_number, move_usi))
+                logging.info('{:>3} {}'.format(board.move_number, move_usi))
                 board.push_usi(move_usi)
 
 
@@ -288,13 +308,23 @@ def objective(trial):
                 while True:
                     p.stdout.flush()
                     line = p.stdout.readline().strip().decode('ascii')
-                    logging.debug('{}'.format(line))
+                    logging.debug(line)
                     if line[:8] == 'bestmove':
                         sec = time.time() - time_start
                         sec_sum[i] += sec
                         move_usi = line[9:]
+                        if info is not None:
+                            logging.info(info)
+                        logging.info('{:3} {}'.format(board.move_number, move_usi))
                         kifu_line(kifu, board, move_usi, sec, sec_sum[i], info)
-                        logging.debug('{:3} {}'.format(board.move_number, move_usi))
+                        # 詰みの場合、強制的に投了
+                        if info is not None:
+                            mate_p = info.find('mate ')
+                            if mate_p > 0:
+                                is_resign = True
+                                if info[mate_p + 5] == '+':
+                                    board.push_usi(move_usi)
+                                break
                         if move_usi == 'resign':
                             is_resign = True
                         else:
@@ -303,40 +333,50 @@ def objective(trial):
                     elif line[:4] == 'info' and line.find('pv ') > 0:
                         info = line
 
-                # 詰みの場合、強制的に投了
-                if info is not None and info.find('mate ') > 0:
-                    is_resign = True
-
                 # 終局判定
                 if is_resign or board.is_game_over():
                     is_game_over = True
                     break
 
-        # 棋譜出力
+        # 棋譜に結果出力
         if not board.is_game_over() and board.move_number > args.max_turn:
             win = 2
             kifu.write('まで{}手で持将棋\n'.format(board.move_number))
         elif board.is_fourfold_repetition():
             win = 2
-            kifu.write('まで{}手で千日手\n'.format(board.move_number))
+            kifu.write('まで{}手で千日手\n'.format(board.move_number - 2))
         else:
-            if is_resign:
-                win = board.turn
-            else:
-                win = shogi.BLACK if board.turn == shogi.WHITE else shogi.WHITE
+            win = shogi.BLACK if board.turn == shogi.WHITE else shogi.WHITE
             kifu.write('まで{}手で{}の勝ち\n'.format(board.move_number - 1, '先手' if win == shogi.BLACK else '後手'))
+        kifu.close()
 
         # 勝敗カウント
-        if n % 2 == 0 and win == shogi.BLACK or n % 1 == 1 and win == shogi.WHITE:
+        if n % 2 == 0 and win == shogi.BLACK or n % 2 == 1 and win == shogi.WHITE:
             win_count += 1
+        elif win == 2:
+            draw_count += 1
 
-        # 終了
+        if n + 1 == draw_count:
+            win_rate = 0.0
+        else:
+            win_rate = win_count / (n + 1 - draw_count)
+
+        logging.info('win : {}, win count = {}, draw count = {}, win rate = {:.1f}%'.format(
+            win, win_count, draw_count, win_rate * 100))
+
+        # USIエンジン終了
         for p in procs:
             p.stdin.write(b'quit\n')
             p.stdin.flush()
             p.wait()
 
-    return win_count / args.games
+        # 見込みのない最適化ステップを打ち切り
+        trial.report(-win_rate, n)
+        if trial.should_prune(n):
+            raise optuna.structs.TrialPruned()
+
+    # 勝率を負の値で返す
+    return -win_rate
 
 study = optuna.create_study()
 study.optimize(objective, n_trials=args.trials)
