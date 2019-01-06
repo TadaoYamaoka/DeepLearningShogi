@@ -1,5 +1,6 @@
 import numpy as np
-import optuna
+from optuna import create_study
+from optuna.pruners import MedianPruner
 import subprocess
 import argparse
 import shogi
@@ -196,7 +197,7 @@ def objective(trial):
                 init_positions.append(line.strip()[15:].split(' '))
 
     for n in range(args.games):
-        logging.info('game {} start'.format(n))
+        logging.info('trial {} game {} start'.format(trial.trial_id, n))
 
         # 先後入れ替え
         if n % 2 == 0:
@@ -361,8 +362,8 @@ def objective(trial):
         else:
             win_rate = win_count / (n + 1 - draw_count)
 
-        logging.info('win : {}, win count = {}, draw count = {}, win rate = {:.1f}%'.format(
-            win, win_count, draw_count, win_rate * 100))
+        logging.info('trial {} game {} result : win = {}, win count = {}, draw count = {}, win rate = {:.1f}%'.format(
+            trial.trial_id, n, win, win_count, draw_count, win_rate * 100))
 
         # USIエンジン終了
         for p in procs:
@@ -373,10 +374,11 @@ def objective(trial):
         # 見込みのない最適化ステップを打ち切り
         trial.report(-win_rate, n)
         if trial.should_prune(n):
+            logging.info('trial {} game {} pruned'.format(trial.trial_id, n))
             raise optuna.structs.TrialPruned()
 
     # 勝率を負の値で返す
     return -win_rate
 
-study = optuna.create_study()
+study = create_study(pruner=MedianPruner(n_warmup_steps=20))
 study.optimize(objective, n_trials=args.trials)
