@@ -23,7 +23,7 @@ parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--resign', type=float, default=0.95)
 parser.add_argument('--max_turn', type=int, default=256)
 parser.add_argument('--initial_positions')
-parser.add_argument('--kifu_dir')
+parser.add_argument('--kifu_dir', default='.')
 parser.add_argument('--name')
 parser.add_argument('--log', default=None)
 args = parser.parse_args()
@@ -120,6 +120,8 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
 
     if move_usi == 'resign':
         move_str = '投了        '
+    elif move_usi == 'win':
+        move_str = '入玉宣言    '
     elif move_usi == 'draw':
         move_str = '持将棋      '
     else:
@@ -254,11 +256,7 @@ def objective(trial):
 
         # 棋譜ファイル初期化
         starttime = datetime.now()
-        if args.kifu_dir is not None:
-            kifu_dir = args.kifu_dir
-        else:
-            kifu_dir = ''
-        kifu_path = os.path.join(kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
+        kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
         kifu = open(kifu_path, 'w')
 
         kifu_header(kifu, starttime, names)
@@ -306,6 +304,7 @@ def objective(trial):
                 time_start = time.time()
 
                 is_resign = False
+                is_nyugyoku = False
                 while True:
                     p.stdout.flush()
                     line = p.stdout.readline().strip().decode('ascii')
@@ -327,15 +326,19 @@ def objective(trial):
                                     board.push_usi(move_usi)
                                 break
                         if move_usi == 'resign':
+                            # 投了
                             is_resign = True
+                        elif move_usi == 'win':
+                            # 入玉勝ち宣言
+                            is_nyugyoku = True
                         else:
                             board.push_usi(move_usi)
                         break
-                    elif line[:4] == 'info' and line.find('pv ') > 0:
+                    elif line[:4] == 'info' and line.find('score ') > 0:
                         info = line
 
                 # 終局判定
-                if is_resign or board.is_game_over():
+                if is_resign or is_nyugyoku or board.is_game_over():
                     is_game_over = True
                     break
 
@@ -346,6 +349,9 @@ def objective(trial):
         elif board.is_fourfold_repetition():
             win = 2
             kifu.write('まで{}手で千日手\n'.format(board.move_number - 2))
+        elif is_win:
+            win = board.turn
+            kifu.write('まで{}手で入玉宣言\n'.format(board.move_number - 1))
         else:
             win = shogi.BLACK if board.turn == shogi.WHITE else shogi.WHITE
             kifu.write('まで{}手で{}の勝ち\n'.format(board.move_number - 1, '先手' if win == shogi.BLACK else '後手'))
