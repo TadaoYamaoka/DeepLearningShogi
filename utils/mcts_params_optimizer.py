@@ -349,7 +349,7 @@ def objective(trial):
         elif board.is_fourfold_repetition():
             win = 2
             kifu.write('まで{}手で千日手\n'.format(board.move_number - 2))
-        elif is_win:
+        elif is_nyugyoku:
             win = board.turn
             kifu.write('まで{}手で入玉宣言\n'.format(board.move_number - 1))
         else:
