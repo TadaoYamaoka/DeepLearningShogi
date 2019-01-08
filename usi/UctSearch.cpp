@@ -616,19 +616,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	else {
 		move = uct_child[select_index].move;
 
-		// 歩、角、飛が成らない場合、強制的に成る
-		if (!move.isDrop() && !move.isPromotion() &&
-			(move.pieceTypeTo() == Pawn || move.pieceTypeTo() == Bishop || move.pieceTypeTo() == Rook)) {
-			// 合法手に成る手があるか
-			for (int i = 0; i < uct_node[current_root].child_num; i++) {
-				if (uct_child[i].move.isPromotion() && uct_child[i].move.fromAndTo() == move.fromAndTo()) {
-					// 強制的に成る
-					move = uct_child[i].move;
-					break;
-				}
-			}
-		}
-
 		int cp;
 		if (best_wp == 1.0f) {
 			cp = 30000;

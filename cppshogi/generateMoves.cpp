@@ -38,7 +38,7 @@ namespace {
                 const bool toCanPromote = canPromote(US, makeRank(to));
                 if (fromCanPromote | toCanPromote) {
                     (*moveList++).move = makePromoteMove<MT>(PT, from, to, pos);
-                    if (MT == NonEvasion || ALL)
+                    if (/*MT == NonEvasion || */ALL)
                         (*moveList++).move = makeNonPromoteMove<MT>(PT, from, to, pos);
                 }
                 else // 角、飛車は成れるなら成り、不成は生成しない。
@@ -193,7 +193,7 @@ namespace {
                     FOREACH_BB(toOn123BB, to, {
                             const Square from = to + TDeltaS;
                             (*moveList++).move = makePromoteMove<MT>(Pawn, from, to, pos);
-                            if (MT == NonEvasion || ALL) {
+                            if (/*MT == NonEvasion || */ALL) {
                                 const Rank TRank1 = (US == Black ? Rank1 : Rank9);
                                 if (makeRank(to) != TRank1)
                                     (*moveList++).move = makeNonPromoteMove<MT>(Pawn, from, to, pos);
