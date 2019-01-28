@@ -81,10 +81,13 @@
     <ClCompile Include="..\cppshogi\book.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\nn.cpp">
+    <ClCompile Include="..\usi\npz.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\npz.cpp">
+    <ClCompile Include="..\usi\nn_wideresnet10.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet15.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

@@ -29,6 +29,7 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="policy_value_network.py" />
     <Compile Include="predict.py" />
     <Compile Include="sigmoid_cross_entropy2.py" />
     <Compile Include="test.py">
@@ -49,7 +50,7 @@
     <Compile Include="transfer_policy_to_value.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="policy_value_network.py" />
+    <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="value_network.py" />
     <Compile Include="policy_network.py" />
     <Compile Include="train_rl_policy.py">

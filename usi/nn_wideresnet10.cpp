@@ -1,7 +1,7 @@
-﻿#include "nn.h"
+﻿#include "nn_wideresnet10.h"
 #include "npz.h"
 
-NN::NN(const int max_batch_size) : max_batch_size(max_batch_size)
+NNWideResnet10::NNWideResnet10(const int max_batch_size) : max_batch_size(max_batch_size)
 {
 	prepare_desc(max_batch_size);
 
@@ -59,7 +59,7 @@ NN::NN(const int max_batch_size) : max_batch_size(max_batch_size)
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
 }
 
-NN::~NN() {
+NNWideResnet10::~NNWideResnet10() {
 	checkCudaErrors(cudaFree(x1_dev));
 	checkCudaErrors(cudaFree(x2_dev));
 	checkCudaErrors(cudaFree(h1_1_1_dev));
@@ -86,7 +86,7 @@ NN::~NN() {
 	checkCudaErrors(cudaFree(y2_dev));
 }
 
-void NN::prepare_desc(const int batch_size)
+void NNWideResnet10::prepare_desc(const int batch_size)
 {
 	conv1_1_1.get_xdesc(x1Desc, batch_size, 9, 9);
 	conv1_2.get_xdesc(x2Desc, batch_size, 9, 9);
@@ -99,7 +99,7 @@ void NN::prepare_desc(const int batch_size)
 	l24v.get_ydesc(y2Desc, batch_size);
 }
 
-void NN::load_model(const char* filepath)
+void NNWideResnet10::load_model(const char* filepath)
 {
 	// load nn params
 	ParamMap params;
@@ -159,7 +159,7 @@ void NN::load_model(const char* filepath)
 	bias24v.set_bias(params["l24_v/b.npy"].data);
 }
 
-void NN::foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
+void NNWideResnet10::foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
 	prepare_desc(batch_size);
 

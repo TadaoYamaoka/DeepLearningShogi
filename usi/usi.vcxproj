@@ -254,7 +254,8 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mate.cpp" />
     <ClCompile Include="Message.cpp" />
-    <ClCompile Include="nn.cpp" />
+    <ClCompile Include="nn_wideresnet10.cpp" />
+    <ClCompile Include="nn_wideresnet15.cpp" />
     <ClCompile Include="npz.cpp" />
     <ClCompile Include="UctSearch.cpp" />
     <ClCompile Include="ZobristHash.cpp" />
@@ -268,6 +269,8 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="nn.h" />
+    <ClInclude Include="nn_wideresnet10.h" />
+    <ClInclude Include="nn_wideresnet15.h" />
     <ClInclude Include="npz.h" />
     <ClInclude Include="UctSearch.h" />
     <ClInclude Include="Utility.h" />
