@@ -18,7 +18,8 @@
 
 #include "ZobristHash.h"
 #include "mate.h"
-#include "nn.h"
+#include "nn_wideresnet10.h"
+#include "nn_wideresnet15.h"
 
 #include "cppshogi.h"
 
@@ -39,7 +40,7 @@ void sigint_handler(int signum)
 }
 
 // 終局とする勝率の閾値
-constexpr float WINRATE_THRESHOLD = 0.985f;
+constexpr float WINRATE_THRESHOLD = 0.99f;
 
 // モデルのパス
 string model_path;
@@ -47,7 +48,7 @@ string model_path;
 int playout_num = 1000;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
-constexpr int MAX_PLY = 200; // 最大手数
+constexpr int MAX_PLY = 256; // 最大手数
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -97,7 +98,10 @@ constexpr float DISCARDED = -FLT_MAX;
 
 constexpr unsigned int NOT_EXPANDED = -1; // 未展開のノードのインデックス
 
-constexpr float c_puct = 1.0f;
+constexpr float c_init = 1.5f;
+constexpr float c_base = 22302.0f;
+constexpr float tempature = 1.5f;
+
 
 // 探索経路のノード
 struct TrajectorEntry {
@@ -238,7 +242,10 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
-			nn = new NN(policy_value_batch_maxsize);
+			if (model_path.find("wideresnet15") != string::npos)
+				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
+			else
+				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
 			nn->load_model(model_path.c_str());
 		}
 		mutex_gpu.unlock();
@@ -562,11 +569,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			rate = (rate + 1.0f) / 2.0f;
 		}
 
-		ucb_value = q + c_puct * u * rate;
-
-		/*if (debug) {
-		cerr << " Q:" << q << " U:" << c_puct * u * rate << " UCB:" << ucb_value << endl;
-		}*/
+		const float c = logf((sum + c_base + 1.0f) / c_base) + c_init;
+		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;
@@ -1087,6 +1091,8 @@ int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
 	HuffmanCodedPos::init();
+
+	set_softmax_tempature(tempature);
 
 	signal(SIGINT, sigint_handler);
 

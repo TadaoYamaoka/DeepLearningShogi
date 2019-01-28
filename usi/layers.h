@@ -60,7 +60,7 @@ public:
 	}
 
 	int get_ysize(const int n, const int h, const int w) {
-		return n * k * h * w * sizeof(DType);
+		return n * k * get_yh(h) * get_yw(w) * sizeof(DType);
 	}
 
 	void set_param(float* data) {

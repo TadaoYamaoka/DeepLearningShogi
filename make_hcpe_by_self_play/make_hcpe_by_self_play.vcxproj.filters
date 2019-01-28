@@ -84,9 +84,6 @@
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\nn.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\npz.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -94,6 +91,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="ZobristHash.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet10.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet15.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

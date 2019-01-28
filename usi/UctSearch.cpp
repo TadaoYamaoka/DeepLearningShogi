@@ -20,7 +20,8 @@
 #include "UctSearch.h"
 #include "Utility.h"
 #include "mate.h"
-#include "nn.h"
+#include "nn_wideresnet10.h"
+#include "nn_wideresnet15.h"
 
 #if defined (_WIN32)
 #define NOMINMAX
@@ -168,7 +169,10 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
-			nn = new NN(policy_value_batch_maxsize);
+			if (model_path[gpu_id].find("wideresnet15") != string::npos)
+				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
+			else
+				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
 			nn->load_model(model_path[gpu_id].c_str());
 		
 		}

@@ -1,7 +1,9 @@
 ﻿#include <cstdlib>
 
-#include "nn.h"
+#include "nn_wideresnet10.h"
+#include "nn_wideresnet15.h"
 #include "cppshogi.h"
+#include <string>
 
 void randomMove(Position& pos, std::mt19937& mt);
 
@@ -44,7 +46,11 @@ int main(int argc, char** argv)
 	int max_batch_size = std::atoi(argv[3]);
 	int position_num = std::atoi(argv[4]);
 
-	std::unique_ptr<NN> nn(new NN(max_batch_size));
+	std::unique_ptr<NN> nn;
+	if (std::string(model_path).find("wideresnet15") != std::string::npos)
+		nn.reset((NN*)new NNWideResnet15(max_batch_size));
+	else
+		nn.reset((NN*)new NNWideResnet10(max_batch_size));
 	nn->load_model(model_path);
 
 	initTable();

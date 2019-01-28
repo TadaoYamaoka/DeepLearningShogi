@@ -247,7 +247,8 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />
-    <ClCompile Include="..\usi\nn.cpp" />
+    <ClCompile Include="..\usi\nn_wideresnet10.cpp" />
+    <ClCompile Include="..\usi\nn_wideresnet15.cpp" />
     <ClCompile Include="..\usi\npz.cpp" />
     <ClCompile Include="self_play.cpp" />
     <ClCompile Include="ZobristHash.cpp" />
