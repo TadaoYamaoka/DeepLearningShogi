@@ -102,7 +102,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
     //(*this)["Eval_Dir"]                    = USIOption("20180416");
     (*this)["Best_Book_Move"]              = USIOption(false);
-    (*this)["OwnBook"]                     = USIOption(true);
+    (*this)["OwnBook"]                     = USIOption(false);
     //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
@@ -134,11 +134,11 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
-	(*this)["Softmax_Tempature"]           = USIOption(100, 1, 200);
+	(*this)["Softmax_Tempature"]           = USIOption(150, 1, 200);
 	(*this)["Mate_Root_Search"]            = USIOption(25, 0, 30);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
-	(*this)["C_init"]                      = USIOption(80, 0, 200);
-	(*this)["C_base"]                      = USIOption(30000, 10000, 100000);
+	(*this)["C_init"]                      = USIOption(150, 0, 200);
+	(*this)["C_base"]                      = USIOption(22302, 10000, 100000);
 	(*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
 	(*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
