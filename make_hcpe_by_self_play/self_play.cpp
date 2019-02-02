@@ -27,7 +27,7 @@
 #include "cxxopts/cxxopts.hpp"
 
 //#define SPDLOG_TRACE_ON
-#define SPDLOG_DEBUG_ON
+//#define SPDLOG_DEBUG_ON
 //#define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
 auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
