@@ -1,11 +1,12 @@
 #include <unordered_set>
-#include <atomic>
 
 #include "position.hpp"
 #include "move.hpp"
 #include "generateMoves.hpp"
+#include "dfpn.h"
 
 using namespace std;
+using namespace ns_dfpn;
 
 const constexpr int64_t HASH_SIZE_MB = 2048;
 const constexpr int64_t MAX_SEARCH_NODE = 2097152;
@@ -14,14 +15,12 @@ const constexpr size_t MaxCheckMoves = 73;
 
 // --- 詰み将棋探索
 
-uint32_t kMaxDepth = 30;
-void dfpn_set_maxdepth(uint32_t depth)
+void DfPn::set_maxdepth(uint32_t depth)
 {
 	kMaxDepth = depth;
 }
 
-atomic<bool> stop;
-void dfpn_stop()
+void DfPn::dfpn_stop()
 {
 	stop = true;
 }
@@ -70,197 +69,172 @@ private:
 };
 
 // 置換表
-struct TranspositionTable {
-	struct TTEntry {
-		// ハッシュの上位32ビット
-		uint32_t hash_high;
-		Hand hand; // 手駒（常に先手の手駒）
-		int pn;
-		int dn;
-		uint16_t depth;
-		uint16_t generation;
-		int num_searched;
-	};
+TranspositionTable::~TranspositionTable() {
+	if (tt_raw) {
+		std::free(tt_raw);
+		tt_raw = nullptr;
+		tt = nullptr;
+	}
+}
 
-	struct Cluster {
-		TTEntry entries[256];
-	};
+TTEntry& TranspositionTable::LookUp(const Key key, const Hand hand, const uint16_t depth) {
+	auto& entries = tt[key & clusters_mask];
+	uint32_t hash_high = key >> 32;
+	return LookUpDirect(entries, hash_high, hand, depth);
+}
 
-	virtual ~TranspositionTable() {
-		if (tt_raw) {
-			std::free(tt_raw);
-			tt_raw = nullptr;
-			tt = nullptr;
+TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth) {
+	int max_pn = 1;
+	int max_dn = 1;
+	// 検索条件に合致するエントリを返す
+	for (size_t i = 0; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
+		TTEntry& entry = entries.entries[i];
+		if (generation != entry.generation) {
+			// 空のエントリが見つかった場合
+			entry.hash_high = hash_high;
+			entry.depth = depth;
+			entry.hand = hand;
+			entry.pn = max_pn;
+			entry.dn = max_dn;
+			entry.generation = generation;
+			entry.num_searched = 0;
+			return entry;
 		}
-	}
 
-	TTEntry& LookUp(const Key key, const Hand hand, const uint16_t depth) {
-		auto& entries = tt[key & clusters_mask];
-		uint32_t hash_high = key >> 32;
-		return LookUpDirect(entries, hash_high, hand, depth);
-	}
-
-	TTEntry& LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth) {
-		int max_pn = 1;
-		int max_dn = 1;
-		// 検索条件に合致するエントリを返す
-		for (size_t i = 0; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
-			TTEntry& entry = entries.entries[i];
-			if (generation != entry.generation) {
-				// 空のエントリが見つかった場合
-				entry.hash_high = hash_high;
-				entry.depth = depth;
-				entry.hand = hand;
-				entry.pn = max_pn;
-				entry.dn = max_dn;
-				entry.generation = generation;
-				entry.num_searched = 0;
-				return entry;
-			}
-
-			if (hash_high == entry.hash_high && generation == entry.generation) {
-				if (hand == entry.hand && depth == entry.depth) {
-					// keyが合致するエントリを見つけた場合
-					// 残りのエントリに優越関係を満たす局面があり証明済みの場合、それを返す
-					for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
-						TTEntry& entry_rest = entries.entries[i];
-						if (entry_rest.hash_high == 0) break;
-						if (hash_high == entry_rest.hash_high) {
-							if (entry_rest.pn == 0) {
-								if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
-									entry_rest.generation = generation;
-									return entry_rest;
-								}
+		if (hash_high == entry.hash_high && generation == entry.generation) {
+			if (hand == entry.hand && depth == entry.depth) {
+				// keyが合致するエントリを見つけた場合
+				// 残りのエントリに優越関係を満たす局面があり証明済みの場合、それを返す
+				for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
+					TTEntry& entry_rest = entries.entries[i];
+					if (entry_rest.hash_high == 0) break;
+					if (hash_high == entry_rest.hash_high) {
+						if (entry_rest.pn == 0) {
+							if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
+								entry_rest.generation = generation;
+								return entry_rest;
 							}
-							else if (entry_rest.dn == 0) {
-								if (entry_rest.hand.isEqualOrSuperior(hand) && entry_rest.num_searched != REPEAT) {
-									entry_rest.generation = generation;
-									return entry_rest;
-								}
+						}
+						else if (entry_rest.dn == 0) {
+							if (entry_rest.hand.isEqualOrSuperior(hand) && entry_rest.num_searched != REPEAT) {
+								entry_rest.generation = generation;
+								return entry_rest;
 							}
 						}
 					}
+				}
+				return entry;
+			}
+			// 優越関係を満たす局面に証明済みの局面がある場合、それを返す
+			if (entry.pn == 0) {
+				if (hand.isEqualOrSuperior(entry.hand) && entry.num_searched != REPEAT) {
 					return entry;
 				}
-				// 優越関係を満たす局面に証明済みの局面がある場合、それを返す
-				if (entry.pn == 0) {
-					if (hand.isEqualOrSuperior(entry.hand) && entry.num_searched != REPEAT) {
-						return entry;
-					}
+			}
+			else if (entry.dn == 0) {
+				if (entry.hand.isEqualOrSuperior(hand) && entry.num_searched != REPEAT) {
+					return entry;
 				}
-				else if (entry.dn == 0) {
-					if (entry.hand.isEqualOrSuperior(hand) && entry.num_searched != REPEAT) {
-						return entry;
-					}
-				}
-				else if (entry.hand.isEqualOrSuperior(hand)) {
-					if (entry.pn > max_pn) max_pn = entry.pn;
-				}
-				else if (hand.isEqualOrSuperior(entry.hand)) {
-					if (entry.dn > max_dn) max_dn = entry.dn;
-				}
+			}
+			else if (entry.hand.isEqualOrSuperior(hand)) {
+				if (entry.pn > max_pn) max_pn = entry.pn;
+			}
+			else if (hand.isEqualOrSuperior(entry.hand)) {
+				if (entry.dn > max_dn) max_dn = entry.dn;
 			}
 		}
+	}
 
-		//cout << "hash entry full" << endl;
-		// 合致するエントリが見つからなかったので
-		// 古いエントリをつぶす
-		TTEntry* best_entry = nullptr;
-		uint32_t best_num_searched = UINT_MAX;
-		for (auto& entry : entries.entries) {
-			if (best_num_searched > entry.num_searched && entry.pn != 0) {
-				best_entry = &entry;
-				best_num_searched = entry.num_searched;
-			}
+	//cout << "hash entry full" << endl;
+	// 合致するエントリが見つからなかったので
+	// 古いエントリをつぶす
+	TTEntry* best_entry = nullptr;
+	uint32_t best_num_searched = UINT_MAX;
+	for (auto& entry : entries.entries) {
+		if (best_num_searched > entry.num_searched && entry.pn != 0) {
+			best_entry = &entry;
+			best_num_searched = entry.num_searched;
 		}
-		best_entry->hash_high = hash_high;
-		best_entry->hand = hand;
-		best_entry->depth = depth;
-		best_entry->pn = 1;
-		best_entry->dn = 1;
-		best_entry->generation = generation;
-		best_entry->num_searched = 0;
-		return *best_entry;
 	}
+	best_entry->hash_high = hash_high;
+	best_entry->hand = hand;
+	best_entry->depth = depth;
+	best_entry->pn = 1;
+	best_entry->dn = 1;
+	best_entry->generation = generation;
+	best_entry->num_searched = 0;
+	return *best_entry;
+}
 
-	template <bool or_node>
-	TTEntry& LookUp(const Position& n, const uint16_t depth) {
-		return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), depth);
-	}
+template <bool or_node>
+TTEntry& TranspositionTable::LookUp(const Position& n, const uint16_t depth) {
+	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), depth);
+}
 
-	// moveを指した後の子ノードのキーを返す
-	template <bool or_node>
-	void GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) {
-		// 手駒は常に先手の手駒で表す
-		if (or_node) {
-			hand = n.hand(n.turn());
-			if (move.isDrop()) {
-				hand.minusOne(move.handPieceDropped());
-			}
-			else {
-				const Piece to_pc = n.piece(move.to());
-				if (to_pc != Empty) {
-					const PieceType pt = pieceToPieceType(to_pc);
-					hand.plusOne(pieceTypeToHandPiece(pt));
-				}
-			}
+// moveを指した後の子ノードのキーを返す
+template <bool or_node>
+void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) {
+	// 手駒は常に先手の手駒で表す
+	if (or_node) {
+		hand = n.hand(n.turn());
+		if (move.isDrop()) {
+			hand.minusOne(move.handPieceDropped());
 		}
 		else {
-			hand = n.hand(oppositeColor(n.turn()));
+			const Piece to_pc = n.piece(move.to());
+			if (to_pc != Empty) {
+				const PieceType pt = pieceToPieceType(to_pc);
+				hand.plusOne(pieceTypeToHandPiece(pt));
+			}
 		}
-		Key key = n.getBoardKeyAfter(move);
-		entries = &tt[key & clusters_mask];
-		hash_high = key >> 32;
+	}
+	else {
+		hand = n.hand(oppositeColor(n.turn()));
+	}
+	Key key = n.getBoardKeyAfter(move);
+	entries = &tt[key & clusters_mask];
+	hash_high = key >> 32;
+}
+
+// moveを指した後の子ノードの置換表エントリを返す
+template <bool or_node>
+TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move, const uint16_t depth) {
+	Cluster* entries;
+	uint32_t hash_high;
+	Hand hand;
+	GetChildFirstEntry<or_node>(n, move, entries, hash_high, hand);
+	return LookUpDirect(*entries, hash_high, hand, depth + 1);
+}
+
+void TranspositionTable::Resize() {
+	int64_t hash_size_mb = HASH_SIZE_MB;
+	if (hash_size_mb == 16) {
+		hash_size_mb = 4096;
+	}
+	int64_t new_num_clusters = 1LL << msb((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
+	if (new_num_clusters == num_clusters) {
+		return;
 	}
 
-	// moveを指した後の子ノードの置換表エントリを返す
-	template <bool or_node>
-	TTEntry& LookUpChildEntry(const Position& n, const Move move, const uint16_t depth) {
-		Cluster* entries;
-		uint32_t hash_high;
-		Hand hand;
-		GetChildFirstEntry<or_node>(n, move, entries, hash_high, hand);
-		return LookUpDirect(*entries, hash_high, hand, depth + 1);
+	num_clusters = new_num_clusters;
+
+	if (tt_raw) {
+		std::free(tt_raw);
+		tt_raw = nullptr;
+		tt = nullptr;
 	}
 
-	void Resize() {
-		int64_t hash_size_mb = HASH_SIZE_MB;
-		if (hash_size_mb == 16) {
-			hash_size_mb = 4096;
-		}
-		int64_t new_num_clusters = 1LL << msb((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
-		if (new_num_clusters == num_clusters) {
-			return;
-		}
+	tt_raw = std::calloc(new_num_clusters * sizeof(Cluster) + CacheLineSize, 1);
+	tt = (Cluster*)((uintptr_t(tt_raw) + CacheLineSize - 1) & ~(CacheLineSize - 1));
+	clusters_mask = num_clusters - 1;
+}
 
-		num_clusters = new_num_clusters;
-
-		if (tt_raw) {
-			std::free(tt_raw);
-			tt_raw = nullptr;
-			tt = nullptr;
-		}
-
-		tt_raw = std::calloc(new_num_clusters * sizeof(Cluster) + CacheLineSize, 1);
-		tt = (Cluster*)((uintptr_t(tt_raw) + CacheLineSize - 1) & ~(CacheLineSize - 1));
-		clusters_mask = num_clusters - 1;
-	}
-
-	void NewSearch() {
-		++generation;
-		if (generation == 0) generation = 1;
-	}
-
-	void* tt_raw = nullptr;
-	Cluster* tt = nullptr;
-	int64_t num_clusters = 0;
-	int64_t clusters_mask = 0;
-	uint16_t generation = 0;
-};
+void TranspositionTable::NewSearch() {
+	++generation;
+	if (generation == 0) generation = 1;
+}
 
 static const constexpr int kInfinitePnDn = 100000000;
-
-TranspositionTable transposition_table;
 
 FORCE_INLINE bool nomate(const Position& pos) {
 	// --- 駒の移動による王手
@@ -666,7 +640,7 @@ FORCE_INLINE u32 dp(const Hand& us, const Hand& them) {
 }
 
 template <bool or_node>
-void dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode) {
+void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode) {
 	auto& entry = transposition_table.LookUp<or_node>(n, depth);
 
 	if (depth > kMaxDepth) {
@@ -1183,7 +1157,7 @@ void dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t dep
 }
 
 // 詰みの手返す
-Move dfpn_move(Position& pos) {
+Move DfPn::dfpn_move(Position& pos) {
 	MovePicker<true> move_picker(pos);
 	Move mate1ply = pos.mateMoveIn1Ply();
 	if (mate1ply || move_picker.empty()) {
@@ -1202,14 +1176,13 @@ Move dfpn_move(Position& pos) {
 	return Move::moveNull();
 }
 
-void dfpn_init()
+void DfPn::init()
 {
 	transposition_table.Resize();
 }
 
-int64_t searchedNode = 0;
 // 詰将棋探索のエントリポイント
-bool dfpn(Position& r) {
+bool DfPn::dfpn(Position& r) {
 	// 自玉に王手がかかっていないこと
 
 	stop = false;
