@@ -24,13 +24,15 @@ void make_book(std::istringstream& ssCmd);
 void mate_test(Position& pos, std::istringstream& ssCmd);
 void test(Position& pos, std::istringstream& ssCmd);
 
+ns_dfpn::DfPn dfpn;
+
 int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
-	dfpn_init();
+	dfpn.init();
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -97,7 +99,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"]);
 					evalTableIsRead = true;
 				}*/
-				dfpn_set_maxdepth(options["Mate_Root_Search"]);
+				dfpn.set_maxdepth(options["Mate_Root_Search"]);
 			}
 
 			// 各種初期化
@@ -215,7 +217,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		t.reset(new std::thread([&pos, &mate]() {
 			if (!pos.inCheck()) {
 				Position pos_copy(pos);
-				mate = dfpn(pos_copy);
+				mate = dfpn.dfpn(pos_copy);
 				if (mate)
 					StopUctSearch();
 			}
@@ -232,11 +234,11 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
-		dfpn_stop();
+		dfpn.dfpn_stop();
 		t->join();
 		if (mate) {
 			// 詰み
-			Move move2 = dfpn_move(pos);
+			Move move2 = dfpn.dfpn_move(pos);
 			// PV表示
 			std::cout << "info score mate + pv " << move2.toUSI();
 			std::cout << std::endl;

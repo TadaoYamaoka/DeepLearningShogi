@@ -20,12 +20,15 @@
 #include "mate.h"
 #include "nn_wideresnet10.h"
 #include "nn_wideresnet15.h"
+#include "dfpn.h"
 
 #include "cppshogi.h"
 
+#include "cxxopts/cxxopts.hpp"
+
 //#define SPDLOG_TRACE_ON
-//#define SPDLOG_DEBUG_ON
-#define SPDLOG_EOL "\n"
+#define SPDLOG_DEBUG_ON
+//#define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
 auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
 auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
@@ -39,8 +42,14 @@ void sigint_handler(int signum)
 	stopflg = true;
 }
 
+// ランダムムーブの手数
+int RANDOM_MOVE;
+
 // 終局とする勝率の閾値
-constexpr float WINRATE_THRESHOLD = 0.99f;
+float WINRATE_THRESHOLD;
+
+// 詰み探索の深さ
+int ROOT_MATE_SEARCH_DEPTH;
 
 // モデルのパス
 string model_path;
@@ -141,6 +150,9 @@ public:
 	void SelfPlay();
 	void Run();
 	void Join();
+	bool is_mate(Position *pos) {
+		return dfpn.dfpn(*pos);
+	}
 
 	int running;
 private:
@@ -169,6 +181,9 @@ private:
 
 	DType* y1;
 	DType* y2;
+
+	// 詰み探索
+	ns_dfpn::DfPn dfpn;
 };
 
 class UCTSearcher {
@@ -300,6 +315,12 @@ UCTSearcherGroup::Initialize()
 
 	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+
+	// 詰み探索
+	if (ROOT_MATE_SEARCH_DEPTH > 0) {
+		dfpn.init();
+		dfpn.set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+	}
 }
 
 // 連続自己対局
@@ -806,11 +827,23 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
 				}
 				setPosition(*pos_root, hcp);
-				randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
+				for (int i = 0; i < RANDOM_MOVE; i++)
+					randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
 				SPDLOG_DEBUG(logger, "id:{} ply:{} {}", id, ply, pos_root->toSFEN());
 
 				keyHash.clear();
 				hcpevec.clear();
+			}
+
+			// 詰み探索
+			if (ROOT_MATE_SEARCH_DEPTH > 0) {
+				if (grp->is_mate(pos_root)) {
+					// 詰みの手がある場合
+					SPDLOG_DEBUG(logger, "id:{} ply:{} {} mated", id, ply, pos_root->toSFEN());
+					gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+					NextGame();
+					continue;
+				}
 			}
 
 			// ハッシュクリア
@@ -1046,47 +1079,97 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 }
 
 int main(int argc, char* argv[]) {
-	const int argnum = 8;
-	if (argc < argnum) {
-		cout << "make_hcpe_by_self_play <modelfile> <roots.hcp> <output> <nodes> <playout_num> <gpu_id> <batchsize> [<gpu_id> <batchsize>]*" << endl;
+	std::string recordFileName;
+	std::string outputFileName;
+	vector<int> gpu_id(1);
+	vector<int> batchsize(1);
+
+	cxxopts::Options options("make_hcpe_by_self_play");
+	options.positional_help("modelfile hcp output nodes playout_num gpu_id batchsize [gpu_id batchsize]*");
+	try {
+		std::string file;
+
+		options.add_options()
+			("modelfile", "model file path", cxxopts::value<std::string>(model_path))
+			("hcp", "initial position file", cxxopts::value<std::string>(recordFileName))
+			("output", "output file path", cxxopts::value<std::string>(outputFileName))
+			("nodes", "nodes", cxxopts::value<s64>(teacherNodes))
+			("playout_num", "playout number", cxxopts::value<int>(playout_num))
+			("gpu_id", "gpu id", cxxopts::value<int>(gpu_id[0]))
+			("batchsize", "batchsize", cxxopts::value<int>(batchsize[0]))
+			("positional", "", cxxopts::value<std::vector<int>>())
+			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("1"), "num")
+			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
+			("mate", "mate search depth", cxxopts::value<int>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
+			("h,help", "Print help")
+			;
+		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
+
+		auto result = options.parse(argc, argv);
+
+		if (result.count("help")) {
+			std::cout << options.help({}) << std::endl;
+			return 0;
+		}
+
+		const int positional_count = result.count("positional");
+		if (positional_count > 0) {
+			if (positional_count % 2 == 1) {
+				throw cxxopts::option_required_exception("batchsize");
+			}
+			auto positional = result["positional"].as<std::vector<int>>();
+			for (int i = 0; i < positional_count; i += 2) {
+				gpu_id.push_back(positional[i]);
+				batchsize.push_back(positional[i + 1]);
+			}
+		}
+	}
+	catch (cxxopts::OptionException &e) {
+		std::cout << options.usage() << std::endl;
+		std::cerr << e.what() << std::endl;
 		return 0;
 	}
-
-	model_path = argv[1];
-	char* recordFileName = argv[2];
-	char* outputFileName = argv[3];
-	teacherNodes = stoi(argv[4]);
-	playout_num = stoi(argv[5]);
 
 	if (teacherNodes <= 0) {
-		cout << "too few teacherNodes" << endl;
+		cerr << "too few teacherNodes" << endl;
 		return 0;
 	}
-	if (playout_num <= 0)
+	if (playout_num <= 0) {
+		cerr << "too few playout_num" << endl;
 		return 0;
+	}
+	if (RANDOM_MOVE < 0) {
+		cerr << "too few random move number" << endl;
+		return 0;
+	}
+	if (WINRATE_THRESHOLD <= 0) {
+		cerr << "too few threashold" << endl;
+		return 0;
+	}
+	if (ROOT_MATE_SEARCH_DEPTH < 0) {
+		cerr << "too few mate depath" << endl;
+		return 0;
+	}
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
 	logger->info("modelfile:{} roots.hcp:{} output:{} nodes:{} playout_num:{}", model_path, recordFileName, outputFileName, teacherNodes, playout_num);
 
-	vector<int> gpu_id;
-	vector<int> batchsize;
-	for (int i = argnum - 2; i < argc; i += 2) {
-		gpu_id.push_back(stoi(argv[i]));
-		batchsize.push_back(stoi(argv[i + 1]));
+	for (int i = 0; i < gpu_id.size(); i++) {
+		logger->info("gpu_id:{} batchsize:{}", gpu_id[i], batchsize[i]);
 
-		logger->info("gpu_id:{} batchsize:{}", gpu_id.back(), batchsize.back());
-
-		if (gpu_id.back() < 0) {
-			cout << "invalid gpu id" << endl;
+		if (gpu_id[i] < 0) {
+			cerr << "invalid gpu id" << endl;
 			return 0;
 		}
-		if (batchsize.back() <= 0) {
-			cout << "too few batchsize" << endl;
+		if (batchsize[i] <= 0) {
+			cerr << "too few batchsize" << endl;
 			return 0;
 		}
 	}
 
+	logger->info("threashold:{}", WINRATE_THRESHOLD);
+	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 
 	initTable();
 	Position::initZobrist();
@@ -1097,7 +1180,7 @@ int main(int argc, char* argv[]) {
 	signal(SIGINT, sigint_handler);
 
 	logger->info("make_teacher");
-	make_teacher(recordFileName, outputFileName, gpu_id, batchsize);
+	make_teacher(recordFileName.c_str(), outputFileName.c_str(), gpu_id, batchsize);
 
 	spdlog::drop_all();
 }
