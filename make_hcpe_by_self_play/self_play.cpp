@@ -28,7 +28,7 @@
 
 //#define SPDLOG_TRACE_ON
 //#define SPDLOG_DEBUG_ON
-//#define SPDLOG_EOL "\n"
+#define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
 auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
 auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
