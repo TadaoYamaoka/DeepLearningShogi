@@ -1209,7 +1209,7 @@ int main(int argc, char* argv[]) {
 			("mate", "mate search depth", cxxopts::value<int>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.48"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("37191.0"), "val")
-			("tempature", "Softmax tempature", cxxopts::value<float>(c_base)->default_value("1.5"), "val")
+			("tempature", "Softmax tempature", cxxopts::value<float>(tempature)->default_value("1.5"), "val")
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
