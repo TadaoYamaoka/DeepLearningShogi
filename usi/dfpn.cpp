@@ -9,16 +9,12 @@ using namespace std;
 using namespace ns_dfpn;
 
 const constexpr int64_t HASH_SIZE_MB = 2048;
-const constexpr int64_t MAX_SEARCH_NODE = 2097152;
+uint32_t DfPn::kMaxDepth = 30;
+int64_t DfPn::MAX_SEARCH_NODE = 2097152;
 const constexpr int REPEAT = INT_MAX;
 const constexpr size_t MaxCheckMoves = 73;
 
 // --- ãlÇ›è´ä˚íTçı
-
-void DfPn::set_maxdepth(uint32_t depth)
-{
-	kMaxDepth = depth;
-}
 
 void DfPn::dfpn_stop()
 {
