@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--command1', default=r'H:\src\DeepLearningShogi\x64\Release\usi.exe')
 parser.add_argument('--command2', default=r'E:\game\shogi\ShogiGUI\gpsfish\gpsfish.exe')
 parser.add_argument('--trials', type=int, default=100)
+parser.add_argument('--n_warmup_steps', type=int, default=20)
 parser.add_argument('--model')
 parser.add_argument('--batch_size', type=int)
 parser.add_argument('--hash_size', type=int)
@@ -186,8 +187,9 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
 def objective(trial):
     C_init = trial.suggest_int('C_init', 50, 150)
     C_base = trial.suggest_int('C_base', 10000, 40000)
+    Softmax_Tempature = trial.suggest_int('Softmax_Tempature', 50, 150)
 
-    logging.info('C_init = {}, C_base = {}'.format(C_init, C_base))
+    logging.info('C_init = {}, C_base = {}, Softmax_Tempature = {}'.format(C_init, C_base, Softmax_Tempature))
 
     win_count = 0
     draw_count = 0
@@ -230,6 +232,7 @@ def objective(trial):
             if n % 2 == i:
                 p.stdin.write(b'setoption name C_init value ' + str(C_init).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name C_base value ' + str(C_base).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name Softmax_Tempature value ' + str(Softmax_Tempature).encode('ascii') + b'\n')
 
             p.stdin.write(b'usi\n')
             p.stdin.flush()
@@ -387,5 +390,5 @@ def objective(trial):
     # 勝率を負の値で返す
     return -win_rate
 
-study = create_study(pruner=MedianPruner(n_warmup_steps=20))
+study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
 study.optimize(objective, n_trials=args.trials)
