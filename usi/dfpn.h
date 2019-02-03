@@ -53,6 +53,7 @@ namespace ns_dfpn {
 	public:
 		void init();
 		bool dfpn(Position& r);
+		bool dfpn_andnode(Position& r);
 		void dfpn_stop();
 		void set_maxdepth(uint32_t depth);
 		Move dfpn_move(Position& pos);

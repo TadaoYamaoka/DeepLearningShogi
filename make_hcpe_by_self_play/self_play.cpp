@@ -123,6 +123,12 @@ struct TrajectorEntry {
 void UpdateResult(uct_node_t* uct_node, child_node_t *child, const float result, const unsigned int current);
 bool nyugyoku(const Position& pos);
 
+// 詰み探索スロット
+struct MateSearchEntry {
+	Position *pos;
+	enum State { RUNING, NOMATE, WIN, LOSE } status;
+};
+
 Searcher s;
 
 class UCTSearcher;
@@ -150,19 +156,25 @@ public:
 	void SelfPlay();
 	void Run();
 	void Join();
-	bool is_mate(Position *pos) {
-		return dfpn.dfpn(*pos);
+	void QueuingMateSearch(Position *pos, const int id) {
+		lock_guard<mutex> lock(mate_search_mutex);
+		mate_search_slot[id].pos = pos;
+		mate_search_slot[id].status = MateSearchEntry::RUNING;
+		mate_search_queue.push_back(id);
 	}
+	MateSearchEntry::State GetMateSearchStatus(const int id) {
+		lock_guard<mutex> lock(mate_search_mutex);
+		return mate_search_slot[id].status;
+	}
+	void MateSearch();
 
-	int running;
+	int group_id;
+	int gpu_id;
+	bool running;
 private:
 	void Initialize();
 
 	UCTSearcherGroupPair* parent;
-	int group_id;
-
-	// GPUID
-	int gpu_id;
 
 	// ハッシュ
 	UctHash uct_hash;
@@ -184,6 +196,10 @@ private:
 
 	// 詰み探索
 	ns_dfpn::DfPn dfpn;
+	vector<MateSearchEntry> mate_search_slot;
+	deque<int> mate_search_queue;
+	mutex mate_search_mutex;
+	thread* handle_mate_search;
 };
 
 class UCTSearcher {
@@ -239,6 +255,9 @@ private:
 
 	// 局面管理と探索スレッド
 	Position* pos_root;
+
+	// 詰み探索のステータス
+	MateSearchEntry::State mate_status;
 };
 
 class UCTSearcherGroupPair {
@@ -310,7 +329,7 @@ UCTSearcherGroup::Initialize()
 	searchers.clear();
 	searchers.reserve(policy_value_batch_maxsize);
 	for (int i = 0; i < policy_value_batch_maxsize; i++) {
-		searchers.emplace_back(this, uct_hash, uct_node, gpu_id * 10000 + group_id * 1000 + i, entryNum);
+		searchers.emplace_back(this, uct_hash, uct_node, i, entryNum);
 	}
 
 	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -320,6 +339,7 @@ UCTSearcherGroup::Initialize()
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
 		dfpn.init();
 		dfpn.set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+		mate_search_slot.resize(policy_value_batch_maxsize);
 	}
 }
 
@@ -330,8 +350,6 @@ void UCTSearcherGroup::SelfPlay()
 	cudaSetDevice(gpu_id);
 
 	parent->InitGPU();
-
-	running = 1;
 
 	// 探索経路のバッチ
 	vector<vector<TrajectorEntry>> trajectories_batch(policy_value_batch_maxsize);
@@ -367,13 +385,13 @@ void UCTSearcherGroup::SelfPlay()
 			}
 		}
 
-		// 次の手へ
+		// 次のシミュレーションへ
 		for (UCTSearcher& searcher : searchers) {
 			searcher.NextStep();
 		}
 	}
 
-	running = 0;
+	running = false;
 }
 
 // スレッド開始
@@ -381,7 +399,13 @@ void
 UCTSearcherGroup::Run()
 {
 	// 自己対局用スレッド
+	running = true;
 	handle_selfplay = new thread([this]() { this->SelfPlay(); });
+
+	// 詰み探索用スレッド
+	if (ROOT_MATE_SEARCH_DEPTH > 0) {
+		handle_mate_search = new thread([this]() { this->MateSearch(); });
+	}
 }
 
 // スレッド終了待機
@@ -391,6 +415,51 @@ UCTSearcherGroup::Join()
 	// 自己対局用スレッド
 	handle_selfplay->join();
 	delete handle_selfplay;
+	// 詰み探索用スレッド
+	handle_mate_search->join();
+	delete handle_mate_search;
+}
+
+// 詰み探索スレッド
+void UCTSearcherGroup::MateSearch()
+{
+	while (running) {
+		// キューから取り出す
+		Position *pos;
+		int id;
+		{
+			lock_guard<mutex> lock(mate_search_mutex);
+			if (mate_search_queue.size() > 0) {
+				id = mate_search_queue.front();
+				mate_search_queue.pop_front();
+				pos = mate_search_slot[id].pos;
+			}
+			else {
+				this_thread::yield();
+				continue;
+			}
+		}
+
+		// 盤面のコピー
+		Position pos_copy(*pos);
+
+		// 詰み探索
+		if (!pos_copy.inCheck()) {
+			bool mate = dfpn.dfpn(pos_copy);
+			{
+				lock_guard<mutex> lock(mate_search_mutex);
+				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
+			}
+		}
+		else {
+			// 自玉に王手がかかっている
+			bool mate = dfpn.dfpn_andnode(pos_copy);
+			{
+				lock_guard<mutex> lock(mate_search_mutex);
+				mate_search_slot[id].status = mate ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////
@@ -829,21 +898,10 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				setPosition(*pos_root, hcp);
 				for (int i = 0; i < RANDOM_MOVE; i++)
 					randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
-				SPDLOG_DEBUG(logger, "id:{} ply:{} {}", id, ply, pos_root->toSFEN());
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
 				keyHash.clear();
 				hcpevec.clear();
-			}
-
-			// 詰み探索
-			if (ROOT_MATE_SEARCH_DEPTH > 0) {
-				if (grp->is_mate(pos_root)) {
-					// 詰みの手がある場合
-					SPDLOG_DEBUG(logger, "id:{} ply:{} {} mated", id, ply, pos_root->toSFEN());
-					gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
-					NextGame();
-					continue;
-				}
 			}
 
 			// ハッシュクリア
@@ -860,7 +918,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			}
 			else if (uct_node[current_root].child_num == 1) {
 				// 1手しかないときは、その手を指して次の手番へ
-				SPDLOG_DEBUG(logger, "id:{} ply:{} {} skip:{}", id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
 				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
 				playout = 0;
 				ply++;
@@ -875,6 +933,13 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 
 			// ルート局面をキューに追加
 			grp->QueuingNode(pos_root, current_root);
+
+			// ルート局面を詰み探索キューに追加
+			if (ROOT_MATE_SEARCH_DEPTH > 0) {
+				mate_status = MateSearchEntry::RUNING;
+				grp->QueuingMateSearch(pos_root, id);
+			}
+
 			return;
 		}
 
@@ -894,6 +959,26 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 // 次の手に進める
 void UCTSearcher::NextStep()
 {
+	// 詰み探索の結果を調べる
+	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNING) {
+		mate_status = grp->GetMateSearchStatus(id);
+		if (mate_status != MateSearchEntry::RUNING) {
+			// 詰みの場合
+			switch (mate_status) {
+			case MateSearchEntry::WIN:
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate win", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+				NextGame();
+				return;
+			case MateSearchEntry::LOSE:
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate lose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+				gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
+				NextGame();
+				return;
+			}
+		}
+	}
+
 	// プレイアウト回数加算
 	playout++;
 
@@ -908,13 +993,13 @@ void UCTSearcher::NextStep()
 				select_index = i;
 				max_count = uct_child[i].move_count;
 			}
-			SPDLOG_TRACE(logger, "id:{} {}:{} move_count:{} win_rate:{}", id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+			SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
 		}
 
 		// 選択した着手の勝率の算出
 		float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 		Move best_move = uct_child[select_index].move;
-		SPDLOG_DEBUG(logger, "id:{} ply:{} {} bestmove:{} winrate:{}", id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} bestmove:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
 
 		{
 			// 勝率が閾値を超えた場合、ゲーム終了
@@ -957,7 +1042,7 @@ void UCTSearcher::NextStep()
 
 void UCTSearcher::NextGame()
 {
-	SPDLOG_DEBUG(logger, "id:{} ply:{} gameResult:{}", id, ply, gameResult);
+	SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} gameResult:{}", grp->gpu_id, grp->group_id, id, ply, gameResult);
 	// 引き分けは出力しない
 	if (gameResult != Draw) {
 		// 勝敗を1局全てに付ける。
@@ -1168,6 +1253,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 
