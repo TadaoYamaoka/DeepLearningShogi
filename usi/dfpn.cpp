@@ -1205,3 +1205,17 @@ bool DfPn::dfpn(Position& r) {
 
 	return entry.pn == 0;
 }
+
+// 詰将棋探索のエントリポイント
+bool DfPn::dfpn_andnode(Position& r) {
+	// 自玉に王手がかかっている
+
+	// キャッシュの世代を進める
+	transposition_table.NewSearch();
+
+	searchedNode = 0;
+	dfpn_inner<false>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, 0, searchedNode);
+	const auto& entry = transposition_table.LookUp<false>(r, 0);
+
+	return entry.pn == 0;
+}
