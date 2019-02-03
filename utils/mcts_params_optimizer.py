@@ -1,6 +1,7 @@
 import numpy as np
 from optuna import create_study
 from optuna.pruners import MedianPruner
+from optuna.structs import TrialPruned
 import subprocess
 import argparse
 import shogi
@@ -381,7 +382,7 @@ def objective(trial):
         trial.report(-win_rate, n)
         if trial.should_prune(n):
             logging.info('trial {} game {} pruned'.format(trial.trial_id, n))
-            raise optuna.structs.TrialPruned()
+            raise TrialPruned()
 
     # 勝率を負の値で返す
     return -win_rate
