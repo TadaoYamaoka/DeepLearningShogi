@@ -427,17 +427,17 @@ void UCTSearcherGroup::MateSearch()
 		// キューから取り出す
 		Position *pos;
 		int id;
-		{
-			lock_guard<mutex> lock(mate_search_mutex);
-			if (mate_search_queue.size() > 0) {
-				id = mate_search_queue.front();
-				mate_search_queue.pop_front();
-				pos = mate_search_slot[id].pos;
-			}
-			else {
-				this_thread::yield();
-				continue;
-			}
+		mate_search_mutex.lock();
+		if (mate_search_queue.size() > 0) {
+			id = mate_search_queue.front();
+			mate_search_queue.pop_front();
+			pos = mate_search_slot[id].pos;
+			mate_search_mutex.unlock();
+		}
+		else {
+			mate_search_mutex.unlock();
+			this_thread::yield();
+			continue;
 		}
 
 		// 盤面のコピー
