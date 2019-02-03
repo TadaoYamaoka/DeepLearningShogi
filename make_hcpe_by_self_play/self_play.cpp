@@ -1280,6 +1280,9 @@ int main(int argc, char* argv[]) {
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
+	logger->info("c_init:{}", c_init);
+	logger->info("c_base:{}", c_base);
+	logger->info("tempature:{}", tempature);
 
 	initTable();
 	Position::initZobrist();
