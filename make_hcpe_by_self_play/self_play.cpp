@@ -107,9 +107,9 @@ constexpr float DISCARDED = -FLT_MAX;
 
 constexpr unsigned int NOT_EXPANDED = -1; // 未展開のノードのインデックス
 
-constexpr float c_init = 1.5f;
-constexpr float c_base = 22302.0f;
-constexpr float tempature = 1.5f;
+float c_init = 1.48f;
+float c_base = 37191.0f;
+float tempature = 1.5f;
 
 
 // 探索経路のノード
@@ -1207,6 +1207,9 @@ int main(int argc, char* argv[]) {
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("1"), "num")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate", "mate search depth", cxxopts::value<int>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
+			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.48"), "val")
+			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("37191.0"), "val")
+			("tempature", "Softmax tempature", cxxopts::value<float>(c_base)->default_value("1.5"), "val")
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
