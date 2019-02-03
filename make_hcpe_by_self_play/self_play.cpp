@@ -984,6 +984,27 @@ void UCTSearcher::NextStep()
 
 	// 探索終了判定
 	if (InterruptionCheck(current_root, playout)) {
+		// 詰み探索の結果を待つ
+		if (ROOT_MATE_SEARCH_DEPTH > 0) {
+			while (mate_status == MateSearchEntry::RUNING) {
+				this_thread::yield();
+				mate_status = grp->GetMateSearchStatus(id);
+			}
+			// 詰みの場合
+			switch (mate_status) {
+			case MateSearchEntry::WIN:
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate win", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+				NextGame();
+				return;
+			case MateSearchEntry::LOSE:
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate lose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+				gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
+				NextGame();
+				return;
+			}
+		}
+
 		// 探索回数最大の手を見つける
 		child_node_t* uct_child = uct_node[current_root].child;
 		int max_count = uct_child[0].move_count;
