@@ -99,7 +99,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"]);
 					evalTableIsRead = true;
 				}*/
-				dfpn.set_maxdepth(options["Mate_Root_Search"]);
+				ns_dfpn::DfPn::set_maxdepth(options["Mate_Root_Search"]);
 			}
 
 			// 各種初期化

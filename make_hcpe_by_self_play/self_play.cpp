@@ -49,7 +49,7 @@ int RANDOM_MOVE;
 float WINRATE_THRESHOLD;
 
 // 詰み探索の深さ
-int ROOT_MATE_SEARCH_DEPTH;
+uint32_t ROOT_MATE_SEARCH_DEPTH;
 
 // モデルのパス
 string model_path;
@@ -338,7 +338,6 @@ UCTSearcherGroup::Initialize()
 	// 詰み探索
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
 		dfpn.init();
-		dfpn.set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 		mate_search_slot.resize(policy_value_batch_maxsize);
 	}
 }
@@ -446,6 +445,7 @@ void UCTSearcherGroup::MateSearch()
 		// 詰み探索
 		if (!pos_copy.inCheck()) {
 			bool mate = dfpn.dfpn(pos_copy);
+			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
 			{
 				lock_guard<mutex> lock(mate_search_mutex);
 				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
@@ -454,6 +454,7 @@ void UCTSearcherGroup::MateSearch()
 		else {
 			// 自玉に王手がかかっている
 			bool mate = dfpn.dfpn_andnode(pos_copy);
+			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
 			{
 				lock_guard<mutex> lock(mate_search_mutex);
 				mate_search_slot[id].status = mate ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
@@ -1189,6 +1190,7 @@ int main(int argc, char* argv[]) {
 	std::string outputFileName;
 	vector<int> gpu_id(1);
 	vector<int> batchsize(1);
+	int64_t MATE_SEARCH_MAX_NODE;
 
 	cxxopts::Options options("make_hcpe_by_self_play");
 	options.positional_help("modelfile hcp output nodes playout_num gpu_id batchsize [gpu_id batchsize]*");
@@ -1206,7 +1208,8 @@ int main(int argc, char* argv[]) {
 			("positional", "", cxxopts::value<std::vector<int>>())
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("1"), "num")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
-			("mate", "mate search depth", cxxopts::value<int>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
+			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
+			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.48"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("37191.0"), "val")
 			("tempature", "Softmax tempature", cxxopts::value<float>(tempature)->default_value("1.5"), "val")
@@ -1255,10 +1258,13 @@ int main(int argc, char* argv[]) {
 		cerr << "too few threashold" << endl;
 		return 0;
 	}
-	if (ROOT_MATE_SEARCH_DEPTH < 0) {
-		cerr << "too few mate depath" << endl;
+	if (MATE_SEARCH_MAX_NODE < 0) {
+		cerr << "too few mate nodes" << endl;
 		return 0;
 	}
+
+	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+	ns_dfpn::DfPn::set_max_search_node(MATE_SEARCH_MAX_NODE);
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
@@ -1280,6 +1286,7 @@ int main(int argc, char* argv[]) {
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
+	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
 	logger->info("tempature:{}", tempature);

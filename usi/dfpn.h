@@ -55,16 +55,24 @@ namespace ns_dfpn {
 		bool dfpn(Position& r);
 		bool dfpn_andnode(Position& r);
 		void dfpn_stop();
-		void set_maxdepth(uint32_t depth);
 		Move dfpn_move(Position& pos);
 
+		static void set_maxdepth(uint32_t depth) {
+			kMaxDepth = depth;
+		}
+		static void set_max_search_node(int64_t max_search_node) {
+			MAX_SEARCH_NODE = max_search_node;
+		}
+
+		int64_t searchedNode = 0;
 	private:
 		template <bool or_node>
 		void dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode);
 
 		TranspositionTable transposition_table;
-		uint32_t kMaxDepth = 30;
-		int64_t searchedNode = 0;
 		std::atomic<bool> stop;
+
+		static uint32_t kMaxDepth;
+		static int64_t MAX_SEARCH_NODE;
 	};
 }
