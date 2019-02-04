@@ -126,7 +126,8 @@ bool nyugyoku(const Position& pos);
 // 詰み探索スロット
 struct MateSearchEntry {
 	Position *pos;
-	enum State { RUNING, NOMATE, WIN, LOSE } status;
+	enum State { RUNING, NOMATE, WIN, LOSE };
+	atomic<State> status;
 };
 
 Searcher s;
@@ -145,6 +146,7 @@ public:
 	UCTSearcherGroup(UCTSearcherGroup&& o) {} // not use
 	~UCTSearcherGroup() {
 		delete[] uct_node;
+		delete[] mate_search_slot;
 		checkCudaErrors(cudaFreeHost(features1));
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
@@ -163,7 +165,6 @@ public:
 		mate_search_queue.push_back(id);
 	}
 	MateSearchEntry::State GetMateSearchStatus(const int id) {
-		lock_guard<mutex> lock(mate_search_mutex);
 		return mate_search_slot[id].status;
 	}
 	void MateSearch();
@@ -196,7 +197,7 @@ private:
 
 	// 詰み探索
 	ns_dfpn::DfPn dfpn;
-	vector<MateSearchEntry> mate_search_slot;
+	MateSearchEntry* mate_search_slot = nullptr;
 	deque<int> mate_search_queue;
 	mutex mate_search_mutex;
 	thread* handle_mate_search;
@@ -338,7 +339,7 @@ UCTSearcherGroup::Initialize()
 	// 詰み探索
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
 		dfpn.init();
-		mate_search_slot.resize(policy_value_batch_maxsize);
+		mate_search_slot = new MateSearchEntry[policy_value_batch_maxsize];
 	}
 }
 
@@ -422,15 +423,12 @@ UCTSearcherGroup::Join()
 // 詰み探索スレッド
 void UCTSearcherGroup::MateSearch()
 {
+	deque<int> queue;
 	while (running) {
 		// キューから取り出す
-		Position *pos;
-		int id;
 		mate_search_mutex.lock();
 		if (mate_search_queue.size() > 0) {
-			id = mate_search_queue.front();
-			mate_search_queue.pop_front();
-			pos = mate_search_slot[id].pos;
+			queue.swap(mate_search_queue);
 			mate_search_mutex.unlock();
 		}
 		else {
@@ -439,27 +437,24 @@ void UCTSearcherGroup::MateSearch()
 			continue;
 		}
 
-		// 盤面のコピー
-		Position pos_copy(*pos);
+		for (int& id : queue) {
+			// 盤面のコピー
+			Position pos_copy(*mate_search_slot[id].pos);
 
-		// 詰み探索
-		if (!pos_copy.inCheck()) {
-			bool mate = dfpn.dfpn(pos_copy);
-			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-			{
-				lock_guard<mutex> lock(mate_search_mutex);
+			// 詰み探索
+			if (!pos_copy.inCheck()) {
+				bool mate = dfpn.dfpn(pos_copy);
+				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
 				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
 			}
-		}
-		else {
-			// 自玉に王手がかかっている
-			bool mate = dfpn.dfpn_andnode(pos_copy);
-			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-			{
-				lock_guard<mutex> lock(mate_search_mutex);
+			else {
+				// 自玉に王手がかかっている
+				bool mate = dfpn.dfpn_andnode(pos_copy);
+				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
 				mate_search_slot[id].status = mate ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
 			}
 		}
+		queue.clear();
 	}
 }
 
