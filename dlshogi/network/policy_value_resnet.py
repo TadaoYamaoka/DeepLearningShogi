@@ -63,8 +63,8 @@ class PolicyValueResnet():
         # layer13
         ph = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
         ph = Flatten()(ph)
-        ph = Bias(name = 'policy_head_notop')(ph)
-        ph = Activation('softmax', name = 'policy_head')(ph)
+        ph_notop = Bias(name = 'policy_head_notop')(ph)
+        ph = Activation('softmax', name = 'policy_head')(ph_notop)
 
         # value network
         # layer13
@@ -73,7 +73,7 @@ class PolicyValueResnet():
         vh = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(vh)
         vh = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(vh)
 
-        model = Model(inputs=main_input, outputs=[ph, vh])
+        model = Model(inputs=main_input, outputs=[ph, vh, ph_notop])
         
         return model
 
