@@ -60,15 +60,16 @@ def mini_batch(positions, i, batchsize):
 
     return (np.array(mini_batch_data, dtype=np.float32),
             to_categorical(mini_batch_move, NUM_CLASSES),
-            np.array(mini_batch_win, dtype=np.int32).reshape((-1, 1)))
+            np.array(mini_batch_win, dtype=np.int32).reshape((-1, 1)),
+            np.array(mini_batch_data, dtype=np.float32))
 
 # data generator
 def datagen(positions):
     while True:
         positions_shuffled = random.sample(positions, len(positions))
         for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
-            x, t1, t2 = mini_batch(positions_shuffled, i, args.batchsize)
-            yield (x, {'policy_head': t1, 'value_head': t2})
+            x, t1, t2, t3 = mini_batch(positions_shuffled, i, args.batchsize)
+            yield (x, {'policy_head': t1, 'value_head': t2, 'policy_head_notop': t3})
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)
