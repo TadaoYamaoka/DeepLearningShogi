@@ -5,7 +5,7 @@ import shogi
 
 from dlshogi.common import *
 from dlshogi.features import *
-from dlshogi.network.policy_value_resnet import *
+from dlshogi.network.policy_value_resnet_tf import *
 from dlshogi.player.base_player import *
 from dlshogi.uct.uct_node import *
 

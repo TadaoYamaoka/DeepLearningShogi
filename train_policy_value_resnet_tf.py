@@ -12,7 +12,7 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import SGD
 
 from dlshogi.common import *
-from dlshogi.network.policy_value_resnet import *
+from dlshogi.network.policy_value_resnet_tf import *
 from dlshogi.features import *
 from dlshogi.read_kifu import *
 
@@ -60,15 +60,16 @@ def mini_batch(positions, i, batchsize):
 
     return (np.array(mini_batch_data, dtype=np.float32),
             to_categorical(mini_batch_move, NUM_CLASSES),
-            np.array(mini_batch_win, dtype=np.int32).reshape((-1, 1)))
+            np.array(mini_batch_win, dtype=np.int32).reshape((-1, 1)),
+            np.array(mini_batch_data, dtype=np.float32))
 
 # data generator
 def datagen(positions):
     while True:
         positions_shuffled = random.sample(positions, len(positions))
         for i in range(0, len(positions_shuffled) - args.batchsize, args.batchsize):
-            x, t1, t2 = mini_batch(positions_shuffled, i, args.batchsize)
-            yield (x, {'policy_head': t1, 'value_head': t2})
+            x, t1, t2, t3 = mini_batch(positions_shuffled, i, args.batchsize)
+            yield (x, {'policy_head': t1, 'value_head': t2, 'policy_head_notop': t3})
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)
@@ -79,13 +80,13 @@ if os.path.isfile(args.initmodel):
 else:
     network = PolicyValueResnet()
     model = network.model
-    sgd = SGD(lr=0.001)
+    optimizer = tf.train.MomentumOptimizer(0.001, momentum = 0.9)
     model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
-                  optimizer=sgd,
+                  optimizer=optimizer,
                   loss_weights={'policy_head': 0.5, 'value_head': 0.5},
                   metrics=['accuracy'])
 
-checkpoint_path = args.model + "/model_policy_value_resnet-best.hdf5"
+checkpoint_path = args.model + "/model_policy_value_resnet_tf-best.hdf5"
 checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
 
 if args.use_tpu:
@@ -104,12 +105,12 @@ model.fit_generator(datagen(positions_train), int(len(positions_train) / args.ba
           callbacks=[checkpoint])
 logging.info('Training end')
 
-model_path = args.model + "/model_policy_value_resnet-final.hdf5"
+model_path = args.model + "/model_policy_value_resnet_tf-final.hdf5"
 model.save_weights(model_path, save_format="h5")
 
 if not args.use_tpu:
-    model.save(args.model + "/model_policy_value_resnet.h5")
-    with open(args.model + "/model_policy_value_resnet.json", "w") as fjson:
+    model.save(args.model + "/model_policy_value_resnet_tf.h5")
+    with open(args.model + "/model_policy_value_resnet_tf.json", "w") as fjson:
         fjson.write(model.to_json())
     tf.contrib.saved_model.save_keras_model(model, args.model)
 

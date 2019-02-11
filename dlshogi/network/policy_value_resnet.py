@@ -73,7 +73,7 @@ class PolicyValueResnet():
         vh = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(vh)
         vh = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(vh)
 
-        model = Model(inputs=main_input, outputs=[ph, vh, ph_notop])
+        model = Model(inputs=main_input, outputs=[ph, vh])
         
         return model
 
