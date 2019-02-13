@@ -76,11 +76,12 @@ if os.path.isfile(args.initmodel):
 else:
     network = PolicyValueNetwork()
     model = network.model
-    sgd = SGD(lr=0.001)
-    model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
-                  optimizer=sgd,
-                  loss_weights={'policy_head': 0.5, 'value_head': 0.5},
-                  metrics=['accuracy'])
+
+sgd = SGD(lr=0.001)
+model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
+              optimizer=sgd,
+              loss_weights={'policy_head': 0.5, 'value_head': 0.5},
+              metrics=['accuracy'])
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)

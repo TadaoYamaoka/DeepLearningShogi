@@ -75,8 +75,9 @@ if os.path.isfile(args.initmodel):
 else:
     network = ValueNetwork()
     model = network.model
-    sgd = SGD(lr=0.001)
-    model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy'])
+
+sgd = SGD(lr=0.001)
+model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy'])
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)

@@ -74,8 +74,9 @@ if os.path.isfile(args.initmodel):
 else:
     network = PolicyNetwork()
     model = network.model
-    sgd = SGD(lr=0.001)
-    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+
+sgd = SGD(lr=0.001)
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
 if not os.path.isdir(args.model):
     os.mkdir(args.model)

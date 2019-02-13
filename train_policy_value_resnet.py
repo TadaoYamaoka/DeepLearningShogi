@@ -79,11 +79,12 @@ if os.path.isfile(args.initmodel):
 else:
     network = PolicyValueResnet()
     model = network.model
-    sgd = SGD(lr=0.001)
-    model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
-                  optimizer=sgd,
-                  loss_weights={'policy_head': 0.5, 'value_head': 0.5},
-                  metrics=['accuracy'])
+
+sgd = SGD(lr=0.001)
+model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
+              optimizer=sgd,
+              loss_weights={'policy_head': 0.5, 'value_head': 0.5},
+              metrics=['accuracy'])
 
 checkpoint_path = args.model + "/model_policy_value_resnet-best.hdf5"
 checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)

@@ -80,11 +80,12 @@ if os.path.isfile(args.initmodel):
 else:
     network = PolicyValueResnet()
     model = network.model
-    optimizer = tf.train.MomentumOptimizer(0.001, momentum = 0.9)
-    model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
-                  optimizer=optimizer,
-                  loss_weights={'policy_head': 0.5, 'value_head': 0.5},
-                  metrics=['accuracy'])
+
+optimizer = tf.train.MomentumOptimizer(0.001, momentum = 0.9)
+model.compile(loss={'policy_head': 'categorical_crossentropy', 'value_head': 'mean_squared_error'},
+              optimizer=optimizer,
+              loss_weights={'policy_head': 0.5, 'value_head': 0.5},
+              metrics=['accuracy'])
 
 checkpoint_path = args.model + "/model_policy_value_resnet_tf-best.hdf5"
 checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
