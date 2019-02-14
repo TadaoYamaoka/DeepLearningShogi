@@ -234,7 +234,6 @@
     <ClCompile Include="..\cppshogi\init.cpp" />
     <ClCompile Include="..\cppshogi\move.cpp" />
     <ClCompile Include="..\cppshogi\mt64bit.cpp" />
-    <ClCompile Include="..\cppshogi\pieceScore.cpp" />
     <ClCompile Include="..\cppshogi\position.cpp" />
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />

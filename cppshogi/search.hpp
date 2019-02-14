@@ -23,7 +23,6 @@
 #define APERY_SEARCH_HPP
 
 #include "move.hpp"
-#include "pieceScore.hpp"
 #include "timeManager.hpp"
 #include "usi.hpp"
 

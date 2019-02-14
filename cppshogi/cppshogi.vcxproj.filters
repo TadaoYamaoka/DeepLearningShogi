@@ -39,9 +39,6 @@
     <ClCompile Include="mt64bit.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
-    <ClCompile Include="pieceScore.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
     <ClCompile Include="position.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
@@ -96,9 +93,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="piece.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="pieceScore.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="position.hpp">

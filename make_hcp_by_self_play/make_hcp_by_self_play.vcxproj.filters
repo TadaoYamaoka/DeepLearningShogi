@@ -45,9 +45,6 @@
     <ClCompile Include="..\cppshogi\mt64bit.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\pieceScore.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\position.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
