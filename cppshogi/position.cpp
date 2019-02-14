@@ -2311,16 +2311,3 @@ Bitboard Position::attackersToExceptKing(const Color c, const Square sq) const {
             | (attacksFrom<Rook  >(          sq) & bbOf(Rook  , Dragon)))
         & bbOf(c);
 }
-
-Score Position::computeMaterial() const {
-    Score s = ScoreZero;
-    for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
-        const int num = bbOf(pt, Black).popCount() - bbOf(pt, White).popCount();
-        s += num * pieceScore(pt);
-    }
-    for (PieceType pt = Pawn; pt < King; ++pt) {
-        const int num = hand(Black).numOf(pieceTypeToHandPiece(pt)) - hand(White).numOf(pieceTypeToHandPiece(pt));
-        s += num * pieceScore(pt);
-    }
-    return s;
-}

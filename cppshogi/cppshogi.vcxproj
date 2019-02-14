@@ -243,7 +243,6 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClCompile Include="init.cpp" />
     <ClCompile Include="move.cpp" />
     <ClCompile Include="mt64bit.cpp" />
-    <ClCompile Include="pieceScore.cpp" />
     <ClCompile Include="position.cpp" />
     <ClCompile Include="python_module.cpp" />
     <ClCompile Include="search.cpp" />
@@ -264,7 +263,6 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClInclude Include="mt64bit.hpp" />
     <ClInclude Include="overloadEnumOperators.hpp" />
     <ClInclude Include="piece.hpp" />
-    <ClInclude Include="pieceScore.hpp" />
     <ClInclude Include="position.hpp" />
     <ClInclude Include="score.hpp" />
     <ClInclude Include="search.hpp" />

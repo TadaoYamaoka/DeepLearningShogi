@@ -26,7 +26,7 @@
 #include "common.hpp"
 #include "hand.hpp"
 #include "bitboard.hpp"
-#include "pieceScore.hpp"
+#include "score.hpp"
 #include <stack>
 #include <memory>
 
@@ -350,19 +350,6 @@ public:
 #endif
 
     static void initZobrist();
-
-    static Score pieceScore(const Piece pc)            { return PieceScore[pc]; }
-    // Piece を index としても、 PieceType を index としても、
-    // 同じ値が取得出来るようにしているので、PieceType => Piece への変換は必要ない。
-    static Score pieceScore(const PieceType pt)        { return PieceScore[pt]; }
-    static Score capturePieceScore(const Piece pc)     { return CapturePieceScore[pc]; }
-    // Piece を index としても、 PieceType を index としても、
-    // 同じ値が取得出来るようにしているので、PieceType => Piece への変換は必要ない。
-    static Score capturePieceScore(const PieceType pt) { return CapturePieceScore[pt]; }
-    static Score promotePieceScore(const PieceType pt) {
-        assert(pt < Gold);
-        return PromotePieceScore[pt];
-    }
 
 private:
     void clear();
