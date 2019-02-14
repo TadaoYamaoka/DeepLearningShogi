@@ -6,7 +6,7 @@
 using namespace std;
 
 #if 0
-#include "nn.h"
+#include "nn_wideresnet10.h"
 int main() {
 	initTable();
 	// 入力データ作成
@@ -15,13 +15,13 @@ int main() {
 	features2_t features2[batchsize] = {};
 
 	Position pos[batchsize];
-	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1", nullptr);
-	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
 
 	make_input_features(pos[0], features1, features2);
 	make_input_features(pos[1], features1 + 1, features2 + 1);
 
-	NN nn(batchsize);
+	NNWideResnet10 nn(batchsize);
 
 	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
 
@@ -70,8 +70,8 @@ int main() {
 	initTable();
 	const int num = 2;
 	Position pos[num];
-	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1", nullptr);
-	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
 
 	vector<HuffmanCodedPosAndEval> hcpevec;
 	std::ofstream ofs("test.hcpe", std::ios::binary);
@@ -92,9 +92,9 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
-	//pos.set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1", nullptr);
-	//pos.set("lnsgkg1nl/1r7/p1pppp1sp/6pP1/1p6B/2P6/PP1PPPP1P/7R1/LNSGKGSNL b Pb 1", nullptr); // dcBB
-	pos.set("lnsgkg1nl/1r5s1/pppppp1pp/6p2/b8/2P6/PPNPPPPPP/7R1/L1SGKGSNL b B 1", nullptr); // pinned
+	//pos.set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
+	//pos.set("lnsgkg1nl/1r7/p1pppp1sp/6pP1/1p6B/2P6/PP1PPPP1P/7R1/LNSGKGSNL b Pb 1"); // dcBB
+	pos.set("lnsgkg1nl/1r5s1/pppppp1pp/6p2/b8/2P6/PPNPPPPPP/7R1/L1SGKGSNL b B 1"); // pinned
 
 	Bitboard occupied = pos.occupiedBB();
 	occupied.printBoard();
@@ -150,11 +150,11 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
-	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", nullptr); // 間接王手 銀
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", nullptr); // 間接王手 桂馬
-	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", nullptr); // 間接王手 香車
-	//pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", nullptr); // 歩が成って王手
-	pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1", nullptr); // 歩が成って王手
+	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 銀
+	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬
+	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車
+	//pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
+	pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
 
 	// 王手生成
 	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
@@ -230,7 +230,7 @@ int main() {
 	auto start0 = std::chrono::system_clock::now();
 	auto total = start0 - start0;
 	for (string sfen : sfens) {
-		pos.set(sfen, nullptr);
+		pos.set(sfen);
 		auto start = std::chrono::system_clock::now();
 		bool ret = mateMoveInOddPly(pos, 7);
 		auto end = std::chrono::system_clock::now();
@@ -252,7 +252,7 @@ int main() {
 
 #if 0
 // cuDNN推論テスト
-#include "nn.h"
+#include "nn_wideresnet10.h"
 
 // 検証用
 #define BOOST_PYTHON_STATIC_LIB
@@ -284,32 +284,32 @@ int main() {
 	std::fill_n((float*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
 
 	vector<Position> pos(batchsize);
-	pos[0].set("l5snl/4ggkb1/1rn2p2p/p1ps2pp1/1p1pp3P/P1PP1PPP1/1PBSP1NS1/3RG1GK1/LN6L b - 1 : 372 : 1 : 6f6e", nullptr);
-	pos[1].set("l4pk2/4+B1s1g/3+N3p1/p+B7/2P2PL2/3P1GPK1/PS2+p2P1/1p1+n5/L5+sN1 w R2GSN7Prl 1 : -5828 : -1 : L*2d", nullptr);
-	pos[2].set("1+Bs3+P+R1/l2kg2p1/2+B1p1p1p/p1pp1p3/9/2P1P1P2/PP1PGP2P/9/LNSGK1SNL w RGS2NLP 1 : -9493 : -1 : 6b7c", nullptr);
-	pos[3].set("l3p2+R1/1Ss1gr2l/1pnp2p1p/kss2P3/8P/pG3+B2L/1PBP1GP1N/L1K1G4/1N7 w 6Pnp 1 : -5163 : -1 : N*9e", nullptr);
-	pos[4].set("ln1l1R3/2k6/1p5p+P/p1pp+S1p2/6b2/2P1P4/PP1P1PSPL/1+bSGKR3/LN1GG2N1 b GS4Pn 1 : 6923 : 1 : 3g4f", nullptr);
-	pos[5].set("ln4b1l/r2n5/3p1S3/ppp1pP2p/3SPkpl1/P1P5P/1PSP5/1KGB2+n2/LNG5+r b 2Gs4p 1 : 3503 : 1 : G*4f", nullptr);
-	pos[6].set("lns3g2/2kgrs1bl/p1pppp1pp/1p7/5n3/2P3P2/PPSPPP1PP/L2G2R2/1N1K1GSNL b BP 1 : 920 : 1 : 3i2h", nullptr);
-	pos[7].set("ln1gp+P2+R/2kss4/1pp2pp1l/p2pP3p/2P4+b1/P1S3P2/1PGP+p1G2/1K2+p4/LN5N+b w RGSLPn 1 : -1307 : -1 : 1i2i", nullptr);
-	pos[8].set("l4kbnl/1r1g2s2/2Pp3pp/p2snpp2/2p1p1PP1/1P4N2/PS1GP1S1P/1B3R2L/L1K4N1 w 2P2gp 1 : 1715 : 1 : P*8e", nullptr);
-	pos[9].set("2g+bk1+Bn1/1s2g3l/5P1p1/3Pp1p1p/1+R3p1P1/2P1N4/pKS1P1P1P/5S1R1/LN5NL w 2GS4Plp 1 : -6691 : -1 : L*4a", nullptr);
-	pos[10].set("ln1gk1gn1/8l/2p1s2+Rp/pr1+bp1+P2/3p2p2/1l6P/N1PPPS2N/2GKS+bP2/L1S2G3 w 5Pp 1 : -986 : -1 : 4h4g", nullptr);
-	pos[11].set("+Bn4gnl/2g1ssk2/2+N2p1p1/prSPpb2p/1p7/2p1P3P/PP2GPPP1/3+p1SK2/LR1G3NL b 2Pl 1 : -585 : -1 : 6d6c+", nullptr);
-	pos[12].set("lnB3knl/1rs1g1gs1/p3p2pp/2pp1pp2/1p7/2PP1P1P1/PPS1P1P1P/2GKS2R1/LN3G1NL w b 1 : 724 : 1 : 8b8c", nullptr);
-	pos[13].set("1n1rg2n1/1Bs2k3/lpp1psgpl/p2p2p1p/1P3R3/2P1S4/P2PP1PPP/2GS5/LN1K2GNL b Pbp 1 : 485 : 1 : 4e4i", nullptr);
-	pos[14].set("ln7/3+R5/1ppSpgS1p/k8/b2P1Pp2/2S1P1P2/B1PKG+p2P/7S1/LN1G3NL b G4Prnl2p 1 : 4563 : 1 : G*8e", nullptr);
-	pos[15].set("ln7/1r3g2G/2p1pksp1/5pp1P/2Pp2lP1/p1n1P3+b/1l2B4/2+r6/1N2K2N1 b 2g3sl7p 1 : -9389 : -1 : 1d1c+", nullptr);
-	pos[16].set("1n5+P1/lks1r1p2/1p2gn3/1l1pg2+B1/2Pspp3/p1G3P2/1PNS1PG2/L1KS4+p/L3R4 b BN4P2p 1 : 3016 : 1 : 7g6e", nullptr);
-	pos[17].set("1ns1k1s+B1/lrg3g2/pppppp1p1/6p2/9/2P5p/PPNPPPPPP/2SK2SRL/+b2GG2N1 w NLl 1 : -739 : -1 : L*7d", nullptr);
-	pos[18].set("6pn1/4g3l/3kpp1+Bp/pN1p1bP2/1sP1P3P/2+n4P1/1P1P1PN1L/4GSS2/L+p+r1GK3 w Grsl3p 1 : 2989 : 1 : L*5f", nullptr);
-	pos[19].set("1n1gk1snl/lrs2g3/pp2ppppb/2pp4p/9/4PP1P1/PPPP2P1P/LBKSG1R2/1N3GSNL b - 1 : 60 : -1 : 1g1f", nullptr);
+	pos[0].set("l5snl/4ggkb1/1rn2p2p/p1ps2pp1/1p1pp3P/P1PP1PPP1/1PBSP1NS1/3RG1GK1/LN6L b - 1 : 372 : 1 : 6f6e");
+	pos[1].set("l4pk2/4+B1s1g/3+N3p1/p+B7/2P2PL2/3P1GPK1/PS2+p2P1/1p1+n5/L5+sN1 w R2GSN7Prl 1 : -5828 : -1 : L*2d");
+	pos[2].set("1+Bs3+P+R1/l2kg2p1/2+B1p1p1p/p1pp1p3/9/2P1P1P2/PP1PGP2P/9/LNSGK1SNL w RGS2NLP 1 : -9493 : -1 : 6b7c");
+	pos[3].set("l3p2+R1/1Ss1gr2l/1pnp2p1p/kss2P3/8P/pG3+B2L/1PBP1GP1N/L1K1G4/1N7 w 6Pnp 1 : -5163 : -1 : N*9e");
+	pos[4].set("ln1l1R3/2k6/1p5p+P/p1pp+S1p2/6b2/2P1P4/PP1P1PSPL/1+bSGKR3/LN1GG2N1 b GS4Pn 1 : 6923 : 1 : 3g4f");
+	pos[5].set("ln4b1l/r2n5/3p1S3/ppp1pP2p/3SPkpl1/P1P5P/1PSP5/1KGB2+n2/LNG5+r b 2Gs4p 1 : 3503 : 1 : G*4f");
+	pos[6].set("lns3g2/2kgrs1bl/p1pppp1pp/1p7/5n3/2P3P2/PPSPPP1PP/L2G2R2/1N1K1GSNL b BP 1 : 920 : 1 : 3i2h");
+	pos[7].set("ln1gp+P2+R/2kss4/1pp2pp1l/p2pP3p/2P4+b1/P1S3P2/1PGP+p1G2/1K2+p4/LN5N+b w RGSLPn 1 : -1307 : -1 : 1i2i");
+	pos[8].set("l4kbnl/1r1g2s2/2Pp3pp/p2snpp2/2p1p1PP1/1P4N2/PS1GP1S1P/1B3R2L/L1K4N1 w 2P2gp 1 : 1715 : 1 : P*8e");
+	pos[9].set("2g+bk1+Bn1/1s2g3l/5P1p1/3Pp1p1p/1+R3p1P1/2P1N4/pKS1P1P1P/5S1R1/LN5NL w 2GS4Plp 1 : -6691 : -1 : L*4a");
+	pos[10].set("ln1gk1gn1/8l/2p1s2+Rp/pr1+bp1+P2/3p2p2/1l6P/N1PPPS2N/2GKS+bP2/L1S2G3 w 5Pp 1 : -986 : -1 : 4h4g");
+	pos[11].set("+Bn4gnl/2g1ssk2/2+N2p1p1/prSPpb2p/1p7/2p1P3P/PP2GPPP1/3+p1SK2/LR1G3NL b 2Pl 1 : -585 : -1 : 6d6c+");
+	pos[12].set("lnB3knl/1rs1g1gs1/p3p2pp/2pp1pp2/1p7/2PP1P1P1/PPS1P1P1P/2GKS2R1/LN3G1NL w b 1 : 724 : 1 : 8b8c");
+	pos[13].set("1n1rg2n1/1Bs2k3/lpp1psgpl/p2p2p1p/1P3R3/2P1S4/P2PP1PPP/2GS5/LN1K2GNL b Pbp 1 : 485 : 1 : 4e4i");
+	pos[14].set("ln7/3+R5/1ppSpgS1p/k8/b2P1Pp2/2S1P1P2/B1PKG+p2P/7S1/LN1G3NL b G4Prnl2p 1 : 4563 : 1 : G*8e");
+	pos[15].set("ln7/1r3g2G/2p1pksp1/5pp1P/2Pp2lP1/p1n1P3+b/1l2B4/2+r6/1N2K2N1 b 2g3sl7p 1 : -9389 : -1 : 1d1c+");
+	pos[16].set("1n5+P1/lks1r1p2/1p2gn3/1l1pg2+B1/2Pspp3/p1G3P2/1PNS1PG2/L1KS4+p/L3R4 b BN4P2p 1 : 3016 : 1 : 7g6e");
+	pos[17].set("1ns1k1s+B1/lrg3g2/pppppp1p1/6p2/9/2P5p/PPNPPPPPP/2SK2SRL/+b2GG2N1 w NLl 1 : -739 : -1 : L*7d");
+	pos[18].set("6pn1/4g3l/3kpp1+Bp/pN1p1bP2/1sP1P3P/2+n4P1/1P1P1PN1L/4GSS2/L+p+r1GK3 w Grsl3p 1 : 2989 : 1 : L*5f");
+	pos[19].set("1n1gk1snl/lrs2g3/pp2ppppb/2pp4p/9/4PP1P1/PPPP2P1P/LBKSG1R2/1N3GSNL b - 1 : 60 : -1 : 1g1f");
 
 	for (int i = 0; i < batchsize; i++) {
 		make_input_features(pos[i], features1 + i, features2 + i);
 	}
 
-	NN nn(batchsize);
+	NNWideResnet10 nn(batchsize);
 
 	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
 

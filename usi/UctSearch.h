@@ -5,11 +5,9 @@
 
 #include "position.hpp"
 #include "move.hpp"
-#include "thread.hpp"
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
 
-constexpr int THREAD_MAX = MaxThreads + 1;  // 使用するスレッド数の最大値+1
 constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
 constexpr double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)

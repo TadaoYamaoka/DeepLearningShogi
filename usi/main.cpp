@@ -2,10 +2,8 @@
 #include "position.hpp"
 #include "usi.hpp"
 #include "move.hpp"
-#include "movePicker.hpp"
 #include "generateMoves.hpp"
 #include "search.hpp"
-#include "tt.hpp"
 #include "book.hpp"
 
 #include "cppshogi.h"
@@ -36,14 +34,13 @@ int main(int argc, char* argv[]) {
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
-	s->threads.exit();
 
 	TerminateUctSearch();
 }
 
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	bool evalTableIsRead = false;
-	Position pos(DefaultStartPositionSFEN, threads.main(), thisptr);
+	Position pos(DefaultStartPositionSFEN, thisptr);
 
 	std::string cmd;
 	std::string token;
@@ -116,7 +113,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
-			Position pos_tmp(DefaultStartPositionSFEN, threads.main(), thisptr);
+			Position pos_tmp(DefaultStartPositionSFEN, thisptr);
 			SetMode(CONST_PLAYOUT_MODE);
 			SetPlayout(1);
 			InitializeSearchSetting();
@@ -149,8 +146,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "test") test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
-	if (options["Mate_Root_Search"] > 0)
-		threads.main()->waitForSearchFinished();
 	if (th.joinable())
 		th.join();
 }
@@ -439,9 +434,7 @@ void make_book(std::istringstream& ssCmd) {
 	// 初期局面
 	Searcher s;
 	s.init();
-	const std::string options[] = { "name Threads value 1",
-		"name MultiPV value 1",
-		"name USI_Hash value 256",
+	const std::string options[] = {
 		"name OwnBook value false",
 		"name Max_Random_Score_Diff value 0" };
 	for (auto& str : options) {
@@ -460,7 +453,7 @@ void make_book(std::istringstream& ssCmd) {
 		read_book(bookFileName, bookKeys);
 
 		// 探索
-		Position pos(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
+		Position pos(DefaultStartPositionSFEN, s.thisptr);
 		make_book_inner(pos, bookKeys, outMap, count, 0, true, depth);
 		int black_num = outMap.size();
 
@@ -475,7 +468,7 @@ void make_book(std::istringstream& ssCmd) {
 
 		// 後手番
 		// 探索
-		pos.set(DefaultStartPositionSFEN, s.threads.main());
+		pos.set(DefaultStartPositionSFEN);
 		make_book_inner(pos, bookKeys, outMap, count, 0, false, depth + 1);
 		int white_num = outMap.size() - black_num;
 

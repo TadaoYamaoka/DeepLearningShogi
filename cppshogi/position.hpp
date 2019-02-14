@@ -27,7 +27,6 @@
 #include "hand.hpp"
 #include "bitboard.hpp"
 #include "pieceScore.hpp"
-#include "evalList.hpp"
 #include <stack>
 #include <memory>
 
@@ -50,21 +49,8 @@ struct CheckInfo {
     Bitboard checkBB[PieceTypeNum];
 };
 
-struct ChangedListPair {
-    EvalIndex newlist[2];
-    EvalIndex oldlist[2];
-};
-
-struct ChangedLists {
-    ChangedListPair clistpair[2]; // 一手で動く駒は最大2つ。(動く駒、取られる駒)
-    int listindex[2]; // 一手で動く駒は最大2つ。(動く駒、取られる駒)
-    size_t size;
-};
-
 struct StateInfo {
     // Copied when making a move
-    Score material; // stocfish の npMaterial は 先手、後手の点数を配列で持っているけど、
-                    // 特に分ける必要は無い気がする。
     int pliesFromNull;
     int continuousCheck[ColorNum]; // Stockfish には無い。
 
@@ -77,7 +63,6 @@ struct StateInfo {
 #endif
     StateInfo* previous;
     Hand hand; // 手番側の持ち駒
-    ChangedLists cl;
 
     Key key() const { return boardKey + handKey; }
 };
@@ -193,19 +178,15 @@ public:
     Position() {}
     explicit Position(Searcher* s) : searcher_(s) {}
     Position(const Position& pos) { *this = pos; }
-    Position(const Position& pos, Thread* th) {
-        *this = pos;
-        thisThread_ = th;
-    }
-    Position(const std::string& sfen, Thread* th, Searcher* s) {
-        set(sfen, th);
+    Position(const std::string& sfen, Searcher* s) {
+        set(sfen);
         setSearcher(s);
     }
 
     Position& operator = (const Position& pos);
-    void set(const std::string& sfen, Thread* th);
-    bool set(const HuffmanCodedPos& hcp, Thread* th);
-    void set(std::mt19937& mt, Thread* th);
+    void set(const std::string& sfen);
+    bool set(const HuffmanCodedPos& hcp);
+    void set(std::mt19937& mt);
 
     Bitboard bbOf(const PieceType pt) const                                            { return byTypeBB_[pt]; }
     Bitboard bbOf(const Color c) const                                                 { return byColorBB_[c]; }
@@ -266,9 +247,6 @@ public:
     Bitboard prevCheckersBB() const { return st_->previous->checkersBB; }
     // 王手が掛かっているか。
     bool inCheck() const            { return checkersBB().isAny(); }
-
-    Score material() const { return st_->material; }
-    Score materialDiff() const { return st_->material - st_->previous->material; }
 
     FORCE_INLINE Square kingSquare(const Color c) const {
         assert(kingSquare_[c] == bbOf(King, c).constFirstOneFromSQ11());
@@ -334,10 +312,6 @@ public:
     void doMove(const Move move, StateInfo& newSt);
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
     void undoMove(const Move move);
-    template <bool DO> void doNullMove(StateInfo& backUpSt);
-
-    Score see(const Move move, const int asymmThreshold = 0) const;
-    Score seeSign(const Move move) const;
 
     template <Color US> Move mateMoveIn1Ply();
     Move mateMoveIn1Ply();
@@ -364,20 +338,7 @@ public:
     void setNodesSearched(const s64 n) { nodes_ = n; }
     RepetitionType isDraw(const int checkMaxPly = std::numeric_limits<int>::max()) const;
 
-    Thread* thisThread() const { return thisThread_; }
-
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
-
-    static constexpr int nlist() { return EvalList::ListSize; }
-    EvalIndex list0(const int index) const { return evalList_.list0[index]; }
-    EvalIndex list1(const int index) const { return evalList_.list1[index]; }
-    int squareHandToList(const Square sq) const { return evalList_.squareHandToList[sq]; }
-    Square listToSquareHand(const int i) const { return evalList_.listToSquareHand[i]; }
-    EvalIndex* plist0() { return &evalList_.list0[0]; }
-    EvalIndex* plist1() { return &evalList_.list1[0]; }
-    const EvalIndex* cplist0() const { return &evalList_.list0[0]; }
-    const EvalIndex* cplist1() const { return &evalList_.list1[0]; }
-    const ChangedLists& cl() const { return st_->cl; }
 
     const Searcher* csearcher() const { return searcher_; }
     Searcher* searcher() const { return searcher_; }
@@ -465,11 +426,6 @@ private:
         return result;
     }
 
-#if !defined NDEBUG
-    int debugSetEvalList() const;
-#endif
-    void setEvalList() { evalList_.set(*this); }
-
     Key computeBoardKey() const;
     Key computeHandKey() const;
     Key computeKey() const { return computeBoardKey() + computeHandKey(); }
@@ -494,13 +450,10 @@ private:
     Hand hand_[ColorNum];
     Color turn_;
 
-    EvalList evalList_;
-
     StateInfo startState_;
     StateInfo* st_;
     // 時間管理に使用する。
     Ply gamePly_;
-    Thread* thisThread_;
     s64 nodes_;
 
     Searcher* searcher_;

@@ -23,7 +23,6 @@
 #include "move.hpp"
 #include "mt64bit.hpp"
 #include "generateMoves.hpp"
-#include "tt.hpp"
 #include "search.hpp"
 
 Key Position::zobrist_[PieceTypeNum][SquareNum][ColorNum];
@@ -348,8 +347,6 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     newSt.previous = st_;
     st_ = &newSt;
 
-    st_->cl.size = 1;
-
     const Color us = turn();
     const Square to = move.to();
     const PieceType ptCaptured = move.cap();
@@ -360,23 +357,6 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         handKey -= zobHand(hpTo, us);
         boardKey += zobrist(ptTo, to, us);
-
-        prefetch(csearcher()->tt.firstEntry(boardKey + handKey));
-
-        const int handnum = hand(us).numOf(hpTo);
-        const int listIndex = evalList_.squareHandToList[HandPieceToSquareHand[us][hpTo] + handnum];
-        const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
-        st_->cl.listindex[0] = listIndex;
-        st_->cl.clistpair[0].oldlist[0] = evalList_.list0[listIndex];
-        st_->cl.clistpair[0].oldlist[1] = evalList_.list1[listIndex];
-
-        evalList_.list0[listIndex] = kppArray[pcTo         ] + (EvalIndex)to;
-        evalList_.list1[listIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
-        evalList_.listToSquareHand[listIndex] = to;
-        evalList_.squareHandToList[to] = listIndex;
-
-        st_->cl.clistpair[0].newlist[0] = evalList_.list0[listIndex];
-        st_->cl.clistpair[0].newlist[1] = evalList_.list1[listIndex];
 
         hand_[us].minusOne(hpTo);
         xorBBs(ptTo, to, us);
@@ -417,25 +397,7 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
             byColorBB_[them].xorBit(to);
 
             hand_[us].plusOne(hpCaptured);
-            const int toListIndex = evalList_.squareHandToList[to];
-            st_->cl.listindex[1] = toListIndex;
-            st_->cl.clistpair[1].oldlist[0] = evalList_.list0[toListIndex];
-            st_->cl.clistpair[1].oldlist[1] = evalList_.list1[toListIndex];
-            st_->cl.size = 2;
-
-            const int handnum = hand(us).numOf(hpCaptured);
-            evalList_.list0[toListIndex] = kppHandArray[us  ][hpCaptured] + handnum;
-            evalList_.list1[toListIndex] = kppHandArray[them][hpCaptured] + handnum;
-            const Square squarehand = HandPieceToSquareHand[us][hpCaptured] + handnum;
-            evalList_.listToSquareHand[toListIndex] = squarehand;
-            evalList_.squareHandToList[squarehand]  = toListIndex;
-
-            st_->cl.clistpair[1].newlist[0] = evalList_.list0[toListIndex];
-            st_->cl.clistpair[1].newlist[1] = evalList_.list1[toListIndex];
-
-            st_->material += (us == Black ? capturePieceScore(ptCaptured) : -capturePieceScore(ptCaptured));
         }
-        prefetch(csearcher()->tt.firstEntry(boardKey + handKey));
         // Occupied は to, from の位置のビットを操作するよりも、
         // Black と White の or を取る方が速いはず。
         byTypeBB_[Occupied] = bbOf(Black) | bbOf(White);
@@ -444,23 +406,7 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
             kingSquare_[us] = to;
         else {
             const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
-            const int fromListIndex = evalList_.squareHandToList[from];
-
-            st_->cl.listindex[0] = fromListIndex;
-            st_->cl.clistpair[0].oldlist[0] = evalList_.list0[fromListIndex];
-            st_->cl.clistpair[0].oldlist[1] = evalList_.list1[fromListIndex];
-
-            evalList_.list0[fromListIndex] = kppArray[pcTo         ] + (EvalIndex)to;
-            evalList_.list1[fromListIndex] = kppArray[inverse(pcTo)] + (EvalIndex)inverse(to);
-            evalList_.listToSquareHand[fromListIndex] = to;
-            evalList_.squareHandToList[to] = fromListIndex;
-
-            st_->cl.clistpair[0].newlist[0] = evalList_.list0[fromListIndex];
-            st_->cl.clistpair[0].newlist[1] = evalList_.list1[fromListIndex];
         }
-
-        if (move.isPromotion())
-            st_->material += (us == Black ? (pieceScore(ptTo) - pieceScore(ptFrom)) : -(pieceScore(ptTo) - pieceScore(ptFrom)));
 
         if (moveIsCheck) {
             // Direct checks
@@ -520,14 +466,6 @@ void Position::undoMove(const Move move) {
 
         const HandPiece hp = pieceTypeToHandPiece(ptTo);
         hand_[us].plusOne(hp);
-
-        const int toListIndex  = evalList_.squareHandToList[to];
-        const int handnum = hand(us).numOf(hp);
-        evalList_.list0[toListIndex] = kppHandArray[us  ][hp] + handnum;
-        evalList_.list1[toListIndex] = kppHandArray[them][hp] + handnum;
-        const Square squarehand = HandPieceToSquareHand[us][hp] + handnum;
-        evalList_.listToSquareHand[toListIndex] = squarehand;
-        evalList_.squareHandToList[squarehand]  = toListIndex;
     }
     else {
         const Square from = move.from();
@@ -537,14 +475,6 @@ void Position::undoMove(const Move move) {
 
         if (ptTo == King)
             kingSquare_[us] = from;
-        else {
-            const Piece pcFrom = colorAndPieceTypeToPiece(us, ptFrom);
-            const int toListIndex = evalList_.squareHandToList[to];
-            evalList_.list0[toListIndex] = kppArray[pcFrom         ] + (EvalIndex)from;
-            evalList_.list1[toListIndex] = kppArray[inverse(pcFrom)] + (EvalIndex)inverse(from);
-            evalList_.listToSquareHand[toListIndex] = from;
-            evalList_.squareHandToList[from] = toListIndex;
-        }
 
         if (ptCaptured) {
             // 駒を取ったとき
@@ -553,13 +483,6 @@ void Position::undoMove(const Move move) {
             const HandPiece hpCaptured = pieceTypeToHandPiece(ptCaptured);
             const Piece pcCaptured = colorAndPieceTypeToPiece(them, ptCaptured);
             piece_[to] = pcCaptured;
-
-            const int handnum = hand(us).numOf(hpCaptured);
-            const int toListIndex = evalList_.squareHandToList[HandPieceToSquareHand[us][hpCaptured] + handnum];
-            evalList_.list0[toListIndex] = kppArray[pcCaptured         ] + (EvalIndex)to;
-            evalList_.list1[toListIndex] = kppArray[inverse(pcCaptured)] + (EvalIndex)inverse(to);
-            evalList_.listToSquareHand[toListIndex] = to;
-            evalList_.squareHandToList[to] = toListIndex;
 
             hand_[us].minusOne(hpCaptured);
         }
@@ -643,85 +566,6 @@ namespace {
     {
         return King;
     }
-}
-
-Score Position::see(const Move move, const int asymmThreshold) const {
-    const Square to = move.to();
-    Square from;
-    PieceType ptCaptured;
-    Bitboard occ = occupiedBB();
-    Bitboard attackers;
-    Bitboard opponentAttackers;
-    Color turn = oppositeColor(this->turn());
-    Score swapList[32];
-    if (move.isDrop()) {
-        opponentAttackers = attackersTo(turn, to, occ);
-        if (!opponentAttackers)
-            return ScoreZero;
-        attackers = opponentAttackers | attackersTo(oppositeColor(turn), to, occ);
-        swapList[0] = ScoreZero;
-        ptCaptured = move.pieceTypeDropped();
-    }
-    else {
-        from = move.from();
-        occ.xorBit(from);
-        opponentAttackers = attackersTo(turn, to, occ);
-        if (!opponentAttackers) {
-            if (move.isPromotion()) {
-                const PieceType ptFrom = move.pieceTypeFrom();
-                return capturePieceScore(move.cap()) + promotePieceScore(ptFrom);
-            }
-            return capturePieceScore(move.cap());
-        }
-        attackers = opponentAttackers | attackersTo(oppositeColor(turn), to, occ);
-        swapList[0] = capturePieceScore(move.cap());
-        ptCaptured = move.pieceTypeFrom();
-        if (move.isPromotion()) {
-            const PieceType ptFrom = move.pieceTypeFrom();
-            swapList[0] += promotePieceScore(ptFrom);
-            ptCaptured += PTPromote;
-        }
-    }
-
-    int slIndex = 1;
-    do {
-        swapList[slIndex] = -swapList[slIndex - 1] + capturePieceScore(ptCaptured);
-
-        ptCaptured = nextAttacker<Pawn>(*this, to, opponentAttackers, occ, attackers, turn);
-
-        attackers &= occ;
-        ++slIndex;
-        turn = oppositeColor(turn);
-        opponentAttackers = attackers & bbOf(turn);
-
-        if (ptCaptured == King) {
-            if (opponentAttackers)
-                swapList[slIndex++] = CaptureKingScore;
-            break;
-        }
-    } while (opponentAttackers);
-
-    if (asymmThreshold) {
-        for (int i = 0; i < slIndex; i += 2) {
-            if (swapList[i] < asymmThreshold)
-                swapList[i] = -CaptureKingScore;
-        }
-    }
-
-    // nega max 的に駒の取り合いの点数を求める。
-    while (--slIndex)
-        swapList[slIndex-1] = std::min(-swapList[slIndex], swapList[slIndex-1]);
-    return swapList[0];
-}
-
-Score Position::seeSign(const Move move) const {
-    if (move.isCapture()) {
-        const PieceType ptFrom = move.pieceTypeFrom();
-        const Square to = move.to();
-        if (capturePieceScore(ptFrom) <= capturePieceScore(piece(to)))
-            return static_cast<Score>(1);
-    }
-    return see(move);
 }
 
 namespace {
@@ -2012,7 +1856,7 @@ Position& Position::operator = (const Position& pos) {
     return *this;
 }
 
-void Position::set(const std::string& sfen, Thread* th) {
+void Position::set(const std::string& sfen) {
     Piece promoteFlag = UnPromoted;
     std::istringstream ss(sfen);
     char token;
@@ -2081,17 +1925,14 @@ void Position::set(const std::string& sfen, Thread* th) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
-    setEvalList();
     findCheckers();
-    st_->material = computeMaterial();
-    thisThread_ = th;
 
     return;
 INCORRECT:
     std::cout << "incorrect SFEN string : " << sfen << std::endl;
 }
 
-bool Position::set(const HuffmanCodedPos& hcp, Thread* th) {
+bool Position::set(const HuffmanCodedPos& hcp) {
     Searcher* s = std::move(searcher_);
     clear();
     setSearcher(s);
@@ -2149,10 +1990,7 @@ bool Position::set(const HuffmanCodedPos& hcp, Thread* th) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
-    setEvalList();
     findCheckers();
-    st_->material = computeMaterial();
-    thisThread_ = th;
 
     return true;
 INCORRECT_HUFFMAN_CODE:
@@ -2161,7 +1999,7 @@ INCORRECT_HUFFMAN_CODE:
 }
 
 // ランダムな局面を作成する。
-void Position::set(std::mt19937& mt, Thread* th) {
+void Position::set(std::mt19937& mt) {
     Searcher* s = std::move(searcher_);
     clear();
     setSearcher(s);
@@ -2383,10 +2221,7 @@ void Position::set(std::mt19937& mt, Thread* th) {
     st_->handKey = computeHandKey();
     st_->hand = hand(turn());
 
-    setEvalList();
     findCheckers();
-    st_->material = computeMaterial();
-    thisThread_ = th;
 }
 
 bool Position::moveGivesCheck(const Move move) const {
