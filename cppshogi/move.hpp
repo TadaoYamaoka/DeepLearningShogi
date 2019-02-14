@@ -175,14 +175,9 @@ inline Move makeDropMove(const PieceType pt, const Square to) { return from2Move
 
 struct ExtMove {
     Move move;
-    int score;
 
 	operator Move() const { return move; }
 };
-
-// insertionSort() や std::sort() で必要
-inline bool operator < (const ExtMove& f, const ExtMove& s) { return f.score < s.score; }
-inline bool operator > (const ExtMove& f, const ExtMove& s) { return f.score > s.score; }
 
 // 汎用的な insertion sort. 要素数が少ない時、高速にソートできる。
 // 降順(大きいものが先頭付近に集まる)
@@ -204,14 +199,6 @@ template <typename T, bool UseSentinel = false> inline void insertionSort(T firs
             }
         }
     }
-}
-
-// 最も score の高い ExtMove のポインタを返す。
-// ExtMove の数が多いとかなり時間がかかるので、
-// 駒打ちを含むときに使用してはならない。
-inline Move pickBest(ExtMove* begin, ExtMove* end) {
-    std::swap(*begin, *std::max_element(begin, end));
-    return begin->move;
 }
 
 inline Move move16toMove(const Move move, const Position& pos) {

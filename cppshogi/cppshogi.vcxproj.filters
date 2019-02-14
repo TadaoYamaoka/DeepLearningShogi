@@ -48,31 +48,13 @@
     <ClCompile Include="square.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
-    <ClCompile Include="tt.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
     <ClCompile Include="generateMoves.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="search.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
-    <ClCompile Include="evalList.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
-    <ClCompile Include="evaluate.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
-    <ClCompile Include="thread.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
-    <ClCompile Include="timeManager.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
     <ClCompile Include="usi.cpp">
-      <Filter>ソース ファイル\apery</Filter>
-    </ClCompile>
-    <ClCompile Include="movePicker.cpp">
       <Filter>ソース ファイル\apery</Filter>
     </ClCompile>
     <ClCompile Include="common.cpp">
@@ -128,37 +110,22 @@
     <ClInclude Include="square.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="tt.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="generateMoves.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="search.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="evalList.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="evaluate.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="thread.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="timeManager.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="usi.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="movePicker.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="cppshogi.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="book.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="timeManager.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

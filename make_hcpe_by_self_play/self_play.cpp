@@ -2,10 +2,8 @@
 #include "position.hpp"
 #include "usi.hpp"
 #include "move.hpp"
-#include "movePicker.hpp"
 #include "generateMoves.hpp"
 #include "search.hpp"
-#include "tt.hpp"
 #include "book.hpp"
 
 #include <iostream>
@@ -215,7 +213,7 @@ public:
 		inputFileDist(0, entryNum - 1),
 		playout(0),
 		ply(0) {
-		pos_root = new Position(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
+		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
 	}
 	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash) {} // not use
 	~UCTSearcher() {
@@ -1088,8 +1086,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 {
 	s.init();
 	const std::string options[] = {
-		"name Threads value 1",
-		"name MultiPV value 1",
 		"name OwnBook value false",
 		"name Max_Random_Score_Diff value 0" };
 	for (auto& str : options) {

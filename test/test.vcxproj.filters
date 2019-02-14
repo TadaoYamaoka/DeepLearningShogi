@@ -33,12 +33,6 @@
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\evalList.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cppshogi\evaluate.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\generateMoves.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
@@ -49,9 +43,6 @@
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\move.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cppshogi\movePicker.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\mt64bit.cpp">
@@ -69,13 +60,7 @@
     <ClCompile Include="..\cppshogi\square.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\thread.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\timeManager.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cppshogi\tt.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\usi.cpp">
@@ -87,9 +72,6 @@
     <ClCompile Include="..\usi\mate.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\nn.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\npz.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
@@ -97,6 +79,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="..\usi\cudnn_dtype.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet10.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
   </ItemGroup>

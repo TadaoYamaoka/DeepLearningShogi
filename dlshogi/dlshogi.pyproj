@@ -53,9 +53,6 @@
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="value_network.py" />
     <Compile Include="policy_network.py" />
-    <Compile Include="train_rl_policy.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="usi.py">
       <SubType>Code</SubType>
     </Compile>

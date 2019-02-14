@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 
 	// 局面初期化
 	for (int i = 0; i < max_batch_size; i++) {
-		positions.emplace_back(DefaultStartPositionSFEN, s.threads.main(), s.thisptr);
+		positions.emplace_back(DefaultStartPositionSFEN, s.thisptr);
 		maxply.emplace_back(dist(mt));
 		int maxply2 = std::uniform_int_distribution<int>(8, maxply[i])(mt);
 		tmpply.emplace_back(maxply2);
@@ -175,7 +175,7 @@ int main(int argc, char** argv)
 
 			// 次のゲーム
 			if (move == Move::moveNone() || ply[idx] >= maxply[idx]) {
-				positions[idx].set(DefaultStartPositionSFEN, s.threads.main());
+				positions[idx].set(DefaultStartPositionSFEN);
 				maxply[idx] = dist(mt);
 				int maxply2 = std::uniform_int_distribution<int>(8, maxply[idx])(mt);
 				tmpply.emplace_back(maxply2);

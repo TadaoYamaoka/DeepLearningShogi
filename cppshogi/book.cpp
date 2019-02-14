@@ -23,7 +23,6 @@
 #include "position.hpp"
 #include "move.hpp"
 #include "usi.hpp"
-#include "thread.hpp"
 #include "search.hpp"
 
 MT64bit Book::mt64bit_; // 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
@@ -202,7 +201,7 @@ void makeBook(Position& pos, std::istringstream& ssCmd) {
             std::cout << "!!! header only !!!" << std::endl;
             return;
         }
-        pos.set(DefaultStartPositionSFEN, pos.searcher()->threads.main());
+        pos.set(DefaultStartPositionSFEN);
         StateListPtr states = StateListPtr(new std::deque<StateInfo>(1));
         while (!line.empty()) {
             const std::string moveStrCSA = line.substr(0, 6);
