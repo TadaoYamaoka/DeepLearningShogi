@@ -13,6 +13,11 @@ import shogi
 
 from dlshogi.common import *
 
+L2_WEIGHT_DECAY = 1e-4
+BATCH_NORM_DECAY = 0.9
+BATCH_NORM_EPSILON = 1e-5
+BN_AXIS = 1
+
 class Bias(Layer):
 
     def __init__(self, **kwargs):
@@ -39,12 +44,24 @@ class PolicyValueResnet():
         # ショートカット元
         shortcut = input_tensor
         # メイン側
-        x = BatchNormalization()(input_tensor)
+        x = BatchNormalization(axis=BN_AXIS,
+                               momentum=BATCH_NORM_DECAY,
+                               epsilon=BATCH_NORM_EPSILON)(input_tensor)
         x = Activation('relu')(x)
-        x = Conv2D(channles, (3, 3), padding='same', data_format='channels_first')(x)
-        x = BatchNormalization()(x)
+        x = Conv2D(channles, (3, 3), use_bias=False,
+                   padding='same',
+                   kernel_initializer='he_normal',
+                   kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
+                   data_format='channels_first')(x)
+        x = BatchNormalization(axis=BN_AXIS,
+                               momentum=BATCH_NORM_DECAY,
+                               epsilon=BATCH_NORM_EPSILON)(x)
         x = Activation('relu')(x)
-        x = Conv2D(channles, (3, 3), padding='same', data_format='channels_first')(x)
+        x = Conv2D(channles, (3, 3), use_bias=False,
+                   padding='same',
+                   kernel_initializer='he_normal',
+                   kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
+                   data_format='channels_first')(x)
         # 結合
         return Add()([x, shortcut])
     
@@ -53,7 +70,11 @@ class PolicyValueResnet():
         main_input = Input(shape=(104, 9, 9))
         
         # layer1
-        x = Conv2D(k, (3, 3), padding='same', data_format='channels_first')(main_input)
+        x = Conv2D(k, (3, 3), use_bias=False,
+                   padding='same',
+                   kernel_initializer='he_normal',
+                   kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
+                   data_format='channels_first')(main_input)
         
         # layer2 - 12
         for i in range(11):
@@ -61,14 +82,19 @@ class PolicyValueResnet():
         
         # policy network
         # layer13
-        ph = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
+        ph = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), use_bias=False,
+                    kernel_initializer='he_normal',
+                    kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
+                    data_format='channels_first')(x)
         ph = Flatten()(ph)
-        ph_notop = Bias(name = 'policy_head_notop')(ph)
-        ph = Activation('softmax', name = 'policy_head')(ph_notop)
+        ph = Bias(name = 'policy_head')(ph)
 
         # value network
         # layer13
-        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
+        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), use_bias=False,
+                    kernel_initializer='he_normal',
+                    kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
+                    data_format='channels_first')(x)
         vh = Flatten()(vh)
         vh = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(vh)
         vh = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(vh)
