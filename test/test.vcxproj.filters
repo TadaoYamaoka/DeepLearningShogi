@@ -81,6 +81,12 @@
     <ClCompile Include="..\usi\nn_wideresnet10.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\nn_fused_wideresnet10.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet15.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

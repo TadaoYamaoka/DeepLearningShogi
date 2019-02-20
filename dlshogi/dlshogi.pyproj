@@ -29,6 +29,7 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="fused_policy_value_network.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="predict.py" />
     <Compile Include="sigmoid_cross_entropy2.py" />
@@ -40,6 +41,7 @@
     </Compile>
     <Compile Include="train_rl_policy_with_value.py" />
     <Compile Include="test_policy_value_using_hcpe.py" />
+    <Compile Include="test_fused_policy_alue_network.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
     <Compile Include="train_rl_policy_using_hcpe.py" />
@@ -47,6 +49,7 @@
     <Compile Include="train_sl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="train_val_network_bootstrap.py" />
     <Compile Include="train_val_network.py" />
+    <Compile Include="fuse_policy_value_network.py" />
     <Compile Include="transfer_policy_to_value.py">
       <SubType>Code</SubType>
     </Compile>
