@@ -6,9 +6,12 @@
 
 using namespace std;
 
-#if 0
+#if 1
 // GPUベンチマーク
 #include "nn.h"
+#include "nn_wideresnet10.h"
+#include "nn_fused_wideresnet10.h"
+#include "nn_wideresnet15.h"
 
 static void  showDevices(int i)
 {
@@ -30,7 +33,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	char* model_path = argv[1];
+	std::string model_path(argv[1]);
 	char* hcpe_path = argv[2];
 	int num = stoi(argv[3]);
 	int gpu_id = stoi(argv[4]);
@@ -57,8 +60,18 @@ int main(int argc, char* argv[]) {
 
 	showDevices(gpu_id);
 	cudaSetDevice(gpu_id);
-	NN nn(batchsize);
-	nn.load_model(model_path);
+	std::unique_ptr<NN> nn;
+	if (model_path.find("fused_wideresnet10") != std::string::npos) {
+		nn.reset((NN*)new NNFusedWideResnet10(batchsize));
+	}
+	else if (model_path.find("wideresnet15") != std::string::npos) {
+		nn.reset((NN*)new NNWideResnet15(batchsize));
+	}
+	else {
+		nn.reset((NN*)new NNWideResnet10(batchsize));
+	}
+
+	nn->load_model(model_path.c_str());
 
 	features1_t* features1;
 	features2_t* features2;
@@ -99,14 +112,14 @@ int main(int argc, char* argv[]) {
 			ifs.seekg(inputFileDist(mt_64) * sizeof(HuffmanCodedPosAndEval), std::ios_base::beg);
 			ifs.read(reinterpret_cast<char*>(&hcpe[i]), sizeof(HuffmanCodedPosAndEval));
 
-			pos.set(hcpe[i].hcp, nullptr);
+			pos.set(hcpe[i].hcp);
 			color[i] = pos.turn();
 			make_input_features(pos, features1 + i, features2 + i);
 		}
 
 		// 推論
 		auto start = std::chrono::system_clock::now();
-		nn.foward(batchsize, features1, features2, (DType*)y1, y2);
+		nn->foward(batchsize, features1, features2, (DType*)y1, y2);
 		auto end = std::chrono::system_clock::now();
 
 		// 時間集計

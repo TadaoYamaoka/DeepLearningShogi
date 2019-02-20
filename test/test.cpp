@@ -165,7 +165,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索計測
 int main() {
