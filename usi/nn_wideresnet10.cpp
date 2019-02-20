@@ -152,6 +152,7 @@ void NNWideResnet10::load_model(const char* filepath)
 	conv22.set_param(params["l22/W.npy"].data);
 	bias22.set_bias(params["l22_2/b.npy"].data);
 	conv22v.set_param(params["l22_v/W.npy"].data);
+	bias22v.set_bias(params["l22_v/b.npy"].data);
 	bn22v.set_param(params["norm22_v/gamma.npy"].data, params["norm22_v/beta.npy"].data, params["norm22_v/avg_mean.npy"].data, params["norm22_v/avg_var.npy"].data);
 	l23v.set_param(params["l23_v/W.npy"].data);
 	bias23v.set_bias(params["l23_v/b.npy"].data);
