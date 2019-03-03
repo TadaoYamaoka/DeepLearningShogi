@@ -247,7 +247,6 @@ private:
 	GameResult gameResult;
 	unsigned int current_root;
 
-	std::unordered_set<Key> keyHash;
 	StateInfo states[MAX_PLY + 1];
 	std::vector<HuffmanCodedPosAndEval> hcpevec;
 	uniform_int_distribution<s64> inputFileDist;
@@ -894,7 +893,6 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 					randomMove(*pos_root, *mt); // 教師局面を増やす為、取得した元局面からランダムに動かしておく。
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
-				keyHash.clear();
 				hcpevec.clear();
 			}
 
