@@ -7,6 +7,7 @@ from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Input, Activation, Flatten
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import Dense
+from tensorflow.keras import regularizers
 
 import shogi
 
@@ -27,7 +28,7 @@ class Bias(Layer):
     def call(self, x):
         return x + self.W
 
-class ValueNetwork():
+class PolicyValueNetwork():
     def __init__(self):
         self.model = self._build_model()
 
@@ -50,17 +51,23 @@ class ValueNetwork():
                 x = BatchNormalization(axis=1)(x)
             x = Activation('relu')(x)
         
+        # policy network
+        # layer13
+        ph = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
+        ph = Flatten()(ph)
+        ph = Bias(name = 'policy_head')(ph)
+
         # value network
         # layer13
-        x = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=True)(x)
-        x = Flatten()(x)
-        x = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(x)
-        x = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(x)
-        
-        model = Model(inputs=main_input, outputs=x)
+        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=True)(x)
+        vh = Flatten()(vh)
+        vh = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(vh)
+        vh = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(vh)
+
+        model = Model(inputs=main_input, outputs=[ph, vh])
         
         return model
 
 if __name__ == '__main__':
-    network = ValueNetwork()
+    network = PolicyValueNetwork()
     model = network.model

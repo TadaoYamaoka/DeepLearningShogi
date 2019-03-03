@@ -13,6 +13,11 @@ import shogi
 
 from dlshogi.common import *
 
+L2_WEIGHT_DECAY = 1e-4
+BATCH_NORM_DECAY = 0.9
+BATCH_NORM_EPSILON = 1e-5
+BN_AXIS = 1
+
 class Bias(Layer):
 
     def __init__(self, **kwargs):
@@ -86,7 +91,7 @@ class PolicyValueResnet():
 
         # value network
         # layer13
-        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), use_bias=False,
+        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), use_bias=True,
                     kernel_initializer='he_normal',
                     kernel_regularizer=regularizers.l2(L2_WEIGHT_DECAY),
                     data_format='channels_first')(x)

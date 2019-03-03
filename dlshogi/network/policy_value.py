@@ -60,7 +60,7 @@ class PolicyValueNetwork():
 
         # value network
         # layer13
-        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=False)(x)
+        vh = Conv2D(MOVE_DIRECTION_LABEL_NUM, (1, 1), data_format='channels_first', use_bias=True)(x)
         vh = Flatten()(vh)
         vh = Dense(units=256, activation='relu', input_dim=NUM_CLASSES)(vh)
         vh = Dense(units=1, activation="tanh", input_dim=256, name = 'value_head')(vh)
