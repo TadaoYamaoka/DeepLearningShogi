@@ -1047,6 +1047,14 @@ void UCTSearcher::NextStep()
 		// 着手
 		pos_root->doMove(best_move, states[ply]);
 
+		// 千日手の場合引き分け
+		if (pos_root->isDraw() == RepetitionDraw) {
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} draw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+			gameResult = Draw;
+			NextGame();
+			return;
+		}
+
 		// 次の手番
 		playout = 0;
 		ply++;
