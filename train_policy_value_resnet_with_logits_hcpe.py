@@ -43,12 +43,12 @@ logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%
 logging.debug('read kifu start')
 # positions_train = read_kifu(args.train_kifu_list)
 # positions_test = read_kifu(args.test_kifu_list)
-positions_train = read_kifu_from_hcpe('./data/hcpe/elmo_teacher_depth8_uniq-001')
-positions_test = read_kifu_from_hcpe('./data/hcpe/elmo_teacher_depth8_uniq-test')
-# with open('./data/pickle/positions_train.pickle', mode='rb') as f:
-#     positions_train = pickle.load(f)
-# with open('./data/pickle/positions_test.pickle', mode='rb') as f:
-#     positions_test = pickle.load(f)
+# positions_train = read_kifu_from_hcpe('./data/hcpe/elmo_teacher_depth8_uniq-001')
+# positions_test = read_kifu_from_hcpe('./data/hcpe/elmo_teacher_depth8_uniq-test')
+with open('./data/pickle/positions_train.pickle', mode='rb') as f:
+    positions_train = pickle.load(f)
+with open('./data/pickle/positions_test.pickle', mode='rb') as f:
+    positions_test = pickle.load(f)
 logging.debug('read kifu end')
 
 logging.info('train position num = {}'.format(len(positions_train)))
