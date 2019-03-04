@@ -326,7 +326,7 @@ def objective(trial):
                             mate_p = info.find('mate ')
                             if mate_p > 0:
                                 is_resign = True
-                                if info[mate_p + 5] == '+':
+                                if info[mate_p + 5] != '-':
                                     board.push_usi(move_usi)
                                 break
                         if move_usi == 'resign':
