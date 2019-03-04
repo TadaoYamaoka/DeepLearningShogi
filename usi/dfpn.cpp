@@ -146,12 +146,25 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 	// ŒÃ‚¢ƒGƒ“ƒgƒŠ‚ð‚Â‚Ô‚·
 	TTEntry* best_entry = nullptr;
 	uint32_t best_num_searched = UINT_MAX;
+	TTEntry* best_entry_include_mate = nullptr;
+	uint32_t best_num_searched_include_mate = UINT_MAX;
 	for (auto& entry : entries.entries) {
-		if (best_num_searched > entry.num_searched && entry.pn != 0) {
-			best_entry = &entry;
-			best_num_searched = entry.num_searched;
+		if (entry.pn != 0) {
+			if (best_num_searched > entry.num_searched) {
+				best_entry = &entry;
+				best_num_searched = entry.num_searched;
+			}
+		}
+		else {
+			if (best_num_searched_include_mate > entry.num_searched) {
+				best_entry_include_mate = &entry;
+				best_num_searched_include_mate = entry.num_searched;
+			}
 		}
 	}
+	if (best_entry == nullptr)
+		best_entry = best_entry_include_mate;
+
 	best_entry->hash_high = hash_high;
 	best_entry->hand = hand;
 	best_entry->depth = depth;

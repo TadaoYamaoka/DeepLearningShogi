@@ -244,6 +244,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
+    <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn_fused_wideresnet10.cpp" />
     <ClCompile Include="..\usi\nn_wideresnet10.cpp" />
