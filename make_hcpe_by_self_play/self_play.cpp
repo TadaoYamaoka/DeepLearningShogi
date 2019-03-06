@@ -126,6 +126,7 @@ struct MateSearchEntry {
 	Position *pos;
 	enum State { RUNING, NOMATE, WIN, LOSE };
 	atomic<State> status;
+	Move move;
 };
 
 Searcher s;
@@ -164,6 +165,9 @@ public:
 	}
 	MateSearchEntry::State GetMateSearchStatus(const int id) {
 		return mate_search_slot[id].status;
+	}
+	Move GetMateSearchMove(const int id) {
+		return mate_search_slot[id].move;
 	}
 	void MateSearch();
 
@@ -230,6 +234,17 @@ public:
 
 private:
 	void NextGame();
+
+	// 局面追加
+	void AddTeacher(s16 eval, Move move) {
+		hcpevec.emplace_back(HuffmanCodedPosAndEval());
+		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
+		hcpe.hcp = pos_root->toHuffmanCodedPos();
+		const Color rootTurn = pos_root->turn();
+		hcpe.eval = eval;
+		hcpe.bestMove16 = static_cast<u16>(move.value());
+		idx++;
+	}
 
 	UCTSearcherGroup* grp;
 	int id;
@@ -443,6 +458,8 @@ void UCTSearcherGroup::MateSearch()
 				bool mate = dfpn.dfpn(pos_copy);
 				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
 				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
+				if (mate)
+					mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
 			}
 			else {
 				// 自玉に王手がかかっている
@@ -958,10 +975,17 @@ void UCTSearcher::NextStep()
 			// 詰みの場合
 			switch (mate_status) {
 			case MateSearchEntry::WIN:
+			{
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate win", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+
+				// 局面追加（初期局面は除く）
+				if (ply > 1)
+					AddTeacher(30000, grp->GetMateSearchMove(id));
+
 				NextGame();
 				return;
+			}
 			case MateSearchEntry::LOSE:
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate lose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 				gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
@@ -987,6 +1011,11 @@ void UCTSearcher::NextStep()
 			case MateSearchEntry::WIN:
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} mate win", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+
+				// 局面追加（初期局面は除く）
+				if (ply > 1)
+					AddTeacher(30000, grp->GetMateSearchMove(id));
+
 				NextGame();
 				return;
 			case MateSearchEntry::LOSE:
@@ -1029,18 +1058,14 @@ void UCTSearcher::NextStep()
 		}
 
 		// 局面追加
-		hcpevec.emplace_back(HuffmanCodedPosAndEval());
-		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
-		hcpe.hcp = pos_root->toHuffmanCodedPos();
-		const Color rootTurn = pos_root->turn();
+		s16 eval;
 		if (best_wp == 1.0f)
-			hcpe.eval = 30000;
+			eval = 30000;
 		else if (best_wp == 0.0f)
-			hcpe.eval = -30000;
+			eval = -30000;
 		else
-			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-		hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
-		idx++;
+			eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+		AddTeacher(eval, uct_child[select_index].move);
 
 		// 一定の手数以上で引き分け
 		if (ply >= MAX_PLY) {
