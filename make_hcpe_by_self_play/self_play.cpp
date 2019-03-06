@@ -1033,7 +1033,12 @@ void UCTSearcher::NextStep()
 		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
 		hcpe.hcp = pos_root->toHuffmanCodedPos();
 		const Color rootTurn = pos_root->turn();
-		hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+		if (best_wp == 1.0f)
+			hcpe.eval = 30000;
+		else if (best_wp == 0.0f)
+			hcpe.eval = -30000;
+		else
+			hcpe.eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 		hcpe.bestMove16 = static_cast<u16>(uct_child[select_index].move.value());
 		idx++;
 
