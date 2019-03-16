@@ -8,6 +8,7 @@ from tensorflow.keras.layers import Input, Activation, Flatten
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import load_model, model_from_json
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import SGD
 
@@ -76,6 +77,13 @@ def categorical_crossentropy(y_true, y_pred):
 def categorical_accuracy(y_true, y_pred):
     return tf.keras.metrics.categorical_accuracy(y_true, tf.nn.softmax(y_pred))
 
+def step_decay(epoch):
+    x = 0.001
+    if epoch >= 2: x /= 5.0
+    if epoch >= 4: x /= 5.0
+    if epoch >= 6: x /= 5.0
+    return x
+
 if not os.path.isdir(args.model):
     os.mkdir(args.model)
 
@@ -105,14 +113,13 @@ model.compile(loss={'policy_head': categorical_crossentropy, 'value_head': 'mean
               loss_weights={'policy_head': 0.5, 'value_head': 0.5},
               metrics=['accuracy', categorical_accuracy])
 
-checkpoint_path = args.model + "/model_policy_value_resnet_with_logits-best.hdf5"
-checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
+decay = LearningRateScheduler(step_decay, verbose=1)
 
 logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
           epochs=args.epoch,
           validation_data=datagen(positions_test), validation_steps=int(len(positions_test) / args.batchsize),
-          callbacks=[checkpoint])
+          callbacks=[checkpoint, decay])
 logging.info('Training end')
 
 model_path = args.model + "/model_policy_value_resnet_with_logits-final.hdf5"
