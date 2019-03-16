@@ -937,21 +937,19 @@ UCTSearcher::ParallelUctSearch()
 			EvalNode();
 
 		// バックアップ
-		if (trajectories_batch.size() > 0) {
-			float result = 0.0f;
-			for (auto& trajectories : trajectories_batch) {
-				for (int i = trajectories.size() - 1; i >= 0; i--) {
-					pair<unsigned int, unsigned int>& current_next = trajectories[i];
-					const unsigned int current = current_next.first;
-					const unsigned int next_index = current_next.second;
-					child_node_t* uct_child = uct_node[current].child;
-					if ((size_t)i == trajectories.size() - 1) {
-						const unsigned int child_index = uct_child[next_index].index;
-						result = 1.0f - uct_node[child_index].value_win;
-					}
-					UpdateResult(&uct_child[next_index], result, current);
-					result = 1.0f - result;
+		float result = 0.0f;
+		for (auto& trajectories : trajectories_batch) {
+			for (int i = trajectories.size() - 1; i >= 0; i--) {
+				pair<unsigned int, unsigned int>& current_next = trajectories[i];
+				const unsigned int current = current_next.first;
+				const unsigned int next_index = current_next.second;
+				child_node_t* uct_child = uct_node[current].child;
+				if ((size_t)i == trajectories.size() - 1) {
+					const unsigned int child_index = uct_child[next_index].index;
+					result = 1.0f - uct_node[child_index].value_win;
 				}
+				UpdateResult(&uct_child[next_index], result, current);
+				result = 1.0f - result;
 			}
 		}
 
