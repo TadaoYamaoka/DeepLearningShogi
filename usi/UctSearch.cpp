@@ -718,7 +718,8 @@ ExpandRoot(const Position *pos)
 		uct_node[index].move_count = 0;
 		uct_node[index].win = 0;
 		uct_node[index].child_num = 0;
-		uct_node[index].evaled = 0;
+		uct_node[index].evaled = false;
+		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
 
 		uct_child = uct_node[index].child;
@@ -762,7 +763,8 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
-	uct_node[index].evaled = 0;
+	uct_node[index].evaled = false;
+	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
 	uct_child = uct_node[index].child;
 
@@ -892,7 +894,7 @@ UCTSearcher::ParallelUctSearch()
 
 	// ルートノードを評価
 	LOCK_EXPAND;
-	if (uct_node[current_root].evaled == 0) {
+	if (!uct_node[current_root].evaled) {
 		current_policy_value_batch_index = 0;
 		QueuingNode(pos_root, current_root);
 		EvalNode();
@@ -930,11 +932,12 @@ UCTSearcher::ParallelUctSearch()
 			}
 		}
 
-		if (trajectories_batch.size() > 0) {
-			// 評価
+		// 評価
+		if (current_policy_value_batch_index > 0)
 			EvalNode();
 
-			// バックアップ
+		// バックアップ
+		if (trajectories_batch.size() > 0) {
 			float result = 0.0f;
 			for (auto& trajectories : trajectories_batch) {
 				for (int i = trajectories.size() - 1; i >= 0; i--) {
@@ -984,7 +987,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	}
 
 	// 千日手チェック
-	if (uct_node[current].evaled == 2) {
+	if (uct_node[current].draw) {
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionDraw: return 0.5f;
@@ -997,7 +1000,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	}
 
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (uct_node[current].evaled == 0)
+	if (!uct_node[current].evaled)
 		return DISCARDED;
 
 	float result;
@@ -1033,14 +1036,13 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		UNLOCK_NODE(current);
 
 		// 合流検知
-		if (uct_node[child_index].evaled != 0) {
+		if (uct_node[child_index].evaled) {
 			// 手番を入れ替えて1手深く読む
 			result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories);
 		}
 		else if (uct_node[child_index].child_num == 0) {
 			// 詰み
 			uct_node[child_index].value_win = VALUE_LOSE;
-			uct_node[child_index].evaled = 1;
 			result = 1.0f;
 		}
 		else {
@@ -1058,7 +1060,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 
 			// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
 			if (isDraw != 0) {
-				uct_node[child_index].evaled = 2;
+				uct_node[child_index].draw = true;
 				if (isDraw == 1) {
 					result = 0.0f;
 				}
@@ -1068,7 +1070,8 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 				else {
 					result = 0.5f;
 				}
-
+				// 経路が異なる場合にNNの計算が必要なためキューに追加する
+				QueuingNode(pos, child_index);
 			}
 			else {
 				// 詰みチェック
@@ -1330,7 +1333,7 @@ void UCTSearcher::EvalNode() {
 #else
 		uct_node[index].value_win = *value;
 #endif
-		uct_node[index].evaled = 1;
+		uct_node[index].evaled = true;
 		UNLOCK_NODE(index);
 	}
 }

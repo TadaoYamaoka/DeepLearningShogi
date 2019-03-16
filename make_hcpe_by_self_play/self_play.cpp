@@ -83,7 +83,8 @@ struct child_node_t {
 struct uct_node_t {
 	int move_count;
 	float win;
-	std::atomic<int> evaled;            // 0:未評価 1:評価済 2:千日手の可能性あり
+	bool evaled;      // 評価済か
+	bool draw;        // 千日手の可能性あり
 	float value_win;
 	int child_num;                      // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
@@ -224,7 +225,7 @@ public:
 		delete pos_root;
 	}
 
-	float UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories);
+	float UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued);
 	int SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position *pos);
 	unsigned int ExpandNode(Position *pos, const int depth);
@@ -477,7 +478,7 @@ void UCTSearcherGroup::MateSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories)
+UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued)
 {
 	// 詰みのチェック
 	if (uct_node[current].child_num == 0) {
@@ -493,7 +494,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 	}
 
 	// 千日手チェック
-	if (uct_node[current].evaled == 2) {
+	if (uct_node[current].draw) {
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionDraw: return 0.5f;
@@ -527,14 +528,13 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 合流検知
-		if (uct_node[child_index].evaled != 0) {
+		if (uct_node[child_index].evaled) {
 			// 手番を入れ替えて1手深く読む
-			result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories);
+			result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories, queued);
 		}
 		else if (uct_node[child_index].child_num == 0) {
 			// 詰み
 			uct_node[child_index].value_win = VALUE_LOSE;
-			uct_node[child_index].evaled = 1;
 			result = 1.0f;
 		}
 		else {
@@ -552,7 +552,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 
 			// 千日手の場合、ValueNetの値を使用しない（経路によって判定が異なるため上書きはしない）
 			if (isDraw != 0) {
-				uct_node[child_index].evaled = 2;
+				uct_node[child_index].draw = true;
 				if (isDraw == 1) {
 					result = 0.0f;
 				}
@@ -562,7 +562,9 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				else {
 					result = 0.5f;
 				}
-
+				// 経路が異なる場合にNNの計算が必要なためキューに追加する
+				grp->QueuingNode(pos, child_index);
+				queued = true;
 			}
 			else {
 				// 詰みチェック(ValueNet計算中にチェック)
@@ -595,6 +597,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				else {
 					// ノードをキューに追加
 					grp->QueuingNode(pos, child_index);
+					queued = true;
 					return QUEUING;
 				}
 			}
@@ -602,7 +605,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 	}
 	else {
 		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories);
+		result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories, queued);
 	}
 
 	if (result == QUEUING)
@@ -728,7 +731,8 @@ UCTSearcher::ExpandRoot(const Position *pos)
 		uct_node[index].move_count = 0;
 		uct_node[index].win = 0;
 		uct_node[index].child_num = 0;
-		uct_node[index].evaled = 0;
+		uct_node[index].evaled = false;
+		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
 
 		uct_child = uct_node[index].child;
@@ -769,7 +773,8 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
-	uct_node[index].evaled = 0;
+	uct_node[index].evaled = false;
+	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
 	uct_child = uct_node[index].child;
 
@@ -883,7 +888,7 @@ void UCTSearcherGroup::EvalNode() {
 #else
 		uct_node[index].value_win = *value;
 #endif
-		uct_node[index].evaled = 1;
+		uct_node[index].evaled = true;
 	}
 }
 
@@ -955,8 +960,9 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 		// 盤面のコピー
 		Position pos_copy(*pos_root);
 		// プレイアウト
-		const float result = UctSearch(&pos_copy, current_root, 0, trajectories);
-		if (result != QUEUING) {
+		bool queued = false;
+		UctSearch(&pos_copy, current_root, 0, trajectories, queued);
+		if (!queued) {
 			NextStep();
 			continue;
 		}
