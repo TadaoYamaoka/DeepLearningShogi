@@ -46,7 +46,8 @@ struct child_node_t {
 struct uct_node_t {
 	std::atomic<int> move_count;
 	std::atomic<float> win;
-	std::atomic<int> evaled;            // 0:未評価 1:評価済 2:千日手の可能性あり
+	std::atomic<bool> evaled;      // 評価済か
+	std::atomic<bool> draw;        // 千日手の可能性あり
 	std::atomic<float> value_win;
 	int child_num;                      // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
