@@ -99,14 +99,6 @@ if args.use_tpu:
 else:
     optimizer = SGD(lr=0.001, momentum=0.9)
 
-model.compile(loss={'policy_head': categorical_crossentropy, 'value_head': 'mean_squared_error'},
-              optimizer=optimizer,
-              loss_weights={'policy_head': 0.5, 'value_head': 0.5},
-              metrics=['accuracy', categorical_accuracy])
-
-checkpoint_path = args.model + "/model_policy_value_resnet_with_logits-best.hdf5"
-checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
-
 if args.use_tpu:
     # TPU
     import tensorflow as tf
@@ -122,6 +114,8 @@ model.compile(loss={'policy_head': categorical_crossentropy, 'value_head': 'mean
               metrics=['accuracy', categorical_accuracy])
 
 decay = LearningRateScheduler(step_decay, verbose=1)
+checkpoint_path = args.model + "/model_policy_value_resnet_with_logits-best.hdf5"
+checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True)
 
 logging.info('Training start')
 model.fit_generator(datagen(positions_train), int(len(positions_train) / args.batchsize),
