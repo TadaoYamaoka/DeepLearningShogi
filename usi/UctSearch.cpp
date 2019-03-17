@@ -933,8 +933,7 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// 評価
-		if (current_policy_value_batch_index > 0)
-			EvalNode();
+		EvalNode();
 
 		// バックアップ
 		float result = 0.0f;
@@ -1288,6 +1287,9 @@ void SetModelPath(const std::string path[max_gpu])
 }
 
 void UCTSearcher::EvalNode() {
+	if (current_policy_value_batch_index == 0)
+		return;
+
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
