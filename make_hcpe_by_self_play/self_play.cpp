@@ -846,6 +846,9 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 
 // 局面の評価
 void UCTSearcherGroup::EvalNode() {
+	if (current_policy_value_batch_index == 0)
+		return;
+
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
