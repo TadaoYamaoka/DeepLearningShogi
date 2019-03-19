@@ -94,7 +94,10 @@ else:
     network = PolicyValueResnet()
     model = network.model
 
-optimizer = SGD(lr=0.001, momentum=0.9)
+if args.use_tpu:
+    optimizer = tf.train.MomentumOptimizer(learning_rate=0.001, momentum=0.9)
+else:
+    optimizer = SGD(lr=0.001, momentum=0.9)
 
 if args.use_tpu:
     # TPU
