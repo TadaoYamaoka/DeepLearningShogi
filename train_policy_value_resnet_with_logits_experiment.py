@@ -95,11 +95,6 @@ else:
     model = network.model
 
 if args.use_tpu:
-    optimizer = tf.train.MomentumOptimizer(learning_rate=0.001, momentum=0.9)
-else:
-    optimizer = SGD(lr=0.001, momentum=0.9)
-
-if args.use_tpu:
     # TPU
     import tensorflow as tf
     from tensorflow.contrib.tpu.python.tpu import keras_support
@@ -109,7 +104,7 @@ if args.use_tpu:
     model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
 
 model.compile(loss={'policy_head': categorical_crossentropy, 'value_head': 'mean_squared_error'},
-              optimizer=optimizer,
+              optimizer=tf.train.MomentumOptimizer(learning_rate=0.001, momentum=0.9),
               loss_weights={'policy_head': 0.5, 'value_head': 0.5},
               metrics=['accuracy', categorical_accuracy])
 
