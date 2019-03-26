@@ -16,7 +16,7 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
-void go_uct(Position& pos, std::istringstream& ssCmd);
+void go_uct(Position& pos, std::istringstream& ssCmd, const Move& lastMove);
 bool nyugyoku(const Position& pos);
 void make_book(std::istringstream& ssCmd);
 void mate_test(Position& pos, std::istringstream& ssCmd);
@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
+	Move lastMove;
 
 	std::string cmd;
 	std::string token;
@@ -74,12 +75,12 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 			if (th.joinable())
 				th.join();
-			th = std::thread([&pos, tmpCmd = ssCmd.str()] {
+			th = std::thread([&pos, tmpCmd = ssCmd.str(), &lastMove] {
 				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd);
+				go_uct(pos, ssCmd, lastMove);
 			});
 		}
-		else if (token == "position") setPosition(pos, ssCmd);
+		else if (token == "position") setPosition(pos, ssCmd, lastMove);
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
 		else if (token == "usi") std::cout << "id name " << std::string(options["Engine_Name"])
 			<< "\nid author Tadao Yamaoka"
@@ -150,7 +151,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd) {
+void go_uct(Position& pos, std::istringstream& ssCmd, const Move& lastMove) {
 	LimitsType limits;
 	std::string token;
 
@@ -183,6 +184,13 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	if (limits.time[pos.turn()] > 0)
 		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
 	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
+
+	// 確率的なPonder
+	if (limits.ponder && pos.searcher()->options["Stochastic_Ponder"]) {
+		// 相手局面から探索
+		pos.undoMove(lastMove);
+		pos.setStartPosPly(pos.gamePly() - 1);
+	}
 
 	// Book使用
 	static Book book;
