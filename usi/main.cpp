@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	Move lastMove;
+	static Move lastMove;
 
 	std::string cmd;
 	std::string token;
@@ -72,10 +72,16 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "ponderhit" || token == "go") {
 			if (token == "ponderhit") {
 				StopUctSearch();
+				// 確率的なPonderの場合
+				if (pos.searcher()->options["Stochastic_Ponder"]) {
+					// 局面を戻す
+					pos.doMove(lastMove, pos.searcher()->states->back());
+					pos.setStartPosPly(pos.gamePly() + 1);
+				}
 			}
 			if (th.joinable())
 				th.join();
-			th = std::thread([&pos, tmpCmd = ssCmd.str(), &lastMove] {
+			th = std::thread([&pos, tmpCmd = ssCmd.str()] {
 				std::istringstream ssCmd(tmpCmd);
 				go_uct(pos, ssCmd, lastMove);
 			});
