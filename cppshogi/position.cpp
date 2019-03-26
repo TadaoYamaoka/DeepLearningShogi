@@ -1729,21 +1729,6 @@ bool Position::isOK() const {
         }
     }
 
-    ++failedStep;
-    if (debugMaterial) {
-        if (material() != computeMaterial())
-            goto incorrect_position;
-    }
-
-    ++failedStep;
-    {
-        int i;
-        if ((i = debugSetEvalList()) != 0) {
-            std::cout << "debugSetEvalList() error = " << i << std::endl;
-            goto incorrect_position;
-        }
-    }
-
     prevKey = getKey();
     return true;
 
@@ -1753,13 +1738,6 @@ incorrect_position:
     std::cout << "currKey = " << getKey() << std::endl;
     print();
     return false;
-}
-#endif
-
-#if !defined NDEBUG
-int Position::debugSetEvalList() const {
-    // not implement
-    return 0;
 }
 #endif
 
