@@ -78,6 +78,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["OwnBook"]                     = USIOption(false);
     (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
+	(*this)["Stochastic_Ponder"]           = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["Draw_Ply"]                    = USIOption(256, 1, INT_MAX);
@@ -348,6 +349,37 @@ Move csaToMove(const Position& pos, const std::string& moveStr) {
 }
 
 void setPosition(Position& pos, std::istringstream& ssCmd) {
+	std::string token;
+	std::string sfen;
+
+	ssCmd >> token;
+
+	if (token == "startpos") {
+		sfen = DefaultStartPositionSFEN;
+		ssCmd >> token; // "moves" が入力されるはず。
+	}
+	else if (token == "sfen") {
+		while (ssCmd >> token && token != "moves")
+			sfen += token + " ";
+	}
+	else
+		return;
+
+	pos.set(sfen);
+	pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+	Ply currentPly = pos.gamePly();
+	while (ssCmd >> token) {
+		const Move move = usiToMove(pos, token);
+		if (!move) break;
+		pos.searcher()->states->push_back(StateInfo());
+		pos.doMove(move, pos.searcher()->states->back());
+		++currentPly;
+	}
+	pos.setStartPosPly(currentPly);
+}
+
+void setPosition(Position& pos, std::istringstream& ssCmd, Move& lastMove) {
     std::string token;
     std::string sfen;
 
@@ -374,6 +406,7 @@ void setPosition(Position& pos, std::istringstream& ssCmd) {
         pos.searcher()->states->push_back(StateInfo());
         pos.doMove(move, pos.searcher()->states->back());
         ++currentPly;
+		lastMove = move;
     }
     pos.setStartPosPly(currentPly);
 }
