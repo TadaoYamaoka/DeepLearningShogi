@@ -25,8 +25,6 @@
 #include "generateMoves.hpp"
 #include "search.hpp"
 #include "book.hpp"
-//#include "benchmark.hpp"
-//#include "learner.hpp"
 
 bool CaseInsensitiveLess::operator () (const std::string& s1, const std::string& s2) const {
     for (size_t i = 0; i < s1.size() && i < s2.size(); ++i) {
@@ -75,29 +73,14 @@ namespace {
 }
 
 void OptionsMap::init(Searcher* s) {
-    const int MaxHashMB = 1024 * 1024;
     (*this)["Book_File"]                   = USIOption("book.bin");
-    //(*this)["Eval_Dir"]                    = USIOption("20180416");
     (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(false);
-    //(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    //(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
-    //(*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
-    //(*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
-    //(*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, 0, SHRT_MAX);
-    (*this)["Slow_Mover_10"]               = USIOption(10, 1, 1000); // 持ち時間15分, 秒読み10秒では10 にした。(sdt5) 持ち時間15分, 秒読み10秒では10, 持ち時間2時間では3にした。(sdt4)
-    (*this)["Slow_Mover_16"]               = USIOption(20, 1, 1000); // 持ち時間15分, 秒読み10秒では20 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では20にした。(sdt4)
-    (*this)["Slow_Mover_20"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では30 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
-    (*this)["Slow_Mover_30"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では50 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
-    (*this)["Slow_Mover_40"]               = USIOption(40, 1, 1000); // 持ち時間15分, 秒読み10秒では60 にした。(sdt5) 持ち時間15分, 秒読み10秒では50, 持ち時間2時間では40にした。(sdt4)
-    (*this)["Slow_Mover"]                  = USIOption(89, 1, 1000); // 持ち時間15分, 秒読み10秒では65 にした。(sdt5)
     (*this)["Draw_Ply"]                    = USIOption(256, 1, INT_MAX);
-    (*this)["Move_Overhead"]               = USIOption(30, 0, 5000);
-    (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
 	(*this)["UCT_Threads"]                 = USIOption(2, 1, 256);
 	(*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
 	(*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
