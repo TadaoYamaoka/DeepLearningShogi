@@ -16,7 +16,7 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
-void go_uct(Position& pos, std::istringstream& ssCmd, const Move& lastMove);
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd);
 bool nyugyoku(const Position& pos);
 void make_book(std::istringstream& ssCmd);
 void mate_test(Position& pos, std::istringstream& ssCmd);
@@ -41,11 +41,11 @@ int main(int argc, char* argv[]) {
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	static Move lastMove;
 
 	std::string cmd;
 	std::string token;
 	std::thread th;
+	std::string prevPosCmd;
 
 	for (int i = 1; i < argc; ++i)
 		cmd += std::string(argv[i]) + " ";
@@ -72,21 +72,28 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "ponderhit" || token == "go") {
 			if (token == "ponderhit") {
 				StopUctSearch();
+				if (th.joinable())
+					th.join();
 				// 確率的なPonderの場合
 				if (pos.searcher()->options["Stochastic_Ponder"]) {
 					// 局面を戻す
-					pos.doMove(lastMove, pos.searcher()->states->back());
-					pos.setStartPosPly(pos.gamePly() + 1);
+					std::istringstream ssTmpCmd(prevPosCmd);
+					setPosition(pos, ssTmpCmd);
 				}
 			}
-			if (th.joinable())
-				th.join();
-			th = std::thread([&pos, tmpCmd = ssCmd.str()] {
+			else {
+				if (th.joinable())
+					th.join();
+			}
+			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &prevPosCmd] {
 				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd, lastMove);
+				go_uct(pos, ssCmd, prevPosCmd);
 			});
 		}
-		else if (token == "position") setPosition(pos, ssCmd, lastMove);
+		else if (token == "position") {
+			prevPosCmd = cmd.substr((size_t)ssCmd.tellg() + 1);
+			setPosition(pos, ssCmd);
+		}
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
 		else if (token == "usi") std::cout << "id name " << std::string(options["Engine_Name"])
 			<< "\nid author Tadao Yamaoka"
@@ -95,14 +102,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "isready") { // 対局開始前の準備。
 			// 詰み探索用
 			if (options["Mate_Root_Search"] > 0) {
-				/*tt.clear();
-				threads.main()->previousScore = ScoreInfinite;
-				if (!evalTableIsRead) {
-					// 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
-					// 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-					std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"]);
-					evalTableIsRead = true;
-				}*/
 				ns_dfpn::DfPn::set_maxdepth(options["Mate_Root_Search"]);
 			}
 
@@ -157,7 +156,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd, const Move& lastMove) {
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd) {
 	LimitsType limits;
 	std::string token;
 
@@ -194,8 +193,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const Move& lastMove) {
 	// 確率的なPonder
 	if (limits.ponder && pos.searcher()->options["Stochastic_Ponder"]) {
 		// 相手局面から探索
-		pos.undoMove(lastMove);
-		pos.setStartPosPly(pos.gamePly() - 1);
+		std::istringstream ssTmpCmd(prevPosCmd.substr(0, prevPosCmd.rfind(" ")));
+		setPosition(pos, ssTmpCmd);
 	}
 
 	// Book使用

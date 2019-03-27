@@ -379,38 +379,6 @@ void setPosition(Position& pos, std::istringstream& ssCmd) {
 	pos.setStartPosPly(currentPly);
 }
 
-void setPosition(Position& pos, std::istringstream& ssCmd, Move& lastMove) {
-    std::string token;
-    std::string sfen;
-
-    ssCmd >> token;
-
-    if (token == "startpos") {
-        sfen = DefaultStartPositionSFEN;
-        ssCmd >> token; // "moves" が入力されるはず。
-    }
-    else if (token == "sfen") {
-        while (ssCmd >> token && token != "moves")
-            sfen += token + " ";
-    }
-    else
-        return;
-
-    pos.set(sfen);
-    pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
-
-    Ply currentPly = pos.gamePly();
-    while (ssCmd >> token) {
-        const Move move = usiToMove(pos, token);
-        if (!move) break;
-        pos.searcher()->states->push_back(StateInfo());
-        pos.doMove(move, pos.searcher()->states->back());
-        ++currentPly;
-		lastMove = move;
-    }
-    pos.setStartPosPly(currentPly);
-}
-
 bool setPosition(Position& pos, const HuffmanCodedPos& hcp) {
     return pos.set(hcp);
 }
