@@ -108,7 +108,7 @@ constexpr unsigned int NOT_EXPANDED = -1; // 未展開のノードのインデ�
 
 float c_init = 1.48f;
 float c_base = 37191.0f;
-float tempature = 1.5f;
+float temperature = 1.5f;
 
 
 // 探索経路のノード
@@ -880,7 +880,7 @@ void UCTSearcherGroup::EvalNode() {
 		}
 
 		// Boltzmann distribution
-		softmax_tempature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(legal_move_probabilities);
 
 		for (int j = 0; j < child_num; j++) {
 			uct_child[j].nnrate = legal_move_probabilities[j];
@@ -1248,7 +1248,7 @@ int main(int argc, char* argv[]) {
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.48"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("37191.0"), "val")
-			("tempature", "Softmax tempature", cxxopts::value<float>(tempature)->default_value("1.5"), "val")
+			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.5"), "val")
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
@@ -1325,13 +1325,13 @@ int main(int argc, char* argv[]) {
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
-	logger->info("tempature:{}", tempature);
+	logger->info("temperature:{}", temperature);
 
 	initTable();
 	Position::initZobrist();
 	HuffmanCodedPos::init();
 
-	set_softmax_tempature(tempature);
+	set_softmax_temperature(temperature);
 
 	signal(SIGINT, sigint_handler);
 

@@ -25,7 +25,7 @@ const Move select_move(const Position pos, float *logits) {
 	}
 
 	// Boltzmann distribution
-	softmax_tempature_with_normalize(legal_move_probabilities);
+	softmax_temperature_with_normalize(legal_move_probabilities);
 
 	// 確率に応じて手を選択
 	std::discrete_distribution<int> distribution(legal_move_probabilities.begin(), legal_move_probabilities.end());
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 	s.init();
 
 	// ボルツマン温度設定
-	set_softmax_tempature(1.25f);
+	set_softmax_temperature(1.25f);
 
 	features1_t *features1;
 	features2_t *features2;

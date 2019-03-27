@@ -1322,7 +1322,7 @@ void UCTSearcher::EvalNode() {
 		}
 
 		// Boltzmann distribution
-		softmax_tempature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(legal_move_probabilities);
 
 		for (int j = 0; j < child_num; j++) {
 			uct_child[j].nnrate = legal_move_probabilities[j];
