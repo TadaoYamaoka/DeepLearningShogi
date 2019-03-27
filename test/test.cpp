@@ -48,7 +48,7 @@ int main() {
 		}
 
 		// Boltzmann distribution
-		softmax_tempature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(legal_move_probabilities);
 
 		// print result
 		for (int j = 0; j < legal_moves.size(); j++) {

@@ -239,12 +239,12 @@ int make_move_label(const u16 move16, const Color color) {
 
 // Boltzmann distribution
 // see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
-constexpr float default_softmax_tempature = 1.0f;
-float beta = 1.0f / default_softmax_tempature; 
-void set_softmax_tempature(const float tempature) {
-	beta = 1.0f / tempature;
+constexpr float default_softmax_temperature = 1.0f;
+float beta = 1.0f / default_softmax_temperature; 
+void set_softmax_temperature(const float temperature) {
+	beta = 1.0f / temperature;
 }
-void softmax_tempature(std::vector<float> &log_probabilities) {
+void softmax_temperature(std::vector<float> &log_probabilities) {
 	// apply beta exponent to probabilities(in log space)
 	float max = 0.0f;
 	for (float& x : log_probabilities) {
@@ -259,7 +259,7 @@ void softmax_tempature(std::vector<float> &log_probabilities) {
 	}
 }
 
-void softmax_tempature_with_normalize(std::vector<float> &log_probabilities) {
+void softmax_temperature_with_normalize(std::vector<float> &log_probabilities) {
 	// apply beta exponent to probabilities(in log space)
 	float max = 0.0f;
 	for (float& x : log_probabilities) {

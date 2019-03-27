@@ -107,7 +107,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// 各種初期化
 			InitializeUctSearch(options["UCT_Hash"]);
-			set_softmax_tempature(options["Softmax_Temperature"] / 100.0f);
+			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 			const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"] };
 			SetModelPath(model_paths);
 			const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"] };
