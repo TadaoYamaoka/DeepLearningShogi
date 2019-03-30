@@ -328,6 +328,11 @@ void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_m
 	}
 }
 
+void NewOver()
+{
+	uct_hash.ClearUctHash();
+}
+
 void GameOver()
 {
 }

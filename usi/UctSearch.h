@@ -123,5 +123,8 @@ void SetReuseSubtree(bool flag);
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
 
+// 新規ゲーム
+void NewOver();
+
 // ゲーム終了
 void GameOver();
