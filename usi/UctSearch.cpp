@@ -328,7 +328,7 @@ void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_m
 	}
 }
 
-void NewOver()
+void NewGame()
 {
 	uct_hash.ClearUctHash();
 }
@@ -536,7 +536,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	po_info.count = 0;
 
 	if (reuse_subtree) {
-		uct_hash.DeleteOldHash(pos->gamePly());
+		uct_hash.DeleteOldHash(pos);
 	}
 	else {
 		uct_hash.ClearUctHash();

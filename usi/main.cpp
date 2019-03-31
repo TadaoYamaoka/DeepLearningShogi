@@ -102,28 +102,30 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "isready") { // 対局開始前の準備。
 			static bool initialized = false;
 			if (!initialized) {
-				// 詰み探索用
-				if (options["Mate_Root_Search"] > 0) {
-					ns_dfpn::DfPn::set_maxdepth(options["Mate_Root_Search"]);
-				}
-
 				// 各種初期化
 				InitializeUctSearch(options["UCT_Hash"]);
-				set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 				const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"] };
 				SetModelPath(model_paths);
 				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"] };
 				SetThread(new_thread, new_policy_value_batch_maxsize);
-				SetResignThreshold(options["Resign_Threshold"]);
-				c_init = options["C_init"] / 100.0f;
-				c_base = options["C_base"];
 			}
 			else {
-				NewOver();
+				NewGame();
 
 			}
 			initialized = true;
+
+			// 詰み探索用
+			if (options["Mate_Root_Search"] > 0) {
+				ns_dfpn::DfPn::set_maxdepth(options["Mate_Root_Search"]);
+			}
+
+			// オプション設定
+			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
+			SetResignThreshold(options["Resign_Threshold"]);
+			c_init = options["C_init"] / 100.0f;
+			c_base = options["C_base"];
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
