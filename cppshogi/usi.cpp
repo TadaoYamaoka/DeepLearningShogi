@@ -95,7 +95,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
 	(*this)["Softmax_Temperature"]           = USIOption(150, 1, 200);
-	(*this)["Mate_Root_Search"]            = USIOption(25, 0, 30);
+	(*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
 	(*this)["C_init"]                      = USIOption(150, 0, 200);
 	(*this)["C_base"]                      = USIOption(22302, 10000, 100000);
