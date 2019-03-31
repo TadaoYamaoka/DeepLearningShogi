@@ -25,12 +25,13 @@ parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--resign', type=float, default=0.95)
 parser.add_argument('--max_turn', type=int, default=256)
 parser.add_argument('--initial_positions')
-parser.add_argument('--kifu_dir', default='.')
+parser.add_argument('--kifu_dir')
 parser.add_argument('--name')
 parser.add_argument('--log', default=None)
+parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
-logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.INFO)
+logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG if args.debug else logging.INFO)
 
 KIFU_TO_SQUARE_NAMES = [
     '９一', '８一', '７一', '６一', '５一', '４一', '３一', '２一', '１一',
@@ -185,9 +186,9 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
         kifu.write(comment + '\n')
 
 def objective(trial):
-    C_init = trial.suggest_int('C_init', 50, 150)
-    C_base = trial.suggest_int('C_base', 10000, 40000)
-    Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 50, 150)
+    C_init = trial.suggest_int('C_init', 80, 180)
+    C_base = trial.suggest_int('C_base', 20000, 50000)
+    Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 80, 180)
 
     logging.info('C_init = {}, C_base = {}, Softmax_Temperature = {}'.format(C_init, C_base, Softmax_Temperature))
 
@@ -202,7 +203,7 @@ def objective(trial):
                 init_positions.append(line.strip()[15:].split(' '))
 
     for n in range(args.games):
-        logging.info('trial {} game {} start'.format(trial.trial_id, n))
+        if __debug__: logging.debug('trial {} game {} start'.format(trial.trial_id, n))
 
         # 先後入れ替え
         if n % 2 == 0:
@@ -218,7 +219,7 @@ def objective(trial):
 
         names = []
         for i, p in enumerate(procs):
-            logging.debug('pid = {}'.format(p.pid))
+            if __debug__: logging.debug('pid = {}'.format(p.pid))
             if args.model is not None:
                 p.stdin.write(b'setoption name DNN_Model value ' + args.model.encode('ascii') + b'\n')
             if args.batch_size is not None:
@@ -242,7 +243,7 @@ def objective(trial):
                 line = p.stdout.readline()
                 if line[:7] == b'id name':
                     names.append(line.strip()[8:].decode('ascii'))
-                    logging.debug('name = {}'.format(names[-1]))
+                    if __debug__: logging.debug('name = {}'.format(names[-1]))
                 elif line.strip() == b'usiok':
                     break
 
@@ -260,10 +261,11 @@ def objective(trial):
 
         # 棋譜ファイル初期化
         starttime = datetime.now()
-        kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
-        kifu = open(kifu_path, 'w')
+        if args.kifu_dir is not None:
+            kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
+            kifu = open(kifu_path, 'w')
 
-        kifu_header(kifu, starttime, names)
+            kifu_header(kifu, starttime, names)
 
         # 初期局面
         board = shogi.Board()
@@ -272,7 +274,7 @@ def objective(trial):
                 init_position = random.choice(init_positions)
             for move_usi in init_position:
                 kifu_line(kifu, board, move_usi, 0, 0, None)
-                logging.info('{:>3} {}'.format(board.move_number, move_usi))
+                if __debug__: logging.debug('{:>3} {}'.format(board.move_number, move_usi))
                 board.push_usi(move_usi)
 
 
@@ -290,7 +292,8 @@ def objective(trial):
 
                 # 持将棋
                 if board.move_number > args.max_turn:
-                    kifu_line(kifu, board, 'draw', 0.0, sec_sum[i], None)
+                    if args.kifu_dir is not None:
+                        kifu_line(kifu, board, 'draw', 0.0, sec_sum[i], None)
                     is_game_over = True
                     break
 
@@ -312,15 +315,17 @@ def objective(trial):
                 while True:
                     p.stdout.flush()
                     line = p.stdout.readline().strip().decode('ascii')
-                    logging.debug(line)
+                    if __debug__: logging.debug(line)
                     if line[:8] == 'bestmove':
                         sec = time.time() - time_start
                         sec_sum[i] += sec
                         move_usi = line[9:]
-                        if info is not None:
-                            logging.info(info)
-                        logging.info('{:3} {}'.format(board.move_number, move_usi))
-                        kifu_line(kifu, board, move_usi, sec, sec_sum[i], info)
+                        if __debug__: 
+                            if info is not None:
+                                logging.debug(info)
+                        if __debug__: logging.debug('{:3} {}'.format(board.move_number, move_usi))
+                        if args.kifu_dir is not None:
+                            kifu_line(kifu, board, move_usi, sec, sec_sum[i], info)
                         # 詰みの場合、強制的に投了
                         if info is not None:
                             mate_p = info.find('mate ')
@@ -349,17 +354,22 @@ def objective(trial):
         # 棋譜に結果出力
         if not board.is_game_over() and board.move_number > args.max_turn:
             win = 2
-            kifu.write('まで{}手で持将棋\n'.format(board.move_number))
+            if args.kifu_dir is not None:
+                kifu.write('まで{}手で持将棋\n'.format(board.move_number))
         elif board.is_fourfold_repetition():
             win = 2
-            kifu.write('まで{}手で千日手\n'.format(board.move_number - 2))
+            if args.kifu_dir is not None:
+                kifu.write('まで{}手で千日手\n'.format(board.move_number - 2))
         elif is_nyugyoku:
             win = board.turn
-            kifu.write('まで{}手で入玉宣言\n'.format(board.move_number - 1))
+            if args.kifu_dir is not None:
+                kifu.write('まで{}手で入玉宣言\n'.format(board.move_number - 1))
         else:
             win = shogi.BLACK if board.turn == shogi.WHITE else shogi.WHITE
-            kifu.write('まで{}手で{}の勝ち\n'.format(board.move_number - 1, '先手' if win == shogi.BLACK else '後手'))
-        kifu.close()
+            if args.kifu_dir is not None:
+                kifu.write('まで{}手で{}の勝ち\n'.format(board.move_number - 1, '先手' if win == shogi.BLACK else '後手'))
+        if args.kifu_dir is not None:
+            kifu.close()
 
         # 勝敗カウント
         if n % 2 == 0 and win == shogi.BLACK or n % 2 == 1 and win == shogi.WHITE:
