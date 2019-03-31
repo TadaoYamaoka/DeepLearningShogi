@@ -351,7 +351,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 using namespace ns_dfpn;
 // DfPnテスト
@@ -362,8 +362,8 @@ int main()
 
 	DfPn dfpn;
 	dfpn.init();
-	dfpn.set_max_search_node(1000000);
-	dfpn.set_maxdepth(30);
+	//dfpn.set_max_search_node(1000000);
+	dfpn.set_maxdepth(29);
 
 	Position pos;
 
@@ -412,11 +412,23 @@ int main()
 		"ln2g3l/2+Rskg3/p2sppL2/2pp1sP1p/2P2n3/B2P1N1p1/P1NKPP2P/1G1S1+p1P1/7+rL b B2Pg 98", // 不詰み
 	};
 	
+	auto start0 = std::chrono::system_clock::now();
+	auto total = start0 - start0;
 	for (string sfen : sfens) {
 		pos.set(sfen);
+		auto start = std::chrono::system_clock::now();
 		bool ret = dfpn.dfpn(pos);
-		std::cout << ret << std::endl;
-	}
+		auto end = std::chrono::system_clock::now();
 
+		auto time = end - start;
+		total += time;
+
+		auto time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
+
+		cout << ret << "\t";
+		cout << time_ns / 1000000.0 << endl;
+	}
+	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
+	cout << total_ns / 1000000.0 << endl;
 }
 #endif
