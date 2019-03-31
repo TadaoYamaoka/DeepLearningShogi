@@ -124,7 +124,7 @@ void SetReuseSubtree(bool flag);
 void SetModelPath(const std::string path[max_gpu]);
 
 // 新規ゲーム
-void NewOver();
+void NewGame();
 
 // ゲーム終了
 void GameOver();

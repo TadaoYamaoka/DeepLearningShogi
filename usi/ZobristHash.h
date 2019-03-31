@@ -34,7 +34,7 @@ public:
 	void ClearUctHash();
 
 	// 古いデータの削除
-	void DeleteOldHash(int moves);
+	void DeleteOldHash(const Position *pos);
 
 	// 未使用のインデックスを探す
 	unsigned int SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves);
@@ -68,4 +68,7 @@ private:
 	unsigned int TransHash(const unsigned long long hash) const {
 		return ((hash & 0xffffffff) ^ ((hash >> 32) & 0xffffffff)) & (uct_hash_size - 1);
 	}
+
+	// 古いハッシュの削除
+	void delete_hash_recursively(Position &pos, const unsigned int index);
 };
