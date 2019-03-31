@@ -6,7 +6,7 @@
 
 using namespace std;
 
-#if 1
+#if 0
 // GPUベンチマーク
 #include "nn.h"
 #include "nn_wideresnet10.h"
