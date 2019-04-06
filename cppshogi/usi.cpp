@@ -76,7 +76,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(false);
-    (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
+    (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
 	(*this)["Stochastic_Ponder"]           = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
