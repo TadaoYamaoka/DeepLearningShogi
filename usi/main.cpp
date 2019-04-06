@@ -287,26 +287,6 @@ struct child_node_t_copy {
 	}
 };
 
-Move bookEntryToMove(const BookEntry& entry, const Position& pos) {
-	Move move = Move::moveNone();
-	const Move tmp = Move(entry.fromToPro);
-	const Square to = tmp.to();
-	if (tmp.isDrop()) {
-		const PieceType ptDropped = tmp.pieceTypeDropped();
-		move = makeDropMove(ptDropped, to);
-	}
-	else {
-		const Square from = tmp.from();
-		const PieceType ptFrom = pieceToPieceType(pos.piece(from));
-		const bool promo = tmp.isPromotion();
-		if (promo)
-			move = makeCapturePromoteMove(ptFrom, from, to, pos);
-		else
-			move = makeCaptureMove(ptFrom, from, to, pos);
-	}
-	return move;
-}
-
 void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
 	std::cout << "position startpos moves ";
 	for (Move move : moves) {
@@ -375,7 +355,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 				// (定跡の幅を広げたい場合は確率的に選択するように変更する)
 				auto entry = outMap[key][0];
 
-				Move move = bookEntryToMove(entry, pos);
+				Move move = move16toMove(Move(entry.fromToPro), pos);
 
 				StateInfo state;
 				pos.doMove(move, state);
@@ -383,7 +363,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 				if (outMap[key].size() >= 2 && pos.isDraw() == RepetitionDraw) {
 					pos.undoMove(move);
 					entry = outMap[key][1];
-					move = bookEntryToMove(entry, pos);
+					move = move16toMove(Move(entry.fromToPro), pos);
 					pos.doMove(move, state);
 				}
 
@@ -426,7 +406,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
 		size_t selected = dist(g_randomTimeSeed);
 
-		Move move = bookEntryToMove(entries->at(selected), pos);
+		Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
 
 		StateInfo state;
 		pos.doMove(move, state);
