@@ -11,6 +11,8 @@
 #include "Message.h"
 #include "dfpn.h"
 
+#include <signal.h>
+
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
@@ -23,6 +25,13 @@ void mate_test(Position& pos, std::istringstream& ssCmd);
 void test(Position& pos, std::istringstream& ssCmd);
 
 ns_dfpn::DfPn dfpn;
+
+volatile sig_atomic_t stopflg = false;
+
+void sigint_handler(int signum)
+{
+	stopflg = true;
+}
 
 int main(int argc, char* argv[]) {
 	initTable();
@@ -485,6 +494,9 @@ void make_book(std::istringstream& ssCmd) {
 	std::map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
+	// シグナル設定
+	signal(SIGINT, sigint_handler);
+
 	int black_num = 0;
 	int white_num = 0;
 	std::vector<Move> moves;
@@ -505,23 +517,15 @@ void make_book(std::istringstream& ssCmd) {
 		make_book_inner(pos, bookMap, outMap, count, 0, false, moves);
 		white_num += count;
 
-		// 定期的に保存
-		if ((trial + 2) % 100 == 0) {
-			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-			for (auto& elem : outMap) {
-				for (auto& elel : elem.second)
-					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-			}
-		}
+		if (stopflg)
+			break;
 	}
 
 	// 保存
-	if (limitTrialNum % 100 != 0) {
-		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-		for (auto& elem : outMap) {
-			for (auto& elel : elem.second)
-				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-		}
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
 	}
 
 	// 結果表示
