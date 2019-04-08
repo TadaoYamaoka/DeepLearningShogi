@@ -5,13 +5,16 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>mcts_params_optimizer.py</StartupFile>
+    <StartupFile>csa_to_book.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>utils</Name>
     <RootNamespace>utils</RootNamespace>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <CommandLineArguments>r:\test r:\test.bin --lower_limit_entries 5 --lower_limit_count 1</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +25,10 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="merge_book.py" />
+    <Compile Include="csa_to_book.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="filter_kif_in_dir.py" />
     <Compile Include="filter_csa_in_dir.py" />
     <Compile Include="kifustat.py" />
