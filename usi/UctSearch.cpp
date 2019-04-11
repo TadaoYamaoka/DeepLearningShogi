@@ -1216,14 +1216,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		float rate = max(uct_child[i].nnrate, 0.01f);
-		// ランダムに確率を上げる
-		if (depth == 0 && rnd(*mt) <= 2) {
-			rate = (rate + 1.0f) / 2.0f;
-		}
-		else if (depth < 4 && depth % 2 == 0 && rnd(*mt) == 0) {
-			rate = std::min(rate * 1.5f, 1.0f);
-		}
+		const float rate = uct_child[i].nnrate;
 
 		const float c = logf((sum + c_base + 1.0f) / c_base) + c_init;
 		ucb_value = q + c * u * rate;
