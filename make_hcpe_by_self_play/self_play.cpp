@@ -666,7 +666,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		float rate = max(uct_child[i].nnrate, 0.01f);
+		float rate = uct_child[i].nnrate;
 		// ランダムに確率を上げる
 		if (depth == 0 && rnd(*mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
