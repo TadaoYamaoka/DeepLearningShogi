@@ -203,7 +203,7 @@ def objective(trial):
                 init_positions.append(line.strip()[15:].split(' '))
 
     for n in range(args.games):
-        if __debug__: logging.debug('trial {} game {} start'.format(trial.trial_id, n))
+        if __debug__: logging.debug('trial {} game {} start'.format(trial.number, n))
 
         # 先後入れ替え
         if n % 2 == 0:
@@ -383,7 +383,7 @@ def objective(trial):
             win_rate = win_count / (n + 1 - draw_count)
 
         logging.info('trial {} game {} result : win = {}, win count = {}, draw count = {}, win rate = {:.1f}%'.format(
-            trial.trial_id, n, win, win_count, draw_count, win_rate * 100))
+            trial.number, n, win, win_count, draw_count, win_rate * 100))
 
         # USIエンジン終了
         for p in procs:
@@ -394,7 +394,7 @@ def objective(trial):
         # 見込みのない最適化ステップを打ち切り
         trial.report(-win_rate, n)
         if trial.should_prune(n):
-            logging.info('trial {} game {} pruned'.format(trial.trial_id, n))
+            logging.info('trial {} game {} pruned'.format(trial.number, n))
             raise TrialPruned()
 
     # 勝率を負の値で返す
