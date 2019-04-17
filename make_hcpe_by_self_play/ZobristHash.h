@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "position.hpp"
+#include "UctSearch.h"
 
 struct node_hash_t {
 	unsigned long long hash;
@@ -27,7 +28,9 @@ public:
 	}
 
 	// UCTノードのハッシュ情報のクリア
-	void ClearUctHash(int id);
+	void ClearUctHash(const int id);
+	//  古いデータの削除
+	void DeleteOldHash(const Position* pos, const uct_node_t* uct_node, const int id);
 
 	// 未使用のインデックスを探す
 	unsigned int SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves, const int id);
@@ -63,4 +66,7 @@ private:
 	unsigned int TransHash(const unsigned long long hash) const {
 		return ((hash & 0xffffffff) ^ ((hash >> 32) & 0xffffffff)) & (uct_hash_size - 1);
 	}
+
+	//  古いデータの削除
+	void delete_hash_recursively(Position &pos, const uct_node_t* uct_node, const unsigned int index, const int id);
 };
