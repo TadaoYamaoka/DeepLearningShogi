@@ -89,7 +89,8 @@ void
 UctHash::DeleteOldHash(const Position* pos, const uct_node_t* uct_node, const int id)
 {
 	// 現在の局面をルートとする局面以外を削除する
-	unsigned int root = FindSameHashIndex(pos->getKey(), pos->gamePly(), id);
+	// 別のidが同じキーのエントリを削除すると、同じキーのエントリが連続しなくなるため見つかるまで探す
+	unsigned int root = FindSameHashIndex(pos->getKey(), pos->gamePly(), id, true);
 
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
 		if (node_hash[i].id == id) {
@@ -98,11 +99,9 @@ UctHash::DeleteOldHash(const Position* pos, const uct_node_t* uct_node, const in
 		}
 	}
 
-	if (root != uct_hash_size) {
-		// 盤面のコピー
-		Position pos_copy(*pos);
-		delete_hash_recursively(pos_copy, uct_node, root, id);
-	}
+	// 盤面のコピー
+	Position pos_copy(*pos);
+	delete_hash_recursively(pos_copy, uct_node, root, id);
 
 	enough_size = true;
 }
@@ -139,13 +138,15 @@ UctHash::SearchEmptyIndex(const unsigned long long hash, const Color color, cons
 //  ハッシュ値に対応するインデックスを返す  //
 ////////////////////////////////////////////
 unsigned int
-UctHash::FindSameHashIndex(const unsigned long long hash, const int moves, const int id) const
+UctHash::FindSameHashIndex(const unsigned long long hash, const int moves, const int id, const bool exist) const
 {
 	const unsigned int key = TransHash(hash);
 	unsigned int i = key;
 
 	do {
-		if (node_hash[i].id == NOT_USE) {
+		// 	exitがfalseの場合、空きが見つかった時点で終了
+		// 	exitがtrueの場合、見つかるまで探す
+		if (!exist && node_hash[i].id == NOT_USE) {
 			return uct_hash_size;
 		}
 		else if (node_hash[i].hash == hash &&
