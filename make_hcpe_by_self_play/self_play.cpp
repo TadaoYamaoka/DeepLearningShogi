@@ -919,7 +919,6 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				// 1手しかないときは、その手を指して次の手番へ
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
 				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
-				assert(pos_root->isOK());
 				if (uct_node[current_root].child[0].index == NOT_EXPANDED) {
 					// ルートノード展開
 					current_root = ExpandRoot(pos_root);
@@ -1098,7 +1097,6 @@ void UCTSearcher::NextStep()
 
 		// 着手
 		pos_root->doMove(best_move, states[ply]);
-		assert(pos_root->isOK());
 
 		// 千日手の場合引き分け
 		if (pos_root->isDraw() == RepetitionDraw) {

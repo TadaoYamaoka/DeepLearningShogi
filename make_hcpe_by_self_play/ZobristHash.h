@@ -36,7 +36,7 @@ public:
 	unsigned int SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves, const int id);
 
 	// ハッシュ値に対応するインデックスを返す
-	unsigned int FindSameHashIndex(const unsigned long long hash, const int moves, const int id) const;
+	unsigned int FindSameHashIndex(const unsigned long long hash, const int moves, const int id, const bool exist=false) const;
 
 	//  ハッシュ表が埋まっていないか確認
 	bool CheckRemainingHashSize(void) const { return enough_size; }
