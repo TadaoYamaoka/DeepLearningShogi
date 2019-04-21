@@ -273,7 +273,7 @@ def objective(trial):
             if n % 2 == 0:
                 init_position = random.choice(init_positions)
             for move_usi in init_position:
-                kifu_line(kifu, board, move_usi, 0, 0, None)
+                if args.kifu_dir is not None: kifu_line(kifu, board, move_usi, 0, 0, None)
                 if __debug__: logging.debug('{:>3} {}'.format(board.move_number, move_usi))
                 board.push_usi(move_usi)
 
