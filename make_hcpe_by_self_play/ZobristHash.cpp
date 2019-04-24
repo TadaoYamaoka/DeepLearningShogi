@@ -144,6 +144,7 @@ UctHash::FindSameHashIndex(const unsigned long long hash, const int moves, const
 	unsigned int i = key;
 
 	do {
+		assert(i != key - 1);
 		// 	exitがfalseの場合、空きが見つかった時点で終了
 		// 	exitがtrueの場合、見つかるまで探す
 		if (!exist && node_hash[i].id == NOT_USE) {
