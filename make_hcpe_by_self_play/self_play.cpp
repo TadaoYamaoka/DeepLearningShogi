@@ -901,8 +901,6 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				current_root = ExpandRoot(pos_root);
 			}
 			else {
-				pos_root->setStartPosPly(ply);
-
 				// 古いハッシュを削除
 				uct_hash.DeleteOldHash(pos_root, uct_node, id);
 
@@ -919,6 +917,8 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				// 1手しかないときは、その手を指して次の手番へ
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
 				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
+				pos_root->setStartPosPly(ply + 1);
+
 				if (uct_node[current_root].child[0].index == NOT_EXPANDED) {
 					// ルートノード展開
 					current_root = ExpandRoot(pos_root);
@@ -926,6 +926,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				else {
 					// ノードを再利用する
 					current_root = uct_node[current_root].child[0].index;
+					uct_node[current_root].draw = false;
 					child_node_t* next_uct_child = uct_node[current_root].child;
 					for (int i = 0; i < uct_node[current_root].child_num; i++) {
 						next_uct_child[i].move_count = 0;
@@ -1097,6 +1098,7 @@ void UCTSearcher::NextStep()
 
 		// 着手
 		pos_root->doMove(best_move, states[ply]);
+		pos_root->setStartPosPly(ply + 1);
 
 		// 千日手の場合引き分け
 		if (pos_root->isDraw() == RepetitionDraw) {
@@ -1107,7 +1109,9 @@ void UCTSearcher::NextStep()
 		}
 
 		// ノードを再利用する
+		assert(uct_child[select_index].index != NOT_EXPANDED);
 		current_root = uct_child[select_index].index;
+		uct_node[current_root].draw = false;
 		child_node_t* next_uct_child = uct_node[current_root].child;
 		for (int i = 0; i < uct_node[current_root].child_num; i++) {
 			next_uct_child[i].move_count = 0;
