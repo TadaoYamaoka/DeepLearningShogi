@@ -33,6 +33,7 @@ parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0, help='weightdecay rate')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
+parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 args = parser.parse_args()
 
 if args.network == 'wideresnet15':
@@ -45,6 +46,8 @@ logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
 logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
 logging.info('val_lambda={}'.format(args.val_lambda))
+
+cuda.get_device(args.gpu).use()
 
 model = PolicyValueNetwork()
 model.to_gpu()
