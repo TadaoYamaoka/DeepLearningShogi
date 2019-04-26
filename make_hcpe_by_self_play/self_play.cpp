@@ -1039,7 +1039,7 @@ void UCTSearcher::NextStep()
 		if (ply <= RANDOM_MOVE) {
 			// N手までは訪問数に応じた確率で選択する
 			vector<int> probabilities(uct_node[current_root].child_num);
-			for (int i = 1; i < uct_node[current_root].child_num; i++) {
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
 				probabilities[i] = uct_child[i].move_count;
 			}
 
