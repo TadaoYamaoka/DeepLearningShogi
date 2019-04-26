@@ -1108,14 +1108,19 @@ void UCTSearcher::NextStep()
 			return;
 		}
 
-		// ノードを再利用する
-		assert(uct_child[select_index].index != NOT_EXPANDED);
-		current_root = uct_child[select_index].index;
-		uct_node[current_root].draw = false;
-		child_node_t* next_uct_child = uct_node[current_root].child;
-		for (int i = 0; i < uct_node[current_root].child_num; i++) {
-			next_uct_child[i].move_count = 0;
-			next_uct_child[i].win = 0.0f;
+		if (uct_child[select_index].index == NOT_EXPANDED) {
+			// ルートノード展開
+			current_root = ExpandRoot(pos_root);
+		}
+		else {
+			// ノードを再利用する
+			current_root = uct_child[select_index].index;
+			uct_node[current_root].draw = false;
+			child_node_t* next_uct_child = uct_node[current_root].child;
+			for (int i = 0; i < uct_node[current_root].child_num; i++) {
+				next_uct_child[i].move_count = 0;
+				next_uct_child[i].win = 0.0f;
+			}
 		}
 
 		// 次の手番
