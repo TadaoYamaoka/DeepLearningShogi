@@ -94,11 +94,11 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
 	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
-	(*this)["Softmax_Temperature"]         = USIOption(150, 1, 200);
+	(*this)["Softmax_Temperature"]         = USIOption(166, 1, 500);
 	(*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
 	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
-	(*this)["C_init"]                      = USIOption(150, 0, 200);
-	(*this)["C_base"]                      = USIOption(22302, 10000, 100000);
+	(*this)["C_init"]                      = USIOption(149, 0, 500);
+	(*this)["C_base"]                      = USIOption(39470, 10000, 100000);
 	(*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
 	(*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
