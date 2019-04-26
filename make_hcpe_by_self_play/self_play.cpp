@@ -84,9 +84,9 @@ constexpr float VALUE_LOSE = -FLT_MAX;
 constexpr float QUEUING = FLT_MAX;
 constexpr float DISCARDED = -FLT_MAX;
 
-float c_init = 1.48f;
-float c_base = 37191.0f;
-float temperature = 1.5f;
+float c_init = 1.49f;
+float c_base = 39470.0f;
+float temperature = 1.66f;
 
 
 // 探索経路のノード
@@ -1264,13 +1264,13 @@ int main(int argc, char* argv[]) {
 			("gpu_id", "gpu id", cxxopts::value<int>(gpu_id[0]))
 			("batchsize", "batchsize", cxxopts::value<int>(batchsize[0]))
 			("positional", "", cxxopts::value<std::vector<int>>())
-			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("2"), "num")
+			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
-			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.48"), "val")
-			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("37191.0"), "val")
-			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.5"), "val")
+			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
+			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
+			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
