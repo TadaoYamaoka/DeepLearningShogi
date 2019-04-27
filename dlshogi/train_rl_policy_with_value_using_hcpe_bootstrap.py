@@ -146,6 +146,8 @@ for e in range(args.epoch):
             sum_loss3 = 0
             sum_loss = 0
 
+            chainer.cuda.cupy.get_default_pinned_memory_pool().free_all_blocks()
+
     # print train loss for each epoch
     itr_test = 0
     sum_test_loss1 = 0
