@@ -434,9 +434,9 @@ void UCTSearcherGroup::MateSearch()
 			if (!pos_copy.inCheck()) {
 				bool mate = dfpn.dfpn(pos_copy);
 				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
 				if (mate)
 					mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
+				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
 			}
 			else {
 				// 自玉に王手がかかっている
@@ -1020,7 +1020,7 @@ void UCTSearcher::NextStep()
 				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
 
 				// 局面追加（初期局面は除く）
-				if (ply > 1)
+				if (ply > RANDOM_MOVE)
 					AddTeacher(30000, grp->GetMateSearchMove(id));
 
 				NextGame();
