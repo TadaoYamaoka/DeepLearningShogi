@@ -21,6 +21,7 @@
 #include "Utility.h"
 #include "mate.h"
 #include "nn_wideresnet10.h"
+#include "nn_fused_wideresnet10.h"
 #include "nn_wideresnet15.h"
 
 #if defined (_WIN32)
@@ -171,6 +172,8 @@ public:
 		if (nn == nullptr) {
 			if (model_path[gpu_id].find("wideresnet15") != string::npos)
 				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
+			else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
+				nn = (NN*)new NNFusedWideResnet10(policy_value_batch_maxsize);
 			else
 				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
 			nn->load_model(model_path[gpu_id].c_str());
