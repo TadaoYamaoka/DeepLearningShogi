@@ -39,8 +39,6 @@ int main(int argc, char* argv[]) {
 	//HuffmanCodedPos::init();
 	auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
-	dfpn.init();
-
 	s->init();
 	s->doUSICommandLoop(argc, argv);
 
@@ -118,10 +116,13 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"] };
 				SetThread(new_thread, new_policy_value_batch_maxsize);
+
+				if (options["Mate_Root_Search"] > 0) {
+					dfpn.init();
+				}
 			}
 			else {
 				NewGame();
-
 			}
 			initialized = true;
 
