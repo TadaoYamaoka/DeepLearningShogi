@@ -129,7 +129,7 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
         // 指された確率に従って手が選択される。
         // count が大きい順に並んでいる必要はない。
         if (min_book_score <= entry.score
-            && ((random_.random() % sum < entry.count)
+            && ((!pickBest && random_.random() % sum < entry.count)
                 || (pickBest && entry.count == best)))
         {
             const Move tmp = Move(entry.fromToPro);
