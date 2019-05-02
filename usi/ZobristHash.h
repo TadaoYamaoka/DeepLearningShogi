@@ -48,6 +48,9 @@ public:
 	// ハッシュ使用率を取得(単位はパーミル(全体を1000とした値))
 	int GetUctHashUsageRate() const { return (int)(1000.0 * used / uct_hash_size); }
 
+	// 残りのハッシュ数を取得
+	int GetRestUctHash() const { return uct_hash_size - used; }
+
 	// ノードを返す
 	const node_hash_t& operator [](const size_t i) { return node_hash[i]; }
 

@@ -569,7 +569,13 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 	// 探索回数の閾値を設定
 	CalculateNextPlayouts(pos);
-	po_info.halt = po_info.num;
+	const int rest_uct_hash = uct_hash.GetRestUctHash();
+	if (po_info.num > rest_uct_hash) {
+		po_info.halt = rest_uct_hash;
+	}
+	else {
+		po_info.halt = po_info.num;
+	}
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
