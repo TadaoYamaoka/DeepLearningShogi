@@ -340,7 +340,7 @@ void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::
 		be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
 		be.key = key;
 		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
-		be.count = child.move_count;
+		be.count = (s16)((double)child.move_count / (double)uct_node[current_root].move_count * 1000.0);
 		outMap[key].emplace_back(be);
 
 		count++;
