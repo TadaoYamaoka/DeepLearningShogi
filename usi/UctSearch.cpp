@@ -622,7 +622,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			select_index = i;
 			max_count = uct_child[i].move_count;
 		}
-		if (debug_message) cout << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
+		if (debug_message) cout << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " nnrate:" << uct_child[i].nnrate << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
 	}
 
 	// 選択した着手の勝率の算出
