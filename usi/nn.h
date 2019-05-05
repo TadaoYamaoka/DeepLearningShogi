@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "cppshogi.h"
 #include "layers.h"

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifdef FP16
 #include <cuda_fp16.h>
