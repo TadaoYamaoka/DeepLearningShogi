@@ -1,13 +1,13 @@
-#pragma once
+ï»¿#pragma once
 
 #include <atomic>
 
-// ’uŠ·•\
+// ç½®æ›è¡¨
 namespace ns_dfpn {
 	struct TTEntry {
-		// ƒnƒbƒVƒ…‚ÌãˆÊ32ƒrƒbƒg
+		// ãƒãƒƒã‚·ãƒ¥ã®ä¸Šä½32ãƒ“ãƒƒãƒˆ
 		uint32_t hash_high;
-		Hand hand; // è‹îií‚Éæè‚Ìè‹îj
+		Hand hand; // æ‰‹é§’ï¼ˆå¸¸ã«å…ˆæ‰‹ã®æ‰‹é§’ï¼‰
 		int pn;
 		int dn;
 		uint16_t depth;
@@ -29,11 +29,11 @@ namespace ns_dfpn {
 		template <bool or_node>
 		TTEntry& LookUp(const Position& n, const uint16_t depth);
 
-		// move‚ğw‚µ‚½Œã‚Ìqƒm[ƒh‚ÌƒL[‚ğ•Ô‚·
+		// moveã‚’æŒ‡ã—ãŸå¾Œã®å­ãƒãƒ¼ãƒ‰ã®ã‚­ãƒ¼ã‚’è¿”ã™
 		template <bool or_node>
 		void GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand);
 
-		// move‚ğw‚µ‚½Œã‚Ìqƒm[ƒh‚Ì’uŠ·•\ƒGƒ“ƒgƒŠ‚ğ•Ô‚·
+		// moveã‚’æŒ‡ã—ãŸå¾Œã®å­ãƒãƒ¼ãƒ‰ã®ç½®æ›è¡¨ã‚¨ãƒ³ãƒˆãƒªã‚’è¿”ã™
 		template <bool or_node>
 		TTEntry& LookUpChildEntry(const Position& n, const Move move, const uint16_t depth);
 

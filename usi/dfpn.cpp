@@ -1,4 +1,4 @@
-#include <unordered_set>
+п»ї#include <unordered_set>
 
 #include "position.hpp"
 #include "move.hpp"
@@ -14,14 +14,14 @@ int64_t DfPn::MAX_SEARCH_NODE = 2097152;
 const constexpr int REPEAT = INT_MAX;
 const constexpr size_t MaxCheckMoves = 73;
 
-// --- ‹l‚ЭЏ«Љы’TЌх
+// --- и©°гЃїе°†жЈ‹жЋўзґў
 
 void DfPn::dfpn_stop()
 {
 	stop = true;
 }
 
-// ‹lЏ«ЉыѓGѓ“ѓWѓ“—p‚МMovePicker
+// и©°е°†жЈ‹г‚Ёгѓіг‚ёгѓіз”ЁгЃ®MovePicker
 template <bool or_node>
 class MovePicker {
 public:
@@ -29,7 +29,7 @@ public:
 		if (or_node) {
 			last_ = generateMoves<Check>(moveList_, pos);
 			if (pos.inCheck()) {
-				// Ћ©‹К‚Є‰¤Ћи‚МЏкЌ‡ЃA“¦‚°‚йЋи‚©‚В‰¤Ћи‚р‚©‚Ї‚йЋи‚рђ¶ђ¬
+				// и‡ЄзЋ‰гЃЊзЋ‹ж‰‹гЃ®е ґеђ€гЂЃйЂѓгЃ’г‚‹ж‰‹гЃ‹гЃ¤зЋ‹ж‰‹г‚’гЃ‹гЃ‘г‚‹ж‰‹г‚’з”џж€ђ
 				ExtMove* curr = moveList_;
 				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
@@ -42,7 +42,7 @@ public:
 		}
 		else {
 			last_ = generateMoves<Evasion>(moveList_, pos);
-			// ‹К‚М€Ъ“®‚Й‚ж‚йЋ©ЋEЋи‚ЖЃApin‚і‚к‚Д‚ў‚й‹о‚М€Ъ“®‚Й‚ж‚йЋ©ЋEЋи‚рЌнЏњ
+			// зЋ‰гЃ®з§»е‹•гЃ«г‚€г‚‹и‡Єж®єж‰‹гЃЁгЂЃpinгЃ•г‚ЊгЃ¦гЃ„г‚‹й§’гЃ®з§»е‹•гЃ«г‚€г‚‹и‡Єж®єж‰‹г‚’е‰Љй™¤
 			ExtMove* curr = moveList_;
 			const Bitboard pinned = pos.pinnedBB();
 			while (curr != last_) {
@@ -64,7 +64,7 @@ private:
 	ExtMove* last_;
 };
 
-// ’uЉ·•\
+// зЅ®жЏ›иЎЁ
 TranspositionTable::~TranspositionTable() {
 	if (tt_raw) {
 		std::free(tt_raw);
@@ -82,11 +82,11 @@ TTEntry& TranspositionTable::LookUp(const Key key, const Hand hand, const uint16
 TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth) {
 	int max_pn = 1;
 	int max_dn = 1;
-	// ЊџЌхЏрЊЏ‚ЙЌ‡’v‚·‚йѓGѓ“ѓgѓЉ‚р•Ф‚·
+	// ж¤њзґўжќЎд»¶гЃ«еђ€и‡ґгЃ™г‚‹г‚Ёгѓігѓ€гѓЄг‚’иї”гЃ™
 	for (size_t i = 0; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
 		TTEntry& entry = entries.entries[i];
 		if (generation != entry.generation) {
-			// ‹у‚МѓGѓ“ѓgѓЉ‚ЄЊ©‚В‚©‚Б‚ЅЏкЌ‡
+			// з©єгЃ®г‚Ёгѓігѓ€гѓЄгЃЊи¦‹гЃ¤гЃ‹гЃЈгЃџе ґеђ€
 			entry.hash_high = hash_high;
 			entry.depth = depth;
 			entry.hand = hand;
@@ -99,8 +99,8 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 
 		if (hash_high == entry.hash_high && generation == entry.generation) {
 			if (hand == entry.hand && depth == entry.depth) {
-				// key‚ЄЌ‡’v‚·‚йѓGѓ“ѓgѓЉ‚рЊ©‚В‚Ї‚ЅЏкЌ‡
-				// Ћc‚и‚МѓGѓ“ѓgѓЉ‚Й—D‰zЉЦЊW‚р–ћ‚Ѕ‚·‹З–К‚Є‚ ‚иЏШ–ѕЌП‚Э‚МЏкЌ‡ЃA‚»‚к‚р•Ф‚·
+				// keyгЃЊеђ€и‡ґгЃ™г‚‹г‚Ёгѓігѓ€гѓЄг‚’и¦‹гЃ¤гЃ‘гЃџе ґеђ€
+				// ж®‹г‚ЉгЃ®г‚Ёгѓігѓ€гѓЄгЃ«е„Єи¶Љй–ўдї‚г‚’жєЂгЃџгЃ™е±ЂйќўгЃЊгЃ‚г‚ЉиЁјжЋжё€гЃїгЃ®е ґеђ€гЂЃгЃќг‚Њг‚’иї”гЃ™
 				for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
 					TTEntry& entry_rest = entries.entries[i];
 					if (entry_rest.hash_high == 0) break;
@@ -121,7 +121,7 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 				}
 				return entry;
 			}
-			// —D‰zЉЦЊW‚р–ћ‚Ѕ‚·‹З–К‚ЙЏШ–ѕЌП‚Э‚М‹З–К‚Є‚ ‚йЏкЌ‡ЃA‚»‚к‚р•Ф‚·
+			// е„Єи¶Љй–ўдї‚г‚’жєЂгЃџгЃ™е±ЂйќўгЃ«иЁјжЋжё€гЃїгЃ®е±ЂйќўгЃЊгЃ‚г‚‹е ґеђ€гЂЃгЃќг‚Њг‚’иї”гЃ™
 			if (entry.pn == 0) {
 				if (hand.isEqualOrSuperior(entry.hand) && entry.num_searched != REPEAT) {
 					return entry;
@@ -142,8 +142,8 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 	}
 
 	//cout << "hash entry full" << endl;
-	// Ќ‡’v‚·‚йѓGѓ“ѓgѓЉ‚ЄЊ©‚В‚©‚з‚И‚©‚Б‚Ѕ‚М‚Е
-	// ЊГ‚ўѓGѓ“ѓgѓЉ‚р‚В‚Ф‚·
+	// еђ€и‡ґгЃ™г‚‹г‚Ёгѓігѓ€гѓЄгЃЊи¦‹гЃ¤гЃ‹г‚‰гЃЄгЃ‹гЃЈгЃџгЃ®гЃ§
+	// еЏ¤гЃ„г‚Ёгѓігѓ€гѓЄг‚’гЃ¤гЃ¶гЃ™
 	TTEntry* best_entry = nullptr;
 	uint32_t best_num_searched = UINT_MAX;
 	TTEntry* best_entry_include_mate = nullptr;
@@ -180,10 +180,10 @@ TTEntry& TranspositionTable::LookUp(const Position& n, const uint16_t depth) {
 	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), depth);
 }
 
-// move‚рЋw‚µ‚ЅЊг‚МЋqѓmЃ[ѓh‚МѓLЃ[‚р•Ф‚·
+// moveг‚’жЊ‡гЃ—гЃџеѕЊгЃ®е­ђгѓЋгѓјгѓ‰гЃ®г‚­гѓјг‚’иї”гЃ™
 template <bool or_node>
 void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) {
-	// Ћи‹о‚НЏн‚ЙђжЋи‚МЋи‹о‚Е•\‚·
+	// ж‰‹й§’гЃЇеёёгЃ«е…€ж‰‹гЃ®ж‰‹й§’гЃ§иЎЁгЃ™
 	if (or_node) {
 		hand = n.hand(n.turn());
 		if (move.isDrop()) {
@@ -205,7 +205,7 @@ void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, 
 	hash_high = key >> 32;
 }
 
-// move‚рЋw‚µ‚ЅЊг‚МЋqѓmЃ[ѓh‚М’uЉ·•\ѓGѓ“ѓgѓЉ‚р•Ф‚·
+// moveг‚’жЊ‡гЃ—гЃџеѕЊгЃ®е­ђгѓЋгѓјгѓ‰гЃ®зЅ®жЏ›иЎЁг‚Ёгѓігѓ€гѓЄг‚’иї”гЃ™
 template <bool or_node>
 TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move, const uint16_t depth) {
 	Cluster* entries;
@@ -246,27 +246,27 @@ void TranspositionTable::NewSearch() {
 static const constexpr int kInfinitePnDn = 100000000;
 
 FORCE_INLINE bool nomate(const Position& pos) {
-	// --- ‹о‚М€Ъ“®‚Й‚ж‚й‰¤Ћи
+	// --- й§’гЃ®з§»е‹•гЃ«г‚€г‚‹зЋ‹ж‰‹
 
-	// ‰¤Ћи‚Й‚И‚йЋw‚µЋи
-	//  1) ђ¬‚з‚И‚ў€Ъ“®‚Й‚ж‚й’јђЪ‰¤Ћи
-	//  2) ђ¬‚й€Ъ“®‚Й‚ж‚й’јђЪ‰¤Ћи
-	//  3) pin‚і‚к‚Д‚ў‚й‹о‚М€Ъ“®‚Й‚ж‚йЉФђЪ‰¤Ћи
-	// ЏWЌ‡‚Ж‚µ‚Д‚Н1),2) <--> 3)‚Н”н•ў‚µ‚Д‚ў‚й‰В”\ђ«‚Є‚ ‚й‚М‚Е‚±‚к‚рЏњЉO‚Е‚«‚й‚ж‚¤‚ИЋw‚µЋиђ¶ђ¬‚р‚µ‚И‚­‚Д‚Н‚И‚з‚И‚ўЃB
-	// ‚±‚к‚ргY—н‚ЙЋА‘•‚·‚й‚М‚НЊ‹Ќ\“п‚µ‚ўЃB
+	// зЋ‹ж‰‹гЃ«гЃЄг‚‹жЊ‡гЃ—ж‰‹
+	//  1) ж€ђг‚‰гЃЄгЃ„з§»е‹•гЃ«г‚€г‚‹з›ґжЋҐзЋ‹ж‰‹
+	//  2) ж€ђг‚‹з§»е‹•гЃ«г‚€г‚‹з›ґжЋҐзЋ‹ж‰‹
+	//  3) pinгЃ•г‚ЊгЃ¦гЃ„г‚‹й§’гЃ®з§»е‹•гЃ«г‚€г‚‹й–“жЋҐзЋ‹ж‰‹
+	// й›†еђ€гЃЁгЃ—гЃ¦гЃЇ1),2) <--> 3)гЃЇиў«и¦†гЃ—гЃ¦гЃ„г‚‹еЏЇиѓЅжЂ§гЃЊгЃ‚г‚‹гЃ®гЃ§гЃ“г‚Њг‚’й™¤е¤–гЃ§гЃЌг‚‹г‚€гЃ†гЃЄжЊ‡гЃ—ж‰‹з”џж€ђг‚’гЃ—гЃЄгЃЏгЃ¦гЃЇгЃЄг‚‰гЃЄгЃ„гЂ‚
+	// гЃ“г‚Њг‚’з¶єйє—гЃ«е®џиЈ…гЃ™г‚‹гЃ®гЃЇзµђж§‹й›ЈгЃ—гЃ„гЂ‚
 
-	// x = ’јђЪ‰¤Ћи‚Ж‚И‚йЊу•в
-	// y = ЉФђЪ‰¤Ћи‚Ж‚И‚йЊу•в
+	// x = з›ґжЋҐзЋ‹ж‰‹гЃЁгЃЄг‚‹еЂ™иЈњ
+	// y = й–“жЋҐзЋ‹ж‰‹гЃЁгЃЄг‚‹еЂ™иЈњ
 
-	// ‚Щ‚Ж‚с‚З‚МѓPЃ[ѓX‚Й‚Ё‚ў‚Д y == empty‚И‚М‚Е‚»‚к‚р‘O’с‚ЙЌЕ“K‰»‚р‚·‚йЃB
-	// y‚ЖЃAy‚рЉЬ‚Ь‚И‚ўx‚Ж‚Й•Є‚Ї‚ДЏ€—ќ‚·‚йЃB
-	// ‚·‚И‚н‚їЃAy ‚Ж (x | y)^y
+	// гЃ»гЃЁг‚“гЃ©гЃ®г‚±гѓјг‚№гЃ«гЃЉгЃ„гЃ¦ y == emptyгЃЄгЃ®гЃ§гЃќг‚Њг‚’е‰ЌжЏђгЃ«жњЂйЃ©еЊ–г‚’гЃ™г‚‹гЂ‚
+	// yгЃЁгЂЃyг‚’еђ«гЃѕгЃЄгЃ„xгЃЁгЃ«е€†гЃ‘гЃ¦е‡¦зђ†гЃ™г‚‹гЂ‚
+	// гЃ™гЃЄг‚ЏгЃЎгЂЃy гЃЁ (x | y)^y
 
 	const Color US = pos.turn();
 	const Color opp = oppositeColor(US);
 	const Square ksq = pos.kingSquare(opp);
 
-	// €И‰є‚М•ы–@‚ѕ‚Жx‚Ж‚µ‚Д”т(—ґ)‚Н100%ЉЬ‚Ь‚к‚йЃBЉpЃE”n‚Н60%‚®‚з‚ў‚МЉm—¦‚ЕЉЬ‚Ь‚к‚йЃBЋ–‘OЏрЊЏ‚Е‚а‚¤Џ­‚µЏИ‚Ї‚к‚О—З‚ў‚М‚ѕ‚ЄЃcЃB
+	// д»Ґдё‹гЃ®ж–№жі•гЃ гЃЁxгЃЁгЃ—гЃ¦йЈ›(йѕЌ)гЃЇ100%еђ«гЃѕг‚Њг‚‹гЂ‚и§’гѓ»й¦¬гЃЇ60%гЃђг‚‰гЃ„гЃ®зўєзЋ‡гЃ§еђ«гЃѕг‚Њг‚‹гЂ‚дє‹е‰ЌжќЎд»¶гЃ§г‚‚гЃ†е°‘гЃ—зњЃгЃ‘г‚ЊгЃ°и‰ЇгЃ„гЃ®гЃ гЃЊвЂ¦гЂ‚
 	const Bitboard x =
 		(
 		(pos.bbOf(Pawn)   & pawnCheckTable(US, ksq)) |
@@ -275,25 +275,25 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			(pos.bbOf(Silver) & silverCheckTable(US, ksq)) |
 			(pos.bbOf(Gold, ProPawn, ProLance, ProKnight, ProSilver) & goldCheckTable(US, ksq)) |
 			(pos.bbOf(Bishop) & bishopCheckTable(US, ksq)) |
-			(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGON‚Н–іЏрЊЏ‘S€ж
+			(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGONгЃЇз„ЎжќЎд»¶е…Ёеџџ
 			(pos.bbOf(Horse)  & horseCheckTable(US, ksq))
 			) & pos.bbOf(US);
 
-	// ‚±‚±‚Й‚Н‰¤‚р“G‹К‚М8‹Я–T‚Й€Ъ“®‚і‚№‚йЋw‚µЋи‚аЉЬ‚Ь‚к‚й‚ЄЃA‰¤‚Є‹ЯђЪ‚·‚йЊ`‚НѓЊѓAѓPЃ[ѓX‚И‚М‚Е
-	// Ћw‚µЋиђ¶ђ¬‚М’iЉK‚Е‚НЏњЉO‚µ‚И‚­‚Д‚а—З‚ў‚ЖЋv‚¤ЃB
+	// гЃ“гЃ“гЃ«гЃЇзЋ‹г‚’ж•µзЋ‰гЃ®8иї‘е‚ЌгЃ«з§»е‹•гЃ•гЃ›г‚‹жЊ‡гЃ—ж‰‹г‚‚еђ«гЃѕг‚Њг‚‹гЃЊгЂЃзЋ‹гЃЊиї‘жЋҐгЃ™г‚‹еЅўгЃЇгѓ¬г‚ўг‚±гѓјг‚№гЃЄгЃ®гЃ§
+	// жЊ‡гЃ—ж‰‹з”џж€ђгЃ®ж®µйљЋгЃ§гЃЇй™¤е¤–гЃ—гЃЄгЃЏгЃ¦г‚‚и‰ЇгЃ„гЃЁжЂќгЃ†гЂ‚
 
 	const Bitboard y = pos.discoveredCheckBB();
-	const Bitboard target = ~pos.bbOf(US); // Ћ©‹о‚Є‚И‚ўЏкЏЉ‚Є€Ъ“®‘ОЏЫЏЎ
+	const Bitboard target = ~pos.bbOf(US); // и‡Єй§’гЃЊгЃЄгЃ„е ґж‰ЂгЃЊз§»е‹•еЇѕи±ЎеЌ‡
 
-										   // y‚М‚ЭЃB‚Ѕ‚ѕ‚µx‚©‚Вy‚Е‚ ‚й‰В”\ђ«‚а‚ ‚йЃB
+										   // yгЃ®гЃїгЂ‚гЃџгЃ гЃ—xгЃ‹гЃ¤yгЃ§гЃ‚г‚‹еЏЇиѓЅжЂ§г‚‚гЃ‚г‚‹гЂ‚
 	auto src = y;
 	while (src)
 	{
 		const Square from = src.firstOneFromSQ11();
 
-		// —ј‰¤ЋиЊу•в‚И‚М‚ЕЋw‚µЋи‚рђ¶ђ¬‚µ‚Д‚µ‚Ь‚¤ЃB
+		// дёЎзЋ‹ж‰‹еЂ™иЈњгЃЄгЃ®гЃ§жЊ‡гЃ—ж‰‹г‚’з”џж€ђгЃ—гЃ¦гЃ—гЃѕгЃ†гЂ‚
 
-		// ‚ў‚Ь‚М“G‹К‚Жfrom‚р’К‚й’јђьЏг‚МЏЎ‚Ж€б‚¤‚Ж‚±‚л‚Й€Ъ“®‚і‚№‚к‚ОЉJ‚«‰¤Ћи‚ЄЉm’и‚·‚йЃB
+		// гЃ„гЃѕгЃ®ж•µзЋ‰гЃЁfromг‚’йЂљг‚‹з›ґз·љдёЉгЃ®еЌ‡гЃЁйЃ•гЃ†гЃЁгЃ“г‚ЌгЃ«з§»е‹•гЃ•гЃ›г‚ЊгЃ°й–‹гЃЌзЋ‹ж‰‹гЃЊзўєе®љгЃ™г‚‹гЂ‚
 		const PieceType pt = pieceToPieceType(pos.piece(from));
 		Bitboard toBB = pos.attacksFrom(pt, US, from) & target;
 		while (toBB) {
@@ -301,24 +301,24 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			if (!isAligned<true>(from, to, ksq)) {
 				return false;
 			}
-			// ’јђЪ‰¤Ћи‚Й‚а‚И‚й‚М‚Еx & from‚МЏкЌ‡ЃA’јђьЏг‚МЏЎ‚Ц‚МЋw‚µЋи‚рђ¶ђ¬ЃB
+			// з›ґжЋҐзЋ‹ж‰‹гЃ«г‚‚гЃЄг‚‹гЃ®гЃ§x & fromгЃ®е ґеђ€гЂЃз›ґз·љдёЉгЃ®еЌ‡гЃёгЃ®жЊ‡гЃ—ж‰‹г‚’з”џж€ђгЂ‚
 			else if (x.isSet(from)) {
 				const PieceType pt = pieceToPieceType(pos.piece(from));
 				switch (pt) {
-				case Pawn: // •а
+				case Pawn: // ж­©
 				{
 					if (pawnAttack(US, from).isSet(to)) {
 						return false;
 					}
 					break;
 				}
-				case Silver: // ‹в
+				case Silver: // йЉЂ
 				{
 					Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 					if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
 						return false;
 					}
-					// ђ¬‚Б‚Д‰¤Ћи
+					// ж€ђгЃЈгЃ¦зЋ‹ж‰‹
 					if ((goldAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
 						if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 							return false;
@@ -326,39 +326,39 @@ FORCE_INLINE bool nomate(const Position& pos) {
 					}
 					break;
 				}
-				case Gold: // ‹а
-				case ProPawn: // ‚Ж‹а
-				case ProLance: // ђ¬ЌЃ
-				case ProKnight: // ђ¬Њj
-				case ProSilver: // ђ¬‹в
+				case Gold: // й‡‘
+				case ProPawn: // гЃЁй‡‘
+				case ProLance: // ж€ђй¦™
+				case ProKnight: // ж€ђжЎ‚
+				case ProSilver: // ж€ђйЉЂ
 				{
 					if ((goldAttack(opp, ksq) & goldAttack(US, from)).isSet(to)) {
 						return false;
 					}
 					break;
 				}
-				case Horse: // ”n
+				case Horse: // й¦¬
 				{
-					// ‹К‚Є‘ОЉpЏг‚Й‚И‚ўЏкЌ‡
+					// зЋ‰гЃЊеЇѕи§’дёЉгЃ«гЃЄгЃ„е ґеђ€
 					assert(abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from)));
 					if ((horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB())).isSet(to)) {
 						return false;
 					}
 					break;
 				}
-				case Dragon: // —і
+				case Dragon: // з«њ
 				{
-					// ‹К‚Є’јђьЏг‚Й‚И‚ўЏкЌ‡
+					// зЋ‰гЃЊз›ґз·љдёЉгЃ«гЃЄгЃ„е ґеђ€
 					assert(makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from));
 					if ((dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB())).isSet(to)) {
 						return false;
 					}
 					break;
 				}
-				case Lance: // ЌЃЋФ
-				case Knight: // Њj”n
-				case Bishop: // Љp
-				case Rook: // ”тЋФ
+				case Lance: // й¦™и»Љ
+				case Knight: // жЎ‚й¦¬
+				case Bishop: // и§’
+				case Rook: // йЈ›и»Љ
 				{
 					assert(false);
 					break;
@@ -369,16 +369,16 @@ FORCE_INLINE bool nomate(const Position& pos) {
 		}
 	}
 
-	// y‚Й”н•ў‚µ‚И‚ўx
+	// yгЃ«иў«и¦†гЃ—гЃЄгЃ„x
 	src = (x | y) ^ y;
 	while (src)
 	{
 		const Square from = src.firstOneFromSQ11();
 
-		// ’јђЪ‰¤Ћи‚М‚ЭЃB
+		// з›ґжЋҐзЋ‹ж‰‹гЃ®гЃїгЂ‚
 		const PieceType pt = pieceToPieceType(pos.piece(from));
 		switch (pt) {
-		case Pawn: // •а
+		case Pawn: // ж­©
 		{
 			Bitboard toBB = pawnAttack(US, from) & target;
 			if (toBB) {
@@ -386,22 +386,22 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Lance: // ЌЃЋФ
+		case Lance: // й¦™и»Љ
 		{
-			// ‹К‚Ж‹Ш‚Є€Щ‚И‚йЏкЌ‡
+			// зЋ‰гЃЁз­‹гЃЊз•°гЃЄг‚‹е ґеђ€
 			if (makeFile(ksq) != makeFile(from)) {
 				Bitboard toBB = goldAttack(opp, ksq) & lanceAttack(US, from, pos.occupiedBB()) & target;
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
-					// ђ¬‚й
+					// ж€ђг‚‹
 					if (canPromote(US, makeRank(to))) {
 						return false;
 					}
 				}
 			}
-			// ‹Ш‚Є“Ї‚¶ЏкЌ‡
+			// з­‹гЃЊеђЊгЃе ґеђ€
 			else {
-				// ЉФ‚Й‚ ‚й‹о‚Є€к‚В‚ЕЃA“G‹о‚МЏкЌ‡
+				// й–“гЃ«гЃ‚г‚‹й§’гЃЊдёЂгЃ¤гЃ§гЂЃж•µй§’гЃ®е ґеђ€
 				Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 				if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 					return false;
@@ -409,13 +409,13 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Knight: // Њj”n
+		case Knight: // жЎ‚й¦¬
 		{
 			Bitboard toBB = knightAttack(opp, ksq) & knightAttack(US, from) & target;
 			if (toBB) {
 				return false;
 			}
-			// ђ¬‚Б‚Д‰¤Ћи
+			// ж€ђгЃЈгЃ¦зЋ‹ж‰‹
 			toBB = goldAttack(opp, ksq) & knightAttack(US, from) & target;
 			while (toBB) {
 				const Square to = toBB.firstOneFromSQ11();
@@ -425,13 +425,13 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Silver: // ‹в
+		case Silver: // йЉЂ
 		{
 			Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 			if (toBB) {
 				return false;
 			}
-			// ђ¬‚Б‚Д‰¤Ћи
+			// ж€ђгЃЈгЃ¦зЋ‹ж‰‹
 			toBB = goldAttack(opp, ksq) & silverAttack(US, from) & target;
 			while (toBB) {
 				const Square to = toBB.firstOneFromSQ11();
@@ -441,11 +441,11 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Gold: // ‹а
-		case ProPawn: // ‚Ж‹а
-		case ProLance: // ђ¬ЌЃ
-		case ProKnight: // ђ¬Њj
-		case ProSilver: // ђ¬‹в
+		case Gold: // й‡‘
+		case ProPawn: // гЃЁй‡‘
+		case ProLance: // ж€ђй¦™
+		case ProKnight: // ж€ђжЎ‚
+		case ProSilver: // ж€ђйЉЂ
 		{
 			Bitboard toBB = goldAttack(opp, ksq) & goldAttack(US, from) & target;
 			if (toBB) {
@@ -453,22 +453,22 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Bishop: // Љp
+		case Bishop: // и§’
 		{
-			// ‹К‚Є‘ОЉpЏг‚Й‚И‚ўЏкЌ‡
+			// зЋ‰гЃЊеЇѕи§’дёЉгЃ«гЃЄгЃ„е ґеђ€
 			if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 				Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
-					// ђ¬‚й
+					// ж€ђг‚‹
 					if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 						return false;
 					}
 				}
 			}
-			// ‘ОЉpЏг‚Й‚ ‚йЏкЌ‡
+			// еЇѕи§’дёЉгЃ«гЃ‚г‚‹е ґеђ€
 			else {
-				// ЉФ‚Й‚ ‚й‹о‚Є€к‚В‚ЕЃA“G‹о‚МЏкЌ‡
+				// й–“гЃ«гЃ‚г‚‹й§’гЃЊдёЂгЃ¤гЃ§гЂЃж•µй§’гЃ®е ґеђ€
 				Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 				if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 					return false;
@@ -476,22 +476,22 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Rook: // ”тЋФ
+		case Rook: // йЈ›и»Љ
 		{
-			// ‹К‚Є’јђьЏг‚Й‚И‚ўЏкЌ‡
+			// зЋ‰гЃЊз›ґз·љдёЉгЃ«гЃЄгЃ„е ґеђ€
 			if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 				Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
-					// ђ¬‚й
+					// ж€ђг‚‹
 					if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 						return false;
 					}
 				}
 			}
-			// ’јђьЏг‚Й‚ ‚йЏкЌ‡
+			// з›ґз·љдёЉгЃ«гЃ‚г‚‹е ґеђ€
 			else {
-				// ЉФ‚Й‚ ‚й‹о‚Є€к‚В‚ЕЃA“G‹о‚МЏкЌ‡
+				// й–“гЃ«гЃ‚г‚‹й§’гЃЊдёЂгЃ¤гЃ§гЂЃж•µй§’гЃ®е ґеђ€
 				Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 				if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 					return false;
@@ -499,18 +499,18 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Horse: // ”n
+		case Horse: // й¦¬
 		{
-			// ‹К‚Є‘ОЉpЏг‚Й‚И‚ўЏкЌ‡
+			// зЋ‰гЃЊеЇѕи§’дёЉгЃ«гЃЄгЃ„е ґеђ€
 			if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 				Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB()) & target;
 				if (toBB) {
 					return false;
 				}
 			}
-			// ‘ОЉpЏг‚Й‚ ‚йЏкЌ‡
+			// еЇѕи§’дёЉгЃ«гЃ‚г‚‹е ґеђ€
 			else {
-				// ЉФ‚Й‚ ‚й‹о‚Є€к‚В‚ЕЃA“G‹о‚МЏкЌ‡
+				// й–“гЃ«гЃ‚г‚‹й§’гЃЊдёЂгЃ¤гЃ§гЂЃж•µй§’гЃ®е ґеђ€
 				Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 				if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 					return false;
@@ -518,18 +518,18 @@ FORCE_INLINE bool nomate(const Position& pos) {
 			}
 			break;
 		}
-		case Dragon: // —і
+		case Dragon: // з«њ
 		{
-			// ‹К‚Є’јђьЏг‚Й‚И‚ўЏкЌ‡
+			// зЋ‰гЃЊз›ґз·љдёЉгЃ«гЃЄгЃ„е ґеђ€
 			if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 				Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB()) & target;
 				if (toBB) {
 					return false;
 				}
 			}
-			// ’јђьЏг‚Й‚ ‚йЏкЌ‡
+			// з›ґз·љдёЉгЃ«гЃ‚г‚‹е ґеђ€
 			else {
-				// ЉФ‚Й‚ ‚й‹о‚Є€к‚В‚ЕЃA“G‹о‚МЏкЌ‡
+				// й–“гЃ«гЃ‚г‚‹й§’гЃЊдёЂгЃ¤гЃ§гЂЃж•µй§’гЃ®е ґеђ€
 				Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 				if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 					return false;
@@ -541,34 +541,34 @@ FORCE_INLINE bool nomate(const Position& pos) {
 		}
 	}
 
-	// --- ‹о‘Е‚ї‚Й‚ж‚й‰¤Ћи
+	// --- й§’ж‰“гЃЎгЃ«г‚€г‚‹зЋ‹ж‰‹
 
-	const Bitboard dropTarget = pos.nOccupiedBB(); // emptyBB() ‚Е‚Н‚И‚ў‚М‚Е’Ќ€У‚µ‚ДЋg‚¤‚±‚ЖЃB
+	const Bitboard dropTarget = pos.nOccupiedBB(); // emptyBB() гЃ§гЃЇгЃЄгЃ„гЃ®гЃ§жіЁж„ЏгЃ—гЃ¦дЅїгЃ†гЃ“гЃЁгЂ‚
 	const Hand ourHand = pos.hand(US);
 
-	// •а‘Е‚ї
+	// ж­©ж‰“гЃЎ
 	if (ourHand.exists<HPawn>()) {
 		Bitboard toBB = dropTarget & pawnAttack(opp, ksq);
-		// “с•а‚М‰с”р
+		// дєЊж­©гЃ®е›ћйЃї
 		Bitboard pawnsBB = pos.bbOf(Pawn, US);
 		Square pawnsSquare;
 		foreachBB(pawnsBB, pawnsSquare, [&](const int part) {
 			toBB.set(part, toBB.p(part) & ~squareFileMask(pawnsSquare).p(part));
 		});
 
-		// ‘Е‚ї•а‹l‚Я‚М‰с”р
+		// ж‰“гЃЎж­©и©°г‚ЃгЃ®е›ћйЃї
 		const Rank TRank9 = (US == Black ? Rank9 : Rank1);
 		const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
 
 		const Square ksq = pos.kingSquare(oppositeColor(US));
-		// ‘ЉЋи‹К‚Є‹г’i–Ъ‚И‚зЃA•а‚Е‰¤ЋиЏo—€‚И‚ў‚М‚ЕЃA‘Е‚ї•а‹l‚Я‚р’І‚Ч‚й•K—v‚Н‚И‚ўЃB
+		// з›ёж‰‹зЋ‰гЃЊд№ќж®µз›®гЃЄг‚‰гЂЃж­©гЃ§зЋ‹ж‰‹е‡єжќҐгЃЄгЃ„гЃ®гЃ§гЂЃж‰“гЃЎж­©и©°г‚Ѓг‚’иЄїгЃ№г‚‹еї…и¦ЃгЃЇгЃЄгЃ„гЂ‚
 		if (makeRank(ksq) != TRank9) {
 			const Square pawnDropCheckSquare = ksq + TDeltaS;
 			assert(isInSquare(pawnDropCheckSquare));
 			if (toBB.isSet(pawnDropCheckSquare) && pos.piece(pawnDropCheckSquare) == Empty) {
 				if (!pos.isPawnDropCheckMate(US, pawnDropCheckSquare))
-					// ‚±‚±‚Е clearBit ‚ѕ‚Ї‚µ‚Д MakeMove ‚µ‚И‚ў‚±‚Ж‚аЏo—€‚йЃB
-					// Ћw‚µЋи‚Єђ¶ђ¬‚і‚к‚йЏ‡”Ф‚Є•П‚н‚иЃA‰¤Ћи‚Єђж‚Йђ¶ђ¬‚і‚к‚й‚ЄЃAЊг‚Е–в‘и‚Й‚И‚з‚И‚ў‚©?
+					// гЃ“гЃ“гЃ§ clearBit гЃ гЃ‘гЃ—гЃ¦ MakeMove гЃ—гЃЄгЃ„гЃ“гЃЁг‚‚е‡єжќҐг‚‹гЂ‚
+					// жЊ‡гЃ—ж‰‹гЃЊз”џж€ђгЃ•г‚Њг‚‹й †з•ЄгЃЊе¤‰г‚Џг‚ЉгЂЃзЋ‹ж‰‹гЃЊе…€гЃ«з”џж€ђгЃ•г‚Њг‚‹гЃЊгЂЃеѕЊгЃ§е•ЏйЎЊгЃ«гЃЄг‚‰гЃЄгЃ„гЃ‹?
 					return false;
 				toBB.xorBit(pawnDropCheckSquare);
 			}
@@ -577,37 +577,37 @@ FORCE_INLINE bool nomate(const Position& pos) {
 		if (toBB) return false;
 	}
 
-	// ЌЃЋФ‘Е‚ї
+	// й¦™и»Љж‰“гЃЎ
 	if (ourHand.exists<HLance>()) {
 		Bitboard toBB = dropTarget & lanceAttack(opp, ksq, pos.occupiedBB());
 		if (toBB) return false;
 	}
 
-	// Њj”n‘Е‚ї
+	// жЎ‚й¦¬ж‰“гЃЎ
 	if (ourHand.exists<HKnight>()) {
 		Bitboard toBB = dropTarget & knightAttack(opp, ksq);
 		if (toBB) return false;
 	}
 
-	// ‹в‘Е‚ї
+	// йЉЂж‰“гЃЎ
 	if (ourHand.exists<HSilver>()) {
 		Bitboard toBB = dropTarget & silverAttack(opp, ksq);
 		if (toBB) return false;
 	}
 
-	// ‹а‘Е‚ї
+	// й‡‘ж‰“гЃЎ
 	if (ourHand.exists<HGold>()) {
 		Bitboard toBB = dropTarget & goldAttack(opp, ksq);
 		if (toBB) return false;
 	}
 
-	// Љp‘Е‚ї
+	// и§’ж‰“гЃЎ
 	if (ourHand.exists<HBishop>()) {
 		Bitboard toBB = dropTarget & bishopAttack(ksq, pos.occupiedBB());
 		if (toBB) return false;
 	}
 
-	// ”тЋФ‘Е‚ї
+	// йЈ›и»Љж‰“гЃЎ
 	if (ourHand.exists<HRook>()) {
 		Bitboard toBB = dropTarget & rookAttack(ksq, pos.occupiedBB());
 		if (toBB) return false;
@@ -616,7 +616,7 @@ FORCE_INLINE bool nomate(const Position& pos) {
 	return true;
 }
 
-// ‰¤Ћи‚МЋw‚µЋи‚Є‹ЯђЪ‰¤Ћи‚©
+// зЋ‹ж‰‹гЃ®жЊ‡гЃ—ж‰‹гЃЊиї‘жЋҐзЋ‹ж‰‹гЃ‹
 FORCE_INLINE bool moveGivesNeighborCheck(const Position pos, const Move move)
 {
 	const Color them = oppositeColor(pos.turn());
@@ -624,18 +624,18 @@ FORCE_INLINE bool moveGivesNeighborCheck(const Position pos, const Move move)
 
 	const Square to = move.to();
 
-	// “G‹К‚М8‹Я–T
+	// ж•µзЋ‰гЃ®8иї‘е‚Ќ
 	if (pos.attacksFrom<King>(ksq).isSet(to))
 		return true;
 
-	// Њj”n‚Й‚ж‚й‰¤Ћи
+	// жЎ‚й¦¬гЃ«г‚€г‚‹зЋ‹ж‰‹
 	if (move.pieceTypeTo() == Lance)
 		return true;
 
 	return false;
 }
 
-// ”ЅЏШ‹о‚рЊvЋZ(Ћќ‚Б‚Д‚ў‚йЋќ‚ї‹о‚рЌЕ‘еђ”‚Й‚·‚й(ЊгЋи‚МЋќ‚ї‹о‚р‰Б‚¦‚й))
+// еЏЌиЁјй§’г‚’иЁ€з®—(жЊЃгЃЈгЃ¦гЃ„г‚‹жЊЃгЃЎй§’г‚’жњЂе¤§ж•°гЃ«гЃ™г‚‹(еѕЊж‰‹гЃ®жЊЃгЃЎй§’г‚’еЉ гЃ€г‚‹))
 FORCE_INLINE u32 dp(const Hand& us, const Hand& them) {
 	u32 dp = 0;
 	u32 pawn = us.exists<HPawn>(); if (pawn > 0) dp += pawn + them.exists<HPawn>();
@@ -661,20 +661,20 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 	// if (n is a terminal node) { handle n and return; }
 	MovePicker<or_node> move_picker(n);
 	if (move_picker.empty()) {
-		// n‚Єђж’[ѓmЃ[ѓh
+		// nгЃЊе…€з«ЇгѓЋгѓјгѓ‰
 
 		if (or_node) {
-			// Ћ©•Є‚МЋи”Ф‚Е‚±‚±‚Й“ћ’B‚µ‚ЅЏкЌ‡‚Н‰¤Ћи‚МЋи‚Є–і‚©‚Б‚ЅЃA
+			// и‡Єе€†гЃ®ж‰‹з•ЄгЃ§гЃ“гЃ“гЃ«е€°йЃ”гЃ—гЃџе ґеђ€гЃЇзЋ‹ж‰‹гЃ®ж‰‹гЃЊз„ЎгЃ‹гЃЈгЃџгЂЃ
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
 
-			// ”ЅЏШ‹о
-			// Ћќ‚Б‚Д‚ў‚йЋќ‚ї‹о‚рЌЕ‘еђ”‚Й‚·‚й(ЊгЋи‚МЋќ‚ї‹о‚р‰Б‚¦‚й)
+			// еЏЌиЁјй§’
+			// жЊЃгЃЈгЃ¦гЃ„г‚‹жЊЃгЃЎй§’г‚’жњЂе¤§ж•°гЃ«гЃ™г‚‹(еѕЊж‰‹гЃ®жЊЃгЃЎй§’г‚’еЉ гЃ€г‚‹)
 			entry.hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
 		}
 		else {
-			// ‘ЉЋи‚МЋи”Ф‚Е‚±‚±‚Й“ћ’B‚µ‚ЅЏкЌ‡‚Н‰¤Ћи‰с”р‚МЋи‚Є–і‚©‚Б‚ЅЃA
-			// 1Ћи‹l‚Я‚рЌs‚Б‚Д‚ў‚й‚Ѕ‚ЯЃA‚±‚±‚Й“ћ’B‚·‚й‚±‚Ж‚Н‚И‚ў
+			// з›ёж‰‹гЃ®ж‰‹з•ЄгЃ§гЃ“гЃ“гЃ«е€°йЃ”гЃ—гЃџе ґеђ€гЃЇзЋ‹ж‰‹е›ћйЃїгЃ®ж‰‹гЃЊз„ЎгЃ‹гЃЈгЃџгЂЃ
+			// 1ж‰‹и©°г‚Ѓг‚’иЎЊгЃЈгЃ¦гЃ„г‚‹гЃџг‚ЃгЂЃгЃ“гЃ“гЃ«е€°йЃ”гЃ™г‚‹гЃ“гЃЁгЃЇгЃЄгЃ„
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 		}
@@ -682,11 +682,11 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		return;
 	}
 
-	// ђV‹KђЯ“_‚ЕЊЕ’иђ[‚і‚М’TЌх‚р•№—p
+	// ж–°и¦ЏзЇЂз‚№гЃ§е›єе®љж·±гЃ•гЃ®жЋўзґўг‚’дЅµз”Ё
 	if (entry.num_searched == 0) {
 		if (or_node) {
 			if (!n.inCheck()) {
-				// 3Ћи‹l‚Эѓ`ѓFѓbѓN
+				// 3ж‰‹и©°гЃїгѓЃг‚§гѓѓг‚Ї
 				Color us = n.turn();
 				Color them = oppositeColor(us);
 
@@ -702,11 +702,11 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 					auto& entry2 = transposition_table.LookUp<false>(n, depth + 1);
 
-					// ‚±‚М‹З–К‚Е‚·‚Ч‚Д‚Мevasion‚рЋЋ‚·
+					// гЃ“гЃ®е±ЂйќўгЃ§гЃ™гЃ№гЃ¦гЃ®evasionг‚’и©¦гЃ™
 					MovePicker<false> move_picker2(n);
 
 					if (move_picker2.size() == 0) {
-						// 1Ћи‚Е‹l‚с‚ѕ
+						// 1ж‰‹гЃ§и©°г‚“гЃ 
 						n.undoMove(m);
 
 						entry2.pn = 0;
@@ -715,14 +715,14 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						entry.pn = 0;
 						entry.dn = kInfinitePnDn;
 
-						// ЏШ–ѕ‹о‚рЏ‰Љъ‰»
+						// иЁјжЋй§’г‚’е€ќжњџеЊ–
 						entry.hand.set(0);
 
-						// ‘Е‚ВЋи‚И‚з‚ОЏШ–ѕ‹о‚Й‰Б‚¦‚й
+						// ж‰“гЃ¤ж‰‹гЃЄг‚‰гЃ°иЁјжЋй§’гЃ«еЉ гЃ€г‚‹
 						if (m.isDrop()) {
 							entry.hand.plusOne(m.handPieceDropped());
 						}
-						// ЊгЋи‚Є€к–‡‚аЋќ‚Б‚Д‚ў‚И‚ўЋн—Ю‚МђжЋи‚МЋќ‚ї‹о‚рЏШ–ѕ‹о‚ЙђЭ’и‚·‚й
+						// еѕЊж‰‹гЃЊдёЂжћљг‚‚жЊЃгЃЈгЃ¦гЃ„гЃЄгЃ„зЁ®йЎћгЃ®е…€ж‰‹гЃ®жЊЃгЃЎй§’г‚’иЁјжЋй§’гЃ«иЁ­е®љгЃ™г‚‹
 						if (!moveGivesNeighborCheck(n, m))
 							entry.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 
@@ -734,7 +734,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 					{
 						const Move& m2 = move.move;
 
-						// ‚±‚МЋw‚µЋи‚Е‹t‰¤Ћи‚Й‚И‚й‚И‚зЃA•s‹l‚Я‚Ж‚µ‚Д€µ‚¤
+						// гЃ“гЃ®жЊ‡гЃ—ж‰‹гЃ§йЂ†зЋ‹ж‰‹гЃ«гЃЄг‚‹гЃЄг‚‰гЂЃдёЌи©°г‚ЃгЃЁгЃ—гЃ¦ж‰±гЃ†
 						if (n.moveGivesCheck(m2, ci2))
 							goto NEXT_CHECK;
 
@@ -746,7 +746,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 							entry1.dn = kInfinitePnDn;
 						}
 						else {
-							// ‹l‚с‚Е‚И‚ў‚М‚ЕЃAm2‚Е‹l‚Э‚р“¦‚к‚Д‚ў‚йЃB
+							// и©°г‚“гЃ§гЃЄгЃ„гЃ®гЃ§гЂЃm2гЃ§и©°гЃїг‚’йЂѓг‚ЊгЃ¦гЃ„г‚‹гЂ‚
 							n.undoMove(m2);
 							goto NEXT_CHECK;
 						}
@@ -754,7 +754,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						n.undoMove(m2);
 					}
 
-					// ‚·‚Ч‚Д‹l‚с‚ѕ
+					// гЃ™гЃ№гЃ¦и©°г‚“гЃ 
 					n.undoMove(m);
 
 					entry2.pn = 0;
@@ -777,15 +777,15 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			}
 		}
 		else {
-			// 2Ћи“З‚Эѓ`ѓFѓbѓN
+			// 2ж‰‹иЄ­гЃїгѓЃг‚§гѓѓг‚Ї
 			StateInfo si2;
-			// ‚±‚М‹З–К‚Е‚·‚Ч‚Д‚Мevasion‚рЋЋ‚·
+			// гЃ“гЃ®е±ЂйќўгЃ§гЃ™гЃ№гЃ¦гЃ®evasionг‚’и©¦гЃ™
 			const CheckInfo ci2(n);
 			for (const auto& move : move_picker)
 			{
 				const Move& m2 = move.move;
 
-				// ‚±‚МЋw‚µЋи‚Е‹t‰¤Ћи‚Й‚И‚й‚И‚зЃA•s‹l‚Я‚Ж‚µ‚Д€µ‚¤
+				// гЃ“гЃ®жЊ‡гЃ—ж‰‹гЃ§йЂ†зЋ‹ж‰‹гЃ«гЃЄг‚‹гЃЄг‚‰гЂЃдёЌи©°г‚ЃгЃЁгЃ—гЃ¦ж‰±гЃ†
 				if (n.moveGivesCheck(m2, ci2))
 					goto NO_MATE;
 
@@ -796,39 +796,39 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 					entry1.pn = 0;
 					entry1.dn = kInfinitePnDn;
 
-					// ЏШ–ѕ‹о‚рЏ‰Љъ‰»
+					// иЁјжЋй§’г‚’е€ќжњџеЊ–
 					entry1.hand.set(0);
 
-					// ‘Е‚ВЋи‚И‚з‚ОЏШ–ѕ‹о‚Й‰Б‚¦‚й
+					// ж‰“гЃ¤ж‰‹гЃЄг‚‰гЃ°иЁјжЋй§’гЃ«еЉ гЃ€г‚‹
 					if (move.isDrop()) {
 						entry1.hand.plusOne(move.handPieceDropped());
 					}
-					// ЊгЋи‚Є€к–‡‚аЋќ‚Б‚Д‚ў‚И‚ўЋн—Ю‚МђжЋи‚МЋќ‚ї‹о‚рЏШ–ѕ‹о‚ЙђЭ’и‚·‚й
+					// еѕЊж‰‹гЃЊдёЂжћљг‚‚жЊЃгЃЈгЃ¦гЃ„гЃЄгЃ„зЁ®йЎћгЃ®е…€ж‰‹гЃ®жЊЃгЃЎй§’г‚’иЁјжЋй§’гЃ«иЁ­е®љгЃ™г‚‹
 					if (!moveGivesNeighborCheck(n, move))
 						entry1.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 				}
 				else {
-					// ‹l‚с‚Е‚И‚ў‚М‚ЕЃAm2‚Е‹l‚Э‚р“¦‚к‚Д‚ў‚йЃB
-					// •s‹l‚Эѓ`ѓFѓbѓN
+					// и©°г‚“гЃ§гЃЄгЃ„гЃ®гЃ§гЂЃm2гЃ§и©°гЃїг‚’йЂѓг‚ЊгЃ¦гЃ„г‚‹гЂ‚
+					// дёЌи©°гЃїгѓЃг‚§гѓѓг‚Ї
 					if (nomate(n)) {
 						auto& entry1 = transposition_table.LookUp<true>(n, depth + 1);
 						entry1.pn = kInfinitePnDn;
 						entry1.dn = 0;
-						// ”ЅЏШ‹о
-						// Ћќ‚Б‚Д‚ў‚йЋќ‚ї‹о‚рЌЕ‘еђ”‚Й‚·‚й(ЊгЋи‚МЋќ‚ї‹о‚р‰Б‚¦‚й)
+						// еЏЌиЁјй§’
+						// жЊЃгЃЈгЃ¦гЃ„г‚‹жЊЃгЃЎй§’г‚’жњЂе¤§ж•°гЃ«гЃ™г‚‹(еѕЊж‰‹гЃ®жЊЃгЃЎй§’г‚’еЉ гЃ€г‚‹)
 						entry1.hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
 
 						n.undoMove(m2);
 
 						entry.pn = kInfinitePnDn;
 						entry.dn = 0;
-						// Ћq‹З–К‚М”ЅЏШ‹о‚рђЭ’и
-						// ‘Е‚ВЋи‚И‚з‚ОЃA”ЅЏШ‹о‚©‚зЌнЏњ‚·‚й
+						// е­ђе±ЂйќўгЃ®еЏЌиЁјй§’г‚’иЁ­е®љ
+						// ж‰“гЃ¤ж‰‹гЃЄг‚‰гЃ°гЂЃеЏЌиЁјй§’гЃ‹г‚‰е‰Љй™¤гЃ™г‚‹
 						if (m2.isDrop()) {
 							entry.hand = entry1.hand;
 							entry.hand.minusOne(m2.handPieceDropped());
 						}
-						// ђжЋи‚М‹о‚рЋж‚йЋи‚И‚з‚ОЃA”ЅЏШ‹о‚Й’З‰Б‚·‚й
+						// е…€ж‰‹гЃ®й§’г‚’еЏ–г‚‹ж‰‹гЃЄг‚‰гЃ°гЂЃеЏЌиЁјй§’гЃ«иїЅеЉ гЃ™г‚‹
 						else {
 							const Piece to_pc = n.piece(m2.to());
 							if (to_pc != Empty) {
@@ -849,7 +849,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				n.undoMove(m2);
 			}
 
-			// ‚·‚Ч‚Д‹l‚с‚ѕ
+			// гЃ™гЃ№гЃ¦и©°г‚“гЃ 
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 			return;
@@ -858,13 +858,13 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		}
 	}
 
-	// ђз“ъЋи‚Мѓ`ѓFѓbѓN
+	// еЌѓж—Ґж‰‹гЃ®гѓЃг‚§гѓѓг‚Ї
 	switch (n.isDraw(16)) {
 	case RepetitionWin:
 		//cout << "RepetitionWin" << endl;
-		// A‘±‰¤Ћи‚Мђз“ъЋи‚Й‚ж‚йЏџ‚ї
+		// йЂЈз¶љзЋ‹ж‰‹гЃ®еЌѓж—Ґж‰‹гЃ«г‚€г‚‹е‹ќгЃЎ
 		if (or_node) {
-			// ‚±‚±‚Н’К‚з‚И‚ў‚Н‚ё
+			// гЃ“гЃ“гЃЇйЂљг‚‰гЃЄгЃ„гЃЇгЃљ
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 			entry.num_searched = REPEAT;
@@ -878,14 +878,14 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 	case RepetitionLose:
 		//cout << "RepetitionLose" << endl;
-		// A‘±‰¤Ћи‚Мђз“ъЋи‚Й‚ж‚й•‰‚Ї
+		// йЂЈз¶љзЋ‹ж‰‹гЃ®еЌѓж—Ґж‰‹гЃ«г‚€г‚‹иІ гЃ‘
 		if (or_node) {
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
 			entry.num_searched = REPEAT;
 		}
 		else {
-			// ‚±‚±‚Н’К‚з‚И‚ў‚Н‚ё
+			// гЃ“гЃ“гЃЇйЂљг‚‰гЃЄгЃ„гЃЇгЃљ
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 			entry.num_searched = REPEAT;
@@ -894,15 +894,15 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 	case RepetitionDraw:
 		//cout << "RepetitionDraw" << endl;
-		// •Ѓ’К‚Мђз“ъЋи
-		// ‚±‚±‚Н’К‚з‚И‚ў‚Н‚ё
+		// ж™®йЂљгЃ®еЌѓж—Ґж‰‹
+		// гЃ“гЃ“гЃЇйЂљг‚‰гЃЄгЃ„гЃЇгЃљ
 		entry.pn = kInfinitePnDn;
 		entry.dn = 0;
 		entry.num_searched = REPEAT;
 		return;
 	}
 
-	// Ћq‹З–К‚МѓnѓbѓVѓ…ѓGѓ“ѓgѓЉ‚рѓLѓѓѓbѓVѓ…
+	// е­ђе±ЂйќўгЃ®гѓЏгѓѓг‚·гѓҐг‚Ёгѓігѓ€гѓЄг‚’г‚­гѓЈгѓѓг‚·гѓҐ
 	struct TTKey {
 		TranspositionTable::Cluster* entries;
 		uint32_t hash_high;
@@ -923,7 +923,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 		// expand and compute pn(n) and dn(n);
 		if (or_node) {
-			// ORѓmЃ[ѓh‚Е‚НЌЕ‚аЏШ–ѕђ”‚ЄЏ¬‚і‚ў = ‹К‚М“¦‚°•ы‚МЊВђ”‚ЄЏ­‚И‚ў = ‹l‚Ь‚µ‚в‚·‚ўѓmЃ[ѓh‚р‘I‚Ф
+			// ORгѓЋгѓјгѓ‰гЃ§гЃЇжњЂг‚‚иЁјжЋж•°гЃЊе°ЏгЃ•гЃ„ = зЋ‰гЃ®йЂѓгЃ’ж–№гЃ®еЂ‹ж•°гЃЊе°‘гЃЄгЃ„ = и©°гЃѕгЃ—г‚„гЃ™гЃ„гѓЋгѓјгѓ‰г‚’йЃёгЃ¶
 			int best_pn = kInfinitePnDn;
 			int second_best_pn = kInfinitePnDn;
 			int best_dn = 0;
@@ -931,7 +931,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
-			// Ћq‹З–К‚М”ЅЏШ‹о‚МђПЏWЌ‡
+			// е­ђе±ЂйќўгЃ®еЏЌиЁјй§’гЃ®з©Ќй›†еђ€
 			u32 pawn = UINT_MAX;
 			u32 lance = UINT_MAX;
 			u32 knight = UINT_MAX;
@@ -944,13 +944,13 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
 				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, depth + 1);
 				if (child_entry.pn == 0) {
-					// ‹l‚Э‚МЏкЌ‡
+					// и©°гЃїгЃ®е ґеђ€
 					//cout << n.toSFEN() << " or" << endl;
 					//cout << bitset<32>(entry.hand.value()) << endl;
 					entry.pn = 0;
 					entry.dn = kInfinitePnDn;
-					// Ћq‹З–К‚МЏШ–ѕ‹о‚рђЭ’и
-					// ‘Е‚ВЋи‚И‚з‚ОЃAЏШ–ѕ‹о‚Й’З‰Б‚·‚й
+					// е­ђе±ЂйќўгЃ®иЁјжЋй§’г‚’иЁ­е®љ
+					// ж‰“гЃ¤ж‰‹гЃЄг‚‰гЃ°гЂЃиЁјжЋй§’гЃ«иїЅеЉ гЃ™г‚‹
 					if (move.move.isDrop()) {
 						const HandPiece hp = move.move.handPieceDropped();
 						if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
@@ -958,7 +958,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 							entry.hand.plusOne(move.move.handPieceDropped());
 						}
 					}
-					// ЊгЋи‚М‹о‚рЋж‚йЋи‚И‚з‚ОЃAЏШ–ѕ‹о‚©‚зЌнЏњ‚·‚й
+					// еѕЊж‰‹гЃ®й§’г‚’еЏ–г‚‹ж‰‹гЃЄг‚‰гЃ°гЂЃиЁјжЋй§’гЃ‹г‚‰е‰Љй™¤гЃ™г‚‹
 					else {
 						const Piece to_pc = n.piece(move.move.to());
 						if (to_pc != Empty) {
@@ -975,25 +975,25 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				else if (entry.dn == 0) {
 					if (child_entry.dn == 0) {
 						const Hand& child_dp = child_entry.hand;
-						// •а
+						// ж­©
 						const u32 child_pawn = child_dp.exists<HPawn>();
 						if (child_pawn < pawn) pawn = child_pawn;
-						// ЌЃЋФ
+						// й¦™и»Љ
 						const u32 child_lance = child_dp.exists<HLance>();
 						if (child_lance < lance) lance = child_lance;
-						// Њj”n
+						// жЎ‚й¦¬
 						const u32 child_knight = child_dp.exists<HKnight>();
 						if (child_knight < knight) knight = child_knight;
-						// ‹в
+						// йЉЂ
 						const u32 child_silver = child_dp.exists<HSilver>();
 						if (child_silver < silver) silver = child_silver;
-						// ‹а
+						// й‡‘
 						const u32 child_gold = child_dp.exists<HGold>();
 						if (child_gold < gold) gold = child_gold;
-						// Љp
+						// и§’
 						const u32 child_bishop = child_dp.exists<HBishop>();
 						if (child_bishop < bishop) bishop = child_bishop;
-						// ”тЋФ
+						// йЈ›и»Љ
 						const u32 child_rook = child_dp.exists<HRook>();
 						if (child_rook < rook) rook = child_rook;
 					}
@@ -1015,9 +1015,9 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			}
 			entry.dn = std::min(entry.dn, kInfinitePnDn);
 			if (entry.dn == 0) {
-				// •s‹l‚Э‚МЏкЌ‡
+				// дёЌи©°гЃїгЃ®е ґеђ€
 				//cout << n.hand(n.turn()).value() << "," << entry.hand.value() << ",";
-				// ђжЋи‚Є€к–‡‚аЋќ‚Б‚Д‚ў‚И‚ўЋн—Ю‚МђжЋи‚МЋќ‚ї‹о‚р”ЅЏШ‹о‚©‚зЌнЏњ‚·‚й
+				// е…€ж‰‹гЃЊдёЂжћљг‚‚жЊЃгЃЈгЃ¦гЃ„гЃЄгЃ„зЁ®йЎћгЃ®е…€ж‰‹гЃ®жЊЃгЃЎй§’г‚’еЏЌиЁјй§’гЃ‹г‚‰е‰Љй™¤гЃ™г‚‹
 				u32 curr_pawn = entry.hand.exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
 				u32 curr_lance = entry.hand.exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
 				u32 curr_knight = entry.hand.exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
@@ -1025,7 +1025,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				u32 curr_gold = entry.hand.exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
 				u32 curr_bishop = entry.hand.exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
 				u32 curr_rook = entry.hand.exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
-				// ”ЅЏШ‹о‚ЙЋq‹З–К‚МЏШ–ѕ‹о‚МђПЏWЌ‡‚рђЭ’и
+				// еЏЌиЁјй§’гЃ«е­ђе±ЂйќўгЃ®иЁјжЋй§’гЃ®з©Ќй›†еђ€г‚’иЁ­е®љ
 				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 				//cout << entry.hand.value() << endl;
 			}
@@ -1035,7 +1035,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			}
 		}
 		else {
-			// ANDѓmЃ[ѓh‚Е‚НЌЕ‚а”ЅЏШђ”‚МЏ¬‚і‚ў = ‰¤Ћи‚МЉ|‚Ї•ы‚МЏ­‚И‚ў = •s‹l‚Э‚рЋ¦‚µ‚в‚·‚ўѓmЃ[ѓh‚р‘I‚Ф
+			// ANDгѓЋгѓјгѓ‰гЃ§гЃЇжњЂг‚‚еЏЌиЁјж•°гЃ®е°ЏгЃ•гЃ„ = зЋ‹ж‰‹гЃ®жЋ›гЃ‘ж–№гЃ®е°‘гЃЄгЃ„ = дёЌи©°гЃїг‚’з¤єгЃ—г‚„гЃ™гЃ„гѓЋгѓјгѓ‰г‚’йЃёгЃ¶
 			int best_dn = kInfinitePnDn;
 			int second_best_dn = kInfinitePnDn;
 			int best_pn = 0;
@@ -1043,7 +1043,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
-			// Ћq‹З–К‚МЏШ–ѕ‹о‚МaЏWЌ‡
+			// е­ђе±ЂйќўгЃ®иЁјжЋй§’гЃ®е’Њй›†еђ€
 			u32 pawn = 0;
 			u32 lance = 0;
 			u32 knight = 0;
@@ -1058,25 +1058,25 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				if (all_mate) {
 					if (child_entry.pn == 0) {
 						const Hand& child_pp = child_entry.hand;
-						// •а
+						// ж­©
 						const u32 child_pawn = child_pp.exists<HPawn>();
 						if (child_pawn > pawn) pawn = child_pawn;
-						// ЌЃЋФ
+						// й¦™и»Љ
 						const u32 child_lance = child_pp.exists<HLance>();
 						if (child_lance > lance) lance = child_lance;
-						// Њj”n
+						// жЎ‚й¦¬
 						const u32 child_knight = child_pp.exists<HKnight>();
 						if (child_knight > knight) knight = child_knight;
-						// ‹в
+						// йЉЂ
 						const u32 child_silver = child_pp.exists<HSilver>();
 						if (child_silver > silver) silver = child_silver;
-						// ‹а
+						// й‡‘
 						const u32 child_gold = child_pp.exists<HGold>();
 						if (child_gold > gold) gold = child_gold;
-						// Љp
+						// и§’
 						const u32 child_bishop = child_pp.exists<HBishop>();
 						if (child_bishop > bishop) bishop = child_bishop;
-						// ”тЋФ
+						// йЈ›и»Љ
 						const u32 child_rook = child_pp.exists<HRook>();
 						if (child_rook > rook) rook = child_rook;
 					}
@@ -1084,11 +1084,11 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						all_mate = false;
 				}
 				if (child_entry.dn == 0) {
-					// •s‹l‚Э‚МЏкЌ‡
+					// дёЌи©°гЃїгЃ®е ґеђ€
 					entry.pn = kInfinitePnDn;
 					entry.dn = 0;
-					// Ћq‹З–К‚М”ЅЏШ‹о‚рђЭ’и
-					// ‘Е‚ВЋи‚И‚з‚ОЃA”ЅЏШ‹о‚©‚зЌнЏњ‚·‚й
+					// е­ђе±ЂйќўгЃ®еЏЌиЁјй§’г‚’иЁ­е®љ
+					// ж‰“гЃ¤ж‰‹гЃЄг‚‰гЃ°гЂЃеЏЌиЁјй§’гЃ‹г‚‰е‰Љй™¤гЃ™г‚‹
 					if (move.move.isDrop()) {
 						const HandPiece hp = move.move.handPieceDropped();
 						if (entry.hand.numOf(hp) < child_entry.hand.numOf(hp)) {
@@ -1096,7 +1096,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 							entry.hand.minusOne(hp);
 						}
 					}
-					// ђжЋи‚М‹о‚рЋж‚йЋи‚И‚з‚ОЃA”ЅЏШ‹о‚Й’З‰Б‚·‚й
+					// е…€ж‰‹гЃ®й§’г‚’еЏ–г‚‹ж‰‹гЃЄг‚‰гЃ°гЂЃеЏЌиЁјй§’гЃ«иїЅеЉ гЃ™г‚‹
 					else {
 						const Piece to_pc = n.piece(move.move.to());
 						if (to_pc != Empty) {
@@ -1126,10 +1126,10 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			}
 			entry.pn = std::min(entry.pn, kInfinitePnDn);
 			if (entry.pn == 0) {
-				// ‹l‚Э‚МЏкЌ‡
+				// и©°гЃїгЃ®е ґеђ€
 				//cout << n.toSFEN() << " and" << endl;
 				//cout << bitset<32>(entry.hand.value()) << endl;
-				// ЏШ–ѕ‹о‚ЙЋq‹З–К‚МЏШ–ѕ‹о‚МaЏWЌ‡‚рђЭ’и
+				// иЁјжЋй§’гЃ«е­ђе±ЂйќўгЃ®иЁјжЋй§’гЃ®е’Њй›†еђ€г‚’иЁ­е®љ
 				u32 curr_pawn = entry.hand.exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
 				u32 curr_lance = entry.hand.exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
 				u32 curr_knight = entry.hand.exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
@@ -1139,7 +1139,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				u32 curr_rook = entry.hand.exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
 				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 				//cout << bitset<32>(entry.hand.value()) << endl;
-				// ЊгЋи‚Є€к–‡‚аЋќ‚Б‚Д‚ў‚И‚ўЋн—Ю‚МђжЋи‚МЋќ‚ї‹о‚рЏШ–ѕ‹о‚ЙђЭ’и‚·‚й
+				// еѕЊж‰‹гЃЊдёЂжћљг‚‚жЊЃгЃЈгЃ¦гЃ„гЃЄгЃ„зЁ®йЎћгЃ®е…€ж‰‹гЃ®жЊЃгЃЎй§’г‚’иЁјжЋй§’гЃ«иЁ­е®љгЃ™г‚‹
 				if (!(n.checkersBB() & n.attacksFrom<King>(n.kingSquare(n.turn())) || n.checkersBB() & n.attacksFrom<Knight>(n.turn(), n.kingSquare(n.turn()))))
 					entry.hand.setPP(n.hand(oppositeColor(n.turn())), n.hand(n.turn()));
 				//cout << bitset<32>(entry.hand.value()) << endl;
@@ -1165,7 +1165,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 	}
 }
 
-// ‹l‚Э‚МЋи•Ф‚·
+// и©°гЃїгЃ®ж‰‹иї”гЃ™
 Move DfPn::dfpn_move(Position& pos) {
 	MovePicker<true> move_picker(pos);
 	Move mate1ply = pos.mateMoveIn1Ply();
@@ -1190,13 +1190,13 @@ void DfPn::init()
 	transposition_table.Resize();
 }
 
-// ‹lЏ«Љы’TЌх‚МѓGѓ“ѓgѓЉѓ|ѓCѓ“ѓg
+// и©°е°†жЈ‹жЋўзґўгЃ®г‚Ёгѓігѓ€гѓЄгѓќг‚¤гѓігѓ€
 bool DfPn::dfpn(Position& r) {
-	// Ћ©‹К‚Й‰¤Ћи‚Є‚©‚©‚Б‚Д‚ў‚И‚ў‚±‚Ж
+	// и‡ЄзЋ‰гЃ«зЋ‹ж‰‹гЃЊгЃ‹гЃ‹гЃЈгЃ¦гЃ„гЃЄгЃ„гЃ“гЃЁ
 
 	stop = false;
 
-	// ѓLѓѓѓbѓVѓ…‚Мђў‘г‚рђi‚Я‚й
+	// г‚­гѓЈгѓѓг‚·гѓҐгЃ®дё–д»Јг‚’йЂІг‚Ѓг‚‹
 	transposition_table.NewSearch();
 
 	searchedNode = 0;
@@ -1215,11 +1215,11 @@ bool DfPn::dfpn(Position& r) {
 	return entry.pn == 0;
 }
 
-// ‹lЏ«Љы’TЌх‚МѓGѓ“ѓgѓЉѓ|ѓCѓ“ѓg
+// и©°е°†жЈ‹жЋўзґўгЃ®г‚Ёгѓігѓ€гѓЄгѓќг‚¤гѓігѓ€
 bool DfPn::dfpn_andnode(Position& r) {
-	// Ћ©‹К‚Й‰¤Ћи‚Є‚©‚©‚Б‚Д‚ў‚й
+	// и‡ЄзЋ‰гЃ«зЋ‹ж‰‹гЃЊгЃ‹гЃ‹гЃЈгЃ¦гЃ„г‚‹
 
-	// ѓLѓѓѓbѓVѓ…‚Мђў‘г‚рђi‚Я‚й
+	// г‚­гѓЈгѓѓг‚·гѓҐгЃ®дё–д»Јг‚’йЂІг‚Ѓг‚‹
 	transposition_table.NewSearch();
 
 	searchedNode = 0;
