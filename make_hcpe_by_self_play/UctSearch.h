@@ -1,26 +1,26 @@
-#pragma once
+ï»¿#pragma once
 
 #include "move.hpp"
 
-// Œó•âè‚ÌÅ‘å”(”Õã‘S‘Ì)
+// å€™è£œæ‰‹ã®æœ€å¤§æ•°(ç›¤ä¸Šå…¨ä½“)
 constexpr int UCT_CHILD_MAX = 593;
 
-constexpr unsigned int NOT_EXPANDED = -1; // –¢“WŠJ‚Ìƒm[ƒh‚ÌƒCƒ“ƒfƒbƒNƒX
+constexpr unsigned int NOT_EXPANDED = -1; // æœªå±•é–‹ã®ãƒãƒ¼ãƒ‰ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
 
 struct child_node_t {
-	Move move;          // ’…è‚·‚éÀ•W
-	int move_count;     // ’Tõ‰ñ”
-	float win;          // Ÿ‚Á‚½‰ñ”
-	unsigned int index; // ƒCƒ“ƒfƒbƒNƒX
-	float nnrate;       // ƒjƒ…[ƒ‰ƒ‹ƒlƒbƒgƒ[ƒN‚Å‚ÌƒŒ[ƒg
+	Move move;          // ç€æ‰‹ã™ã‚‹åº§æ¨™
+	int move_count;     // æ¢ç´¢å›æ•°
+	float win;          // å‹ã£ãŸå›æ•°
+	unsigned int index; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
+	float nnrate;       // ãƒ‹ãƒ¥ãƒ¼ãƒ©ãƒ«ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã§ã®ãƒ¬ãƒ¼ãƒˆ
 };
 
 struct uct_node_t {
 	int move_count;
 	float win;
-	bool evaled;      // •]‰¿Ï‚©
-	bool draw;        // ç“úè‚Ì‰Â”\«‚ ‚è
+	bool evaled;      // è©•ä¾¡æ¸ˆã‹
+	bool draw;        // åƒæ—¥æ‰‹ã®å¯èƒ½æ€§ã‚ã‚Š
 	float value_win;
-	int child_num;                      // qƒm[ƒh‚Ì”
-	child_node_t child[UCT_CHILD_MAX];  // qƒm[ƒh‚Ìî•ñ
+	int child_num;                      // å­ãƒãƒ¼ãƒ‰ã®æ•°
+	child_node_t child[UCT_CHILD_MAX];  // å­ãƒãƒ¼ãƒ‰ã®æƒ…å ±
 };
