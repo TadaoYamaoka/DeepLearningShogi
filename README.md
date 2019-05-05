@@ -38,7 +38,7 @@ http://tadaoyamaoka.hatenablog.com/
 
 ### 学習部
 上記USIエンジンのビルド環境に加えて以下が必要
-* [Chainer](http://chainer.org/) 2以上
+* [Chainer](http://chainer.org/) 5以上
 * Python 3.5以上 ([Anaconda](https://www.continuum.io/downloads))
 * [Boost](http://www.boost.org/) 1.69.0
 
