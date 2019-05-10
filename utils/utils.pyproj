@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>csa_to_book.py</StartupFile>
+    <StartupFile>measure_entropy.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,7 +13,7 @@
     <Name>utils</Name>
     <RootNamespace>utils</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>r:\test r:\test.bin --lower_limit_entries 5 --lower_limit_count 1</CommandLineArguments>
+    <CommandLineArguments>F:\model\model_rl_val_wideresnet10_selfplay_173 f:\selfplay\floodgate.hcpe</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -25,6 +25,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="measure_entropy.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="merge_book.py" />
     <Compile Include="csa_to_book.py">
       <SubType>Code</SubType>
