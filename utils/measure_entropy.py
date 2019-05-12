@@ -38,7 +38,8 @@ def mini_batch(hcpevec):
             Variable(cuda.to_gpu(features2)),
             )
 
-sum_entropy = 0.0
+sum_entropy1 = 0.0
+sum_entropy2 = 0.0
 n = 0
 for i in range(0, len(hcpes) - BATCH_SIZE, BATCH_SIZE):
     x1, x2 = mini_batch(hcpes[i:i+BATCH_SIZE])
@@ -46,11 +47,21 @@ for i in range(0, len(hcpes) - BATCH_SIZE, BATCH_SIZE):
         with chainer.using_config('train', False):
             y1, y2 = model(x1, x2)
 
-    p = F.softmax(y1)
-    entropy = F.sum(- p * F.log(F.clip(p, 1e-32, 1.0)), axis=1)
+    p1 = F.softmax(y1)
+    #entropy1 = F.sum(- p1 * F.log(p1), axis=1)
+    y1_max = F.max(y1, axis=1, keepdims=True)
+    log_p1 = y1 - (F.log(F.sum(F.exp(y1 - y1_max), axis=1, keepdims=True)) + y1_max)
+    entropy1 = F.sum(- p1 * log_p1, axis=1)
+    sum_entropy1 += F.mean(entropy1).data
 
-    sum_entropy += F.mean(entropy).data
+    p2 = F.sigmoid(y2)
+    #entropy2 = -(p2 * F.log(p2) + (1 - p2) * F.log(1 - p2))
+    log1p_ey2 = F.log1p(F.exp(y2))
+    entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
+    sum_entropy2 += F.mean(entropy2).data
+
     n += 1
 
-avr_entropy = sum_entropy / n
-print(avr_entropy)
+avr_entropy1 = sum_entropy1 / n
+avr_entropy2 = sum_entropy2 / n
+print(avr_entropy1, avr_entropy2)
