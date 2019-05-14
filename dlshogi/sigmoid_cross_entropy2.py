@@ -26,10 +26,10 @@ class SigmoidCrossEntropy2(function.Function):
         x, t = inputs
 
         # stable computation of the cross entropy.
-        loss = t * xp.log1p(xp.exp(-x)) - (1 - t) * (xp.log(xp.exp(-x)) - xp.log1p(xp.exp(-x)))
+        log1p_ex = xp.log1p(xp.exp(x))
+        loss = t * (log1p_ex - x) + (1 - t) * log1p_ex
 
-        count = max(1, len(x))
-        self.count = count
+        self.count = len(x)
 
         return utils.force_array(
             xp.divide(xp.sum(loss), self.count, dtype=x.dtype)),
