@@ -4,8 +4,6 @@ from chainer import cuda, Variable
 from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
-from chainer import static_code
-from chainer import static_graph
 
 from dlshogi.common import *
 
@@ -14,62 +12,61 @@ dropout_ratio = 0.1
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(Chain):
     def __init__(self):
-        super(PolicyValueNetwork, self).__init__(
-            l1_1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l1_1_2=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 1, pad = 0, nobias = True),
-            l1_2=L.Convolution2D(in_channels = FEATURES2_NUM, out_channels = k, ksize = 1, nobias = True), # pieces_in_hand
-            l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l5=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l6=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l7=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l8=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l13=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l14=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l15=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l16=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l17=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l18=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l19=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l20=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
-            l21=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True),
+        super(PolicyValueNetwork, self).__init__()
+        with self.init_scope():
+            self.l1_1_1=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l1_1_2=L.Convolution2D(in_channels = FEATURES1_NUM, out_channels = k, ksize = 1, pad = 0, nobias = True)
+            self.l1_2=L.Convolution2D(in_channels = FEATURES2_NUM, out_channels = k, ksize = 1, nobias = True) # pieces_in_hand
+            self.l2=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l3=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l4=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l5=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l6=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l7=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l8=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l9=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l10=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l11=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l12=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l13=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l14=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l15=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l16=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l17=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l18=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l19=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l20=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
+            self.l21=L.Convolution2D(in_channels = k, out_channels = k, ksize = 3, pad = 1, nobias = True)
             # policy network
-            l22=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True),
-            l22_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM)),
+            self.l22=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1, nobias = True)
+            self.l22_2=L.Bias(shape=(9*9*MAX_MOVE_LABEL_NUM))
             # value network
-            l22_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1),
-            l23_v=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl),
-            l24_v=L.Linear(fcl, 1),
-            norm1=L.BatchNormalization(k),
-            norm2=L.BatchNormalization(k),
-            norm3=L.BatchNormalization(k),
-            norm4=L.BatchNormalization(k),
-            norm5=L.BatchNormalization(k),
-            norm6=L.BatchNormalization(k),
-            norm7=L.BatchNormalization(k),
-            norm8=L.BatchNormalization(k),
-            norm9=L.BatchNormalization(k),
-            norm10=L.BatchNormalization(k),
-            norm11=L.BatchNormalization(k),
-            norm12=L.BatchNormalization(k),
-            norm13=L.BatchNormalization(k),
-            norm14=L.BatchNormalization(k),
-            norm15=L.BatchNormalization(k),
-            norm16=L.BatchNormalization(k),
-            norm17=L.BatchNormalization(k),
-            norm18=L.BatchNormalization(k),
-            norm19=L.BatchNormalization(k),
-            norm20=L.BatchNormalization(k),
-            norm21=L.BatchNormalization(k),
-            norm22_v=L.BatchNormalization(MAX_MOVE_LABEL_NUM)
-        )
+            self.l22_v=L.Convolution2D(in_channels = k, out_channels = MAX_MOVE_LABEL_NUM, ksize = 1)
+            self.l23_v=L.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
+            self.l24_v=L.Linear(fcl, 1)
+            self.norm1=L.BatchNormalization(k)
+            self.norm2=L.BatchNormalization(k)
+            self.norm3=L.BatchNormalization(k)
+            self.norm4=L.BatchNormalization(k)
+            self.norm5=L.BatchNormalization(k)
+            self.norm6=L.BatchNormalization(k)
+            self.norm7=L.BatchNormalization(k)
+            self.norm8=L.BatchNormalization(k)
+            self.norm9=L.BatchNormalization(k)
+            self.norm10=L.BatchNormalization(k)
+            self.norm11=L.BatchNormalization(k)
+            self.norm12=L.BatchNormalization(k)
+            self.norm13=L.BatchNormalization(k)
+            self.norm14=L.BatchNormalization(k)
+            self.norm15=L.BatchNormalization(k)
+            self.norm16=L.BatchNormalization(k)
+            self.norm17=L.BatchNormalization(k)
+            self.norm18=L.BatchNormalization(k)
+            self.norm19=L.BatchNormalization(k)
+            self.norm20=L.BatchNormalization(k)
+            self.norm21=L.BatchNormalization(k)
+            self.norm22_v=L.BatchNormalization(MAX_MOVE_LABEL_NUM)
 
-    @static_graph
     def __call__(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
