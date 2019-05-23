@@ -8,13 +8,16 @@ namespace py = boost::python;
 namespace np = boost::python::numpy;
 
 // make result
-inline int make_result(const GameResult gameResult, const Position& position) {
+inline float make_result(const GameResult gameResult, const Position& position) {
+	if (gameResult == Draw)
+		return 0.5f;
+
 	if (position.turn() == Black && gameResult == BlackWin ||
 		position.turn() == White && gameResult == WhiteWin) {
-		return 1;
+		return 1.0f;
 	}
 	else {
-		return 0;
+		return 0.0f;
 	}
 }
 
@@ -35,7 +38,7 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int *result = reinterpret_cast<int *>(ndresult.get_data());
+	float *result = reinterpret_cast<float *>(ndresult.get_data());
 
 	// set all zero
 	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
@@ -82,7 +85,7 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
-	int *result = reinterpret_cast<int *>(ndresult.get_data());
+	float *result = reinterpret_cast<float *>(ndresult.get_data());
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -109,7 +112,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int *move = reinterpret_cast<int *>(ndmove.get_data());
-	int *result = reinterpret_cast<int *>(ndresult.get_data());
+	float *result = reinterpret_cast<float *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
 	// set all zero

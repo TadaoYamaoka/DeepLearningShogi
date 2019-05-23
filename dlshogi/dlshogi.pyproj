@@ -14,8 +14,8 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-01 ..\..\elmo_for_learn\bin\elmo_teacher_with_history-001_uniq-02</CommandLineArguments>
-    <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
+    <CommandLineArguments>F:\teacher\elmo_teacher_depth8_uniq-001 F:\teacher\elmo_teacher_depth8_uniq-test --model f:\temp\model_elmo_001 --state f:\temp\state_elmo_001 -b 64 --weightdecay_rate 0 --beta 0 --lr 0.00001</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -32,6 +32,7 @@
     <Compile Include="fused_policy_value_network.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="predict.py" />
+    <Compile Include="binary_accuracy2.py" />
     <Compile Include="sigmoid_cross_entropy2.py" />
     <Compile Include="test.py">
       <SubType>Code</SubType>
