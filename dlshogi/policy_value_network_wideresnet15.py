@@ -4,8 +4,6 @@ from chainer import cuda, Variable
 from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
-from chainer import static_code
-from chainer import static_graph
 
 from dlshogi.common import *
 
@@ -92,7 +90,6 @@ class PolicyValueNetwork(Chain):
             norm32_v=L.BatchNormalization(MAX_MOVE_LABEL_NUM)
         )
 
-    @static_graph
     def __call__(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
