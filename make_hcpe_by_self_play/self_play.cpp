@@ -66,6 +66,7 @@ std::atomic<s64> draws(0);
 
 ifstream ifs;
 ofstream ofs;
+ofstream ofs_dup;
 mutex imutex;
 mutex omutex;
 size_t entryNum;
@@ -250,6 +251,8 @@ private:
 
 	// 詰み探索のステータス
 	MateSearchEntry::State mate_status;
+
+	HuffmanCodedPos hcp;
 };
 
 class UCTSearcherGroupPair {
@@ -883,7 +886,6 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				ply = 1;
 
 				// 開始局面を局面集からランダムに選ぶ
-				HuffmanCodedPos hcp;
 				{
 					std::unique_lock<Mutex> lock(imutex);
 					ifs.seekg(inputFileDist(*mt_64) * sizeof(HuffmanCodedPos), std::ios_base::beg);
@@ -893,19 +895,13 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
 				hcpevec.clear();
-
-				// ハッシュクリア
-				uct_hash.ClearUctHash(id);
-
-				// ルートノード展開
-				current_root = ExpandRoot(pos_root);
 			}
-			else {
-				// 古いハッシュを削除
-				uct_hash.DeleteOldHash(pos_root, uct_node, id);
 
-				// ルートノードは再利用するため展開済み
-			}
+			// ハッシュクリア
+			uct_hash.ClearUctHash(id);
+
+			// ルートノード展開
+			current_root = ExpandRoot(pos_root);
 
 			// 詰みのチェック
 			if (uct_node[current_root].child_num == 0) {
@@ -919,20 +915,6 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
 				pos_root->setStartPosPly(ply + 1);
 
-				if (uct_node[current_root].child[0].index == NOT_EXPANDED) {
-					// ルートノード展開
-					current_root = ExpandRoot(pos_root);
-				}
-				else {
-					// ノードを再利用する
-					current_root = uct_node[current_root].child[0].index;
-					uct_node[current_root].draw = false;
-					child_node_t* next_uct_child = uct_node[current_root].child;
-					for (int i = 0; i < uct_node[current_root].child_num; i++) {
-						next_uct_child[i].move_count = 0;
-						next_uct_child[i].win = 0.0f;
-					}
-				}
 				playout = 0;
 				ply++;
 				continue;
@@ -1108,21 +1090,6 @@ void UCTSearcher::NextStep()
 			return;
 		}
 
-		if (uct_child[select_index].index == NOT_EXPANDED) {
-			// ルートノード展開
-			current_root = ExpandRoot(pos_root);
-		}
-		else {
-			// ノードを再利用する
-			current_root = uct_child[select_index].index;
-			uct_node[current_root].draw = false;
-			child_node_t* next_uct_child = uct_node[current_root].child;
-			for (int i = 0; i < uct_node[current_root].child_num; i++) {
-				next_uct_child[i].move_count = 0;
-				next_uct_child[i].win = 0.0f;
-			}
-		}
-
 		// 次の手番
 		playout = 0;
 		ply++;
@@ -1150,6 +1117,12 @@ void UCTSearcher::NextGame()
 		++draws;
 	}
 
+	// すぐに終局した初期局面を削除候補とする
+	if (ply < 10) {
+		std::unique_lock<Mutex> lock(omutex);
+		ofs_dup.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
+	}
+
 	// 新しいゲーム
 	playout = 0;
 	ply = 0;
@@ -1174,6 +1147,8 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		cerr << "Error: cannot open " << outputFileName << endl;
 		exit(EXIT_FAILURE);
 	}
+	// 削除候補の初期局面を出力するファイル
+	ofs_dup.open(string(outputFileName) + "_dup", ios::binary);
 
 	// 初期設定
 	InitializeUctSearch();
@@ -1235,6 +1210,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
+	ofs_dup.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}",
 		madeTeacherNodes, t.elapsed() / 1000,
