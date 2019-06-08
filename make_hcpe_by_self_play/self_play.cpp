@@ -1099,21 +1099,18 @@ void UCTSearcher::NextStep()
 void UCTSearcher::NextGame()
 {
 	SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} gameResult:{}", grp->gpu_id, grp->group_id, id, ply, gameResult);
-	// 引き分けは出力しない
-	if (gameResult != Draw) {
-		// 勝敗を1局全てに付ける。
-		for (auto& elem : hcpevec)
-			elem.gameResult = gameResult;
+	// 勝敗を1局全てに付ける。
+	for (auto& elem : hcpevec)
+		elem.gameResult = gameResult;
 
-		// 局面出力
-		if (hcpevec.size() > 0) {
-			std::unique_lock<Mutex> lock(omutex);
-			ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
-			madeTeacherNodes += hcpevec.size();
-			++games;
-		}
+	// 局面出力
+	if (hcpevec.size() > 0) {
+		std::unique_lock<Mutex> lock(omutex);
+		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
+		madeTeacherNodes += hcpevec.size();
+		++games;
 	}
-	else {
+	if (gameResult == Draw) {
 		++draws;
 	}
 
