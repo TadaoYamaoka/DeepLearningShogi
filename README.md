@@ -43,6 +43,4 @@ http://tadaoyamaoka.hatenablog.com/
 * [Boost](http://www.boost.org/) 1.69.0
 
 ## ライセンス
-ライセンスはMITライセンスとします。
-
-cppshogiは[Apery](https://github.com/HiraokaTakuya/apery)のソースを流用しているため、GPLライセンスとします。
+ライセンスはGPLライセンスとします。
