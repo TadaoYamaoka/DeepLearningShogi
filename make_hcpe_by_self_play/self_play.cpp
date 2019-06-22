@@ -16,6 +16,7 @@
 
 #include "UctSearch.h"
 #include "ZobristHash.h"
+#include "LruCache.h"
 #include "mate.h"
 #include "nn_wideresnet10.h"
 #include "nn_wideresnet15.h"
@@ -57,6 +58,15 @@ int playout_num = 1000;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 256; // 最大手数
+
+struct CachedNNRequest {
+	CachedNNRequest(size_t size) : nnrate(size) {}
+	float value_win;
+	std::vector<float> nnrate;
+};
+typedef LruCache<uint64_t, CachedNNRequest> NNCache;
+typedef LruCacheLock<uint64_t, CachedNNRequest> NNCacheLock;
+constexpr unsigned int nn_cache_size = 1048576; // NNキャッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -119,6 +129,7 @@ public:
 		gpu_id(gpu_id), group_id(group_id), policy_value_batch_maxsize(policy_value_batch_maxsize), parent(parent),
 		uct_hash(uct_hash_size),
 		uct_node(new uct_node_t[uct_hash_size]),
+		nn_cache(nn_cache_size),
 		current_policy_value_batch_index(0), features1(nullptr), features2(nullptr), policy_value_hash_index(nullptr), y1(nullptr), y2(nullptr), running(false) {
 		Initialize();
 	}
@@ -163,6 +174,9 @@ private:
 	UctHash uct_hash;
 	uct_node_t* uct_node;
 
+	// NNキャッシュ
+	NNCache nn_cache;
+
 	// キュー
 	int policy_value_batch_maxsize; // 最大バッチサイズ
 	features1_t* features1;
@@ -187,10 +201,11 @@ private:
 
 class UCTSearcher {
 public:
-	UCTSearcher(UCTSearcherGroup* grp, UctHash& uct_hash, uct_node_t* uct_node, const int id, const size_t entryNum) :
+	UCTSearcher(UCTSearcherGroup* grp, UctHash& uct_hash, uct_node_t* uct_node, NNCache& nn_cache, const int id, const size_t entryNum) :
 		grp(grp),
 		uct_hash(uct_hash),
 		uct_node(uct_node),
+		nn_cache(nn_cache),
 		id(id),
 		mt_64(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + id)),
@@ -199,7 +214,7 @@ public:
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
 	}
-	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash) {} // not use
+	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash), nn_cache(o.nn_cache) {} // not use
 	~UCTSearcher() {
 		delete pos_root;
 	}
@@ -236,6 +251,9 @@ private:
 	// ハッシュ(UCTSearcherGroupで共有)
 	UctHash& uct_hash;
 	uct_node_t* uct_node;
+
+	// NNキャッシュ(UCTSearcherGroupで共有)
+	NNCache& nn_cache;
 
 	int playout;
 	int ply;
@@ -322,7 +340,7 @@ UCTSearcherGroup::Initialize()
 	searchers.clear();
 	searchers.reserve(policy_value_batch_maxsize);
 	for (int i = 0; i < policy_value_batch_maxsize; i++) {
-		searchers.emplace_back(this, uct_hash, uct_node, i, entryNum);
+		searchers.emplace_back(this, uct_hash, uct_node, nn_cache, i, entryNum);
 	}
 
 	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -370,7 +388,8 @@ void UCTSearcherGroup::SelfPlay()
 				child_node_t* uct_child = uct_node[current].child;
 				if ((size_t)i == trajectories.size() - 1) {
 					const unsigned int child_index = uct_child[next_index].index;
-					result = 1.0f - uct_node[child_index].value_win;
+					NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
+					result = 1.0f - cache_lock->value_win;
 				}
 				UpdateResult(uct_node, &uct_child[next_index], result, current);
 				result = 1.0f - result;
@@ -463,13 +482,17 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 	if (uct_node[current].child_num == 0) {
 		return 1.0f; // 反転して値を返すため1を返す
 	}
-	else if (uct_node[current].value_win == VALUE_WIN) {
-		// 詰み
-		return 0.0f;  // 反転して値を返すため0を返す
-	}
-	else if (uct_node[current].value_win == VALUE_LOSE) {
-		// 自玉の詰み
-		return 1.0f; // 反転して値を返すため1を返す
+	else {
+		NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
+		const float value_win = cache_lock->value_win;
+		if (value_win == VALUE_WIN) {
+			// 詰み
+			return 0.0f;  // 反転して値を返すため0を返す
+		}
+		else if (value_win == VALUE_LOSE) {
+			// 自玉の詰み
+			return 1.0f; // 反転して値を返すため1を返す
+		}
 	}
 
 	// 千日手チェック
@@ -501,7 +524,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED) {
 		// ノードの展開
-		// ノード展開処理の中でvalueを計算する
 		unsigned int child_index = ExpandNode(pos, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
@@ -513,7 +535,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 		}
 		else if (uct_node[child_index].child_num == 0) {
 			// 詰み
-			uct_node[child_index].value_win = VALUE_LOSE;
 			result = 1.0f;
 		}
 		else {
@@ -542,8 +563,10 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					result = 0.5f;
 				}
 				// 経路が異なる場合にNNの計算が必要なためキューに追加する
-				grp->QueuingNode(pos, child_index);
-				queued = true;
+				if (!nn_cache.ContainsKey(pos->getKey())) {
+					grp->QueuingNode(pos, child_index);
+					queued = true;
+				}
 			}
 			else {
 				// 詰みチェック(ValueNet計算中にチェック)
@@ -566,18 +589,29 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 
 				// 詰みの場合、ValueNetの値を上書き
 				if (isMate == 1) {
-					uct_node[child_index].value_win = VALUE_WIN;
+					auto req = make_unique<CachedNNRequest>(0);
+					req->value_win = VALUE_WIN;
+					nn_cache.Insert(uct_node[child_index].key, std::move(req));
 					result = 0.0f;
 				}
 				else if (isMate == -1) {
-					uct_node[child_index].value_win = VALUE_LOSE;
+					auto req = make_unique<CachedNNRequest>(0);
+					req->value_win = VALUE_LOSE;
+					nn_cache.Insert(uct_node[child_index].key, std::move(req));
 					result = 1.0f;
 				}
 				else {
 					// ノードをキューに追加
-					grp->QueuingNode(pos, child_index);
-					queued = true;
-					return QUEUING;
+					if (!nn_cache.ContainsKey(pos->getKey())) {
+						grp->QueuingNode(pos, child_index);
+						queued = true;
+						return QUEUING;
+					}
+					else {
+						// キャッシュヒット
+						NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
+						result = 1.0f - cache_lock->value_win;
+					}
 				}
 			}
 		}
@@ -623,6 +657,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	max_value = -1;
 
+	NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
+
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		float win = uct_child[i].win;
@@ -645,7 +681,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		float rate = uct_child[i].nnrate;
+		float rate = cache_lock->nnrate[i];
 		// ランダムに確率を上げる
 		if (depth == 0 && rnd(*mt) <= 2) {
 			rate = (rate + 1.0f) / 2.0f;
@@ -683,7 +719,6 @@ InitializeCandidate(child_node_t *uct_child, Move move)
 	uct_child->move_count = 0;
 	uct_child->win = 0;
 	uct_child->index = NOT_EXPANDED;
-	uct_child->nnrate = 0;
 }
 
 /////////////////////////
@@ -712,7 +747,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 		uct_node[index].child_num = 0;
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
-		uct_node[index].value_win = 0.0f;
+		uct_node[index].key = pos->getKey();
 
 		uct_child = uct_node[index].child;
 
@@ -754,7 +789,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].child_num = 0;
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
-	uct_node[index].value_win = 0.0f;
+	uct_node[index].key = pos->getKey();
 	uct_child = uct_node[index].child;
 
 	// 候補手の展開
@@ -861,15 +896,19 @@ void UCTSearcherGroup::EvalNode() {
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(legal_move_probabilities);
 
+		auto req = make_unique<CachedNNRequest>(child_num);
 		for (int j = 0; j < child_num; j++) {
-			uct_child[j].nnrate = legal_move_probabilities[j];
+			req->nnrate[j] = legal_move_probabilities[j];
 		}
 
 #ifdef FP16
-		uct_node[index].value_win = __half2float(*value);
+		req->value_win = __half2float(*value);
 #else
-		uct_node[index].value_win = *value;
+		req_lock->value_win = *value;
 #endif
+
+		nn_cache.Insert(uct_node[index].key, std::move(req));
+
 		uct_node[index].evaled = true;
 	}
 }
