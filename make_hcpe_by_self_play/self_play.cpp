@@ -57,7 +57,7 @@ string model_path;
 int playout_num = 1000;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
-constexpr int MAX_PLY = 256; // 最大手数
+constexpr int MAX_PLY = 320; // 最大手数
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
