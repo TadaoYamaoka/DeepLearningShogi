@@ -563,7 +563,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					result = 0.5f;
 				}
 				// 経路が異なる場合にNNの計算が必要なためキューに追加する
-				if (!nn_cache.ContainsKey(pos->getKey())) {
+				NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
+				if (!cache_lock) {
 					grp->QueuingNode(pos, child_index);
 					queued = true;
 				}
@@ -602,14 +603,14 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				}
 				else {
 					// ノードをキューに追加
-					if (!nn_cache.ContainsKey(pos->getKey())) {
+					NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
+					if (!cache_lock) {
 						grp->QueuingNode(pos, child_index);
 						queued = true;
 						return QUEUING;
 					}
 					else {
 						// キャッシュヒット
-						NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
 						result = 1.0f - cache_lock->value_win;
 					}
 				}

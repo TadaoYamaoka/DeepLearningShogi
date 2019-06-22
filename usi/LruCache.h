@@ -100,7 +100,7 @@ public:
 		auto hash = hasher_(key) % hash_.size();
 		for (Item* iter = hash_[hash]; iter; iter = iter->next_in_hash) {
 			if (key == iter->key) {
-				// BringToFront(iter);
+				BringToFront(iter);
 				++iter->pins;
 				return iter->value.get();
 			}
