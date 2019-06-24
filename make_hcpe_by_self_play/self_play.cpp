@@ -569,6 +569,11 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					queued = true;
 				}
 			}
+			else if (nn_cache.ContainsKey(uct_node[child_index].key)) {
+				NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
+				// キャッシュヒット
+				result = 1.0f - cache_lock->value_win;
+			}
 			else {
 				// 詰みチェック(ValueNet計算中にチェック)
 				int isMate = 0;
@@ -603,16 +608,9 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				}
 				else {
 					// ノードをキューに追加
-					NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
-					if (!cache_lock) {
-						grp->QueuingNode(pos, child_index);
-						queued = true;
-						return QUEUING;
-					}
-					else {
-						// キャッシュヒット
-						result = 1.0f - cache_lock->value_win;
-					}
+					grp->QueuingNode(pos, child_index);
+					queued = true;
+					return QUEUING;
 				}
 			}
 		}
