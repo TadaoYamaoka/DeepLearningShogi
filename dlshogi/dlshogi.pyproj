@@ -31,6 +31,7 @@
     </Compile>
     <Compile Include="fused_policy_value_network.py" />
     <Compile Include="policy_value_network.py" />
+    <Compile Include="policy_value_network_senet10.py" />
     <Compile Include="predict.py" />
     <Compile Include="binary_accuracy2.py" />
     <Compile Include="sigmoid_cross_entropy2.py" />
