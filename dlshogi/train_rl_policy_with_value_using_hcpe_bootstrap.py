@@ -113,7 +113,7 @@ for e in range(args.epoch):
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
-    for i in range(0, len(train_data) - args.batchsize, args.batchsize):
+    for i in range(0, len(train_data) - args.batchsize + 1, args.batchsize):
         x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
         y1, y2 = model(x1, x2)
 
