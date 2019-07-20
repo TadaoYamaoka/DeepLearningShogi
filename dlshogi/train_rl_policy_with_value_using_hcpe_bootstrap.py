@@ -109,6 +109,9 @@ for e in range(args.epoch):
     np.random.shuffle(train_data)
 
     itr_epoch = 0
+    sum_loss1_epoch = 0
+    sum_loss2_epoch = 0
+    sum_loss3_epoch = 0
     sum_loss_epoch = 0
     for i in range(0, len(train_data) - args.batchsize, args.batchsize):
         x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
@@ -130,6 +133,9 @@ for e in range(args.epoch):
         sum_loss3 += loss3.data
         sum_loss += loss.data
         itr_epoch += 1
+        sum_loss1_epoch += loss1.data
+        sum_loss2_epoch += loss2.data
+        sum_loss3_epoch += loss3.data
         sum_loss_epoch += loss.data
 
         # print train loss
@@ -196,8 +202,9 @@ for e in range(args.epoch):
             entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
             sum_test_entropy2 += F.mean(entropy2).data
 
-    logging.info('epoch = {}, iteration = {}, train loss avr = {}, test_loss = {}, {}, {}, {}, test accuracy = {}, {}, test entropy = {}, {}'.format(
-        optimizer.epoch + 1, optimizer.t, sum_loss_epoch / itr_epoch,
+    logging.info('epoch = {}, iteration = {}, train loss avr = {}, {}, {}, {}, test_loss = {}, {}, {}, {}, test accuracy = {}, {}, test entropy = {}, {}'.format(
+        optimizer.epoch + 1, optimizer.t,
+        sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
         sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss / itr_test,
         sum_test_accuracy1 / itr_test, sum_test_accuracy2 / itr_test,
         sum_test_entropy1 / itr_test, sum_test_entropy2 / itr_test))
