@@ -139,6 +139,28 @@ public:
 	}
 };
 
+class CudnnOpTensorDescriptor
+{
+private:
+	cudnnOpTensorDescriptor_t cudnnOpTensorDescriptor;
+
+public:
+	CudnnOpTensorDescriptor() {
+		checkCUDNN(cudnnCreateOpTensorDescriptor(&cudnnOpTensorDescriptor));
+	}
+	~CudnnOpTensorDescriptor() {
+		checkCUDNN(cudnnDestroyOpTensorDescriptor(cudnnOpTensorDescriptor));
+	}
+
+	cudnnOpTensorDescriptor_t* operator &() {
+		return &cudnnOpTensorDescriptor;
+	}
+
+	operator cudnnOpTensorDescriptor_t() {
+		return cudnnOpTensorDescriptor;
+	}
+};
+
 class CublasHandle
 {
 private:

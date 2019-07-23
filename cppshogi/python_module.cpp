@@ -41,8 +41,8 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
 
 	// set all zero
-	std::fill_n((float*)features1, (int)ColorNum * (PieceTypeNum - 1) * (int)SquareNum * len, 0.0f);
-	std::fill_n((float*)features2, MAX_FEATURES2_NUM * (int)SquareNum * len, 0.0f);
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
 	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, result++) {

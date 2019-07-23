@@ -6,12 +6,13 @@
 
 using namespace std;
 
-#if 0
+#if 1
 // GPUベンチマーク
 #include "nn.h"
 #include "nn_wideresnet10.h"
 #include "nn_fused_wideresnet10.h"
 #include "nn_wideresnet15.h"
+#include "nn_senet10.h"
 
 static void  showDevices(int i)
 {
@@ -66,6 +67,9 @@ int main(int argc, char* argv[]) {
 	}
 	else if (model_path.find("wideresnet15") != std::string::npos) {
 		nn.reset((NN*)new NNWideResnet15(batchsize));
+	}
+	else if (model_path.find("senet10") != std::string::npos) {
+		nn.reset((NN*)new NNSENet10(batchsize));
 	}
 	else {
 		nn.reset((NN*)new NNWideResnet10(batchsize));
