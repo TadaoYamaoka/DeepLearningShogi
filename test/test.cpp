@@ -9,10 +9,15 @@ using namespace std;
 #include "nn_wideresnet10.h"
 int main() {
 	initTable();
+	Position::initZobrist();
+
 	// 入力データ作成
 	const int batchsize = 2;
-	features1_t features1[batchsize] = {};
-	features2_t features2[batchsize] = {};
+	features1_t features1[batchsize];
+	features2_t features2[batchsize];
+
+	std::fill_n((DType*)features1, batchsize * sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2, batchsize * sizeof(features2_t) / sizeof(DType), _zero);
 
 	Position pos[batchsize];
 	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
@@ -351,7 +356,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 using namespace ns_dfpn;
 // DfPnテスト
@@ -430,5 +435,71 @@ int main()
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+}
+#endif
+
+#if 0
+#include "nn_senet10.h"
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	// 入力データ作成
+	const int batchsize = 2;
+	features1_t features1[batchsize];
+	features2_t features2[batchsize];
+
+	std::fill_n((DType*)features1, batchsize * sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2, batchsize * sizeof(features2_t) / sizeof(DType), _zero);
+
+	Position pos[batchsize];
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
+
+	make_input_features(pos[0], features1, features2);
+	make_input_features(pos[1], features1 + 1, features2 + 1);
+
+	NNSENet10 nn(batchsize);
+
+	nn.load_model(R"(F:\model\model_rl_val_senet10_50)");
+
+	DType y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
+	DType y2[batchsize];
+	nn.foward(batchsize, features1, features2, (DType*)y1, y2);
+
+	for (int i = 0; i < batchsize; i++) {
+		// policyの結果
+		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
+			cout << y1[i][j] << endl;
+		}
+		// valueの結果
+		cout << y2[i] << endl;
+
+		// 合法手一覧
+		std::vector<Move> legal_moves;
+		std::vector<float> legal_move_logits;
+		std::vector<float> legal_move_probabilities;
+		for (MoveList<Legal> ml(pos[i]); !ml.end(); ++ml) {
+			const Move move = ml.move();
+			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
+			legal_moves.emplace_back(move);
+			float logits = to_float(y1[i][move_label]);
+			legal_move_logits.emplace_back(logits);
+			legal_move_probabilities.emplace_back(logits);
+		}
+
+		// Boltzmann distribution
+		softmax_temperature_with_normalize(legal_move_probabilities);
+
+		// print result
+		for (int j = 0; j < legal_moves.size(); j++) {
+			const Move& move = legal_moves[j];
+			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
+			cout << move.toUSI() << " logit:" << legal_move_logits[j] << " rate:" << legal_move_probabilities[j] << endl;
+		}
+
+	}
+
+	return 0;
 }
 #endif

@@ -216,6 +216,35 @@ private:
 	CudnnPoolingDescriptor poolingDesc;
 };
 
+template<const int window, const int stride = window, const int pad = 0>
+class AveragePooling2D {
+public:
+	AveragePooling2D() {
+		checkCUDNN(cudnnSetPooling2dDescriptor(poolingDesc, CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING, CUDNN_PROPAGATE_NAN, window, window, pad, pad, stride, stride));
+	}
+
+	int get_yh(const int h) {
+		return (h + 2 * pad - window) / stride + 1;
+	}
+
+	int get_yw(const int w) {
+		return (w + 2 * pad - window) / stride + 1;
+	}
+
+	void get_desc(cudnnTensorDescriptor_t desc, const int n, const int c, const int h, const int w) {
+		checkCUDNN(cudnnSetTensor4dDescriptor(desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_TYPE, n, c, h, w));
+	}
+
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, DType* x, cudnnTensorDescriptor_t yDesc, DType* y) {
+		const float alpha = 1.0f;
+		const float beta = 0.0f;
+		checkCUDNN(cudnnPoolingForward(handle, poolingDesc, &alpha, xDesc, x, &beta, yDesc, y));
+	}
+
+private:
+	CudnnPoolingDescriptor poolingDesc;
+};
+
 class Softmax {
 public:
 	void get_desc(cudnnTensorDescriptor_t desc, const int n, const int c) {

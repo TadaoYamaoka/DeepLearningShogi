@@ -20,6 +20,7 @@
 #include "mate.h"
 #include "nn_wideresnet10.h"
 #include "nn_wideresnet15.h"
+#include "nn_senet10.h"
 #include "dfpn.h"
 
 #include "cppshogi.h"
@@ -289,10 +290,15 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
-			if (model_path.find("wideresnet15") != string::npos)
+			if (model_path.find("wideresnet15") != string::npos) {
 				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
-			else
+			}
+			else if (model_path.find("senet10") != string::npos) {
+				nn = (NN*)new NNSENet10(policy_value_batch_maxsize);
+			}
+			else {
 				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
+			}
 			nn->load_model(model_path.c_str());
 		}
 		mutex_gpu.unlock();
