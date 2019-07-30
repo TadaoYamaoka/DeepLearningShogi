@@ -679,7 +679,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		}*/
 		if (move_count == 0) {
 			q = 0.5f;
-			u = 1.0f;
+			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
 			q = win / move_count;
