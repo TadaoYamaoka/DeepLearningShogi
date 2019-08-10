@@ -618,22 +618,54 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 	int max_count = 0;
 	unsigned int select_index = 0;
+	int child_win_count = 0;
+	int child_lose_count = 0;
 
 	// 探索回数最大の手を見つける
-	for (int i = 0; i < uct_node[current_root].child_num; i++) {
-		if (uct_child[i].move_count > max_count) {
-			select_index = i;
-			max_count = uct_child[i].move_count;
-		}
+	const int child_num = uct_node[current_root].child_num;
+	for (int i = 0; i < child_num; i++) {
 		if (debug_message) {
 			cout << i << ":" << uct_child[i].move.toUSI() << " move_count:" << uct_child[i].move_count << " nnrate:" << uct_child[i].nnrate << " value_win:";
 			if (uct_child[i].index != NOT_EXPANDED) cout << uct_node[uct_child[i].index].value_win;
 			cout << " win_rate:" << uct_child[i].win / (uct_child[i].move_count + 0.0001f) << endl;
 		}
+
+		if (uct_child[i].index != NOT_EXPANDED) {
+			const float child_value_win = uct_node[uct_child[i].index].value_win;
+			if (child_value_win == VALUE_WIN) {
+				// 負けが確定しているノードは選択しない
+				if (child_lose_count == i || uct_child[i].move_count > max_count) {
+					// すべて負けの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_win_count++;
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、勝ちなので選択する
+				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+					// すべて勝ちの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_lose_count++;
+				continue;
+			}
+		}
+		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+			select_index = i;
+			max_count = uct_child[i].move_count;
+		}
 	}
 
 	// 選択した着手の勝率の算出
 	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+
+	// すべて負けの場合
+	if (child_win_count == child_num) {
+		best_wp = 0.0f;
+	}
 
 	if (best_wp <= RESIGN_THRESHOLD) {
 		move = Move::moveNone();
@@ -1117,6 +1149,8 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 				}
 				else if (isMate == -1) {
 					uct_node[child_index].value_win = VALUE_LOSE;
+					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
 				}
 				else {
@@ -1206,23 +1240,27 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	const int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
-	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
+	int child_win_count = 0;
 
 	max_value = -1;
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].index != NOT_EXPANDED) {
+			const float child_value_win = uct_node[uct_child[i].index].value_win;
+			if (child_value_win == VALUE_WIN) {
+				child_win_count++;
+				// 負けが確定しているノードは選択しない
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+				uct_node[current].value_win = VALUE_WIN;
+			}
+		}
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
 
-		// evaled
-		/*if (debug) {
-			cerr << i << ":";
-			cerr << uct_node[current].move_count << " ";
-			cerr << setw(3) << uct_child[i].move.toUSI();
-			cerr << ": move " << setw(5) << move_count << " policy "
-				<< setw(10) << uct_child[i].nnrate << " ";
-		}*/
 		if (move_count == 0) {
 			q = 0.5f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
@@ -1243,9 +1281,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 		}
 	}
 
-	/*if (debug) {
-		cerr << "select node:" << current << " child:" << max_child << endl;
-	}*/
+	if (child_win_count == child_num) {
+		// 子ノードがすべて勝ちのため、自ノードを負けにする
+		uct_node[current].value_win = VALUE_LOSE;
+	}
 
 	return max_child;
 }
