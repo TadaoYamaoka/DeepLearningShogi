@@ -634,7 +634,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			const float child_value_win = uct_node[uct_child[i].index].value_win;
 			if (child_value_win == VALUE_WIN) {
 				// 負けが確定しているノードは選択しない
-				if (child_lose_count == i || uct_child[i].move_count > max_count) {
+				if (child_win_count == i || uct_child[i].move_count > max_count) {
 					// すべて負けの場合は、探索回数が最大の手を選択する
 					select_index = i;
 					max_count = uct_child[i].move_count;
@@ -667,7 +667,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		best_wp = 0.0f;
 	}
 
-	if (best_wp <= RESIGN_THRESHOLD) {
+	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();
 	}
 	else {
