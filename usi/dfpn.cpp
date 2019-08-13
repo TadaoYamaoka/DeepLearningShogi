@@ -617,7 +617,7 @@ FORCE_INLINE bool nomate(const Position& pos) {
 }
 
 // 王手の指し手が近接王手か
-FORCE_INLINE bool moveGivesNeighborCheck(const Position pos, const Move move)
+FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
 {
 	const Color them = oppositeColor(pos.turn());
 	const Square ksq = pos.kingSquare(them);
