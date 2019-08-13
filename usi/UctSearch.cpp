@@ -110,7 +110,7 @@ string model_path[max_gpu];
 uniform_int_distribution<int> rnd(0, 999);
 
 // 末端ノードでの詰み探索の深さ(奇数であること)
-constexpr int MATE_SEARCH_DEPTH = 7;
+constexpr int MATE_SEARCH_DEPTH = 5;
 
 // 詰み探索で詰みの場合のvalue_winの定数
 constexpr float VALUE_WIN = FLT_MAX;
