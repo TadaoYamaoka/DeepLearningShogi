@@ -19,6 +19,7 @@ struct uct_node_t {
 	float win;
 	bool evaled;      // 評価済か
 	bool draw;        // 千日手の可能性あり
+	float value_win;
 	int child_num;                      // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
 	Key key;

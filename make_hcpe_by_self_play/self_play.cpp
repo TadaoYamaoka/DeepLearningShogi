@@ -74,10 +74,11 @@ std::atomic<s64> idx(0);
 std::atomic<s64> madeTeacherNodes(0);
 std::atomic<s64> games(0);
 std::atomic<s64> draws(0);
+std::atomic<s64> nyugyokus(0);
 
 ifstream ifs;
 ofstream ofs;
-ofstream ofs_dup;
+//ofstream ofs_dup;
 mutex imutex;
 mutex omutex;
 size_t entryNum;
@@ -394,8 +395,8 @@ void UCTSearcherGroup::SelfPlay()
 				child_node_t* uct_child = uct_node[current].child;
 				if ((size_t)i == trajectories.size() - 1) {
 					const unsigned int child_index = uct_child[next_index].index;
-					NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
-					result = 1.0f - cache_lock->value_win;
+					const float value_win = uct_node[child_index].value_win;
+					result = 1.0f - value_win;
 				}
 				UpdateResult(uct_node, &uct_child[next_index], result, current);
 				result = 1.0f - result;
@@ -433,8 +434,10 @@ UCTSearcherGroup::Join()
 	handle_selfplay->join();
 	delete handle_selfplay;
 	// 詰み探索用スレッド
-	handle_mate_search->join();
-	delete handle_mate_search;
+	if (handle_mate_search) {
+		handle_mate_search->join();
+		delete handle_mate_search;
+	}
 }
 
 // 詰み探索スレッド
@@ -484,33 +487,31 @@ void UCTSearcherGroup::MateSearch()
 float
 UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued)
 {
-	// 詰みのチェック
-	if (uct_node[current].child_num == 0) {
-		return 1.0f; // 反転して値を返すため1を返す
-	}
-	else {
-		NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
-		const float value_win = cache_lock->value_win;
-		if (value_win == VALUE_WIN) {
+	if (current != current_root) {
+		// 詰みのチェック
+		if (uct_node[current].child_num == 0) {
+			return 1.0f; // 反転して値を返すため1を返す
+		}
+		else if (uct_node[current].value_win == VALUE_WIN) {
 			// 詰み
 			return 0.0f;  // 反転して値を返すため0を返す
 		}
-		else if (value_win == VALUE_LOSE) {
+		else if (uct_node[current].value_win == VALUE_LOSE) {
 			// 自玉の詰み
 			return 1.0f; // 反転して値を返すため1を返す
 		}
-	}
 
-	// 千日手チェック
-	if (uct_node[current].draw) {
-		switch (pos->isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionDraw: return 0.5f;
-		case RepetitionWin: return 0.0f;
-		case RepetitionLose: return 1.0f;
-		case RepetitionSuperior: return 0.0f;
-		case RepetitionInferior: return 1.0f;
-		default: UNREACHABLE;
+		// 千日手チェック
+		if (uct_node[current].draw) {
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: return 0.5f;
+			case RepetitionWin: return 0.0f;
+			case RepetitionLose: return 1.0f;
+			case RepetitionSuperior: return 0.0f;
+			case RepetitionInferior: return 1.0f;
+			default: UNREACHABLE;
+			}
 		}
 	}
 
@@ -577,8 +578,18 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 			}
 			else if (nn_cache.ContainsKey(uct_node[child_index].key)) {
 				NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
+				const float value_win = cache_lock->value_win;
 				// キャッシュヒット
-				result = 1.0f - cache_lock->value_win;
+				if (value_win == VALUE_WIN) {
+					uct_node[child_index].value_win = VALUE_WIN;
+					result = 0.0f;
+				}
+				else if (value_win == VALUE_LOSE) {
+					uct_node[child_index].value_win = VALUE_LOSE;
+					result = 1.0f;
+				}
+				else
+					result = 1.0f - value_win;
 			}
 			else {
 				// 詰みチェック(ValueNet計算中にチェック)
@@ -604,12 +615,18 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					auto req = make_unique<CachedNNRequest>(0);
 					req->value_win = VALUE_WIN;
 					nn_cache.Insert(uct_node[child_index].key, std::move(req));
+					uct_node[child_index].value_win = VALUE_WIN;
 					result = 0.0f;
 				}
 				else if (isMate == -1) {
 					auto req = make_unique<CachedNNRequest>(0);
 					req->value_win = VALUE_LOSE;
 					nn_cache.Insert(uct_node[child_index].key, std::move(req));
+					uct_node[child_index].value_win = VALUE_LOSE;
+					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+					NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
+					cache_lock->value_win = VALUE_WIN;
+					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
 				}
 				else {
@@ -658,7 +675,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	const int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
-	//const bool debug = GetDebugMessageMode() && current == current_root && sum % 100 == 0;
+	int child_win_count = 0;
 
 	max_value = -1;
 
@@ -666,17 +683,23 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].index != NOT_EXPANDED) {
+			const float child_value_win = uct_node[uct_child[i].index].value_win;
+			if (child_value_win == VALUE_WIN) {
+				child_win_count++;
+				// 負けが確定しているノードは選択しない
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+				cache_lock->value_win = VALUE_WIN;
+				uct_node[current].value_win = VALUE_WIN;
+			}
+		}
+
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
 
-		// evaled
-		/*if (debug) {
-		cerr << i << ":";
-		cerr << uct_node[current].move_count << " ";
-		cerr << setw(3) << uct_child[i].move.toUSI();
-		cerr << ": move " << setw(5) << move_count << " policy "
-		<< setw(10) << uct_child[i].nnrate << " ";
-		}*/
 		if (move_count == 0) {
 			q = 0.5f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
@@ -701,9 +724,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		}
 	}
 
-	/*if (debug) {
-	cerr << "select node:" << current << " child:" << max_child << endl;
-	}*/
+	if (child_win_count == child_num) {
+		// 子ノードがすべて勝ちのため、自ノードを負けにする
+		cache_lock->value_win = VALUE_LOSE;
+		uct_node[current].value_win = VALUE_LOSE;
+	}
 
 	return max_child;
 }
@@ -752,6 +777,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 		uct_node[index].child_num = 0;
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
+		uct_node[index].value_win = 0.0f;
 		uct_node[index].key = pos->getKey();
 
 		uct_child = uct_node[index].child;
@@ -794,6 +820,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].child_num = 0;
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
+	uct_node[index].value_win = 0.0f;
 	uct_node[index].key = pos->getKey();
 	uct_child = uct_node[index].child;
 
@@ -907,12 +934,15 @@ void UCTSearcherGroup::EvalNode() {
 		}
 
 #ifdef FP16
-		req->value_win = __half2float(*value);
+		const float value_win = __half2float(*value);
 #else
-		req_lock->value_win = *value;
+		const float value_win = *value;
 #endif
 
+		req->value_win = value_win;
 		nn_cache.Insert(uct_node[index].key, std::move(req));
+
+		uct_node[index].value_win = value_win;
 
 		uct_node[index].evaled = true;
 	}
@@ -966,6 +996,8 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			else if (nyugyoku(*pos_root)) {
 				// 入玉宣言勝ち
 				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+				if (hcpevec.size() > 0)
+					++nyugyokus;
 				NextGame();
 				continue;
 			}
@@ -978,7 +1010,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 
 			// ルート局面をキューに追加
 			NNCacheLock cache_lock(&nn_cache, uct_node[current_root].key);
-			if (!cache_lock) {
+			if (!cache_lock || cache_lock->nnrate.size() == 0) {
 				grp->QueuingNode(pos_root, current_root);
 				return;
 			}
@@ -1082,8 +1114,35 @@ void UCTSearcher::NextStep()
 		else {
 			// 探索回数最大の手を見つける
 			int max_count = uct_child[0].move_count;
+			int child_win_count = 0;
+			int child_lose_count = 0;
 			SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, 0, uct_child[0].move.toUSI(), uct_child[0].move_count, uct_child[0].win / (uct_child[0].move_count + 0.0001f));
-			for (int i = 1; i < uct_node[current_root].child_num; i++) {
+			const int child_num = uct_node[current_root].child_num;
+			for (int i = 1; i < child_num; i++) {
+				if (uct_child[i].index != NOT_EXPANDED) {
+					const float child_value_win = uct_node[uct_child[i].index].value_win;
+					if (child_value_win == VALUE_WIN) {
+						// 負けが確定しているノードは選択しない
+						if (child_win_count == i || uct_child[i].move_count > max_count) {
+							// すべて負けの場合は、探索回数が最大の手を選択する
+							select_index = i;
+							max_count = uct_child[i].move_count;
+						}
+						child_win_count++;
+						continue;
+					}
+					else if (child_value_win == VALUE_LOSE) {
+						// 子ノードに一つでも負けがあれば、勝ちなので選択する
+						if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+							// すべて勝ちの場合は、探索回数が最大の手を選択する
+							select_index = i;
+							max_count = uct_child[i].move_count;
+						}
+						child_lose_count++;
+						continue;
+					}
+				}
+
 				if (uct_child[i].move_count > max_count) {
 					select_index = i;
 					max_count = uct_child[i].move_count;
@@ -1093,6 +1152,14 @@ void UCTSearcher::NextStep()
 
 			// 選択した着手の勝率の算出
 			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+			// 勝ちの場合
+			if (child_lose_count > 0) {
+				best_wp = 1.0f;
+			}
+			// すべて負けの場合
+			else if (child_win_count == child_num) {
+				best_wp = 0.0f;
+			}
 			best_move = uct_child[select_index].move;
 			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} bestmove:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
 
@@ -1118,7 +1185,7 @@ void UCTSearcher::NextStep()
 				eval = -30000;
 			else
 				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			AddTeacher(eval, uct_child[select_index].move);
+			AddTeacher(eval, best_move);
 
 			// 一定の手数以上で引き分け
 			if (ply >= MAX_PLY) {
@@ -1132,10 +1199,21 @@ void UCTSearcher::NextStep()
 		pos_root->doMove(best_move, states[ply]);
 		pos_root->setStartPosPly(ply + 1);
 
-		// 千日手の場合引き分け
-		if (pos_root->isDraw() == RepetitionDraw) {
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} draw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+		// 千日手の場合
+		switch (pos_root->isDraw(16)) {
+		case RepetitionDraw:
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionDraw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 			gameResult = Draw;
+			NextGame();
+			return;
+		case RepetitionWin:
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionWin", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+			gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+			NextGame();
+			return;
+		case RepetitionLose:
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionLose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+			gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
 			NextGame();
 			return;
 		}
@@ -1159,16 +1237,17 @@ void UCTSearcher::NextGame()
 		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 		madeTeacherNodes += hcpevec.size();
 		++games;
-	}
-	if (gameResult == Draw) {
-		++draws;
+
+		if (gameResult == Draw) {
+			++draws;
+		}
 	}
 
 	// すぐに終局した初期局面を削除候補とする
-	if (ply < 10) {
+	/*if (ply < 10) {
 		std::unique_lock<Mutex> lock(omutex);
 		ofs_dup.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
-	}
+	}*/
 
 	// 新しいゲーム
 	playout = 0;
@@ -1195,7 +1274,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	// 削除候補の初期局面を出力するファイル
-	ofs_dup.open(string(outputFileName) + "_dup", ios::binary);
+	//ofs_dup.open(string(outputFileName) + "_dup", ios::binary);
 
 	// 初期設定
 	InitializeUctSearch();
@@ -1221,12 +1300,13 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draws:{}, ply/game:{}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
 					games,
 					draws,
+					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
 					ss.str(),
 					elapsed_msec / 1000,
@@ -1257,7 +1337,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
-	ofs_dup.close();
+	//ofs_dup.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}",
 		madeTeacherNodes, t.elapsed() / 1000,
