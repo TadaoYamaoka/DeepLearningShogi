@@ -665,8 +665,12 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 選択した着手の勝率の算出
 	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 
+	// 勝ちの場合
+	if (child_lose_count > 0) {
+		best_wp = 1.0f;
+	}
 	// すべて負けの場合
-	if (child_win_count == child_num) {
+	else if (child_win_count == child_num) {
 		best_wp = 0.0f;
 	}
 
@@ -1040,7 +1044,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	}
 
 	// 千日手チェック
-	if (uct_node[current].draw) {
+	if (current != current_root && uct_node[current].draw) {
 		switch (pos->isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionDraw: return 0.5f;
