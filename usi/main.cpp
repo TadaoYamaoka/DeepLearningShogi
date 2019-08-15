@@ -242,6 +242,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 	std::unique_ptr<std::thread> t;
 	bool mate = false;
 	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
+		dfpn.set_remaining_time((double)limits.time[pos.turn()] * 0.9f);
 		t.reset(new std::thread([&pos, &mate]() {
 			if (!pos.inCheck()) {
 				Position pos_copy(pos);

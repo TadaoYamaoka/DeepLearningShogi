@@ -55,6 +55,7 @@ namespace ns_dfpn {
 		bool dfpn(Position& r);
 		bool dfpn_andnode(Position& r);
 		void dfpn_stop();
+		void set_remaining_time(const double remaining_time);
 		Move dfpn_move(Position& pos);
 
 		static void set_maxdepth(uint32_t depth) {
@@ -71,6 +72,9 @@ namespace ns_dfpn {
 
 		TranspositionTable transposition_table;
 		std::atomic<bool> stop;
+		std::chrono::system_clock::time_point start_time;
+		double remaining_time = 0;
+		int64_t maxSearchNode;
 
 		static uint32_t kMaxDepth;
 		static int64_t MAX_SEARCH_NODE;
