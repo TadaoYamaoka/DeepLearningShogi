@@ -21,6 +21,11 @@ void DfPn::dfpn_stop()
 	stop = true;
 }
 
+void DfPn::set_remaining_time(const double remaining_time)
+{
+	this->remaining_time = remaining_time;
+}
+
 // 詰将棋エンジン用のMovePicker
 template <bool or_node>
 class MovePicker {
@@ -914,7 +919,12 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		transposition_table.GetChildFirstEntry<or_node>(n, move, ttkey.entries, ttkey.hash_high, ttkey.hand);
 	}
 
-	while (searchedNode < MAX_SEARCH_NODE && !stop) {
+	while (searchedNode < maxSearchNode) {
+		if (stop) {
+			const double elapse = (double)chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now() - start_time).count();
+			maxSearchNode = (int64_t)((double)searchedNode / elapse * remaining_time);
+			stop = false;
+		}
 		++entry.num_searched;
 
 		Move best_move;
@@ -1195,6 +1205,9 @@ bool DfPn::dfpn(Position& r) {
 	// 自玉に王手がかかっていないこと
 
 	stop = false;
+	start_time = chrono::system_clock::now();
+	maxSearchNode = MAX_SEARCH_NODE;
+	this->remaining_time = remaining_time;
 
 	// キャッシュの世代を進める
 	transposition_table.NewSearch();
@@ -1217,7 +1230,12 @@ bool DfPn::dfpn(Position& r) {
 
 // 詰将棋探索のエントリポイント
 bool DfPn::dfpn_andnode(Position& r) {
-	// 自玉に王手がかかっている
+	// 自玉に王手がかかっていること
+
+	stop = false;
+	start_time = chrono::system_clock::now();
+	maxSearchNode = MAX_SEARCH_NODE;
+	this->remaining_time = remaining_time;
 
 	// キャッシュの世代を進める
 	transposition_table.NewSearch();
