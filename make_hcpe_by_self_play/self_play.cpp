@@ -1446,7 +1446,7 @@ int main(int argc, char* argv[]) {
 
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
-	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
+	logger->info("mate depth:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
