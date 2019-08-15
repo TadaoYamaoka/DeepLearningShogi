@@ -1030,29 +1030,31 @@ UCTSearcher::ParallelUctSearch()
 float
 UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int depth, vector<pair<unsigned int, unsigned int>>& trajectories)
 {
-	// 詰みのチェック
-	if (uct_node[current].child_num == 0) {
-		return 1.0f; // 反転して値を返すため1を返す
-	}
-	else if (uct_node[current].value_win == VALUE_WIN) {
-		// 詰み
-		return 0.0f;  // 反転して値を返すため0を返す
-	}
-	else if (uct_node[current].value_win == VALUE_LOSE) {
-		// 自玉の詰み
-		return 1.0f; // 反転して値を返すため1を返す
-	}
+	if (current != current_root) {
+		// 詰みのチェック
+		if (uct_node[current].child_num == 0) {
+			return 1.0f; // 反転して値を返すため1を返す
+		}
+		else if (uct_node[current].value_win == VALUE_WIN) {
+			// 詰み
+			return 0.0f;  // 反転して値を返すため0を返す
+		}
+		else if (uct_node[current].value_win == VALUE_LOSE) {
+			// 自玉の詰み
+			return 1.0f; // 反転して値を返すため1を返す
+		}
 
-	// 千日手チェック
-	if (current != current_root && uct_node[current].draw) {
-		switch (pos->isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionDraw: return 0.5f;
-		case RepetitionWin: return 0.0f;
-		case RepetitionLose: return 1.0f;
-		case RepetitionSuperior: return 0.0f;
-		case RepetitionInferior: return 1.0f;
-		default: UNREACHABLE;
+		// 千日手チェック
+		if (uct_node[current].draw) {
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: return 0.5f;
+			case RepetitionWin: return 0.0f;
+			case RepetitionLose: return 1.0f;
+			case RepetitionSuperior: return 0.0f;
+			case RepetitionInferior: return 1.0f;
+			default: UNREACHABLE;
+			}
 		}
 	}
 
