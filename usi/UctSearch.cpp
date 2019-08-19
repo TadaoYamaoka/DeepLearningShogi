@@ -632,28 +632,27 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 		if (uct_child[i].index != NOT_EXPANDED) {
 			uct_node_t& child_node = uct_node[uct_child[i].index];
-			if (child_node.evaled) {
-				const float child_value_win = child_node.value_win;
-				if (child_value_win == VALUE_WIN) {
-					// 負けが確定しているノードは選択しない
-					if (child_win_count == i || uct_child[i].move_count > max_count) {
-						// すべて負けの場合は、探索回数が最大の手を選択する
-						select_index = i;
-						max_count = uct_child[i].move_count;
-					}
-					child_win_count++;
-					continue;
+			// 詰みの場合evaledは更新しないためevaledはチェックしない
+			const float child_value_win = child_node.value_win;
+			if (child_value_win == VALUE_WIN) {
+				// 負けが確定しているノードは選択しない
+				if (child_win_count == i || uct_child[i].move_count > max_count) {
+					// すべて負けの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
 				}
-				else if (child_value_win == VALUE_LOSE) {
-					// 子ノードに一つでも負けがあれば、勝ちなので選択する
-					if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-						// すべて勝ちの場合は、探索回数が最大の手を選択する
-						select_index = i;
-						max_count = uct_child[i].move_count;
-					}
-					child_lose_count++;
-					continue;
+				child_win_count++;
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、勝ちなので選択する
+				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+					// すべて勝ちの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
 				}
+				child_lose_count++;
+				continue;
 			}
 		}
 		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
