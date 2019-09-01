@@ -624,8 +624,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					nn_cache.Insert(uct_node[child_index].key, std::move(req));
 					uct_node[child_index].value_win = VALUE_LOSE;
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-					NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
-					cache_lock->value_win = VALUE_WIN;
 					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
 				}
@@ -692,7 +690,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			}
 			else if (child_value_win == VALUE_LOSE) {
 				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-				cache_lock->value_win = VALUE_WIN;
 				uct_node[current].value_win = VALUE_WIN;
 			}
 		}
@@ -726,7 +723,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
-		cache_lock->value_win = VALUE_LOSE;
 		uct_node[current].value_win = VALUE_LOSE;
 	}
 
@@ -1446,7 +1442,7 @@ int main(int argc, char* argv[]) {
 
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
-	logger->info("mate depth:{}", ROOT_MATE_SEARCH_DEPTH);
+	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
