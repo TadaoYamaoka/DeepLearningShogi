@@ -10,7 +10,6 @@ using namespace ns_dfpn;
 
 const constexpr int64_t HASH_SIZE_MB = 2048;
 uint32_t DfPn::kMaxDepth = 30;
-int64_t DfPn::MAX_SEARCH_NODE = 2097152;
 const constexpr int REPEAT = INT_MAX;
 const constexpr size_t MaxCheckMoves = 73;
 
@@ -1206,7 +1205,6 @@ bool DfPn::dfpn(Position& r) {
 
 	stop = false;
 	start_time = chrono::system_clock::now();
-	maxSearchNode = MAX_SEARCH_NODE;
 	this->remaining_time = remaining_time;
 
 	// キャッシュの世代を進める
@@ -1234,7 +1232,6 @@ bool DfPn::dfpn_andnode(Position& r) {
 
 	stop = false;
 	start_time = chrono::system_clock::now();
-	maxSearchNode = MAX_SEARCH_NODE;
 	this->remaining_time = remaining_time;
 
 	// キャッシュの世代を進める

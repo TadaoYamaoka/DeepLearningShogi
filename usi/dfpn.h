@@ -61,8 +61,8 @@ namespace ns_dfpn {
 		static void set_maxdepth(uint32_t depth) {
 			kMaxDepth = depth;
 		}
-		static void set_max_search_node(int64_t max_search_node) {
-			MAX_SEARCH_NODE = max_search_node;
+		void set_max_search_node(int64_t max_search_node) {
+			maxSearchNode = max_search_node;
 		}
 
 		int64_t searchedNode = 0;
@@ -74,9 +74,8 @@ namespace ns_dfpn {
 		std::atomic<bool> stop;
 		std::chrono::system_clock::time_point start_time;
 		double remaining_time = 0;
-		int64_t maxSearchNode;
+		int64_t maxSearchNode = 2097152;
 
 		static uint32_t kMaxDepth;
-		static int64_t MAX_SEARCH_NODE;
 	};
 }
