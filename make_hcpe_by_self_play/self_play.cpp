@@ -51,6 +51,11 @@ float WINRATE_THRESHOLD;
 
 // 詰み探索の深さ
 uint32_t ROOT_MATE_SEARCH_DEPTH;
+// 詰み探索の最大ノード数
+int64_t MATE_SEARCH_MAX_NODE;
+// 詰み探索の上限ノード数をランダムに決める
+bool MATE_SEARCH_RAND_LIMIT_NODES = false;
+constexpr int64_t MATE_SEARCH_MIN_NODE = 10000;
 
 // モデルのパス
 string model_path;
@@ -139,6 +144,7 @@ public:
 	~UCTSearcherGroup() {
 		delete[] uct_node;
 		delete[] mate_search_slot;
+		delete[] mate_search_limit_nodes;
 		checkCudaErrors(cudaFreeHost(features1));
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
@@ -150,6 +156,9 @@ public:
 	void SelfPlay();
 	void Run();
 	void Join();
+	void SetMateSearchLimitNodes(int limit_nodes, const int id) {
+		mate_search_limit_nodes[id] = limit_nodes;
+	}
 	void QueuingMateSearch(Position *pos, const int id) {
 		lock_guard<mutex> lock(mate_search_mutex);
 		mate_search_slot[id].pos = pos;
@@ -196,6 +205,7 @@ private:
 	// 詰み探索
 	ns_dfpn::DfPn dfpn;
 	MateSearchEntry* mate_search_slot = nullptr;
+	int* mate_search_limit_nodes = nullptr;
 	deque<int> mate_search_queue;
 	mutex mate_search_mutex;
 	thread* handle_mate_search;
@@ -356,7 +366,11 @@ UCTSearcherGroup::Initialize()
 	// 詰み探索
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
 		dfpn.init();
+		dfpn.set_max_search_node(MATE_SEARCH_MAX_NODE);
 		mate_search_slot = new MateSearchEntry[policy_value_batch_maxsize];
+		if (MATE_SEARCH_RAND_LIMIT_NODES) {
+			mate_search_limit_nodes = new int[policy_value_batch_maxsize];
+		}
 	}
 }
 
@@ -460,6 +474,11 @@ void UCTSearcherGroup::MateSearch()
 		for (int& id : queue) {
 			// 盤面のコピー
 			Position pos_copy(*mate_search_slot[id].pos);
+
+			// 詰み探索の上限ノード数をランダムに決めた場合
+			if (MATE_SEARCH_RAND_LIMIT_NODES) {
+				dfpn.set_max_search_node(mate_search_limit_nodes[id]);
+			}
 
 			// 詰み探索
 			if (!pos_copy.inCheck()) {
@@ -965,6 +984,12 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
 				hcpevec.clear();
+
+				// 詰み探索の上限ノード数をランダムに決める
+				if (MATE_SEARCH_RAND_LIMIT_NODES) {
+					std::uniform_int_distribution<> rand(MATE_SEARCH_MIN_NODE, MATE_SEARCH_MAX_NODE);
+					grp->SetMateSearchLimitNodes(rand(*mt_64), id);
+				}
 			}
 
 			// ハッシュクリア
@@ -1347,7 +1372,6 @@ int main(int argc, char* argv[]) {
 	std::string outputFileName;
 	vector<int> gpu_id(1);
 	vector<int> batchsize(1);
-	int64_t MATE_SEARCH_MAX_NODE;
 
 	cxxopts::Options options("make_hcpe_by_self_play");
 	options.positional_help("modelfile hcp output nodes playout_num gpu_id batchsize [gpu_id batchsize]*");
@@ -1367,6 +1391,7 @@ int main(int argc, char* argv[]) {
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
+			("mate_rand_limit_nodes", "mate search randomize limit nodes", cxxopts::value<bool>(MATE_SEARCH_RAND_LIMIT_NODES))
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
@@ -1415,13 +1440,12 @@ int main(int argc, char* argv[]) {
 		cerr << "too few threashold" << endl;
 		return 0;
 	}
-	if (MATE_SEARCH_MAX_NODE < 0) {
+	if (MATE_SEARCH_MAX_NODE < MATE_SEARCH_MIN_NODE) {
 		cerr << "too few mate nodes" << endl;
 		return 0;
 	}
 
 	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
-	ns_dfpn::DfPn::set_max_search_node(MATE_SEARCH_MAX_NODE);
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
@@ -1444,6 +1468,7 @@ int main(int argc, char* argv[]) {
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
+	logger->info("mate rand limit nodes:{}", MATE_SEARCH_RAND_LIMIT_NODES);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
 	logger->info("temperature:{}", temperature);
