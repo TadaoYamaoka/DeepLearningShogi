@@ -1302,17 +1302,17 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 
 	vector<UCTSearcherGroupPair> group_pairs;
 	group_pairs.reserve(gpu_id.size());
-	for (int i = 0; i < gpu_id.size(); i++)
+	for (size_t i = 0; i < gpu_id.size(); i++)
 		group_pairs.emplace_back(gpu_id[i], batchsize[i]);
 
 	// 探索スレッド開始
-	for (int i = 0; i < group_pairs.size(); i++)
+	for (size_t i = 0; i < group_pairs.size(); i++)
 		group_pairs[i].Run();
 
 	// 進捗状況表示
 	auto progressFunc = [&gpu_id, &group_pairs](Timer& t) {
 		ostringstream ss;
-		for (int i = 0; i < gpu_id.size(); i++) {
+		for (size_t i = 0; i < gpu_id.size(); i++) {
 			if (i > 0) ss << " ";
 			ss << gpu_id[i];
 		}
@@ -1333,7 +1333,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					elapsed_msec / 1000,
 					std::max<s64>(0, (s64)(elapsed_msec*(1.0 - progress) / (progress * 1000))));
 			int running = 0;
-			for (int i = 0; i < group_pairs.size(); i++)
+			for (size_t i = 0; i < group_pairs.size(); i++)
 				running += group_pairs[i].Running();
 			if (running == 0)
 				break;
@@ -1343,7 +1343,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	while (!stopflg) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		int running = 0;
-		for (int i = 0; i < group_pairs.size(); i++)
+		for (size_t i = 0; i < group_pairs.size(); i++)
 			running += group_pairs[i].Running();
 		if (running > 0)
 			break;
@@ -1352,7 +1352,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
 	// 探索スレッド終了待機
-	for (int i = 0; i < group_pairs.size(); i++)
+	for (size_t i = 0; i < group_pairs.size(); i++)
 		group_pairs[i].Join();
 
 	progressThread.join();
@@ -1451,7 +1451,7 @@ int main(int argc, char* argv[]) {
 	logger->set_level(spdlog::level::trace);
 	logger->info("modelfile:{} roots.hcp:{} output:{} nodes:{} playout_num:{}", model_path, recordFileName, outputFileName, teacherNodes, playout_num);
 
-	for (int i = 0; i < gpu_id.size(); i++) {
+	for (size_t i = 0; i < gpu_id.size(); i++) {
 		logger->info("gpu_id:{} batchsize:{}", gpu_id[i], batchsize[i]);
 
 		if (gpu_id[i] < 0) {

@@ -10,7 +10,7 @@ using namespace ns_dfpn;
 
 const constexpr int64_t HASH_SIZE_MB = 2048;
 uint32_t DfPn::kMaxDepth = 30;
-const constexpr int REPEAT = INT_MAX;
+const constexpr uint32_t REPEAT = UINT_MAX;
 const constexpr size_t MaxCheckMoves = 73;
 
 // --- 詰み将棋探索
@@ -936,7 +936,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			int best_pn = kInfinitePnDn;
 			int second_best_pn = kInfinitePnDn;
 			int best_dn = 0;
-			int best_num_search = INT_MAX;
+			uint32_t best_num_search = UINT_MAX;
 
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
@@ -1027,13 +1027,13 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				// 不詰みの場合
 				//cout << n.hand(n.turn()).value() << "," << entry.hand.value() << ",";
 				// 先手が一枚も持っていない種類の先手の持ち駒を反証駒から削除する
-				u32 curr_pawn = entry.hand.exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
-				u32 curr_lance = entry.hand.exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
-				u32 curr_knight = entry.hand.exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
-				u32 curr_silver = entry.hand.exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
-				u32 curr_gold = entry.hand.exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
-				u32 curr_bishop = entry.hand.exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
-				u32 curr_rook = entry.hand.exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
+				u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
+				u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
+				u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
+				u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
+				u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
+				u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
+				u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
 				// 反証駒に子局面の証明駒の積集合を設定
 				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 				//cout << entry.hand.value() << endl;
@@ -1048,7 +1048,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			int best_dn = kInfinitePnDn;
 			int second_best_dn = kInfinitePnDn;
 			int best_pn = 0;
-			int best_num_search = INT_MAX;
+			uint32_t best_num_search = UINT_MAX;
 
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
@@ -1139,13 +1139,13 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				//cout << n.toSFEN() << " and" << endl;
 				//cout << bitset<32>(entry.hand.value()) << endl;
 				// 証明駒に子局面の証明駒の和集合を設定
-				u32 curr_pawn = entry.hand.exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
-				u32 curr_lance = entry.hand.exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
-				u32 curr_knight = entry.hand.exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
-				u32 curr_silver = entry.hand.exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
-				u32 curr_gold = entry.hand.exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
-				u32 curr_bishop = entry.hand.exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
-				u32 curr_rook = entry.hand.exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
+				u32 curr_pawn = entry.hand.template exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
+				u32 curr_lance = entry.hand.template exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
+				u32 curr_knight = entry.hand.template exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
+				u32 curr_silver = entry.hand.template exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
+				u32 curr_gold = entry.hand.template exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
+				u32 curr_bishop = entry.hand.template exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
+				u32 curr_rook = entry.hand.template exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
 				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 				//cout << bitset<32>(entry.hand.value()) << endl;
 				// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する

@@ -12,7 +12,7 @@ namespace ns_dfpn {
 		int dn;
 		uint16_t depth;
 		uint16_t generation;
-		int num_searched;
+		uint32_t num_searched;
 	};
 
 	struct TranspositionTable {
