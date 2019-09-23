@@ -87,7 +87,7 @@ bool pondering_mode = false;
 
 bool pondering = false;
 
-atomic<bool> uct_search_stop = false;
+atomic<bool> uct_search_stop(false);
 
 double time_limit;
 
