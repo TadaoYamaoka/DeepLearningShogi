@@ -180,7 +180,11 @@ public:
 		const DType beta = _zero;
 		// C = α op ( A ) op ( B ) + β C
 		// op ( A ) m × k , op ( B ) k × n and C m × n
+#ifdef FP16
 		checkCublasErrors(cublasGemmEx(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, CUDA_DATA_TYPE, k, x, CUDA_DATA_TYPE, k, &beta, y, CUDA_DATA_TYPE, n, CUDA_DATA_TYPE, CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+#else
+		checkCublasErrors(cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, k, x, k, &beta, y, n));
+#endif
 	}
 
 private:

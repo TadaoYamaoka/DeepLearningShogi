@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ns_dfpn;
 
-const constexpr int64_t HASH_SIZE_MB = 2048;
+int64_t DfPn::HASH_SIZE_MB = 2048;
 uint32_t DfPn::kMaxDepth = 30;
 const constexpr uint32_t REPEAT = UINT_MAX;
 const constexpr size_t MaxCheckMoves = 73;
@@ -219,8 +219,7 @@ TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move
 	return LookUpDirect(*entries, hash_high, hand, depth + 1);
 }
 
-void TranspositionTable::Resize() {
-	int64_t hash_size_mb = HASH_SIZE_MB;
+void TranspositionTable::Resize(int64_t hash_size_mb) {
 	if (hash_size_mb == 16) {
 		hash_size_mb = 4096;
 	}
@@ -1196,7 +1195,7 @@ Move DfPn::dfpn_move(Position& pos) {
 
 void DfPn::init()
 {
-	transposition_table.Resize();
+	transposition_table.Resize(HASH_SIZE_MB);
 }
 
 // 詰将棋探索のエントリポイント
