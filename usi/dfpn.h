@@ -37,7 +37,7 @@ namespace ns_dfpn {
 		template <bool or_node>
 		TTEntry& LookUpChildEntry(const Position& n, const Move move, const uint16_t depth);
 
-		void Resize();
+		void Resize(int64_t hash_size_mb);
 
 		void NewSearch();
 
@@ -58,6 +58,9 @@ namespace ns_dfpn {
 		void set_remaining_time(const double remaining_time);
 		Move dfpn_move(Position& pos);
 
+		static void set_hashsize(uint64_t size) {
+			HASH_SIZE_MB = size;
+		}
 		static void set_maxdepth(uint32_t depth) {
 			kMaxDepth = depth;
 		}
@@ -77,5 +80,6 @@ namespace ns_dfpn {
 		int64_t maxSearchNode = 2097152;
 
 		static uint32_t kMaxDepth;
+		static int64_t HASH_SIZE_MB;
 	};
 }

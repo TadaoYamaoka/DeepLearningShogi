@@ -118,6 +118,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				SetThread(new_thread, new_policy_value_batch_maxsize);
 
 				if (options["Mate_Root_Search"] > 0) {
+					ns_dfpn::DfPn::set_hashsize(options["DfPn_Hash"]);
 					dfpn.init();
 				}
 			}
