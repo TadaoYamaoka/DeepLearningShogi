@@ -189,11 +189,7 @@ for e in range(args.epoch):
             sum_test_accuracy1 += F.accuracy(y1, t1).data
             sum_test_accuracy2 += binary_accuracy2(y2, t2).data
 
-            p1 = F.softmax(y1)
-            #entropy1 = F.sum(- p1 * F.log(p1), axis=1)
-            y1_max = F.max(y1, axis=1, keepdims=True)
-            log_p1 = y1 - (F.log(F.sum(F.exp(y1 - y1_max), axis=1, keepdims=True)) + y1_max)
-            entropy1 = F.sum(- p1 * log_p1, axis=1)
+            entropy1 = F.sum(- F.softmax(y1) * F.log_softmax(y1), axis=1)
             sum_test_entropy1 += F.mean(entropy1).data
 
             p2 = F.sigmoid(y2)
