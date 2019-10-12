@@ -120,7 +120,7 @@ for e in range(args.epoch):
         model.cleargrads()
         loss1 = F.mean(F.softmax_cross_entropy(y1, t1, reduce='no') * z)
         if args.beta > 0:
-            loss1 += args.beta * F.mean(F.sum(F.softmax(y1) * y1, axis=1))
+            loss1 += args.beta * F.mean(F.sum(F.softmax(y1) * F.log_softmax(y1), axis=1))
         loss2 = sigmoid_cross_entropy2(y2, t2)
         loss3 = sigmoid_cross_entropy2(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
