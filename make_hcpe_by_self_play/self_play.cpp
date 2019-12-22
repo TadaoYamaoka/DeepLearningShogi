@@ -360,7 +360,7 @@ UCTSearcherGroup::Initialize()
 		searchers.emplace_back(this, uct_hash, uct_node, nn_cache, i, entryNum);
 	}
 
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 
 	// 詰み探索
@@ -1000,7 +1000,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 
 			// 詰みのチェック
 			if (uct_node[current_root].child_num == 0) {
-				gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
+				gameResult = (pos_root->turn() == Black) ? GameResult::WhiteWin : GameResult::BlackWin;
 				NextGame();
 				continue;
 			}
@@ -1016,7 +1016,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			}
 			else if (nyugyoku(*pos_root)) {
 				// 入玉宣言勝ち
-				gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+				gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
 				if (hcpevec.size() > 0)
 					++nyugyokus;
 				NextGame();
@@ -1406,13 +1406,13 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 
-		const int positional_count = result.count("positional");
+		const size_t positional_count = result.count("positional");
 		if (positional_count > 0) {
 			if (positional_count % 2 == 1) {
 				throw cxxopts::option_required_exception("batchsize");
 			}
 			auto positional = result["positional"].as<std::vector<int>>();
-			for (int i = 0; i < positional_count; i += 2) {
+			for (size_t i = 0; i < positional_count; i += 2) {
 				gpu_id.push_back(positional[i]);
 				batchsize.push_back(positional[i + 1]);
 			}

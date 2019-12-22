@@ -75,7 +75,7 @@ mutex* mutex_nodes;
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 // 探索の設定
-enum SEARCH_MODE mode = TIME_SETTING_WITH_BYOYOMI_MODE;
+enum SEARCH_MODE mode = SEARCH_MODE::TIME_SETTING_WITH_BYOYOMI_MODE;
 // 1手あたりの試行時間
 double const_thinking_time = CONST_TIME;
 // 1手当たりのプレイアウト数
