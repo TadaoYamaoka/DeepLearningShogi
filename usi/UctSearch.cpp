@@ -222,7 +222,7 @@ public:
 		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		policy_value_hash_index = new unsigned int[policy_value_batch_maxsize];
 
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	}
 	UCTSearcher(UCTSearcher&& o) :
@@ -237,19 +237,6 @@ public:
 		checkCudaErrors(cudaFreeHost(y2));
 	}
 
-	// UCT探索
-	void ParallelUctSearch();
-	//  UCT探索(1回の呼び出しにつき, 1回の探索)
-	float UctSearch(Position *pos, const unsigned int current, const int depth, vector<pair<unsigned int, unsigned int>>& trajectories);
-	// ノードの展開
-	unsigned int ExpandNode(Position *pos, const int depth);
-	// UCB値が最大の子ノードを返す
-	int SelectMaxUcbChild(const Position *pos, const unsigned int current, const int depth);
-	// ノードをキューに追加
-	void QueuingNode(const Position *pos, unsigned int index);
-	// ノードを評価
-	void EvalNode();
-	// スレッド開始
 	void Run() {
 		handle = new thread([this]() { this->ParallelUctSearch(); });
 	}
@@ -260,6 +247,20 @@ public:
 	}
 
 private:
+	// UCT探索
+	void ParallelUctSearch();
+	//  UCT探索(1回の呼び出しにつき, 1回の探索)
+	float UctSearch(Position* pos, const unsigned int current, const int depth, vector<pair<unsigned int, unsigned int>>& trajectories);
+	// ノードの展開
+	unsigned int ExpandNode(Position* pos, const int depth);
+	// UCB値が最大の子ノードを返す
+	int SelectMaxUcbChild(const Position* pos, const unsigned int current, const int depth);
+	// ノードをキューに追加
+	void QueuingNode(const Position* pos, unsigned int index);
+	// ノードを評価
+	void EvalNode();
+	// スレッド開始
+
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
 	int thread_id;

@@ -231,15 +231,15 @@ public:
 		delete pos_root;
 	}
 
-	float UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued);
-	int SelectMaxUcbChild(const Position *pos, unsigned int current, const int depth);
-	unsigned int ExpandRoot(const Position *pos);
-	unsigned int ExpandNode(Position *pos, const int depth);
-	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
 	void Playout(vector<TrajectorEntry>& trajectories);
 	void NextStep();
 
 private:
+	float UctSearch(Position* pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued);
+	int SelectMaxUcbChild(const Position* pos, unsigned int current, const int depth);
+	unsigned int ExpandRoot(const Position* pos);
+	unsigned int ExpandNode(Position* pos, const int depth);
+	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
 	void NextGame();
 
 	// 局面追加
