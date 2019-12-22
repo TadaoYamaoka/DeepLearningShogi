@@ -16,6 +16,7 @@
     <LaunchProvider>Standard Python launcher</LaunchProvider>
     <CommandLineArguments>F:\teacher\elmo_teacher_depth8_uniq-001 F:\teacher\elmo_teacher_depth8_uniq-test --model f:\temp\model_elmo_001 --state f:\temp\state_elmo_001 -b 64 --weightdecay_rate 0 --beta 0 --lr 0.00001</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
