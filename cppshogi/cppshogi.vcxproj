@@ -248,6 +248,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClCompile Include="search.cpp" />
     <ClCompile Include="square.cpp" />
     <ClCompile Include="usi.cpp" />
+    <ClCompile Include="USIEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.hpp" />
@@ -269,6 +270,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClInclude Include="square.hpp" />
     <ClInclude Include="timeManager.hpp" />
     <ClInclude Include="usi.hpp" />
+    <ClInclude Include="USIEngine.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
