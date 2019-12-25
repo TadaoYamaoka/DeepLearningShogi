@@ -22,6 +22,7 @@
 #include "nn_wideresnet15.h"
 #include "nn_senet10.h"
 #include "dfpn.h"
+#include "USIEngine.h"
 
 #include "cppshogi.h"
 
@@ -62,6 +63,14 @@ string model_path;
 
 int playout_num = 1000;
 
+// USIエンジンのパス
+string usi_engine_path;
+int usi_engine_id;
+int usi_engine_num;
+// USIエンジンオプション（name:value,...,name:value）
+string usi_options;
+int usi_byoyomi;
+
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
 
@@ -80,6 +89,10 @@ std::atomic<s64> madeTeacherNodes(0);
 std::atomic<s64> games(0);
 std::atomic<s64> draws(0);
 std::atomic<s64> nyugyokus(0);
+// USIエンジンとの対局結果
+std::atomic<s64> usi_games(0);
+std::atomic<s64> usi_wins(0);
+std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
@@ -176,6 +189,9 @@ public:
 	int group_id;
 	int gpu_id;
 	bool running;
+	// USIEngine
+	vector<USIEngine> engines;
+
 private:
 	void Initialize();
 
@@ -225,6 +241,7 @@ public:
 		playout(0),
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
+		need_usi_engine = grp->engines.size() > 0 && id < usi_engine_num;
 	}
 	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash), nn_cache(o.nn_cache) {} // not use
 	~UCTSearcher() {
@@ -240,6 +257,7 @@ private:
 	unsigned int ExpandRoot(const Position* pos);
 	unsigned int ExpandNode(Position* pos, const int depth);
 	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
+	void NextPly(const Move move);
 	void NextGame();
 
 	// 局面追加
@@ -283,6 +301,10 @@ private:
 	MateSearchEntry::State mate_status;
 
 	HuffmanCodedPos hcp;
+
+	// USIエンジン
+	bool need_usi_engine = false;
+	std::string usi_position;
 };
 
 class UCTSearcherGroupPair {
@@ -348,6 +370,20 @@ private:
 void
 UCTSearcherGroup::Initialize()
 {
+	// USIエンジン起動
+	if (usi_engine_id == gpu_id && group_id == 0 && usi_engine_path != "" && usi_engine_num != 0) {
+		std::vector<std::pair<std::string, std::string>> options;
+		std::istringstream ss(usi_options);
+		std::string field;
+		while (std::getline(ss, field, ',')) {
+			const auto pos = field.find_first_of(":");
+			options.emplace_back(field.substr(0, pos), field.substr(pos + 1));
+		}
+		engines.reserve(usi_engine_num);
+		for (int i = 0; i < usi_engine_num; ++i)
+			engines.emplace_back(usi_engine_path, options);
+	}
+
 	// キューを動的に確保する
 	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
@@ -990,6 +1026,15 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 					std::uniform_int_distribution<> rand(MATE_SEARCH_MIN_NODE, MATE_SEARCH_MAX_NODE);
 					grp->SetMateSearchLimitNodes(rand(*mt_64), id);
 				}
+
+				// USIエンジン
+				if (need_usi_engine) {
+					// 開始局面設定
+					usi_position = "position " + pos_root->toSFEN() + " moves";
+				}
+			}
+			else if (need_usi_engine && ply % 2 == 0 && ply > RANDOM_MOVE) {
+				return;
 			}
 
 			// ハッシュクリア
@@ -1006,12 +1051,9 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 			}
 			else if (uct_node[current_root].child_num == 1) {
 				// 1手しかないときは、その手を指して次の手番へ
-				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), uct_node[current_root].child[0].move.toUSI());
-				pos_root->doMove(uct_node[current_root].child[0].move, states[ply]);
-				pos_root->setStartPosPly(ply + 1);
-
-				playout = 0;
-				ply++;
+				const Move move = uct_node[current_root].child[0].move;
+				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
+				NextPly(move);
 				continue;
 			}
 			else if (nyugyoku(*pos_root)) {
@@ -1058,6 +1100,28 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 // 次の手に進める
 void UCTSearcher::NextStep()
 {
+	// USIエンジン
+	if (need_usi_engine && ply % 2 == 0 && ply > RANDOM_MOVE) {
+		const Move move = grp->engines[id].ThinkDone();
+		if (move == Move::moveNone())
+			return;
+
+		if (move == moveResign()) {
+			gameResult = (pos_root->turn() == Black) ? GameResult::WhiteWin : GameResult::BlackWin;
+			NextGame();
+			return;
+		}
+		else if (move == moveWin()) {
+			gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
+			NextGame();
+			return;
+		}
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
+
+		NextPly(move);
+		return;
+	}
+
 	// 詰み探索の結果を調べる
 	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNING) {
 		mate_status = grp->GetMateSearchStatus(id);
@@ -1216,32 +1280,43 @@ void UCTSearcher::NextStep()
 			}
 		}
 
-		// 着手
-		pos_root->doMove(best_move, states[ply]);
-		pos_root->setStartPosPly(ply + 1);
+		NextPly(best_move);
+	}
+}
 
-		// 千日手の場合
-		switch (pos_root->isDraw(16)) {
-		case RepetitionDraw:
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionDraw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
-			gameResult = Draw;
-			NextGame();
-			return;
-		case RepetitionWin:
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionWin", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
-			gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
-			NextGame();
-			return;
-		case RepetitionLose:
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionLose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
-			gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
-			NextGame();
-			return;
-		}
+void UCTSearcher::NextPly(const Move move)
+{
+	// 着手
+	pos_root->doMove(move, states[ply]);
+	pos_root->setStartPosPly(ply + 1);
 
-		// 次の手番
-		playout = 0;
-		ply++;
+	// 千日手の場合
+	switch (pos_root->isDraw(16)) {
+	case RepetitionDraw:
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionDraw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+		gameResult = Draw;
+		NextGame();
+		return;
+	case RepetitionWin:
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionWin", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+		gameResult = (pos_root->turn() == Black) ? BlackWin : WhiteWin;
+		NextGame();
+		return;
+	case RepetitionLose:
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionLose", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
+		gameResult = (pos_root->turn() == Black) ? WhiteWin : BlackWin;
+		NextGame();
+		return;
+	}
+
+	// 次の手番
+	playout = 0;
+	ply++;
+
+	if (need_usi_engine) {
+		usi_position += " " + move.toUSI();
+		if (ply % 2 == 0)
+			grp->engines[id].ThinkAsync(*pos_root, usi_position, usi_byoyomi);
 	}
 }
 
@@ -1262,6 +1337,16 @@ void UCTSearcher::NextGame()
 		if (gameResult == Draw) {
 			++draws;
 		}
+	}
+
+	// USIエンジンとの対局結果
+	if (need_usi_engine) {
+		++usi_games;
+		if (ply % 2 == 1 && (pos_root->turn() == Black && gameResult == BlackWin || pos_root->turn() == White && gameResult == WhiteWin) ||
+			ply % 2 == 0 && (pos_root->turn() == Black && gameResult == WhiteWin || pos_root->turn() == White && gameResult == BlackWin))
+			++usi_wins;
+		else if (gameResult == Draw)
+			++usi_draws;
 	}
 
 	// すぐに終局した初期局面を削除候補とする
@@ -1321,7 +1406,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{}, gpu id:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{}, gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
@@ -1330,6 +1415,9 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
 					ss.str(),
+					usi_games,
+					usi_wins,
+					usi_draws,
 					elapsed_msec / 1000,
 					std::max<s64>(0, (s64)(elapsed_msec*(1.0 - progress) / (progress * 1000))));
 			int running = 0;
@@ -1360,11 +1448,14 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ofs.close();
 	//ofs_dup.close();
 
-	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}",
+	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}",
 		madeTeacherNodes, t.elapsed() / 1000,
 		games,
 		draws,
-		static_cast<double>(madeTeacherNodes) / games);
+		static_cast<double>(madeTeacherNodes) / games,
+		usi_games,
+		usi_wins,
+		usi_draws);
 }
 
 int main(int argc, char* argv[]) {
@@ -1395,6 +1486,11 @@ int main(int argc, char* argv[]) {
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
+			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
+			("usi_engine_id", "USIEngine id corresponding to gpu_id", cxxopts::value<int>(usi_engine_id)->default_value("0"))
+			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
+			("usi_options", "USIEngine options", cxxopts::value<std::string>(usi_options))
+			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
@@ -1444,6 +1540,10 @@ int main(int argc, char* argv[]) {
 		cerr << "too few mate nodes" << endl;
 		return 0;
 	}
+	if (usi_engine_num < 0) {
+		cerr << "too few usi_engine_num" << endl;
+		return 0;
+	}
 
 	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 
@@ -1472,6 +1572,11 @@ int main(int argc, char* argv[]) {
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
 	logger->info("temperature:{}", temperature);
+	logger->info("usi_engine:{}", usi_engine_path);
+	logger->info("usi_engine_id:{}", usi_engine_id);
+	logger->info("usi_engine_num:{}", usi_engine_num);
+	logger->info("usi_options:{}", usi_options);
+	logger->info("usi_byoyomi:{}", usi_byoyomi);
 
 	initTable();
 	Position::initZobrist();

@@ -503,3 +503,43 @@ int main() {
 	return 0;
 }
 #endif
+
+#if 1
+#include "USIEngine.h"
+
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	USIEngine engine(R"(E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe)", {
+		{ "USI_Ponder", "False" },
+		{ "Threads", "4" },
+	});
+
+	Position pos;
+	std::string sfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+	pos.set(sfen);
+	Move move = engine.Think(pos, "position sfen " + sfen, 1000);
+	cout << move.toUSI() << endl;
+
+	// 投了
+	sfen = "3+L4l/7+R1/1P1s1p3/pp1pp3k/8R/P3S3P/4PPpP1/4G4/LN3BK2 w SNPb3gs2nl5p 152";
+	pos.set(sfen);
+	move = engine.Think(pos, "position sfen " + sfen, 1000);
+	if (move == moveResign())
+		cout << "resign" << endl;
+	else
+		cout << move.toUSI() << endl;
+
+	// 入玉宣言勝ち
+	sfen = "8l/1+P1K2+P2/+P+L+P+NS4/5+N2g/1S7/9/G4+bg+p+p/S2+pl1g1k/2+r4+ns w B4Prnl7p 218";
+	pos.set(sfen);
+	move = engine.Think(pos, "position sfen " + sfen, 1000);
+	if (move == moveWin())
+		cout << "win" << endl;
+	else
+		cout << move.toUSI() << endl;
+}
+
+#endif

@@ -102,8 +102,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Anaconda3\include;C:\boost_1_65_1;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -113,13 +113,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Anaconda3\include;C:\boost_1_65_1;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Anaconda3\include;C:\boost_1_65_1;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_65_1\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -243,6 +243,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="..\cppshogi\USIEngine.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />
