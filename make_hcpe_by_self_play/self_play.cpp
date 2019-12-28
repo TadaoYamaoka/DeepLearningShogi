@@ -89,6 +89,9 @@ std::atomic<s64> madeTeacherNodes(0);
 std::atomic<s64> games(0);
 std::atomic<s64> draws(0);
 std::atomic<s64> nyugyokus(0);
+// プレイアウト数
+std::atomic<s64> sum_playouts(0);
+std::atomic<s64> sum_nodes(0);
 // USIエンジンとの対局結果
 std::atomic<s64> usi_games(0);
 std::atomic<s64> usi_wins(0);
@@ -1154,6 +1157,10 @@ void UCTSearcher::NextStep()
 
 	// 探索終了判定
 	if (InterruptionCheck(current_root, playout)) {
+		// 平均プレイアウト数を計測
+		sum_playouts += playout;
+		++sum_nodes;
+
 		// 詰み探索の結果を待つ
 		if (ROOT_MATE_SEARCH_DEPTH > 0) {
 			while (mate_status == MateSearchEntry::RUNING) {
@@ -1406,7 +1413,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{}, gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
@@ -1414,6 +1421,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					draws,
 					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
+					static_cast<double>(sum_playouts) / sum_nodes,
 					ss.str(),
 					usi_games,
 					usi_wins,
