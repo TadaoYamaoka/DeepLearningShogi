@@ -61,7 +61,11 @@ constexpr int64_t MATE_SEARCH_MIN_NODE = 10000;
 // モデルのパス
 string model_path;
 
-int playout_num = 1000;
+// 探索打ち止めの設定
+constexpr int max_playout_num = 10000;
+constexpr int interruption_interval = 100; // チェック間隔
+constexpr double min_gain = 0.0001 * interruption_interval;
+std::atomic<int> max_playout = 0;
 
 // USIエンジンのパス
 string usi_engine_path;
@@ -304,6 +308,9 @@ private:
 	MateSearchEntry::State mate_status;
 
 	HuffmanCodedPos hcp;
+
+	// 探索打ち止め用の前回の訪問回数
+	int prev_visits[UCT_CHILD_MAX];
 
 	// USIエンジン
 	bool need_usi_engine = false;
@@ -912,36 +919,34 @@ UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 bool
 UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playout_count)
 {
-	int max = 0, second = 0;
+	if (playout_count >= max_playout_num || playout_count % interruption_interval != 0) return false;
+
 	const int child_num = uct_node[current_root].child_num;
-	int rest = playout_num - playout_count;
 	child_node_t *uct_child = uct_node[current_root].child;
+	int new_visits[UCT_CHILD_MAX];
 
-	// 探索回数が最も多い手と次に多い手を求める
+	// ルートの子ノードの訪問回数を取得
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max) {
-			second = max;
-			max = uct_child[i].move_count;
+		new_visits[i] = uct_child[i].move_count;
+	}
+
+	if (playout_count > interruption_interval) {
+		double kldgain = 0.0;
+		const double prev_playout_count = (double)(playout_count - interruption_interval);
+		const double new_playout_count = (double)playout_count;
+		for (int i = 0; i < child_num; i++) {
+			double o_p = prev_visits[i] / prev_playout_count;
+			double n_p = new_visits[i] / new_playout_count;
+			if (prev_visits[i] != 0) kldgain += o_p * log(o_p / n_p);
 		}
-		else if (uct_child[i].move_count > second) {
-			second = uct_child[i].move_count;
+		if (kldgain < min_gain) {
+			if (playout_count > max_playout) max_playout = playout_count;
+			return true;
 		}
 	}
 
-	// 最善手の探索回数が次善手の探索回数の
-	// 1.2倍未満なら探索延長
-	if (max < second * 1.2) {
-		rest += playout_num * 0.5;
-	}
-
-	// 残りの探索を全て次善手に費やしても
-	// 最善手を超えられない場合は探索を打ち切る
-	if (max - second > rest) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	std::memcpy(prev_visits, new_visits, child_num * sizeof(int));
+	return false;
 }
 
 // 局面の評価
@@ -1413,7 +1418,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f}, max_playout:{} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
@@ -1422,6 +1427,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
 					static_cast<double>(sum_playouts) / sum_nodes,
+					max_playout,
 					ss.str(),
 					usi_games,
 					usi_wins,
@@ -1482,7 +1488,6 @@ int main(int argc, char* argv[]) {
 			("hcp", "initial position file", cxxopts::value<std::string>(recordFileName))
 			("output", "output file path", cxxopts::value<std::string>(outputFileName))
 			("nodes", "nodes", cxxopts::value<s64>(teacherNodes))
-			("playout_num", "playout number", cxxopts::value<int>(playout_num))
 			("gpu_id", "gpu id", cxxopts::value<int>(gpu_id[0]))
 			("batchsize", "batchsize", cxxopts::value<int>(batchsize[0]))
 			("positional", "", cxxopts::value<std::vector<int>>())
@@ -1501,7 +1506,7 @@ int main(int argc, char* argv[]) {
 			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
 			("h,help", "Print help")
 			;
-		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
+		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "gpu_id", "batchsize", "positional" });
 
 		auto result = options.parse(argc, argv);
 
@@ -1532,10 +1537,6 @@ int main(int argc, char* argv[]) {
 		cerr << "too few teacherNodes" << endl;
 		return 0;
 	}
-	if (playout_num <= 0) {
-		cerr << "too few playout_num" << endl;
-		return 0;
-	}
 	if (RANDOM_MOVE < 0) {
 		cerr << "too few random move number" << endl;
 		return 0;
@@ -1557,7 +1558,7 @@ int main(int argc, char* argv[]) {
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
-	logger->info("modelfile:{} roots.hcp:{} output:{} nodes:{} playout_num:{}", model_path, recordFileName, outputFileName, teacherNodes, playout_num);
+	logger->info("modelfile:{} roots.hcp:{} output:{} nodes:{}", model_path, recordFileName, outputFileName, teacherNodes);
 
 	for (size_t i = 0; i < gpu_id.size(); i++) {
 		logger->info("gpu_id:{} batchsize:{}", gpu_id[i], batchsize[i]);
