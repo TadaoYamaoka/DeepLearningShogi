@@ -62,6 +62,7 @@ constexpr int64_t MATE_SEARCH_MIN_NODE = 10000;
 string model_path;
 
 int playout_num = 1000;
+std::atomic<int> max_playout(0);
 
 // USIエンジンのパス
 string usi_engine_path;
@@ -241,6 +242,7 @@ public:
 		mt_64(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		mt(new std::mt19937(std::chrono::system_clock::now().time_since_epoch().count() + id)),
 		inputFileDist(0, entryNum - 1),
+		max_playout_num(playout_num),
 		playout(0),
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
@@ -288,6 +290,7 @@ private:
 	// NNキャッシュ(UCTSearcherGroupで共有)
 	NNCache& nn_cache;
 
+	int max_playout_num;
 	int playout;
 	int ply;
 	GameResult gameResult;
@@ -914,7 +917,7 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 {
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
-	int rest = playout_num - playout_count;
+	int rest = max_playout_num - playout_count;
 	child_node_t *uct_child = uct_node[current_root].child;
 
 	// 探索回数が最も多い手と次に多い手を求める
@@ -928,15 +931,17 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 		}
 	}
 
-	// 最善手の探索回数が次善手の探索回数の
-	// 1.2倍未満なら探索延長
-	if (max < second * 1.2) {
-		rest += playout_num * 0.5;
-	}
-
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
 	if (max - second > rest) {
+		// 最善手の探索回数が次善手の探索回数の
+		// 1.2倍未満なら探索延長
+		if (max_playout_num < playout_num * 8 && max < second * 1.2) {
+			max_playout_num += playout_num / 2;
+			return false;
+		}
+
+		if (playout_count > max_playout) max_playout = playout_count;
 		return true;
 	}
 	else {
@@ -1317,6 +1322,7 @@ void UCTSearcher::NextPly(const Move move)
 	}
 
 	// 次の手番
+	max_playout_num = playout_num;
 	playout = 0;
 	ply++;
 
@@ -1413,7 +1419,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f}, max_playout:{} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
@@ -1422,6 +1428,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
 					static_cast<double>(sum_playouts) / sum_nodes,
+					max_playout,
 					ss.str(),
 					usi_games,
 					usi_wins,
