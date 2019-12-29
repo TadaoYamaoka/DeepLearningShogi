@@ -69,8 +69,8 @@ int playout_num = 1000;
 
 // USIエンジンのパス
 string usi_engine_path;
-int usi_engine_id;
 int usi_engine_num;
+int usi_threads;
 // USIエンジンオプション（name:value,...,name:value）
 string usi_options;
 int usi_byoyomi;
@@ -197,7 +197,7 @@ public:
 	int gpu_id;
 	bool running;
 	// USIEngine
-	vector<USIEngine> engines;
+	vector<USIEngine> usi_engines;
 
 private:
 	void Initialize();
@@ -249,7 +249,7 @@ public:
 		playout(0),
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
-		need_usi_engine = grp->engines.size() > 0 && id < usi_engine_num;
+		need_usi_engine = grp->usi_engines.size() > 0 && id < usi_engine_num;
 	}
 	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash), nn_cache(o.nn_cache) {} // not use
 	~UCTSearcher() {
@@ -380,17 +380,19 @@ void
 UCTSearcherGroup::Initialize()
 {
 	// USIエンジン起動
-	if (usi_engine_id == gpu_id && group_id == 0 && usi_engine_path != "" && usi_engine_num != 0) {
+	if (usi_engine_path != "" && usi_engine_num != 0) {
 		std::vector<std::pair<std::string, std::string>> options;
 		std::istringstream ss(usi_options);
 		std::string field;
 		while (std::getline(ss, field, ',')) {
 			const auto pos = field.find_first_of(":");
 			options.emplace_back(field.substr(0, pos), field.substr(pos + 1));
+		
 		}
-		engines.reserve(usi_engine_num);
-		for (int i = 0; i < usi_engine_num; ++i)
-			engines.emplace_back(usi_engine_path, options);
+		usi_engines.reserve(usi_threads);
+		for (int i = 0; i < usi_threads; ++i) {
+			usi_engines.emplace_back(usi_engine_path, options, usi_threads);
+		}
 	}
 
 	// キューを動的に確保する
@@ -1112,7 +1114,7 @@ void UCTSearcher::NextStep()
 {
 	// USIエンジン
 	if (need_usi_engine && ply % 2 == 0 && ply > RANDOM_MOVE) {
-		const Move move = grp->engines[id].ThinkDone();
+		const Move move = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
 		if (move == Move::moveNone())
 			return;
 
@@ -1331,7 +1333,7 @@ void UCTSearcher::NextPly(const Move move)
 	if (need_usi_engine) {
 		usi_position += " " + move.toUSI();
 		if (ply % 2 == 0)
-			grp->engines[id].ThinkAsync(*pos_root, usi_position, usi_byoyomi);
+			grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 	}
 }
 
@@ -1503,8 +1505,8 @@ int main(int argc, char* argv[]) {
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
-			("usi_engine_id", "USIEngine id corresponding to gpu_id", cxxopts::value<int>(usi_engine_id)->default_value("0"))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
+			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
 			("usi_options", "USIEngine options", cxxopts::value<std::string>(usi_options))
 			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
 			("h,help", "Print help")
@@ -1560,6 +1562,10 @@ int main(int argc, char* argv[]) {
 		cerr << "too few usi_engine_num" << endl;
 		return 0;
 	}
+	if (usi_threads < 0) {
+		cerr << "too few usi_threads" << endl;
+		return 0;
+	}
 
 	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 
@@ -1589,8 +1595,8 @@ int main(int argc, char* argv[]) {
 	logger->info("c_base:{}", c_base);
 	logger->info("temperature:{}", temperature);
 	logger->info("usi_engine:{}", usi_engine_path);
-	logger->info("usi_engine_id:{}", usi_engine_id);
 	logger->info("usi_engine_num:{}", usi_engine_num);
+	logger->info("usi_threads:{}", usi_threads);
 	logger->info("usi_options:{}", usi_options);
 	logger->info("usi_byoyomi:{}", usi_byoyomi);
 
