@@ -504,8 +504,8 @@ int main() {
 }
 #endif
 
-#if 1
-#include "USIEngine.h"
+#if 0
+#include "../make_hcpe_by_self_play/USIEngine.h"
 
 int main()
 {
@@ -515,7 +515,7 @@ int main()
 	USIEngine engine(R"(E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe)", {
 		{ "USI_Ponder", "False" },
 		{ "Threads", "4" },
-	});
+	}, 1);
 
 	Position pos;
 	std::string sfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
@@ -542,4 +542,21 @@ int main()
 		cout << move.toUSI() << endl;
 }
 
+#endif
+
+#if 1
+#include "mate.h"
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	// 王手している角の利きには移動してしまうバグの再現局面
+	string sfen = "6sn1/2+P3g1l/p1+P1r3p/2bpk2p1/6s1N/3PK1pPP/P1N2P3/2S1G1SR1/L4G1NL b B5Pglp 1";
+
+	pos.set(sfen);
+	bool ret = mateMoveInEvenPly(pos, 4);
+
+	return 0;
+}
 #endif
