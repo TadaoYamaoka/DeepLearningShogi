@@ -18,7 +18,7 @@ public:
 				ExtMove* curr = moveList_;
 				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
-					if (!pos.pseudoLegalMoveIsEvasion(curr->move, pinned))
+					if (!pos.moveIsPseudoLegal<false>(curr->move))
 						curr->move = (--last_)->move;
 					else
 						++curr;
