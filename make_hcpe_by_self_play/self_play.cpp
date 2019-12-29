@@ -37,6 +37,10 @@ auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 819
 
 using namespace std;
 
+#ifndef THREADS
+#define THREADS 2
+#endif
+
 volatile sig_atomic_t stopflg = false;
 
 void sigint_handler(int signum)
@@ -62,7 +66,6 @@ constexpr int64_t MATE_SEARCH_MIN_NODE = 10000;
 string model_path;
 
 int playout_num = 1000;
-std::atomic<int> max_playout(0);
 
 // USIエンジンのパス
 string usi_engine_path;
@@ -82,7 +85,7 @@ struct CachedNNRequest {
 };
 typedef LruCache<uint64_t, CachedNNRequest> NNCache;
 typedef LruCacheLock<uint64_t, CachedNNRequest> NNCacheLock;
-constexpr unsigned int nn_cache_size = 1048576; // NNキャッシュサイズ
+constexpr unsigned int nn_cache_size = 2097152; // NNキャッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -315,7 +318,7 @@ private:
 
 class UCTSearcherGroupPair {
 public:
-	static const int threads = 2;
+	static const int threads = THREADS;
 
 	UCTSearcherGroupPair(const int gpu_id, const int policy_value_batch_maxsize) : nn(nullptr), policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		groups.reserve(threads);
@@ -941,7 +944,6 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 			return false;
 		}
 
-		if (playout_count > max_playout) max_playout = playout_count;
 		return true;
 	}
 	else {
@@ -1419,7 +1421,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
-				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f}, max_playout:{} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
+				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
 					static_cast<double>(idx) / elapsed_msec * 1000.0,
@@ -1428,7 +1430,6 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 					nyugyokus,
 					static_cast<double>(madeTeacherNodes) / games,
 					static_cast<double>(sum_playouts) / sum_nodes,
-					max_playout,
 					ss.str(),
 					usi_games,
 					usi_wins,
