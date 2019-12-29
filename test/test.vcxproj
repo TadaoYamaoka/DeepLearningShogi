@@ -243,7 +243,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
-    <ClCompile Include="..\cppshogi\USIEngine.cpp" />
+    <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />

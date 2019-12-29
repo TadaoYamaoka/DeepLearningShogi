@@ -239,7 +239,6 @@
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
-    <ClCompile Include="..\cppshogi\USIEngine.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\mate.cpp" />
@@ -248,6 +247,7 @@
     <ClCompile Include="..\usi\nn_wideresnet15.cpp" />
     <ClCompile Include="..\usi\npz.cpp" />
     <ClCompile Include="self_play.cpp" />
+    <ClCompile Include="USIEngine.cpp" />
     <ClCompile Include="ZobristHash.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -259,6 +259,7 @@
   <ItemGroup>
     <ClInclude Include="..\usi\LruCache.h" />
     <ClInclude Include="UctSearch.h" />
+    <ClInclude Include="USIEngine.h" />
     <ClInclude Include="ZobristHash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
