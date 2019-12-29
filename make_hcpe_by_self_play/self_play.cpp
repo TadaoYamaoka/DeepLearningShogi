@@ -1466,14 +1466,15 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ofs.close();
 	//ofs_dup.close();
 
-	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}",
+	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
 		madeTeacherNodes, t.elapsed() / 1000,
 		games,
 		draws,
 		static_cast<double>(madeTeacherNodes) / games,
 		usi_games,
 		usi_wins,
-		usi_draws);
+		usi_draws,
+		static_cast<double>(usi_wins) / (usi_games - usi_draws) * 100);
 }
 
 int main(int argc, char* argv[]) {
