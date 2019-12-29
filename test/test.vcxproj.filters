@@ -19,6 +19,9 @@
     <Filter Include="ソース ファイル\usi">
       <UniqueIdentifier>{f30ef8ab-c52e-4da7-ba25-e9c4beacde2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\make_hcpe_by_self_play">
+      <UniqueIdentifier>{0fa4e096-337d-4ff5-b305-082533160db5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test.cpp">
@@ -93,8 +96,8 @@
     <ClCompile Include="..\usi\nn_senet10.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\USIEngine.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
+    <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp">
+      <Filter>ソース ファイル\make_hcpe_by_self_play</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
