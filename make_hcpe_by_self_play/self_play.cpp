@@ -37,9 +37,7 @@ auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 819
 
 using namespace std;
 
-#ifndef THREADS
-#define THREADS 2
-#endif
+int threads = 2;
 
 volatile sig_atomic_t stopflg = false;
 
@@ -318,8 +316,6 @@ private:
 
 class UCTSearcherGroupPair {
 public:
-	static const int threads = THREADS;
-
 	UCTSearcherGroupPair(const int gpu_id, const int policy_value_batch_maxsize) : nn(nullptr), policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		groups.reserve(threads);
 		for (int i = 0; i < threads; i++)
@@ -1497,6 +1493,7 @@ int main(int argc, char* argv[]) {
 			("gpu_id", "gpu id", cxxopts::value<int>(gpu_id[0]))
 			("batchsize", "batchsize", cxxopts::value<int>(batchsize[0]))
 			("positional", "", cxxopts::value<std::vector<int>>())
+			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
@@ -1547,6 +1544,10 @@ int main(int argc, char* argv[]) {
 		cerr << "too few playout_num" << endl;
 		return 0;
 	}
+	if (threads < 0) {
+		cerr << "too few threads number" << endl;
+		return 0;
+	}
 	if (RANDOM_MOVE < 0) {
 		cerr << "too few random move number" << endl;
 		return 0;
@@ -1587,6 +1588,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
