@@ -391,7 +391,7 @@ UCTSearcherGroup::Initialize()
 		}
 		usi_engines.reserve(usi_threads);
 		for (int i = 0; i < usi_threads; ++i) {
-			usi_engines.emplace_back(usi_engine_path, options, usi_engine_num / usi_threads);
+			usi_engines.emplace_back(usi_engine_path, options, (usi_engine_num + usi_threads - 1) / usi_threads);
 		}
 	}
 
