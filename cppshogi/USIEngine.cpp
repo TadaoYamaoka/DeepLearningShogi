@@ -17,8 +17,14 @@ USIEngine::USIEngine(const std::string path, const std::vector<std::pair<std::st
 	ops << "isready" << std::endl;
 
 	std::string line;
-	std::getline(ips, line);
-	if (line.substr(0, line.find_last_not_of("\r") + 1) != "readyok")
+	bool is_ok = false;
+	while (proc.running() && std::getline(ips, line)) {
+		if (line.substr(0, line.find_last_not_of("\r") + 1) != "readyok") {
+			is_ok = true;
+			break;
+		}
+	}
+	if (!is_ok)
 		throw std::runtime_error("expected readyok");
 
 	ops << "usinewgame" << std::endl;
