@@ -5,6 +5,7 @@
 #include "generateMoves.hpp"
 #include "search.hpp"
 #include "book.hpp"
+#include "fastmath.h"
 
 #include <iostream>
 #include <fstream>
@@ -774,7 +775,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			rate = (rate + 1.0f) / 2.0f;
 		}
 
-		const float c = logf((sum + c_base + 1.0f) / c_base) + c_init;
+		const float c = FastLog((sum + c_base + 1.0f) / c_base) + c_init;
 		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {

@@ -261,6 +261,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="cudnn_wrapper.h" />
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
+    <ClInclude Include="fastmath.h" />
     <ClInclude Include="layers.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />

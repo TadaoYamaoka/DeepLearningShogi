@@ -16,6 +16,7 @@
 #include <random>
 #include <queue>
 
+#include "fastmath.h"
 #include "Message.h"
 #include "UctSearch.h"
 #include "Utility.h"
@@ -1284,7 +1285,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 		const float rate = uct_child[i].nnrate;
 
-		const float c = logf((sum + c_base + 1.0f) / c_base) + c_init;
+		const float c = FastLog((sum + c_base + 1.0f) / c_base) + c_init;
 		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {

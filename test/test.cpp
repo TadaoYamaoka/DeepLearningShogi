@@ -544,7 +544,7 @@ int main()
 
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 int main() {
 	initTable();
@@ -558,5 +558,33 @@ int main() {
 	bool ret = mateMoveInEvenPly(pos, 4);
 
 	return 0;
+}
+#endif
+
+#if 1
+#include "fastmath.h"
+int main() {
+	for (int i = 0; i < 10; ++i) {
+		float a0 = logf(100.0f * (i + 1));
+		float a1 = FastLog(100.0f * (i + 1));
+
+		cout << a0 << ", " << a1 << ", " << a0 - a1 << endl;
+	}
+
+	float a = 0;
+	auto start = std::chrono::system_clock::now();
+	for (int i = 0; i < 100000; ++i) {
+		a += logf(i + 1);
+	}
+	auto end = std::chrono::system_clock::now();
+	cout << a << "\t" << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "[ns]" << endl;
+
+	a = 0;
+	start = std::chrono::system_clock::now();
+	for (int i = 0; i < 100000; ++i) {
+		a += FastLog(i + 1);
+	}
+	end = std::chrono::system_clock::now();
+	cout << a << "\t" << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "[ns]" << endl;
 }
 #endif
