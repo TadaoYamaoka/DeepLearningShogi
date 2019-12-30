@@ -198,6 +198,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
       <PreprocessorDefinitions>LEARN;NDEBUG;_WINDOWS;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;_USRDLL;CPPSHOGI_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
