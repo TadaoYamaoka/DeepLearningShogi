@@ -257,6 +257,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\usi\fastmath.h" />
     <ClInclude Include="..\usi\LruCache.h" />
     <ClInclude Include="UctSearch.h" />
     <ClInclude Include="USIEngine.h" />
