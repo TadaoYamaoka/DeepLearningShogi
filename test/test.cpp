@@ -561,7 +561,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "fastmath.h"
 int main() {
 	for (int i = 0; i < 10; ++i) {
@@ -586,5 +586,37 @@ int main() {
 	}
 	end = std::chrono::system_clock::now();
 	cout << a << "\t" << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "[ns]" << endl;
+}
+#endif
+
+#if 1
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<pair<string, string>> sfens = {
+		{ "2+B+L4l/3R5/1P1s1pn2/pp1ppsk2/2p6/P7P/3SPPPPS/4G1GG1/LNR2BKN1 b G2Pnl3p 1", "black_win1.hcp" }, // 先手の勝ち
+		{ "2+B+L4l/3R5/1P1s1pn2/pp1ppsk2/2p6/P7P/3SPPPPS/4G1GG1/LNR2BKN1 w G2Pnl3p 1", "black_win2.hcp" }, // 先手の勝ち(後手番開始)
+		{ "1nkb2rnl/1gg1g4/spppps3/p7p/6P2/2KSPP1PP/2NP1S1p1/5r3/L4+l+b2 b NL3Pg2p 1", "white_win1.hcp" }, // 後手の勝ち
+		{ "1nkb2rnl/1gg1g4/spppps3/p7p/6P2/2KSPP1PP/2NP1S1p1/5r3/L4+l+b2 w NL3Pg2p 1", "white_win2.hcp" }, // 後手の勝ち(後手番開始)
+		{ "+N1K4G+S/2+PGP4/+N+P+R1+P3g/3S2B2/5p2p/1p7/+p2+lp1+p1P/2+sk+p4/5P2+r b BGS3L3P2n2p 1", "black_nyugyoku1.hcp" }, // 先手の入玉宣言
+		{ "+N1K4G+S/2+PGP4/+N+P+R1+P3g/3S2B2/5p2p/1p7/+p2+lp1+p1P/2+sk+p4/5P2+r w BGS3L3P2n2p 1", "black_nyugyoku2.hcp" }, // 先手の入玉宣言(後手番開始)
+		{ "+R1+Pp5/1+P2+PK+S2/p3P+L3/7P1/P2P5/2b2s+r2/G3+p2+p+n/4pg+p2/+sg4k1+n b bgs2n3l5p 1", "white_nyugyoku1.hcp" }, // 後手の入玉宣言
+		{ "+R2p5/4+PK+S2/p1+P1P+L2+P/7P1/P2P5/2b2s+r2/G3+p2+p+n/4pg+p2/+sg4k1+n w 2N2Pbgs3l3p 1", "white_nyugyoku2.hcp" }, // 後手の入玉宣言(後手番開始)
+	};
+
+	// hcp出力
+	for (auto sfen : sfens) {
+		pos.set(sfen.first);
+		HuffmanCodedPos hcp = pos.toHuffmanCodedPos();
+		ofstream ofs(sfen.second, ios::binary);
+		ofs.write((char*)&hcp, sizeof(hcp));
+	}
+
+	// テスト
+	// make_hcpe_by_self_play --threashold 1 --threads 1 --usi_engine E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe --usi_engine_num 1 --usi_threads 1 --usi_options USI_Ponder:False,Threads:1,Byoyomi_Margin:0 F:\model\model_rl_val_wideresnet10_selfplay_236 R:\hcp\black_win.hcp R:\hcpe 1 800 0 1
+
+	return 0;
 }
 #endif
