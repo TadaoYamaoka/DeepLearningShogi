@@ -76,6 +76,7 @@ int usi_byoyomi;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
+constexpr int EXTENSION_TIMES = 8; // 探索延長回数
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
@@ -263,7 +264,7 @@ private:
 	int SelectMaxUcbChild(const Position* pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position* pos);
 	unsigned int ExpandNode(Position* pos, const int depth);
-	bool InterruptionCheck(const unsigned int current_root, const int playout_count);
+	bool InterruptionCheck(const unsigned int current_root, const int playout_count, const int extension_times);
 	void NextPly(const Move move);
 	void NextGame();
 
@@ -915,7 +916,7 @@ UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 //  探索打ち止めの確認  //
 //////////////////////////
 bool
-UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playout_count)
+UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playout_count, const int extension_times)
 {
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
@@ -938,7 +939,7 @@ UCTSearcher::InterruptionCheck(const unsigned int current_root, const int playou
 	if (max - second > rest) {
 		// 最善手の探索回数が次善手の探索回数の
 		// 1.2倍未満なら探索延長
-		if (max_playout_num < playout_num * 8 && max < second * 1.2) {
+		if (max_playout_num < playout_num * extension_times && max < second * 1.2) {
 			max_playout_num += playout_num / 2;
 			return false;
 		}
@@ -1162,7 +1163,7 @@ void UCTSearcher::NextStep()
 	playout++;
 
 	// 探索終了判定
-	if (InterruptionCheck(current_root, playout)) {
+	if (InterruptionCheck(current_root, playout, (ply > RANDOM_MOVE) ? EXTENSION_TIMES : 0)) {
 		// 平均プレイアウト数を計測
 		sum_playouts += playout;
 		++sum_nodes;
