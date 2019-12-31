@@ -231,7 +231,7 @@ private:
 	int* mate_search_limit_nodes = nullptr;
 	deque<int> mate_search_queue;
 	mutex mate_search_mutex;
-	thread* handle_mate_search;
+	thread* handle_mate_search = nullptr;
 };
 
 class UCTSearcher {
