@@ -1126,6 +1126,11 @@ void UCTSearcher::NextStep()
 			NextGame();
 			return;
 		}
+		else if (move == moveAbort()) {
+			if (stopflg)
+				return;
+			throw std::runtime_error("usi engine abort");
+		}
 		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
 
 		NextPly(move);
