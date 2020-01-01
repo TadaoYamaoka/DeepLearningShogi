@@ -85,7 +85,7 @@ struct CachedNNRequest {
 };
 typedef LruCache<uint64_t, CachedNNRequest> NNCache;
 typedef LruCacheLock<uint64_t, CachedNNRequest> NNCacheLock;
-constexpr unsigned int nn_cache_size = 2097152; // NNキャッシュサイズ
+constexpr unsigned int nn_cache_size = 4194304; // NNキャッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
