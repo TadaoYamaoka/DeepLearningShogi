@@ -11,6 +11,7 @@
 
 inline Move moveResign() { return Move(-1); }
 inline Move moveWin() { return Move(-2); }
+inline Move moveAbort() { return Move(-3); }
 
 class USIEngine
 {

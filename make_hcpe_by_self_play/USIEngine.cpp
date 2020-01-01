@@ -64,8 +64,11 @@ Move USIEngine::Think(const Position& pos, const std::string& usi_position, cons
 			break;
 		}
 	}
-	if (!is_ok)
+	if (!is_ok) {
+		if (!proc.running())
+			return moveAbort();
 		throw std::runtime_error("expected bestmove");
+	}
 
 	auto end = line.find_first_of(" \r", 9 + 3);
 	if (end == std::string::npos)
