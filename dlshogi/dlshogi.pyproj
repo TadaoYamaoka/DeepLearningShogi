@@ -44,25 +44,16 @@
     </Compile>
     <Compile Include="train_rl_policy_with_value.py" />
     <Compile Include="test_policy_value_using_hcpe.py" />
-    <Compile Include="test_fused_policy_alue_network.py" />
+    <Compile Include="test_fused_policy_value_network.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
-    <Compile Include="train_rl_policy_using_hcpe.py" />
     <Compile Include="train_sl_policy_with_value.py" />
     <Compile Include="train_sl_policy_with_value_using_hcpe_bootstrap.py" />
-    <Compile Include="train_val_network_bootstrap.py" />
-    <Compile Include="train_val_network.py" />
     <Compile Include="fuse_policy_value_network.py" />
     <Compile Include="transfer_policy_to_value.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="policy_value_network_wideresnet15.py" />
-    <Compile Include="value_network.py" />
-    <Compile Include="policy_network.py" />
-    <Compile Include="usi.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="train_sl_policy.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
