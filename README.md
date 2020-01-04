@@ -28,13 +28,13 @@ http://tadaoyamaoka.hatenablog.com/
 ### USIエンジン、自己対局プログラム
 #### Windowsの場合
 * Windows 10 64bit
-* Visual Studio 2017
+* Visual Studio 2019
 #### Linuxの場合
 * Ubuntu 16.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 10.0
-* cuDNN 7.5
+* CUDA 10.1
+* cuDNN 7.6
 
 ### 学習部
 上記USIエンジンのビルド環境に加えて以下が必要
