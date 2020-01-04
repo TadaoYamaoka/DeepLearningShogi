@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>test.py</StartupFile>
+    <StartupFile>fuse_policy_value_network.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\teacher\elmo_teacher_depth8_uniq-001 F:\teacher\elmo_teacher_depth8_uniq-test --model f:\temp\model_elmo_001 --state f:\temp\state_elmo_001 -b 64 --weightdecay_rate 0 --beta 0 --lr 0.00001</CommandLineArguments>
+    <CommandLineArguments>r:\model r:\fused_model</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -33,26 +33,15 @@
     <Compile Include="fused_policy_value_network.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="policy_value_network_senet10.py" />
-    <Compile Include="predict.py" />
-    <Compile Include="binary_accuracy2.py" />
-    <Compile Include="sigmoid_cross_entropy2.py" />
+    <Compile Include="serializers.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="test_predict_using_hcpe.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="train_rl_policy_with_value.py" />
-    <Compile Include="test_policy_value_using_hcpe.py" />
     <Compile Include="test_fused_policy_value_network.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
-    <Compile Include="train_rl_policy_with_value_using_hcpe.py" />
-    <Compile Include="train_sl_policy_with_value.py" />
-    <Compile Include="train_sl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="fuse_policy_value_network.py" />
-    <Compile Include="transfer_policy_to_value.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
