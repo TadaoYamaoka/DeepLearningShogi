@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>fuse_policy_value_network.py</StartupFile>
+    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>r:\model r:\fused_model</CommandLineArguments>
+    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 100</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
