@@ -57,7 +57,7 @@ model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=25, swa_freq=25)
+optimizer = SWA(base_optimizer, swa_start=250, swa_freq=250)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 
@@ -70,7 +70,7 @@ if args.resume:
     checkpoint = torch.load(args.resume)
     epoch = checkpoint['epoch']
     t = checkpoint['t']
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 else:
     epoch = 0
     t = 0
@@ -255,5 +255,5 @@ print('save the optimizer')
 torch.save({
     'epoch': epoch,
     't': t,
-    'optimizer_state_dict': optimizer.state_dict(),
+    'optimizer_state_dict': base_optimizer.state_dict(),
     }, args.state)
