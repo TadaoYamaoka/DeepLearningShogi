@@ -23,7 +23,7 @@ def predict(features1, features2):
         x1 = torch.tensor(features1).to(device)
         x2 = torch.tensor(features2).to(device)
 
-        y1, y2 = model(x1, x2)
+        y1, y2 = model((x1, x2))
 
         return y1.cpu(), y2.cpu()
 

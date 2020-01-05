@@ -73,7 +73,7 @@ with torch.no_grad():
     sum_test_accuracy2 = 0
     for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
         x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
-        y1, y2 = model(x1, x2)
+        y1, y2 = model((x1, x2))
         itr_test += 1
         sum_test_accuracy1 += accuracy(y1, t1)
         sum_test_accuracy2 += binary_accuracy(y2, t2)
@@ -88,7 +88,7 @@ with torch.no_grad():
     sum_test_accuracy2 = 0
     for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
         x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
-        y1, y2 = fused_model(x1, x2)
+        y1, y2 = fused_model((x1, x2))
         itr_test += 1
         sum_test_accuracy1 += accuracy(y1, t1)
         sum_test_accuracy2 += binary_accuracy(y2, t2)
