@@ -9,11 +9,12 @@ import cppshogi
 
 import argparse
 import random
+import os
 
 import logging
 
 parser = argparse.ArgumentParser(description='Traning RL policy network using hcpe')
-parser.add_argument('train_data', type=str, help='train data file')
+parser.add_argument('train_data', type=str, nargs='+', help='train data file')
 parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
@@ -73,10 +74,20 @@ else:
     epoch = 0
     t = 0
 
-logging.debug('read teacher data start')
-train_data = np.fromfile(args.train_data, dtype=HuffmanCodedPosAndEval)
+logging.debug('read teacher data')
+def load_teacher(files):
+    data = []
+    for path in files:
+        if os.path.exists(path):
+            logging.debug(path)
+            data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval))
+        else:
+            logging.debug('{} not found, skipping'.format(path))
+    return np.concatenate(data)
+train_data = load_teacher(args.train_data)
+logging.debug('read test data')
+logging.debug(args.test_data)
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
-logging.debug('read teacher data end')
 
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
