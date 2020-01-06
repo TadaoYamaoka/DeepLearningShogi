@@ -98,8 +98,7 @@ class PolicyValueNetwork(nn.Module):
         self.se19 = SELayer(k)
         self.se21 = SELayer(k)
 
-    def __call__(self, x):
-        x1, x2 = x[0], x[1]
+    def __call__(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
         u1_2 = self.l1_2(x2)

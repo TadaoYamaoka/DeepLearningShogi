@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 100</CommandLineArguments>
+    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe -m R:\model -r R:\state --model R:\model2 --state R:\state2 --lr 0.001 --eval_interval 100</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -34,6 +34,9 @@
     <Compile Include="policy_value_network.py" />
     <Compile Include="policy_value_network_senet10.py" />
     <Compile Include="serializers.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="swa.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test.py">

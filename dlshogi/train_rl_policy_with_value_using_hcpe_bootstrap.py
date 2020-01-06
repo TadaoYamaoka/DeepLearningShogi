@@ -1,10 +1,10 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
-from torchcontrib.optim import SWA
 
 from dlshogi.common import *
 from dlshogi import serializers
+from dlshogi.swa import SWA
 
 import cppshogi
 
@@ -31,6 +31,8 @@ parser.add_argument('--beta', type=float, default=0.001, help='entropy regulariz
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
+parser.add_argument('--swa_freq', type=int, default=250)
+parser.add_argument('--swa_n_avr', type=int, default=10)
 args = parser.parse_args()
 
 if args.network == 'wideresnet15':
@@ -57,7 +59,7 @@ model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=250, swa_freq=250)
+optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_n_avr=args.swa_n_avr)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 
@@ -104,26 +106,10 @@ def mini_batch(hcpevec):
             )
 
 # for SWA bn_update
-class InputData:
-    def __init__(self, x):
-        self.x = x
-
-    def size(self, n):
-        return self.x[0].size(n)
-
-    def __getitem__(self, i):
-        return self.x[i]
-
-class HcpeDataLoader:
-    def __init__(self, data, batchsize):
-        self.data = data
-        self.batchsize = batchsize
-
-    def __iter__(self):
-        for i in range(0, len(self.data) - self.batchsize + 1, self.batchsize):
-            x1, x2, t1, t2, z, value = mini_batch(self.data[i:i+self.batchsize])
-            yield InputData((x1, x2)), (t1, t2, z, value)
-
+def hcpe_loader(data, batchsize):
+    for i in range(0, len(data) - batchsize + 1, batchsize):
+        x1, x2, t1, t2, z, value = mini_batch(data[i:i+batchsize])
+        yield x1, x2
 
 def accuracy(y, t):
     return (torch.max(y, 1)[1] == t).sum().item() / len(t)
@@ -152,7 +138,7 @@ for e in range(args.epoch):
         model.train()
 
         x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
-        y1, y2 = model((x1, x2))
+        y1, y2 = model(x1, x2)
 
         model.zero_grad()
         loss1 = (cross_entropy_loss(y1, t1) * z).mean()
@@ -182,7 +168,7 @@ for e in range(args.epoch):
 
             x1, x2, t1, t2, z, value = mini_batch(np.random.choice(test_data, args.testbatchsize))
             with torch.no_grad():
-                y1, y2 = model((x1, x2))
+                y1, y2 = model(x1, x2)
 
                 loss1 = (cross_entropy_loss(y1, t1) * z).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
@@ -201,7 +187,7 @@ for e in range(args.epoch):
             sum_loss = 0
 
     optimizer.swap_swa_sgd()
-    optimizer.bn_update(HcpeDataLoader(train_data, args.batchsize), model)
+    optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     # print train loss for each epoch
     itr_test = 0
@@ -217,7 +203,7 @@ for e in range(args.epoch):
     with torch.no_grad():
         for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
             x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
-            y1, y2 = model((x1, x2))
+            y1, y2 = model(x1, x2)
 
             itr_test += 1
             loss1 = (cross_entropy_loss(y1, t1) * z).mean()
