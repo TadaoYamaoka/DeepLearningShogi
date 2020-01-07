@@ -13,7 +13,6 @@ class Bias(nn.Module):
         return input + self.bias
 
 k = 192
-dropout_ratio = 0.1
 fcl = 256 # fully connected layers
 class FusedPolicyValueNetwork(nn.Module):
     def __init__(self):
@@ -68,43 +67,43 @@ class FusedPolicyValueNetwork(nn.Module):
         u1 = u1_1_1 + u1_1_2 + u1_2
         # Residual block
         h1 = F.relu(self.norm1(u1))
-        h2 = F.dropout2d(F.relu(self.l2(h1)), p=dropout_ratio, training=self.training)
+        h2 = F.relu(self.l2(h1))
         u3 = self.l3(h2) + u1
         # Residual block
         h3 = F.relu(self.norm3(u3))
-        h4 = F.dropout2d(F.relu(self.l4(h3)), p=dropout_ratio, training=self.training)
+        h4 = F.relu(self.l4(h3))
         u5 = self.l5(h4) + u3
         # Residual block
         h5 = F.relu(self.norm5(u5))
-        h6 = F.dropout2d(F.relu(self.l6(h5)), p=dropout_ratio, training=self.training)
+        h6 = F.relu(self.l6(h5))
         u7 = self.l7(h6) + u5
         # Residual block
         h7 = F.relu(self.norm7(u7))
-        h8 = F.dropout2d(F.relu(self.l8(h7)), p=dropout_ratio, training=self.training)
+        h8 = F.relu(self.l8(h7))
         u9 = self.l9(h8) + u7
         # Residual block
         h9 = F.relu(self.norm9(u9))
-        h10 = F.dropout2d(F.relu(self.l10(h9)), p=dropout_ratio, training=self.training)
+        h10 = F.relu(self.l10(h9))
         u11 = self.l11(h10) + u9
         # Residual block
         h11 = F.relu(self.norm11(u11))
-        h12 = F.dropout2d(F.relu(self.l12(h11)), p=dropout_ratio, training=self.training)
+        h12 = F.relu(self.l12(h11))
         u13 = self.l13(h12) + u11
         # Residual block
         h13 = F.relu(self.norm13(u13))
-        h14 = F.dropout2d(F.relu(self.l14(h13)), p=dropout_ratio, training=self.training)
+        h14 = F.relu(self.l14(h13))
         u15 = self.l15(h14) + u13
         # Residual block
         h15 = F.relu(self.norm15(u15))
-        h16 = F.dropout2d(F.relu(self.l16(h15)), p=dropout_ratio, training=self.training)
+        h16 = F.relu(self.l16(h15))
         u17 = self.l17(h16) + u15
         # Residual block
         h17 = F.relu(self.norm17(u17))
-        h18 = F.dropout2d(F.relu(self.l18(h17)), p=dropout_ratio, training=self.training)
+        h18 = F.relu(self.l18(h17))
         u19 = self.l19(h18) + u17
         # Residual block
         h19 = F.relu(self.norm19(u19))
-        h20 = F.dropout2d(F.relu(self.l20(h19)), p=dropout_ratio, training=self.training)
+        h20 = F.relu(self.l20(h19))
         u21 = self.l21(h20) + u19
         h21 = F.relu(self.norm21(u21))
         # policy network

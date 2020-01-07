@@ -5,7 +5,7 @@ import torch.optim as optim
 from dlshogi.common import *
 from dlshogi import serializers
 
-import cppshogi
+from dlshogi import cppshogi
 
 import argparse
 import random
@@ -56,7 +56,7 @@ else:
 model = PolicyValueNetwork()
 model.to(device)
 
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate)
+optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 
