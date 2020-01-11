@@ -560,9 +560,16 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	if (uct_node[current_root].child_num == 0) {
 		return Move::moveNone();
 	}
-	else if (uct_node[current_root].value_win == VALUE_WIN) {
+	if (uct_node[current_root].value_win == VALUE_WIN) {
 		// 詰み
-		return mateMoveInOddPlyReturnMove(*pos, MATE_SEARCH_DEPTH);
+		Move move;
+		if (pos->inCheck())
+			move = mateMoveInOddPlyReturnMove<true>(*pos, MATE_SEARCH_DEPTH);
+		else
+			move = mateMoveInOddPlyReturnMove<false>(*pos, MATE_SEARCH_DEPTH);
+		// 伝播したVALUE_WINの場合、詰みが見つからない場合がある
+		if (move != Move::moveNone())
+			return move;
 	}
 	else if (uct_node[current_root].value_win == VALUE_LOSE) {
 		// 自玉の詰み
