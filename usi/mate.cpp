@@ -105,14 +105,14 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 }
 
 // 奇数手詰めチェック
-// 手番側が王手でないこと
 // 詰ます手を返すバージョン
+template <bool INCHECK>
 Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 	// OR節点
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<true, false>(pos)) {
+	for (const auto& ml : MovePicker<true, INCHECK>(pos)) {
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, true);
@@ -149,9 +149,10 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int depth) {
 	}
 	return Move::moveNone();
 }
+template Move mateMoveInOddPlyReturnMove<true>(Position& pos, const int depth);
+template Move mateMoveInOddPlyReturnMove<false>(Position& pos, const int depth);
 
 // 奇数手詰めチェック
-// 手番側が王手でないこと
 template <bool INCHECK = false>
 bool mateMoveInOddPly(Position& pos, const int depth)
 {
