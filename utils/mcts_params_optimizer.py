@@ -196,9 +196,10 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
 def objective(trial):
     C_init = trial.suggest_int('C_init', 80, 180)
     C_base = trial.suggest_int('C_base', 20000, 50000)
+    C_fpu = trial.suggest_int('C_fpu', 0, 100)
     Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 80, 180)
 
-    logging.info('C_init = {}, C_base = {}, Softmax_Temperature = {}'.format(C_init, C_base, Softmax_Temperature))
+    logging.info('C_init = {}, C_base = {}, C_fpu = {}, Softmax_Temperature = {}'.format(C_init, C_base, C_fpu, Softmax_Temperature))
 
     win_count = 0
     draw_count = 0
@@ -237,6 +238,7 @@ def objective(trial):
             if n % 2 == i:
                 p.stdin.write(b'setoption name C_init value ' + str(C_init).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name C_base value ' + str(C_base).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_fpu value ' + str(C_fpu).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name Softmax_Temperature value ' + str(Softmax_Temperature).encode('ascii') + b'\n')
 
             p.stdin.write(b'usi\n')
