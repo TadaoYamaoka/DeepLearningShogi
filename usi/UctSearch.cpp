@@ -1282,7 +1282,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 		int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
-			q = 0.5f;
+			// 未探索のノードの価値に、親ノードの価値を使用する
+			if (uct_node[current].win > 0)
+				q = uct_node[current].win / uct_node[current].move_count;
+			else
+				q = 0.5f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
