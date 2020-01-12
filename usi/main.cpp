@@ -137,6 +137,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetResignThreshold(options["Resign_Threshold"]);
 			c_init = options["C_init"] / 100.0f;
 			c_base = options["C_base"];
+			c_fpu = options["C_fpu"] / 100.0f;
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
