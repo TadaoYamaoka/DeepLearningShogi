@@ -124,6 +124,7 @@ constexpr float DISCARDED = -FLT_MAX;
 
 float c_init = 1.49f;
 float c_base = 39470.0f;
+float c_fpu = 0.2f;
 float temperature = 1.66f;
 
 
@@ -741,6 +742,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	max_value = -1;
 
+	float fpu_reduction = 0.0f;
+	if (depth > 0)
+		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
+
 	NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
 
 	// UCB値最大の手を求める
@@ -762,7 +767,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
-			q = 0.5f;
+			// 未探索のノードの価値に、親ノードの価値を使用する
+			if (uct_node[current].win > 0)
+				q = uct_node[current].win / uct_node[current].move_count - fpu_reduction;
+			else
+				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
@@ -788,6 +797,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		uct_node[current].value_win = VALUE_LOSE;
+	}
+
+	// for FPU reduction
+	if (uct_child[max_child].index == NOT_EXPANDED) {
+		uct_node[current].visited_nnrate += cache_lock->nnrate[max_child];
 	}
 
 	return max_child;
@@ -838,6 +852,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
+		uct_node[index].visited_nnrate = 0.0f;
 		uct_node[index].key = pos->getKey();
 
 		uct_child = uct_node[index].child;
@@ -881,6 +896,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
+	uct_node[index].visited_nnrate = 0.0f;
 	uct_node[index].key = pos->getKey();
 	uct_child = uct_node[index].child;
 
