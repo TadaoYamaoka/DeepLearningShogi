@@ -1093,8 +1093,6 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED ) {
-		atomic_fetch_add(&uct_node[current].visited_nnrate, uct_child[next_index].nnrate);
-
 		// ノードの展開中はロック
 		LOCK_EXPAND;
 		// ノードの展開
@@ -1295,7 +1293,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 			if (uct_node[current].win > 0)
 				q = uct_node[current].win / uct_node[current].move_count - fpu_reduction;
 			else
-				q = 0.5f;
+				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
@@ -1317,6 +1315,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		uct_node[current].value_win = VALUE_LOSE;
+	}
+
+	// for FPU reduction
+	if (uct_child[max_child].index == NOT_EXPANDED) {
+		atomic_fetch_add(&uct_node[current].visited_nnrate, uct_child[max_child].nnrate);
 	}
 
 	return max_child;
