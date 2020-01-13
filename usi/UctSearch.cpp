@@ -103,6 +103,7 @@ float RESIGN_THRESHOLD = 0.01f;
 // PUCTの定数
 float c_init;
 float c_base;
+float c_fpu;
 
 // モデルのパス
 string model_path[max_gpu];
@@ -789,6 +790,7 @@ ExpandRoot(const Position *pos)
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
+		uct_node[index].visited_nnrate = 0.0f;
 
 		uct_child = uct_node[index].child;
 
@@ -834,6 +836,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
+	uct_node[index].visited_nnrate = 0.0f;
 	uct_child = uct_node[index].child;
 
 	// 候補手の展開
@@ -1261,6 +1264,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 	max_value = -1;
 
+	float fpu_reduction = 0.0f;
+	if (depth > 0)
+		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
+
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].index != NOT_EXPANDED) {
@@ -1284,9 +1291,9 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
 			if (uct_node[current].win > 0)
-				q = uct_node[current].win / uct_node[current].move_count;
+				q = uct_node[current].win / uct_node[current].move_count - fpu_reduction;
 			else
-				q = 0.5f;
+				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
@@ -1308,6 +1315,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		uct_node[current].value_win = VALUE_LOSE;
+	}
+
+	// for FPU reduction
+	if (uct_child[max_child].index == NOT_EXPANDED) {
+		atomic_fetch_add(&uct_node[current].visited_nnrate, uct_child[max_child].nnrate);
 	}
 
 	return max_child;
