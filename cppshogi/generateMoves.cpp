@@ -846,13 +846,14 @@ namespace {
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
+                        Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
                             // 成れる場合は必ず成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							}
-                            else {
+                            else if (bishopBB.isSet(to)) {
                                 (*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
                             }
 						}
@@ -879,13 +880,14 @@ namespace {
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
+                        Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
                             // 成れる場合は必ず成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							}
-                            else {
+                            else if (rookBB.isSet(to)) {
                                 (*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
                             }
                         }

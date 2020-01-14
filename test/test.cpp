@@ -170,7 +170,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索計測
 int main() {
@@ -621,7 +621,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "mate.h"
 // 詰み探索計測
 int main() {
