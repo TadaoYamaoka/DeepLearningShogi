@@ -848,10 +848,13 @@ namespace {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
-							// 成る
+                            // 成れる場合は必ず成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							}
+                            else {
+                                (*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+                            }
 						}
 					}
 					// 対角上にある場合
@@ -878,11 +881,14 @@ namespace {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
-							// 成る
+                            // 成れる場合は必ず成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							}
-						}
+                            else {
+                                (*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+                            }
+                        }
 					}
 					// 直線上にある場合
 					else {
