@@ -942,13 +942,17 @@ namespace {
 					}
 					// 直線上にある場合
 					else {
+                        Bitboard toBB = kingAttack(ksq) & kingAttack(from) & target;
 						// 間にある駒が一つで、敵駒の場合
 						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
-							const Square to = dstBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+                            toBB |= dstBB;
 						}
-					}
+                        while (toBB) {
+                            const Square to = toBB.firstOneFromSQ11();
+                            (*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+                        }
+                    }
 					break;
 				}
 				default: UNREACHABLE;
