@@ -76,7 +76,7 @@ int usi_byoyomi;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
-constexpr int EXTENSION_TIMES = 8; // 探索延長回数
+constexpr int EXTENSION_TIMES = 4; // 探索延長回数
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
@@ -660,14 +660,18 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				// 詰みチェック(ValueNet計算中にチェック)
 				int isMate = 0;
 				if (!pos->inCheck()) {
-					if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
 						isMate = 1;
 					}
 				}
 				else {
-					if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-						isMate = -1;
+					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
 					}
+					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
+					/*if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+						isMate = -1;
+					}*/
 				}
 
 				// 入玉勝ちかどうかを判定
@@ -683,7 +687,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					uct_node[child_index].value_win = VALUE_WIN;
 					result = 0.0f;
 				}
-				else if (isMate == -1) {
+				/*else if (isMate == -1) {
 					auto req = make_unique<CachedNNRequest>(0);
 					req->value_win = VALUE_LOSE;
 					nn_cache.Insert(uct_node[child_index].key, std::move(req));
@@ -691,7 +695,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
-				}
+				}*/
 				else {
 					// ノードをキューに追加
 					grp->QueuingNode(pos, child_index);
@@ -740,7 +744,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	float ucb_value;
 	int child_win_count = 0;
 
-	max_value = -1;
+	max_value = -FLT_MAX;
 
 	float fpu_reduction = 0.0f;
 	if (depth > 0)

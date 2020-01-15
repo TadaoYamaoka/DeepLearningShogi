@@ -623,7 +623,7 @@ int main() {
 
 #if 1
 #include "mate.h"
-// 詰み探索計測
+// 詰み探索（王手生成のバグのあった局面）
 int main() {
 	initTable();
 	Position::initZobrist();
@@ -633,6 +633,8 @@ int main() {
 		// 詰み
 		"1n6+P/l1B1s1g2/p1+LG3p1/2pspS1kp/1P3P3/P1P3R2/3P+nN1PP/3+n2G2/L3s1K1L b G3Prb2p 1",
 		"1+B6+P/l3sg3/p+Ls1k1Ppb/2pspPp2/1P3s2K/P1P2+r3/3P1N1PP/2g+n2G2/L7L w GN3Prnp 1",
+		"1n6+P/l3s1g2/p1sk2Ppp/1LpspPp2/1P4N2/P1P2p3/2+nP3PP/2g6/L3+rNK1L w 2BS2Pr2g 1",
+		"1n6+P/l1B1s1g2/p1+L1k1spp/2pspP2b/1P4R2/P1P3P1P/4+n2PK/4g1+p1N/L7+r w GS3Pgnlp 1",
 	};
 
 	for (string sfen : sfens) {
