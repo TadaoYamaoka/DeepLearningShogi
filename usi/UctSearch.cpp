@@ -712,6 +712,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 				best_node = uct_node[best_node_index].child;
 				max_count = 0;
+				best_index = 0;
 				for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
 					if (best_node[i].move_count > max_count) {
 						best_index = i;
@@ -719,15 +720,15 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 					}
 				}
 
+				// ponderの着手
+				if (pondering_mode && ponderMove == Move::moveNone())
+					ponderMove = best_node[best_index].move;
+
 				if (max_count < 1)
 					break;
 
 				pv += " " + best_node[best_index].move.toUSI();
 				depth++;
-
-				// ponderの着手
-				if (pondering_mode && ponderMove == Move::moveNone())
-					ponderMove = best_node[best_index].move;
 			}
 		}
 
