@@ -790,7 +790,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		}
 
 		const float c = FastLog((sum + c_base + 1.0f) / c_base) + c_init;
-		ucb_value = q + c * u * rate;
+		ucb_value = FastLogit(0.9999999f * (q * 2.0f - 1.0f)) + c * u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;
