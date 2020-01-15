@@ -76,7 +76,7 @@ int usi_byoyomi;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
-constexpr int EXTENSION_TIMES = 8; // 探索延長回数
+constexpr int EXTENSION_TIMES = 4; // 探索延長回数
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
