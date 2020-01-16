@@ -265,6 +265,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		dfpn.dfpn_stop();
 		t->join();
 		if (mate) {
