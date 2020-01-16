@@ -773,7 +773,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
 			if (uct_node[current].win > 0)
-				q = uct_node[current].win / uct_node[current].move_count - fpu_reduction;
+				q = std::max(0.0f, uct_node[current].win / uct_node[current].move_count - fpu_reduction);
 			else
 				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
