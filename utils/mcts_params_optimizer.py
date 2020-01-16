@@ -269,7 +269,7 @@ def objective(trial):
         starttime = datetime.now()
         if args.kifu_dir is not None:
             kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
-            kifu = open(kifu_path, 'w')
+            kifu = open(kifu_path, 'w', encoding='shift-jis')
 
             kifu_header(kifu, starttime, names)
 
