@@ -148,8 +148,14 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			Move ponder;
 			UctSearchGenmove(&pos_tmp, ponder);
 			SetPlayout(CONST_PLAYOUT); // 元に戻す
-
 			SetMode(search_mode); // 元に戻す
+
+			// 固定プレイアウトモード
+			if (options["Const_Playout"] > 0) {
+				SetMode(CONST_PLAYOUT_MODE);
+				SetPlayout(options["Const_Playout"]);
+			}
+
 			if (search_mode == TIME_SETTING_MODE || search_mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
 				// プレイアウト速度測定
 				SetConstTime(10);
@@ -161,7 +167,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 
 			// PonderingMode
-			SetPonderingMode(options["USI_Ponder"]);
+			if (GetMode() != CONST_PLAYOUT_MODE)
+				SetPonderingMode(options["USI_Ponder"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -265,6 +272,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		dfpn.dfpn_stop();
 		t->join();
 		if (mate) {

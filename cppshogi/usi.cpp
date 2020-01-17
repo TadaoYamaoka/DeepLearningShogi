@@ -78,31 +78,32 @@ void OptionsMap::init(Searcher* s) {
     (*this)["OwnBook"]                     = USIOption(false);
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
-	(*this)["Stochastic_Ponder"]           = USIOption(true);
+    (*this)["Stochastic_Ponder"]           = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["Draw_Ply"]                    = USIOption(256, 1, INT_MAX);
-	(*this)["UCT_Threads"]                 = USIOption(2, 1, 256);
-	(*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
-	(*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
-	(*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
-	(*this)["DNN_Model"]                   = USIOption(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
-	(*this)["DNN_Model2"]                  = USIOption("");
-	(*this)["DNN_Model3"]                  = USIOption("");
-	(*this)["DNN_Model4"]                  = USIOption("");
-	(*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
-	(*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
-	(*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
-	(*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
-	(*this)["Softmax_Temperature"]         = USIOption(166, 1, 500);
-	(*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
-	(*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
-	(*this)["C_init"]                      = USIOption(149, 0, 500);
-	(*this)["C_base"]                      = USIOption(39470, 10000, 100000);
+    (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
+    (*this)["UCT_Threads"]                 = USIOption(2, 1, 256);
+    (*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
+    (*this)["DNN_Model"]                   = USIOption(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
+    (*this)["DNN_Model2"]                  = USIOption("");
+    (*this)["DNN_Model3"]                  = USIOption("");
+    (*this)["DNN_Model4"]                  = USIOption("");
+    (*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
+    (*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
+    (*this)["Softmax_Temperature"]         = USIOption(166, 1, 500);
+    (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
+    (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
+    (*this)["C_init"]                      = USIOption(149, 0, 500);
+    (*this)["C_base"]                      = USIOption(39470, 10000, 100000);
     (*this)["C_fpu"]                       = USIOption(20, 0, 100);
-	(*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
-	(*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
-	(*this)["DebugMessage"]                = USIOption(false);
+    (*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
+    (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
+    (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
 #else
@@ -351,34 +352,34 @@ Move csaToMove(const Position& pos, const std::string& moveStr) {
 }
 
 void setPosition(Position& pos, std::istringstream& ssCmd) {
-	std::string token;
-	std::string sfen;
+    std::string token;
+    std::string sfen;
 
-	ssCmd >> token;
+    ssCmd >> token;
 
-	if (token == "startpos") {
-		sfen = DefaultStartPositionSFEN;
-		ssCmd >> token; // "moves" が入力されるはず。
-	}
-	else if (token == "sfen") {
-		while (ssCmd >> token && token != "moves")
-			sfen += token + " ";
-	}
-	else
-		return;
+    if (token == "startpos") {
+        sfen = DefaultStartPositionSFEN;
+        ssCmd >> token; // "moves" が入力されるはず。
+    }
+    else if (token == "sfen") {
+        while (ssCmd >> token && token != "moves")
+            sfen += token + " ";
+    }
+    else
+        return;
 
-	pos.set(sfen);
-	pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+    pos.set(sfen);
+    pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
 
-	Ply currentPly = pos.gamePly();
-	while (ssCmd >> token) {
-		const Move move = usiToMove(pos, token);
-		if (!move) break;
-		pos.searcher()->states->push_back(StateInfo());
-		pos.doMove(move, pos.searcher()->states->back());
-		++currentPly;
-	}
-	pos.setStartPosPly(currentPly);
+    Ply currentPly = pos.gamePly();
+    while (ssCmd >> token) {
+        const Move move = usiToMove(pos, token);
+        if (!move) break;
+        pos.searcher()->states->push_back(StateInfo());
+        pos.doMove(move, pos.searcher()->states->back());
+        ++currentPly;
+    }
+    pos.setStartPosPly(currentPly);
 }
 
 bool setPosition(Position& pos, const HuffmanCodedPos& hcp) {

@@ -1,5 +1,5 @@
 import numpy as np
-from optuna import create_study
+from optuna import create_study, load_study
 from optuna.pruners import MedianPruner
 from optuna.structs import TrialPruned
 import subprocess
@@ -17,6 +17,7 @@ parser.add_argument('--command1', default=r'H:\src\DeepLearningShogi\x64\Release
 parser.add_argument('--command2', default=r'E:\game\shogi\ShogiGUI\gpsfish\gpsfish.exe')
 parser.add_argument('--options1', default='')
 parser.add_argument('--options2', default='')
+parser.add_argument('--storage')
 parser.add_argument('--trials', type=int, default=100)
 parser.add_argument('--n_warmup_steps', type=int, default=20)
 parser.add_argument('--games', type=int, default=100)
@@ -269,7 +270,7 @@ def objective(trial):
         starttime = datetime.now()
         if args.kifu_dir is not None:
             kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
-            kifu = open(kifu_path, 'w')
+            kifu = open(kifu_path, 'w', encoding='shift-jis')
 
             kifu_header(kifu, starttime, names)
 
@@ -406,5 +407,8 @@ def objective(trial):
     # 勝率を負の値で返す
     return -win_rate
 
-study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
+if args.storage:
+    study = load_study(study_name='mcts_params_optimizer', storage=args.storage, pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
+else:
+    study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
 study.optimize(objective, n_trials=args.trials)
