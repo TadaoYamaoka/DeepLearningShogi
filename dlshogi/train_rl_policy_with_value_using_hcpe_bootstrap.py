@@ -6,7 +6,7 @@ from dlshogi.common import *
 from dlshogi import serializers
 from dlshogi.swa import SWA
 
-import cppshogi
+from dlshogi import cppshogi
 
 import argparse
 import random
