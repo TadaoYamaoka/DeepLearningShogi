@@ -1,5 +1,5 @@
 import numpy as np
-from optuna import create_study
+from optuna import create_study, load_study
 from optuna.pruners import MedianPruner
 from optuna.structs import TrialPruned
 import subprocess
@@ -15,14 +15,13 @@ import logging
 parser = argparse.ArgumentParser()
 parser.add_argument('--command1', default=r'H:\src\DeepLearningShogi\x64\Release\usi.exe')
 parser.add_argument('--command2', default=r'E:\game\shogi\ShogiGUI\gpsfish\gpsfish.exe')
+parser.add_argument('--options1', default='')
+parser.add_argument('--options2', default='')
+parser.add_argument('--storage')
 parser.add_argument('--trials', type=int, default=100)
 parser.add_argument('--n_warmup_steps', type=int, default=20)
-parser.add_argument('--model')
-parser.add_argument('--batch_size', type=int)
-parser.add_argument('--hash_size', type=int)
 parser.add_argument('--games', type=int, default=100)
 parser.add_argument('--byoyomi', type=int, default=1000)
-parser.add_argument('--resign', type=float, default=0.95)
 parser.add_argument('--max_turn', type=int, default=256)
 parser.add_argument('--initial_positions')
 parser.add_argument('--kifu_dir')
@@ -32,6 +31,16 @@ parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG if args.debug else logging.INFO)
+
+options_list = [{}, {}]
+for i, kvs in enumerate([options.split(',') for options in (args.options1, args.options2)]):
+    if len(kvs) == 1 and kvs[0] == '':
+        continue
+    for kv_str in kvs:
+        kv = kv_str.split(':', 1)
+        if len(kv) != 2:
+            raise ValueError('options{} {}'.format(i + 1, kv_str))
+        options_list[i][kv[0]] = kv[1]
 
 KIFU_TO_SQUARE_NAMES = [
     '９一', '８一', '７一', '６一', '５一', '４一', '３一', '２一', '１一',
@@ -188,9 +197,10 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
 def objective(trial):
     C_init = trial.suggest_int('C_init', 80, 180)
     C_base = trial.suggest_int('C_base', 20000, 50000)
+    C_fpu = trial.suggest_int('C_fpu', 0, 100)
     Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 80, 180)
 
-    logging.info('C_init = {}, C_base = {}, Softmax_Temperature = {}'.format(C_init, C_base, Softmax_Temperature))
+    logging.info('C_init = {}, C_base = {}, C_fpu = {}, Softmax_Temperature = {}'.format(C_init, C_base, C_fpu, Softmax_Temperature))
 
     win_count = 0
     draw_count = 0
@@ -220,19 +230,16 @@ def objective(trial):
         names = []
         for i, p in enumerate(procs):
             if __debug__: logging.debug('pid = {}'.format(p.pid))
-            if args.model is not None:
-                p.stdin.write(b'setoption name DNN_Model value ' + args.model.encode('ascii') + b'\n')
-            if args.batch_size is not None:
-                p.stdin.write(b'setoption name DNN_Batch_Size value ' + str(args.batch_size).encode('ascii') + b'\n')
-            if args.hash_size is not None:
-                p.stdin.write(b'setoption name UCT_Hash value ' + str(args.hash_size).encode('ascii') + b'\n')
-            p.stdin.write(b'setoption name Resign_Threshold value ' + str(args.resign).encode('ascii') + b'\n')
             p.stdin.write(b'setoption name USI_Ponder value false\n')
+            for name, value in options_list[(n + i) % 2].items():
+                if __debug__: logging.debug('usi option {} {}'.format(name, value))
+                p.stdin.write('setoption name {} value {}\n'.format(name, value).encode('ascii'))
 
             # 最適化するパラメータ
             if n % 2 == i:
                 p.stdin.write(b'setoption name C_init value ' + str(C_init).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name C_base value ' + str(C_base).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_fpu value ' + str(C_fpu).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name Softmax_Temperature value ' + str(Softmax_Temperature).encode('ascii') + b'\n')
 
             p.stdin.write(b'usi\n')
@@ -263,7 +270,7 @@ def objective(trial):
         starttime = datetime.now()
         if args.kifu_dir is not None:
             kifu_path = os.path.join(args.kifu_dir, starttime.strftime('%Y%m%d_%H%M%S_') + names[0] + 'vs' + names[1] + '.kif')
-            kifu = open(kifu_path, 'w')
+            kifu = open(kifu_path, 'w', encoding='shift-jis')
 
             kifu_header(kifu, starttime, names)
 
@@ -319,7 +326,7 @@ def objective(trial):
                     if line[:8] == 'bestmove':
                         sec = time.time() - time_start
                         sec_sum[i] += sec
-                        move_usi = line[9:]
+                        move_usi = line[9:].split(' ', 1)[0]
                         if __debug__: 
                             if info is not None:
                                 logging.debug(info)
@@ -400,5 +407,8 @@ def objective(trial):
     # 勝率を負の値で返す
     return -win_rate
 
-study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
+if args.storage:
+    study = load_study(study_name='mcts_params_optimizer', storage=args.storage, pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
+else:
+    study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
 study.optimize(objective, n_trials=args.trials)

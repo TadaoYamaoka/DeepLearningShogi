@@ -13,7 +13,6 @@ class Bias(nn.Module):
         return input + self.bias
 
 k = 192
-dropout_ratio = 0.1
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(nn.Module):
     def __init__(self):

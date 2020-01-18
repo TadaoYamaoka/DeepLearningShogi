@@ -26,7 +26,6 @@ class SELayer(nn.Module):
         return x * y.expand_as(x)
 
 k = 192
-dropout_ratio = 0.1
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(nn.Module):
     def __init__(self):

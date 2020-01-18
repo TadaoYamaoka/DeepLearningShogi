@@ -1,12 +1,11 @@
 ﻿#pragma once
 
 // 奇数手詰めチェック
-// 手番側が王手でないこと
-// // 詰ます手を返すバージョン
+// 詰ます手を返すバージョン
+template <bool INCHECK>
 Move mateMoveInOddPlyReturnMove(Position& pos, const int depth);
 
 // 奇数手詰めチェック
-// 手番側が王手でないこと
 template <bool INCHECK = false>
 bool mateMoveInOddPly(Position& pos, const int depth);
 

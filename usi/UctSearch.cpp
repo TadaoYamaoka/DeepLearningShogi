@@ -103,6 +103,7 @@ float RESIGN_THRESHOLD = 0.01f;
 // PUCTの定数
 float c_init;
 float c_base;
+float c_fpu;
 
 // モデルのパス
 string model_path[max_gpu];
@@ -560,9 +561,16 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	if (uct_node[current_root].child_num == 0) {
 		return Move::moveNone();
 	}
-	else if (uct_node[current_root].value_win == VALUE_WIN) {
+	if (uct_node[current_root].value_win == VALUE_WIN) {
 		// 詰み
-		return mateMoveInOddPlyReturnMove(*pos, MATE_SEARCH_DEPTH);
+		Move move;
+		if (pos->inCheck())
+			move = mateMoveInOddPlyReturnMove<true>(*pos, MATE_SEARCH_DEPTH);
+		else
+			move = mateMoveInOddPlyReturnMove<false>(*pos, MATE_SEARCH_DEPTH);
+		// 伝播したVALUE_WINの場合、詰みが見つからない場合がある
+		if (move != Move::moveNone())
+			return move;
 	}
 	else if (uct_node[current_root].value_win == VALUE_LOSE) {
 		// 自玉の詰み
@@ -685,6 +693,9 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		if (best_wp == 1.0f) {
 			cp = 30000;
 		}
+		else if (best_wp == 0.0f) {
+			cp = -30000;
+		}
 		else {
 			cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 		}
@@ -701,6 +712,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 				best_node = uct_node[best_node_index].child;
 				max_count = 0;
+				best_index = 0;
 				for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
 					if (best_node[i].move_count > max_count) {
 						best_index = i;
@@ -708,15 +720,15 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 					}
 				}
 
+				// ponderの着手
+				if (pondering_mode && ponderMove == Move::moveNone())
+					ponderMove = best_node[best_index].move;
+
 				if (max_count < 1)
 					break;
 
 				pv += " " + best_node[best_index].move.toUSI();
 				depth++;
-
-				// ponderの着手
-				if (pondering_mode && ponderMove == Move::moveNone())
-					ponderMove = best_node[best_index].move;
 			}
 		}
 
@@ -782,6 +794,7 @@ ExpandRoot(const Position *pos)
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
+		uct_node[index].visited_nnrate = 0.0f;
 
 		uct_child = uct_node[index].child;
 
@@ -827,6 +840,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
+	uct_node[index].visited_nnrate = 0.0f;
 	uct_child = uct_node[index].child;
 
 	// 候補手の展開
@@ -1137,14 +1151,18 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 				// 詰みチェック
 				int isMate = 0;
 				if (!pos->inCheck()) {
-					if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
 						isMate = 1;
 					}
 				}
 				else {
-					if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-						isMate = -1;
+					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
 					}
+					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
+					/*else if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+						isMate = -1;
+					}*/
 				}
 
 				// 入玉勝ちかどうかを判定
@@ -1157,12 +1175,12 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 					uct_node[child_index].value_win = VALUE_WIN;
 					result = 0.0f;
 				}
-				else if (isMate == -1) {
+				/*else if (isMate == -1) {
 					uct_node[child_index].value_win = VALUE_LOSE;
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
-				}
+				}*/
 				else {
 					// ノードをキューに追加
 					QueuingNode(pos, child_index);
@@ -1252,7 +1270,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	float ucb_value;
 	int child_win_count = 0;
 
-	max_value = -1;
+	max_value = -FLT_MAX;
+
+	float fpu_reduction = 0.0f;
+	if (depth > 0)
+		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1275,7 +1297,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 		int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
-			q = 0.5f;
+			// 未探索のノードの価値に、親ノードの価値を使用する
+			if (uct_node[current].win > 0)
+				q = std::max(0.0f, uct_node[current].win / uct_node[current].move_count - fpu_reduction);
+			else
+				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
@@ -1297,6 +1323,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		uct_node[current].value_win = VALUE_LOSE;
+	}
+
+	// for FPU reduction
+	if (uct_child[max_child].index == NOT_EXPANDED) {
+		atomic_fetch_add(&uct_node[current].visited_nnrate, uct_child[max_child].nnrate);
 	}
 
 	return max_child;

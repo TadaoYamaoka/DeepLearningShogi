@@ -76,7 +76,7 @@ int usi_byoyomi;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
-constexpr int EXTENSION_TIMES = 8; // 探索延長回数
+constexpr int EXTENSION_TIMES = 4; // 探索延長回数
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
@@ -85,7 +85,7 @@ struct CachedNNRequest {
 };
 typedef LruCache<uint64_t, CachedNNRequest> NNCache;
 typedef LruCacheLock<uint64_t, CachedNNRequest> NNCacheLock;
-constexpr unsigned int nn_cache_size = 4194304; // NNキャッシュサイズ
+constexpr unsigned int nn_cache_size = 8388608; // NNキャッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -124,6 +124,7 @@ constexpr float DISCARDED = -FLT_MAX;
 
 float c_init = 1.49f;
 float c_base = 39470.0f;
+float c_fpu = 0.2f;
 float temperature = 1.66f;
 
 
@@ -659,14 +660,18 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				// 詰みチェック(ValueNet計算中にチェック)
 				int isMate = 0;
 				if (!pos->inCheck()) {
-					if (mateMoveInOddPly(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
 						isMate = 1;
 					}
 				}
 				else {
-					if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-						isMate = -1;
+					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
 					}
+					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
+					/*if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+						isMate = -1;
+					}*/
 				}
 
 				// 入玉勝ちかどうかを判定
@@ -682,7 +687,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					uct_node[child_index].value_win = VALUE_WIN;
 					result = 0.0f;
 				}
-				else if (isMate == -1) {
+				/*else if (isMate == -1) {
 					auto req = make_unique<CachedNNRequest>(0);
 					req->value_win = VALUE_LOSE;
 					nn_cache.Insert(uct_node[child_index].key, std::move(req));
@@ -690,7 +695,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 					uct_node[current].value_win = VALUE_WIN;
 					result = 1.0f;
-				}
+				}*/
 				else {
 					// ノードをキューに追加
 					grp->QueuingNode(pos, child_index);
@@ -739,7 +744,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	float ucb_value;
 	int child_win_count = 0;
 
-	max_value = -1;
+	max_value = -FLT_MAX;
+
+	float fpu_reduction = 0.0f;
+	if (depth > 0)
+		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
 
 	NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
 
@@ -762,7 +771,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 		int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
-			q = 0.5f;
+			// 未探索のノードの価値に、親ノードの価値を使用する
+			if (uct_node[current].win > 0)
+				q = std::max(0.0f, uct_node[current].win / uct_node[current].move_count - fpu_reduction);
+			else
+				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
@@ -788,6 +801,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		uct_node[current].value_win = VALUE_LOSE;
+	}
+
+	// for FPU reduction
+	if (uct_child[max_child].index == NOT_EXPANDED) {
+		uct_node[current].visited_nnrate += cache_lock->nnrate[max_child];
 	}
 
 	return max_child;
@@ -838,6 +856,7 @@ UCTSearcher::ExpandRoot(const Position *pos)
 		uct_node[index].evaled = false;
 		uct_node[index].draw = false;
 		uct_node[index].value_win = 0.0f;
+		uct_node[index].visited_nnrate = 0.0f;
 		uct_node[index].key = pos->getKey();
 
 		uct_child = uct_node[index].child;
@@ -881,6 +900,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
+	uct_node[index].visited_nnrate = 0.0f;
 	uct_node[index].key = pos->getKey();
 	uct_child = uct_node[index].child;
 
