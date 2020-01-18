@@ -246,6 +246,9 @@ for e in range(args.epoch):
 
     epoch += 1
 
+    if e != args.epoch - 1:
+        optimizer.swap_swa_sgd()
+
 print('save the model')
 serializers.save_npz(args.model, model)
 print('save the optimizer')
