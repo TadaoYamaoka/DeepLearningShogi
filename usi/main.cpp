@@ -135,6 +135,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// オプション設定
 			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 			SetResignThreshold(options["Resign_Threshold"]);
+			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 			c_init = options["C_init"] / 100.0f;
 			c_base = options["C_base"];
 			c_fpu = options["C_fpu"] / 100.0f;

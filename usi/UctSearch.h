@@ -102,6 +102,9 @@ void SetTimeSettings(int main_time, int byoyomi, int stones);
 // 投了の閾値設定（1000分率）
 void SetResignThreshold(const int resign_threshold);
 
+// 千日手の価値設定（1000分率）
+void SetDrawValue(const int value_black, const int value_white);
+
 // UCT探索の初期設定
 void InitializeUctSearch(const unsigned int hash_size);
 // UCT探索の終了処理

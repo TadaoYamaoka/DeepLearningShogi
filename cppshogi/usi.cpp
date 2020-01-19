@@ -98,6 +98,8 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Softmax_Temperature"]         = USIOption(166, 1, 500);
     (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
+    (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
+    (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
     (*this)["C_init"]                      = USIOption(149, 0, 500);
     (*this)["C_base"]                      = USIOption(39470, 10000, 100000);
     (*this)["C_fpu"]                       = USIOption(20, 0, 100);
