@@ -122,6 +122,10 @@ constexpr float VALUE_LOSE = -FLT_MAX;
 constexpr float QUEUING = FLT_MAX;
 constexpr float DISCARDED = -FLT_MAX;
 
+// 千日手の価値
+float draw_value_black = 0.5f;
+float draw_value_white = 0.5f;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -350,6 +354,13 @@ void GameOver()
 void SetResignThreshold(const int resign_threshold)
 {
 	RESIGN_THRESHOLD = (float)resign_threshold / 1000.0f;
+}
+
+// 千日手の価値設定（1000分率）
+void SetDrawValue(const int value_black, const int value_white)
+{
+	draw_value_black = (float)value_black / 1000.0f;
+	draw_value_white = (float)value_white / 1000.0f;
 }
 
 void
@@ -1063,7 +1074,15 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		if (uct_node[current].draw) {
 			switch (pos->isDraw(16)) {
 			case NotRepetition: break;
-			case RepetitionDraw: return 0.5f;
+			case RepetitionDraw:
+				if (pos->turn() == Black) {
+					// 白が選んだ手なので、白の引き分けの価値を返す
+					return draw_value_white;
+				}
+				else {
+					// 黒が選んだ手なので、黒の引き分けの価値を返す
+					return draw_value_black;
+				}
 			case RepetitionWin: return 0.0f;
 			case RepetitionLose: return 1.0f;
 			case RepetitionSuperior: return 0.0f;
@@ -1142,7 +1161,14 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 					result = 1.0f;
 				}
 				else {
-					result = 0.5f;
+					if (pos->turn() == Black) {
+						// 白が選んだ手なので、白の引き分けの価値を使う
+						result = draw_value_white;
+					}
+					else {
+						// 黒が選んだ手なので、黒の引き分けの価値を使う
+						result = draw_value_black;
+					}
 				}
 				// 経路が異なる場合にNNの計算が必要なためキューに追加する
 				QueuingNode(pos, child_index);
