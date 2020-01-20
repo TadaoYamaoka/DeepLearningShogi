@@ -95,7 +95,7 @@ double time_limit;
 // ハッシュの再利用
 bool reuse_subtree = true;
 
-ray_clock::time_point begin_time;
+game_clock::time_point begin_time;
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -563,7 +563,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	}
 
 	// 探索開始時刻の記録
-	begin_time = ray_clock::now();
+	begin_time = game_clock::now();
 
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
