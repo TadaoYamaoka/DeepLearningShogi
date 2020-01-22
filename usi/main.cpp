@@ -157,15 +157,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				SetPlayout(options["Const_Playout"]);
 			}
 
-			if (search_mode == TIME_SETTING_MODE || search_mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-				// プレイアウト速度測定
-				SetConstTime(10);
-				InitializeSearchSetting();
-				UctSearchGenmove(&pos_tmp, ponder);
-			}
-			else {
-				InitializeSearchSetting();
-			}
+			InitializeSearchSetting();
 
 			// PonderingMode
 			if (GetMode() != CONST_PLAYOUT_MODE)

@@ -593,13 +593,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 	// 探索回数の閾値を設定
 	CalculateNextPlayouts(pos);
-	const int rest_uct_hash = uct_hash.GetRestUctHash();
-	if (po_info.num > rest_uct_hash) {
-		po_info.halt = rest_uct_hash;
-	}
-	else {
-		po_info.halt = po_info.num;
-	}
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
@@ -743,14 +736,11 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			}
 		}
 
-		if (!pondering)
+		if (!pondering) {
 			cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
-		// 次の探索でのプレイアウト回数の算出
-		CalculatePlayoutPerSec(finish_time);
-
-		if (!pondering)
 			remaining_time[pos->turn()] -= finish_time;
+		}
 	}
 
 	// 最善応手列を出力
@@ -902,15 +892,29 @@ InterruptionCheck(void)
 	if (uct_search_stop)
 		return true;
 
+	if (mode != CONST_PLAYOUT_MODE && po_info.halt < 0) {
+		const auto spend_time = GetSpendTime(begin_time);
+		// ハッシュの状況によってはすぐに返せる場合があるが、速度計測のため1/10は探索する
+		if (spend_time * 10.0 < time_limit)
+			return false;
+
+		// プレイアウト速度を計算
+		CalculatePlayoutPerSec(spend_time);
+		po_info.num = (int)(po_per_sec * time_limit);
+		const int rest_uct_hash = uct_hash.GetRestUctHash();
+		if (po_info.num > rest_uct_hash) {
+			po_info.halt = rest_uct_hash;
+		}
+		else {
+			po_info.halt = po_info.num;
+		}
+	}
+
 	int max = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
 	const int rest = po_info.halt - po_info.count;
 	const child_node_t *uct_child = uct_node[current_root].child;
 
-	if (mode != CONST_PLAYOUT_MODE &&
-		GetSpendTime(begin_time) * 10.0 < time_limit) {
-		return false;
-	}
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1043,7 +1047,7 @@ UCTSearcher::ParallelUctSearch()
 		// ハッシュに余裕があるか確認
 		enough_size = uct_hash.CheckRemainingHashSize();
 		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
-	} while (po_info.count < po_info.halt && !interruption && enough_size);
+	} while (!interruption && enough_size);
 
 	return;
 }
@@ -1361,7 +1365,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 
 /////////////////////////////////
-//  次のプレイアウト回数の設定  //
+//  プレイアウト速度の計算     //
 /////////////////////////////////
 static void
 CalculatePlayoutPerSec(double finish_time)
@@ -1377,25 +1381,22 @@ CalculatePlayoutPerSec(double finish_time)
 static void
 CalculateNextPlayouts(const Position *pos)
 {
-	if (pondering) {
-		po_info.num = uct_hash_size;
+	if (pondering)
 		return;
-	}
-
-	int color = pos->turn();
 
 	// 探索の時の探索回数を求める
-	if (mode == CONST_TIME_MODE) {
-		po_info.num = (int)(po_per_sec * const_thinking_time);
-	}
-	else if (mode == TIME_SETTING_MODE ||
+	if (mode == TIME_SETTING_MODE ||
 		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
+		int color = pos->turn();
 		time_limit = remaining_time[color] / (14 + max(0, 30 - pos->gamePly())) + inc_time[color];
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
 			time_limit < (const_thinking_time)) {
 			time_limit = const_thinking_time;
 		}
-		po_info.num = (int)(po_per_sec * time_limit);
+		po_info.halt = -1;
+	}
+	else {
+		po_info.halt = po_info.num;
 	}
 }
 
