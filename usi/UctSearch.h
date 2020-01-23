@@ -133,3 +133,6 @@ void NewGame();
 
 // ゲーム終了
 void GameOver();
+
+// 1手にかける時間取得（ms）
+int GetTimeLimit();

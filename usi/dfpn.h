@@ -54,8 +54,7 @@ namespace ns_dfpn {
 		void init();
 		bool dfpn(Position& r);
 		bool dfpn_andnode(Position& r);
-		void dfpn_stop();
-		void set_remaining_time(const double remaining_time);
+		void dfpn_stop(const bool stop);
 		Move dfpn_move(Position& pos);
 
 		static void set_hashsize(uint64_t size) {
@@ -75,8 +74,6 @@ namespace ns_dfpn {
 
 		TranspositionTable transposition_table;
 		std::atomic<bool> stop;
-		std::chrono::system_clock::time_point start_time;
-		double remaining_time = 0;
 		int64_t maxSearchNode = 2097152;
 
 		static uint32_t kMaxDepth;
