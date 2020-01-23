@@ -363,6 +363,12 @@ void SetDrawValue(const int value_black, const int value_white)
 	draw_value_white = (float)value_white / 1000.0f;
 }
 
+// 1手にかける時間取得（ms）
+int GetTimeLimit()
+{
+	return (int)(time_limit * 1000);
+}
+
 void
 UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize)
 {

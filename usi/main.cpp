@@ -25,6 +25,7 @@ void mate_test(Position& pos, std::istringstream& ssCmd);
 void test(Position& pos, std::istringstream& ssCmd);
 
 ns_dfpn::DfPn dfpn;
+int dfpn_min_search_millisecs = 300;
 
 volatile sig_atomic_t stopflg = false;
 
@@ -136,6 +137,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 			SetResignThreshold(options["Resign_Threshold"]);
 			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
+			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 			c_init = options["C_init"] / 100.0f;
 			c_base = options["C_base"];
 			c_fpu = options["C_fpu"] / 100.0f;
@@ -242,15 +244,17 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 
 	// 詰みの探索用
 	std::unique_ptr<std::thread> t;
+	dfpn.dfpn_stop(false);
+	std::atomic<bool> dfpn_done = false;
 	bool mate = false;
 	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
-		dfpn.set_remaining_time((double)limits.time[pos.turn()] * 0.9f);
-		t.reset(new std::thread([&pos, &mate]() {
+		t.reset(new std::thread([&pos, &mate, &dfpn_done]() {
 			if (!pos.inCheck()) {
 				Position pos_copy(pos);
 				mate = dfpn.dfpn(pos_copy);
 				if (mate)
 					StopUctSearch();
+				dfpn_done = true;
 			}
 		}));
 	}
@@ -265,8 +269,17 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 
 	// 詰み探索待ち
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		dfpn.dfpn_stop();
+		// 最小詰み探索時間の間待つ
+		const int time_limit = GetTimeLimit();
+		while (!dfpn_done) {
+			const auto elapse = limits.startTime.elapsed();
+			if (elapse >= time_limit ||
+				elapse >= dfpn_min_search_millisecs)
+				break;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		dfpn.dfpn_stop(true);
 		t->join();
 		if (mate) {
 			// 詰み
