@@ -1408,9 +1408,14 @@ CalculateNextPlayouts(const Position *pos)
 	if (mode == TIME_SETTING_MODE ||
 		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
 		int color = pos->turn();
-		time_limit = remaining_time[color] / (14 + max(0, 30 - pos->gamePly())) + inc_time[color];
+		int divisor = 14 + std::max(0, 30 - pos->gamePly());
+		if (draw_ply > 0) {
+			// 引き分けとする手数までに時間を使い切る
+			divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
+		}
+		time_limit = remaining_time[color] / divisor + inc_time[color];
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
-			time_limit < (const_thinking_time)) {
+			time_limit < const_thinking_time) {
 			time_limit = const_thinking_time;
 		}
 		po_info.halt = -1;
