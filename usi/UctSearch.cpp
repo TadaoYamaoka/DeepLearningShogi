@@ -1111,7 +1111,7 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 		}
 
 		// 引き分けとする手数のチェック
-		if (draw_ply > 0 && pos->gamePly() + depth >= draw_ply) {
+		if (draw_ply > 0 && pos->gamePly() + depth > draw_ply) {
 			return 0.5f;
 		}
 	}
