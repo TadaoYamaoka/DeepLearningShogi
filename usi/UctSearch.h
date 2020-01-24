@@ -136,3 +136,6 @@ void GameOver();
 
 // 1手にかける時間取得（ms）
 int GetTimeLimit();
+
+// 引き分けとする手数の設定
+void SetDrawPly(const int ply);
