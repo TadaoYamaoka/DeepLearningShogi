@@ -6,7 +6,7 @@ LIB = -L/usr/local/cuda-10.1/lib64
 
 target = bin/usi
 sources = main.cpp mate.cpp dfpn.cpp Message.cpp UctSearch.cpp ZobristHash.cpp nn_fused_wideresnet10.cpp nn_senet10.cpp nn_wideresnet10.cpp nn_wideresnet15.cpp npz.cpp cudnn_dtype.cpp
-cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp timeManager.cpp usi.cpp
+cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 cppshogi_objects = $(addprefix obj/, $(cppshogi_sources:.cpp=.o))
 

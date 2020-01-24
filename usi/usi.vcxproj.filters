@@ -51,9 +51,6 @@
     <ClCompile Include="..\cppshogi\square.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\timeManager.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\usi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>

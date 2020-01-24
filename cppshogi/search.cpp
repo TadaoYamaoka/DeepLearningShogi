@@ -23,13 +23,11 @@
 #include "position.hpp"
 #include "usi.hpp"
 #include "generateMoves.hpp"
-#include "timeManager.hpp"
 #include "book.hpp"
 
 #if defined USE_GLOBAL
 LimitsType Searcher::limits;
 StateListPtr Searcher::states;
-TimeManager Searcher::timeManager;
 OptionsMap Searcher::options;
 Searcher* Searcher::thisptr;
 #endif
