@@ -239,7 +239,6 @@
     <ClCompile Include="..\cppshogi\position.cpp" />
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
-    <ClCompile Include="..\cppshogi\timeManager.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />

@@ -23,7 +23,6 @@
 #define APERY_SEARCH_HPP
 
 #include "move.hpp"
-#include "timeManager.hpp"
 #include "usi.hpp"
 
 // 時間や探索深さの制限を格納する為の構造体
@@ -45,8 +44,6 @@ struct Searcher {
     STATIC Searcher* thisptr;
 	STATIC LimitsType limits;
 	STATIC StateListPtr states;
-
-    STATIC TimeManager timeManager;
 
     STATIC OptionsMap options;
 

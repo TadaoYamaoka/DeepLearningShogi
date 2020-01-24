@@ -269,7 +269,6 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
     <ClInclude Include="score.hpp" />
     <ClInclude Include="search.hpp" />
     <ClInclude Include="square.hpp" />
-    <ClInclude Include="timeManager.hpp" />
     <ClInclude Include="usi.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
