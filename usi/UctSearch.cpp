@@ -126,6 +126,9 @@ constexpr float DISCARDED = -FLT_MAX;
 float draw_value_black = 0.5f;
 float draw_value_white = 0.5f;
 
+// 引き分けとする手数（0以外の場合、この手数に達した場合引き分けとする）
+int draw_ply = 0;
+
 //template<float>
 double atomic_fetch_add(std::atomic<float> *obj, float arg) {
 	float expected = obj->load();
@@ -367,6 +370,12 @@ void SetDrawValue(const int value_black, const int value_white)
 int GetTimeLimit()
 {
 	return (int)(time_limit * 1000);
+}
+
+// 引き分けとする手数の設定
+void SetDrawPly(const int ply)
+{
+	draw_ply = ply;
 }
 
 void
@@ -1099,6 +1108,11 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 			case RepetitionInferior: return 1.0f;
 			default: UNREACHABLE;
 			}
+		}
+
+		// 引き分けとする手数のチェック
+		if (draw_ply > 0 && pos->gamePly() + depth >= draw_ply) {
+			return 0.5f;
 		}
 	}
 

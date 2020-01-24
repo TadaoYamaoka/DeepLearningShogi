@@ -136,6 +136,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// オプション設定
 			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 			SetResignThreshold(options["Resign_Threshold"]);
+			SetDrawPly(options["Draw_Ply"]);
 			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 			c_init = options["C_init"] / 100.0f;
