@@ -1109,11 +1109,6 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 			default: UNREACHABLE;
 			}
 		}
-
-		// 引き分けとする手数のチェック
-		if (draw_ply > 0 && pos->gamePly() + depth > draw_ply) {
-			return 0.5f;
-		}
 	}
 
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
