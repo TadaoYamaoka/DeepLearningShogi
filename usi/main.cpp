@@ -246,7 +246,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 	// 詰みの探索用
 	std::unique_ptr<std::thread> t;
 	dfpn.dfpn_stop(false);
-	std::atomic<bool> dfpn_done = false;
+	std::atomic<bool> dfpn_done(false);
 	bool mate = false;
 	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
 		t.reset(new std::thread([&pos, &mate, &dfpn_done]() {
