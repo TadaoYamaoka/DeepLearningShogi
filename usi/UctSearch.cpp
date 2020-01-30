@@ -901,11 +901,11 @@ UCTSearcher::QueuingNode(const Position *pos, unsigned int index)
 static bool
 InterruptionCheck(void)
 {
-	if (pondering)
-		return uct_search_stop;
-
 	if (uct_search_stop)
 		return true;
+
+	if (pondering)
+		return uct_search_stop;
 
 	if (mode != CONST_PLAYOUT_MODE && po_info.halt < 0) {
 		const auto spend_time = GetSpendTime(begin_time);
