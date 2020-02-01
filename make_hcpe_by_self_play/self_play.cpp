@@ -678,7 +678,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					result = 0.0f;
 				}
 				/*else if (isMate == -1) {
-					// 経路により詰み探索の結果が異なるため、異なるためキャッシュは更新しない
+					// 経路により詰み探索の結果が異なるため、キャッシュは更新しない
 					uct_node[child_index].value_win = VALUE_LOSE;
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 					uct_node[current].value_win = VALUE_WIN;
