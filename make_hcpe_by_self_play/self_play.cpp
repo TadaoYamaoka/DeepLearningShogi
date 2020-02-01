@@ -645,16 +645,8 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				NNCacheLock cache_lock(&nn_cache, uct_node[child_index].key);
 				const float value_win = cache_lock->value_win;
 				// キャッシュヒット
-				if (value_win == VALUE_WIN) {
-					uct_node[child_index].value_win = VALUE_WIN;
-					result = 0.0f;
-				}
-				else if (value_win == VALUE_LOSE) {
-					uct_node[child_index].value_win = VALUE_LOSE;
-					result = 1.0f;
-				}
-				else
-					result = 1.0f - value_win;
+				// 経路により詰み探索の結果が異なるためキャッシュヒットしても詰みの場合があるが、速度が落ちるため詰みチェックは行わない
+				result = 1.0f - value_win;
 			}
 			else {
 				// 詰みチェック(ValueNet計算中にチェック)
@@ -681,16 +673,12 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 
 				// 詰みの場合、ValueNetの値を上書き
 				if (isMate == 1) {
-					auto req = make_unique<CachedNNRequest>(0);
-					req->value_win = VALUE_WIN;
-					nn_cache.Insert(uct_node[child_index].key, std::move(req));
+					// 経路により詰み探索の結果が異なるため、キャッシュは更新しない
 					uct_node[child_index].value_win = VALUE_WIN;
 					result = 0.0f;
 				}
 				/*else if (isMate == -1) {
-					auto req = make_unique<CachedNNRequest>(0);
-					req->value_win = VALUE_LOSE;
-					nn_cache.Insert(uct_node[child_index].key, std::move(req));
+					// 経路により詰み探索の結果が異なるため、異なるためキャッシュは更新しない
 					uct_node[child_index].value_win = VALUE_LOSE;
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 					uct_node[current].value_win = VALUE_WIN;
