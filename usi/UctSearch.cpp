@@ -1325,17 +1325,15 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].index != NOT_EXPANDED) {
 			uct_node_t& child_node = uct_node[uct_child[i].index];
-			if (child_node.evaled) {
-				const float child_value_win = child_node.value_win;
-				if (child_value_win == VALUE_WIN) {
-					child_win_count++;
-					// 負けが確定しているノードは選択しない
-					continue;
-				}
-				else if (child_value_win == VALUE_LOSE) {
-					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-					uct_node[current].value_win = VALUE_WIN;
-				}
+			const float child_value_win = child_node.value_win;
+			if (child_value_win == VALUE_WIN) {
+				child_win_count++;
+				// 負けが確定しているノードは選択しない
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+				uct_node[current].value_win = VALUE_WIN;
 			}
 		}
 		float win = uct_child[i].win;
