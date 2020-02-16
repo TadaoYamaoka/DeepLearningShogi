@@ -598,10 +598,11 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		if (move != Move::moveNone())
 			return move;
 	}
-	else if (uct_node[current_root].value_win == VALUE_LOSE) {
+	// 詰みでも最後まで投了しないようにするためコメントアウト
+	/*else if (uct_node[current_root].value_win == VALUE_LOSE) {
 		// 自玉の詰み
 		return Move::moveNone();
-	}
+	}*/
 
 	// 前回から持ち込んだ探索回数を記録
 	int pre_simulated = uct_node[current_root].move_count;
