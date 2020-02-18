@@ -21,8 +21,6 @@ struct MySearcher : Searcher {
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd);
 bool nyugyoku(const Position& pos);
 void make_book(std::istringstream& ssCmd);
-void mate_test(Position& pos, std::istringstream& ssCmd);
-void test(Position& pos, std::istringstream& ssCmd);
 
 ns_dfpn::DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -176,8 +174,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "setoption") setOption(ssCmd);
 		else if (token == "make_book") make_book(ssCmd);
-		else if (token == "mate_test") mate_test(pos, ssCmd);
-		else if (token == "test") test(pos, ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	if (th.joinable())
@@ -556,30 +552,4 @@ void make_book(std::istringstream& ssCmd) {
 	std::cout << "white\t" << white_num << std::endl;
 	std::cout << "sum\t" << black_num + white_num << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
-}
-
-void mate_test(Position& pos, std::istringstream& ssCmd) {
-	/*auto start = std::chrono::system_clock::now();
-	bool isCheck;
-	int depth;
-	ssCmd >> depth;
-
-	if (!pos.inCheck()) {
-		//isCheck = mateMoveIn3Ply(pos);
-		depth += (depth + 1) % 2;
-		isCheck = mateMoveInOddPly(pos, depth);
-	}
-	else {
-		//isCheck = mateMoveIn2Ply(pos);
-		depth += depth % 2;
-		isCheck = mateMoveInEvenPly(pos, depth);
-	}
-	auto end = std::chrono::system_clock::now();
-	auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-	std::cout << "mateMoveIn" << depth << "Ply : " << isCheck << std::endl;
-	std::cout << msec << " msec" << std::endl;*/
-}
-
-void test(Position& pos, std::istringstream& ssCmd) {
 }
