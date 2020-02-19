@@ -143,6 +143,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			c_init = options["C_init"] / 100.0f;
 			c_base = options["C_base"];
 			c_fpu = options["C_fpu"] / 100.0f;
+			c_init_root = options["C_init_root"] / 100.0f;
+			c_base_root = options["C_base_root"];
+			c_fpu_root = options["C_fpu_root"] / 100.0f;
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();

@@ -104,6 +104,9 @@ float RESIGN_THRESHOLD = 0.01f;
 float c_init;
 float c_base;
 float c_fpu;
+float c_init_root;
+float c_base_root;
+float c_fpu_root;
 
 // モデルのパス
 string model_path[max_gpu];
@@ -1325,9 +1328,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 	max_value = -FLT_MAX;
 
-	float fpu_reduction = 0.0f;
-	if (depth > 0)
-		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
+	float fpu_reduction = (depth > 0 ? c_fpu : c_fpu_root) * sqrtf(uct_node[current].visited_nnrate);
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1362,7 +1363,9 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 		const float rate = uct_child[i].nnrate;
 
-		const float c = FastLog((sum + c_base + 1.0f) / c_base) + c_init;
+		const float c = depth > 0 ?
+			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
+			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
