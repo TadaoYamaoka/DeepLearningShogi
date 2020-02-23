@@ -65,7 +65,6 @@ print(f'entries : {num_entries}')
 book_entries = np.empty(num_entries, dtype=BookEntry)
 i = 0
 for key in sorted(bookdic.keys()):
-    entries = bookdic[key]
     for move, count in entries.items():
         book_entries[i] = key, move, count, 0
         i += 1
