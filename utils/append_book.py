@@ -20,6 +20,7 @@ for entry in book2entries:
     book3dic[key].append(entry)
     entry_num += 1
 
+# book1からbook2にないエントリを追加する
 book1entries = np.fromfile(args.book1, dtype=BookEntry)
 for entry in book1entries:
     key = entry['key']
