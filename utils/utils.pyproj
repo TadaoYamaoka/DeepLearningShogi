@@ -28,7 +28,7 @@
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="merge_book.py" />
+    <Compile Include="append_book.py" />
     <Compile Include="csa_to_book.py">
       <SubType>Code</SubType>
     </Compile>
