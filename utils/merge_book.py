@@ -10,7 +10,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('book1')
 parser.add_argument('book2')
 parser.add_argument('out')
+parser.add_argument('--book2_ratio', type=float, default=0.5)
 args = parser.parse_args()
+
+book2_ratio = args.book2_ratio
 
 book1 = np.fromfile(args.book1, BookEntry)
 book2 = np.fromfile(args.book2, BookEntry)
@@ -56,7 +59,7 @@ for key, entries2 in book2dic.items():
         sum2 += count
 
     for fromToPro, count in entries2.items():
-        entries1[fromToPro] = int((entries1[fromToPro] + count / sum1 * sum2) / 2)
+        entries1[fromToPro] = int(entries1[fromToPro] * (1 - book2_ratio) + count / sum1 * sum2 * book2_ratio)
         assert entries1[fromToPro] < 65536
 
 num_entries = 0
