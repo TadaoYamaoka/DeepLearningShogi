@@ -20,7 +20,10 @@ struct MySearcher : Searcher {
 };
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd);
 bool nyugyoku(const Position& pos);
+#ifdef MAKE_BOOK
+std::map<Key, std::vector<BookEntry> > bookMap;
 void make_book(std::istringstream& ssCmd);
+#endif
 
 ns_dfpn::DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -173,7 +176,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			std::cout << "readyok" << std::endl;
 		}
 		else if (token == "setoption") setOption(ssCmd);
+#ifdef MAKE_BOOK
 		else if (token == "make_book") make_book(ssCmd);
+#endif
 	} while (token != "quit" && argc == 1);
 
 	if (th.joinable())
@@ -302,6 +307,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 	std::cout << std::endl;
 }
 
+#ifdef MAKE_BOOK
 struct child_node_t_copy {
 	Move move;  // 着手する座標
 	int move_count;  // 探索回数
@@ -509,7 +515,6 @@ void make_book(std::istringstream& ssCmd) {
 	Position pos(DefaultStartPositionSFEN, &s);
 
 	// 定跡読み込み
-	std::map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
 	// シグナル設定
@@ -553,3 +558,4 @@ void make_book(std::istringstream& ssCmd) {
 	std::cout << "sum\t" << black_num + white_num << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
 }
+#endif
