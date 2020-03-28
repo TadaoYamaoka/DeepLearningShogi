@@ -837,11 +837,15 @@ ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
+	// ノードの展開中はロック
+	LOCK_EXPAND;
+
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
 	if (index != NOT_FOUND) {
+		UNLOCK_EXPAND;
 		return index;
 	}
 
@@ -849,6 +853,9 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != NOT_FOUND);
+
+	// ノード展開のロックの解除
+	UNLOCK_EXPAND;
 
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;
@@ -1143,14 +1150,10 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED ) {
-		// ノードの展開中はロック
-		LOCK_EXPAND;
 		// ノードの展開
 		unsigned int child_index = ExpandNode(pos, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
-		// ノード展開のロックの解除
-		UNLOCK_EXPAND;
 
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
