@@ -200,7 +200,7 @@ void NNWideResnet15::load_model(const char* filepath)
 	bias34v.set_bias(params["l34_v/b.npy"].data);
 }
 
-void NNWideResnet15::foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
+void NNWideResnet15::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
 	prepare_desc(batch_size);
 

@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
 
 		// „˜_
 		auto start = std::chrono::system_clock::now();
-		nn->foward(batchsize, features1, features2, (DType*)y1, y2);
+		nn->forward(batchsize, features1, features2, (DType*)y1, y2);
 		auto end = std::chrono::system_clock::now();
 
 		// ŠÔWŒv

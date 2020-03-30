@@ -193,9 +193,9 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->foward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
 	void Run();
@@ -1446,7 +1446,7 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	grp->nn_foward(policy_value_batch_size, features1, features2, y1, y2);
+	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
