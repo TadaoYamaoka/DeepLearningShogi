@@ -42,8 +42,6 @@ using namespace std;
 
 #define LOCK_NODE(var) mutex_nodes[(var)].lock()
 #define UNLOCK_NODE(var) mutex_nodes[(var)].unlock()
-#define LOCK_EXPAND mutex_expand.lock();
-#define UNLOCK_EXPAND mutex_expand.unlock();
 
 
 ////////////////
@@ -73,7 +71,6 @@ unsigned int current_root;
 
 unsigned int uct_hash_size;
 mutex* mutex_nodes;
-mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 // 探索の設定
 enum SEARCH_MODE mode = SEARCH_MODE::TIME_SETTING_WITH_BYOYOMI_MODE;
@@ -837,15 +834,11 @@ ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
-	// ノードの展開中はロック
-	LOCK_EXPAND;
-
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
 	if (index != NOT_FOUND) {
-		UNLOCK_EXPAND;
 		return index;
 	}
 
@@ -853,9 +846,6 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth);
 
 	assert(index != NOT_FOUND);
-
-	// ノード展開のロックの解除
-	UNLOCK_EXPAND;
 
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;
@@ -1006,13 +996,11 @@ UCTSearcher::ParallelUctSearch()
 	grp->InitGPU();
 
 	// ルートノードを評価
-	LOCK_EXPAND;
 	if (!uct_node[current_root].evaled) {
 		current_policy_value_batch_index = 0;
 		QueuingNode(pos_root, current_root);
 		EvalNode();
 	}
-	UNLOCK_EXPAND;
 
 	bool interruption = false;
 	bool enough_size = true;

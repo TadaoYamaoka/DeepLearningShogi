@@ -119,14 +119,16 @@ UctHash::SearchEmptyIndex(const unsigned long long hash, const Color color, cons
 
 	do {
 		if (!node_hash[i].flag) {
-			node_hash[i].flag = true;
-			node_hash[i].hash = hash;
-			node_hash[i].moves = moves;
-			node_hash[i].color = color;
-			used++;
-			if (used > uct_hash_limit)
-				enough_size = false;
-			return i;
+			bool expected = false;
+			if (node_hash[i].flag.compare_exchange_weak(expected, true)) {
+				node_hash[i].hash = hash;
+				node_hash[i].moves = moves;
+				node_hash[i].color = color;
+				used++;
+				if (used > uct_hash_limit)
+					enough_size = false;
+				return i;
+			}
 		}
 		i++;
 		if (i >= uct_hash_size) i = 0;

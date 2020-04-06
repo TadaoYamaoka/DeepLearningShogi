@@ -8,7 +8,7 @@ struct node_hash_t {
 	unsigned long long hash;
 	Color color;
 	int moves;
-	bool flag;
+	std::atomic<bool> flag;
 };
 
 class UctHash
