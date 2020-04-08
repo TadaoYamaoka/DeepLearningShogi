@@ -25,6 +25,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="benchmark.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
     </Compile>
