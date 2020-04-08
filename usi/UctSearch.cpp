@@ -846,6 +846,8 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	// 合流先が検知できれば, それを返す
 	if (index != NOT_FOUND) {
 		UNLOCK_EXPAND;
+		while (uct_node[index].child_num == 0)
+			std::this_thread::yield();
 		return index;
 	}
 
@@ -854,13 +856,14 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 
 	assert(index != NOT_FOUND);
 
+	uct_node[index].child_num = 0;
+
 	// ノード展開のロックの解除
 	UNLOCK_EXPAND;
 
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
-	uct_node[index].child_num = 0;
 	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;

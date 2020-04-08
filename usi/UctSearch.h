@@ -51,7 +51,7 @@ struct uct_node_t {
 	std::atomic<bool> draw;        // 千日手の可能性あり
 	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
-	int child_num;                      // 子ノードの数
+	std::atomic<int> child_num;         // 子ノードの数
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
 };
 
