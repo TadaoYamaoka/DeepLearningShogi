@@ -96,6 +96,9 @@
     <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp">
       <Filter>ソース ファイル\make_hcpe_by_self_play</Filter>
     </ClCompile>
+    <ClCompile Include="tensorrt_benchmark.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
