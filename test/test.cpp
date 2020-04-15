@@ -621,7 +621,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索（王手生成のバグのあった局面）
 int main() {
