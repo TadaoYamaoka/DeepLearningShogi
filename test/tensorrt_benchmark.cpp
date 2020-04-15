@@ -140,6 +140,8 @@ bool build(const string& onnx_filename, const int batchsize, const int fp16, Inf
 		std::cerr << "Error: buildEngineWithConfig" << std::endl;
 		return false;
 	}
+
+	return true;
 }
 
 int main(int argc, char* argv[]) {
