@@ -25,6 +25,7 @@
 #include "nn_fused_wideresnet10.h"
 #include "nn_wideresnet15.h"
 #include "nn_senet10.h"
+#include "nn_tensorrt.h"
 
 #if defined (_WIN32)
 #define NOMINMAX
@@ -180,7 +181,9 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
-			if (model_path[gpu_id].find("wideresnet15") != string::npos)
+			if (model_path[gpu_id].find("onnx") != string::npos)
+				nn = (NN*)new NNTensorRT(policy_value_batch_maxsize);
+			else if (model_path[gpu_id].find("wideresnet15") != string::npos)
 				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
 				nn = (NN*)new NNFusedWideResnet10(policy_value_batch_maxsize);
