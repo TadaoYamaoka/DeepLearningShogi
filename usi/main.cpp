@@ -143,6 +143,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			c_init = options["C_init"] / 100.0f;
 			c_base = options["C_base"];
 			c_fpu = options["C_fpu"] / 100.0f;
+			SetReuseSubtree(options["ReuseSubtree"]);
 
 			// 初回探索をキャッシュ
 			SEARCH_MODE search_mode = GetMode();
