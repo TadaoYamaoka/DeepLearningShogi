@@ -15,6 +15,7 @@ engine.setoption('DNN_Model', args.model)
 engine.setoption('Byoyomi_Margin', '0')
 engine.setoption('UCT_Hash', str(args.hash))
 engine.setoption('DNN_Batch_Size', str(args.batch))
+engine.setoption('ReuseSubtree', 'false')
 engine.setoption('UCT_Threads', str(args.threads))
 for i in range(2, args.gpus + 1):
     engine.setoption('UCT_Threads' + str(i), str(args.threads))
