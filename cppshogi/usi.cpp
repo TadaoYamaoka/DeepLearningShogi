@@ -118,6 +118,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
+    (*this)["ReuseSubtree"]                = USIOption(true);
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
