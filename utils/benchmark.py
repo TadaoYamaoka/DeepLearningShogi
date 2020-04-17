@@ -32,7 +32,7 @@ positions = [
     '7g7f 3c3d 2h7h 1c1d 7i6h 7a6b 5i4h 1d1e 4h3h 5a4b 3h2h 2b8h+ 7h8h 6c6d 6g6f 6b6c 6h6g 4b3b 8h6h 6c5d 6g5f 8b6b 6i5h 6a5b 8g8f 7c7d 8f8e B*3c 3i3h 8a7c 9i9h 4a4b 4g4f 6d6e 6f6e 7c8e 6e6d 8e7g+ 8i7g 3c7g+ B*7c 6b6a N*6f N*4d 6f5d 5c5d 6h6e 4d5f S*7b N*6f 6e6f 6a7a 6d6c+ 7g6f',
     '2g2f 8c8d 7g7f 4a3b 6i7h 8d8e 8h7g 3c3d 7i8h 2b7g+ 8h7g 3a4b 3i3h 7a7b 4g4f 6c6d 3h4g 7b6c 5i6h 5a4a 1g1f 1c1d 4g5f 4a3a',
     '7g7f 8c8d 2g2f 3c3d 2f2e 4a3b 5i5h 5a4a 2e2d 2c2d 2h2d 5c5d 3g3f 7a6b 2i3g 5d5e 3i3h 6b5c 2d2e P*2c 2e5e 2b5e 8h5e 5c4d 5e7g 3a4b 4g4f 4b5c 7i7h R*2h P*2g 5c6d 4i3i 2h3h+ 3i3h S*6e 4f4e 4d5e',
-    '7g7f 3c3d 2g2f 5c5d 2f2e 8b5b 4i5h 5a6b 8h6f 6b7b 5i6h 4c4d 2e2d 2c2d 2h2d 5b3b 2d2c+ 3a4b 2c2h 4b5c 6h7h 7a6b P*2d 4a5a 2d2c+ 5a4a 2c3b 4a3b 5g5f 5c6d 3i4h 9c9d 9g9f 6d6e 6f8h 6e7f 4h5g P*2c 5g6f 7c7d 7i6h 8a7c 6h7g 7f7g+ 8h7g 7c8e 7g6h S*7f 7h8h 4d4e 6i7h 2b4d 5h5g 2a3c R*4a 6b5c 4a1a+ 5c6d 1a1b 4d6f 5g6f',
+    '7g7f 3c3d 2g2f 5c5d 2f2e 8b5b 4i5h 5a6b 8h6f 6b7b 5i6h 4c4d 2e2d 2c2d 2h2d 5b3b 2d2c+ 3a4b 2c2h 4b5c 6h7h 7a6b P*2d 4a5a 2d2c+ 5a4a 2c3b 4a3b 5g5f 5c6d 3i4h 9c9d 9g9f 6d6e 6f8h 6e7f 4h5g P*2c 5g6f 7c7d 7i6h 8a7c 6h7g 7f7g+ 8h7g 7c8e 7g6h S*7f 7h8h 4d4e',
     '7g7f 8c8d 7i6h 3c3d 6g6f',
     '7g7f 3c3d 6g6f 8c8d 1g1f 8d8e 8h7g 7a6b 1f1e 5a4b 2h6h 5c5d 3i3h 4b3b 7i7h 2b4d 7h6g 4d5c 6h8h 7c7d 5i4h 6a5b 4h3i 2a3c 4g4f',
     '2g2f 8c8d 7g7f 5a4b 2f2e 3c3d 2e2d 2c2d 2h2d 4a3b 6g6f 8d8e 8h7g 7c7d 6i7h 7a7b 7i6h 7d7e 6h6g 7e7f 6g7f 1c1d 2d2h P*2c 4i5h 6c6d 3i4h 6a5b 3g3f 7b8c',
