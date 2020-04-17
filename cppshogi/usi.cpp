@@ -87,14 +87,26 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads5"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads6"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads7"]                = USIOption(0, 0, 256);
+    (*this)["UCT_Threads8"]                = USIOption(0, 0, 256);
     (*this)["DNN_Model"]                   = USIOption(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
     (*this)["DNN_Model2"]                  = USIOption("");
     (*this)["DNN_Model3"]                  = USIOption("");
     (*this)["DNN_Model4"]                  = USIOption("");
+    (*this)["DNN_Model5"]                  = USIOption("");
+    (*this)["DNN_Model6"]                  = USIOption("");
+    (*this)["DNN_Model7"]                  = USIOption("");
+    (*this)["DNN_Model8"]                  = USIOption("");
     (*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
     (*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size5"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size6"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
     (*this)["Softmax_Temperature"]         = USIOption(166, 1, 500);
     (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
@@ -106,6 +118,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
+    (*this)["ReuseSubtree"]                = USIOption(true);
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");

@@ -346,7 +346,7 @@ public:
 	}
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->foward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
 	int Running() {

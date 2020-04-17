@@ -9,7 +9,7 @@ public:
 
 	void load_model(const char* filename);
 
-	void foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
+	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
 private:
 	static constexpr int k = 192;

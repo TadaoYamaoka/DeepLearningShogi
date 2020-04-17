@@ -198,9 +198,9 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->foward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
 	void Run();
@@ -848,11 +848,15 @@ ExpandRoot(const Position *pos)
 unsigned int
 UCTSearcher::ExpandNode(Position *pos, const int depth)
 {
+	// ノードの展開中はロック
+	LOCK_EXPAND;
+
 	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
 	if (index != NOT_FOUND) {
+		UNLOCK_EXPAND;
 		return index;
 	}
 
@@ -861,11 +865,15 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 
 	assert(index != NOT_FOUND);
 
+	uct_node[index].evaled = false;
+
+	// ノード展開のロックの解除
+	UNLOCK_EXPAND;
+
 	// 現在のノードの初期化
 	uct_node[index].move_count = 0;
 	uct_node[index].win = 0;
 	uct_node[index].child_num = 0;
-	uct_node[index].evaled = false;
 	uct_node[index].draw = false;
 	uct_node[index].value_win = 0.0f;
 	uct_node[index].visited_nnrate = 0.0f;
@@ -1157,14 +1165,10 @@ UCTSearcher::UctSearch(Position *pos, const unsigned int current, const int dept
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED ) {
-		// ノードの展開中はロック
-		LOCK_EXPAND;
 		// ノードの展開
 		unsigned int child_index = ExpandNode(pos, depth + 1);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
-		// ノード展開のロックの解除
-		UNLOCK_EXPAND;
 
 		// 現在見ているノードのロックを解除
 		UNLOCK_NODE(current);
@@ -1457,7 +1461,7 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	grp->nn_foward(policy_value_batch_size, features1, features2, y1, y2);
+	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
