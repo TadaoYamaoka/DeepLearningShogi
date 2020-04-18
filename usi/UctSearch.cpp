@@ -182,7 +182,7 @@ public:
 		mutex_gpu.lock();
 		if (nn == nullptr) {
 			if (model_path[gpu_id].find("onnx") != string::npos)
-				nn = (NN*)new NNTensorRT(policy_value_batch_maxsize);
+				nn = (NN*)new NNTensorRT(gpu_id, policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("wideresnet15") != string::npos)
 				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
