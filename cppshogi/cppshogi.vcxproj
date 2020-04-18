@@ -149,8 +149,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd
-copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
+      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -208,8 +207,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd
-copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
+      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
@@ -231,8 +229,7 @@ copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd
-copy $(TargetPath) $(SolutionDir)\x64\Release\cppshogi.pyd</Command>
+      <Command>copy $(TargetPath) $(SolutionDir)\dlshogi\cppshogi.pyd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
