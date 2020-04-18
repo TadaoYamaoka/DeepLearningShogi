@@ -29,7 +29,7 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 	return val * (1 << 20);
 }
 
-NNTensorRT::NNTensorRT(const int max_batch_size) : max_batch_size(max_batch_size)
+NNTensorRT::NNTensorRT(const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
 {
 	// Create host and device buffers
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
@@ -114,7 +114,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 
 void NNTensorRT::load_model(const char* filename)
 {
-	const std::string serialized_filename = std::string(filename) + "." + std::to_string(max_batch_size) + ".serialized";
+	const std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 	if (seriarizedFile.is_open())
 	{
