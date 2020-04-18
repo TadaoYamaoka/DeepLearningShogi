@@ -1,4 +1,4 @@
-# DeepLearningShogi
+# DeepLearningShogi(dlshogi)
 
 将棋でディープラーニングを実験するためのプロジェクトです。
 
@@ -30,17 +30,20 @@ http://tadaoyamaoka.hatenablog.com/
 * Windows 10 64bit
 * Visual Studio 2019
 #### Linuxの場合
-* Ubuntu 16.04 LTS
+* Ubuntu 18.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 10.1
+* CUDA 10.2
 * cuDNN 7.6
+* TensorRT 7
 
 ### 学習部
 上記USIエンジンのビルド環境に加えて以下が必要
 * [Pytorch](https://pytorch.org/) 1.3以上
 * Python 3.5以上 ([Anaconda](https://www.continuum.io/downloads))
 * [Boost](http://www.boost.org/) 1.69.0
+* CUDA 10.1
+* cuDNN 7.6
 
 ## ライセンス
 ライセンスはGPLライセンスとします。
