@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 		}
 
 		// predict
-		nn->foward(max_batch_size, features1, features2, y1, y2);
+		nn->forward(max_batch_size, features1, features2, y1, y2);
 		float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 
 		// do move

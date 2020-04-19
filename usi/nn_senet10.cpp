@@ -201,7 +201,7 @@ void NNSENet10::load_model(const char* filepath)
 	bias24v.set_bias(params["l24_v/b.npy"].data);
 }
 
-void NNSENet10::foward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
+void NNSENet10::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
 	prepare_desc(batch_size);
 

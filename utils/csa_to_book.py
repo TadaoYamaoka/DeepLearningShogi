@@ -9,28 +9,26 @@ from collections import defaultdict
 parser = argparse.ArgumentParser()
 parser.add_argument('dir')
 parser.add_argument('book')
-parser.add_argument('--limit_turn', type=int, default=80)
-parser.add_argument('--lower_limit_entries', type=int, default=30)
-parser.add_argument('--lower_limit_count', type=int, default=10)
+parser.add_argument('--limit_moves', type=int, default=80)
+parser.add_argument('--limit_entries', type=int, default=50)
 args = parser.parse_args()
 
 csa_file_list = glob.glob(os.path.join(args.dir, '**', '*.csa'), recursive=True)
 
 board = Board()
 parser = Parser()
+num_games = 0
 bookdic = {}
 for filepath in csa_file_list:
-    parser.parse_csa_file(filepath.encode('utf-8'))
+    parser.parse_csa_file(filepath)
     board.set_sfen(parser.sfen)
     assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
-    skip = False
     for i, move in enumerate(parser.moves):
-        if i > args.limit_turn:
+        if i > args.limit_moves:
             break
 
         if not board.is_legal(move):
             print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
-            skip = True
             break
 
         key = board.book_key()
@@ -41,39 +39,33 @@ for filepath in csa_file_list:
 
         board.push(move)
 
-    if skip:
-        continue
+    num_games += 1
 
 # 閾値以下のエントリを削除
-entry_num = 0
+num_positions = 0
+num_entries = 0
 for key in list(bookdic.keys()):
     entries = bookdic[key]
     sum_count = 0
-    entries_keys = list(entries.keys())
-    for move in entries_keys:
-        sum_count += entries[move]
+    for count in entries.values():
+        sum_count += count
 
-    if sum_count <= args.lower_limit_entries:
+    if sum_count <= args.limit_entries:
         del bookdic[key]
         continue
 
-    if sum_count > args.lower_limit_count * 100:
-        for move in entries_keys:
-            if entries[move] <= args.lower_limit_count:
-                del entries[move]
-            else:
-                entry_num += 1
-    else:
-        entry_num += len(entries)
+    num_positions += 1
+    num_entries += len(entries)
 
-print('entry_num : {}'.format(entry_num))
+print(f"games : {num_games}")
+print(f"positions : {num_positions}")
+print(f'entries : {num_entries}')
 
 # 保存
-book_entries = np.empty(entry_num, dtype=BookEntry)
+book_entries = np.empty(num_entries, dtype=BookEntry)
 i = 0
 for key in sorted(bookdic.keys()):
-    entries = bookdic[key]
-    for move in entries.keys():
-        book_entries[i] = key, move, entries[move], 0
+    for move, count in entries.items():
+        book_entries[i] = key, move, count, 0
         i += 1
 book_entries.tofile(args.book)

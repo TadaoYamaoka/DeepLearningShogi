@@ -60,9 +60,6 @@
     <ClCompile Include="..\cppshogi\square.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\cppshogi\timeManager.cpp">
-      <Filter>ソース ファイル\cppshogi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\usi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
@@ -98,6 +95,12 @@
     </ClCompile>
     <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp">
       <Filter>ソース ファイル\make_hcpe_by_self_play</Filter>
+    </ClCompile>
+    <ClCompile Include="tensorrt_benchmark.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_tensorrt.cpp">
+      <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

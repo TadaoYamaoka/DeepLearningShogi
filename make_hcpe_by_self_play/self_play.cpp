@@ -22,6 +22,7 @@
 #include "nn_wideresnet10.h"
 #include "nn_wideresnet15.h"
 #include "nn_senet10.h"
+#include "nn_tensorrt.h"
 #include "dfpn.h"
 #include "USIEngine.h"
 
@@ -319,7 +320,7 @@ private:
 
 class UCTSearcherGroupPair {
 public:
-	UCTSearcherGroupPair(const int gpu_id, const int policy_value_batch_maxsize) : nn(nullptr), policy_value_batch_maxsize(policy_value_batch_maxsize) {
+	UCTSearcherGroupPair(const int gpu_id, const int policy_value_batch_maxsize) : nn(nullptr), gpu_id(gpu_id), policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		groups.reserve(threads);
 		for (int i = 0; i < threads; i++)
 			groups.emplace_back(gpu_id, i, policy_value_batch_maxsize, this);
@@ -331,7 +332,9 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
-			if (model_path.find("wideresnet15") != string::npos) {
+			if (model_path.find("onnx") != string::npos)
+				nn = (NN*)new NNTensorRT(gpu_id, policy_value_batch_maxsize);
+			else if (model_path.find("wideresnet15") != string::npos) {
 				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
 			}
 			else if (model_path.find("senet10") != string::npos) {
@@ -346,7 +349,7 @@ public:
 	}
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->foward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
 	int Running() {

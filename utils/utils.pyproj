@@ -25,16 +25,20 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="benchmark.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="merge_book.py" />
+    <Compile Include="append_book.py" />
     <Compile Include="csa_to_book.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="filter_kif_in_dir.py" />
     <Compile Include="filter_csa_in_dir.py" />
     <Compile Include="kifustat.py" />
+    <Compile Include="merge_book.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="plot_log_policy_value.py" />
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="throughput.py">
