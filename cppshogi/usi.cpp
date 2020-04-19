@@ -74,7 +74,7 @@ namespace {
 
 void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
-    (*this)["Best_Book_Move"]              = USIOption(false);
+    (*this)["Best_Book_Move"]              = USIOption(true);
     (*this)["OwnBook"]                     = USIOption(false);
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
