@@ -102,8 +102,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -113,13 +113,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -140,14 +140,14 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>FP16;_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -192,7 +192,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>MAKE_BOOK;FP16;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MAKE_BOOK;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -203,7 +203,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
@@ -214,7 +214,7 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>MAKE_BOOK;FP16;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MAKE_BOOK;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
@@ -223,7 +223,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreLinkEvent>
       <Command>mkdir "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release_NoOpt"
@@ -251,6 +251,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_fused_wideresnet10.cpp" />
     <ClCompile Include="nn_senet10.cpp" />
+    <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="nn_wideresnet10.cpp" />
     <ClCompile Include="nn_wideresnet15.cpp" />
     <ClCompile Include="npz.cpp" />
@@ -269,6 +270,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="nn.h" />
     <ClInclude Include="nn_fused_wideresnet10.h" />
     <ClInclude Include="nn_senet10.h" />
+    <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="nn_wideresnet10.h" />
     <ClInclude Include="nn_wideresnet15.h" />
     <ClInclude Include="npz.h" />
