@@ -83,7 +83,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["Draw_Ply"]                    = USIOption(0, 0, INT_MAX);
     (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
-    (*this)["UCT_Threads"]                 = USIOption(2, 1, 256);
+    (*this)["UCT_Threads"]                 = USIOption(2, 0, 256);
     (*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
