@@ -321,7 +321,7 @@ struct child_node_t_copy {
 	}
 };
 
-void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
+bool make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
 	std::cout << "position startpos moves ";
 	for (Move move : moves) {
 		std::cout << move.toUSI() << " ";
@@ -332,8 +332,8 @@ void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::
 	UctSearchGenmoveNoPonder(&pos);
 
 	if (uct_node[current_root].child_num == 0) {
-		std::cerr << "Error: child_num" << std::endl;
-		exit(EXIT_FAILURE);
+		// 詰みの局面
+		return false;
 	}
 
 	// 探索回数で降順ソート
@@ -369,6 +369,8 @@ void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::
 
 		count++;
 	}
+
+	return true;
 }
 
 // 定跡作成(再帰処理)
@@ -426,7 +428,11 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 			if (itr == outMap.end()) {
 				// 定跡になく未探索の局面の場合
 				// UCT探索で定跡作成
-				make_book_entry_with_uct(pos, key, outMap, count, moves);
+				if (!make_book_entry_with_uct(pos, key, outMap, count, moves))
+				{
+					// 詰みの局面の場合何もしない
+					return;
+				}
 			}
 
 			entries = &outMap[key];
