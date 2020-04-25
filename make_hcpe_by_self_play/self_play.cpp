@@ -285,8 +285,6 @@ private:
 	int id;
 	unique_ptr<std::mt19937_64> mt_64;
 	unique_ptr<std::mt19937> mt;
-	// スレッドのハンドル
-	thread *handle;
 
 	// ハッシュ(UCTSearcherGroupで共有)
 	UctHash& uct_hash;
