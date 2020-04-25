@@ -55,6 +55,19 @@ struct uct_node_t {
 	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
 };
 
+#if defined(MASTER) || defined(SLAVE)
+struct node_stat {
+	float win;
+	int move_count;
+};
+struct child_node_stats {
+	int ply;
+	node_stat child[UCT_CHILD_MAX];
+
+	child_node_stats() : ply(0), child{ 0 } {}
+};
+#endif
+
 struct po_info_t {
 	int num;   // 次の手の探索回数
 	int halt;  // 探索を打ち切る回数

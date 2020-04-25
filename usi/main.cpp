@@ -13,6 +13,21 @@
 
 #include <signal.h>
 
+#if defined(MASTER) || defined(SLAVE)
+#include <boost/asio.hpp>
+
+namespace asio = boost::asio;
+using asio::ip::tcp;
+asio::io_service io_service;
+#endif
+#ifdef MASTER
+std::vector<tcp::socket> master_sockets;
+std::vector<child_node_stats> slave_stats;
+#endif
+#ifdef SLAVE
+tcp::socket slave_socket(io_service);
+#endif
+
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
@@ -53,13 +68,100 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	std::thread th;
 	std::string prevPosCmd;
 
+#if defined(MASTER)
+	if (argc < 2) {
+		std::cout << "missing host:port" << std::endl;
+		return;
+	}
+
+	boost::system::error_code error;
+	for (int i = 1; i < argc; ++i) {
+		char* hostport = argv[i];
+		size_t splitpos = 0;
+		while (hostport[splitpos] != ':') {
+			if (hostport[splitpos] == '\0') {
+				std::cout << "missing host:port" << std::endl;
+				return;
+			}
+			++splitpos;
+		}
+		hostport[splitpos] = '\0';
+		size_t idx = 0;
+		char* portstr = hostport + splitpos + 1;
+		const auto port = std::stoi(portstr, &idx);
+		if (idx != std::strlen(portstr)) {
+			std::cout << "invalid port" << std::endl;
+			return;
+		}
+		master_sockets.emplace_back(io_service);
+		master_sockets.back().connect(tcp::endpoint(asio::ip::address::from_string(hostport), port), error);
+		if (error) {
+			std::cout << "connect failed : " << error.message() << std::endl;
+			return;
+		}
+	}
+	slave_stats.resize(master_sockets.size());
+	std::vector<std::unique_ptr<std::thread>> th_stats;
+	argc = 1;
+#elif defined(SLAVE)
+	if (argc < 2) {
+		std::cout << "missing port" << std::endl;
+		return;
+	}
+	size_t idx = 0;
+	const auto port = std::stoi(argv[1], &idx);
+	if (idx != std::strlen(argv[1])) {
+		std::cout << "invalid port" << std::endl;
+		return;
+	}
+	tcp::acceptor acc(io_service, tcp::endpoint(tcp::v4(), port));
+
+	boost::system::error_code error;
+	acc.accept(slave_socket, error);
+	if (error) {
+		std::cout << "accept failed: " << error.message() << std::endl;
+	}
+
+	argc = 1;
+	asio::streambuf receive_buffer;
+#else
 	for (int i = 1; i < argc; ++i)
 		cmd += std::string(argv[i]) + " ";
+#endif
 
 	do {
+#ifdef SLAVE
+		// メッセージ受信
+		size_t len = asio::read_until(slave_socket, receive_buffer, "\n", error);
+		if (len == 0) {
+			std::cout << "receive failed: " << error.message() << std::endl;
+			cmd = "quit";
+		}
+		else {
+			const char* data = asio::buffer_cast<const char*>(receive_buffer.data());
+			auto endpos = len - 1;
+			while (endpos >= 0 && (data[endpos] == '\n' || data[endpos] == '\r'))
+				--endpos;
+			cmd.assign(data, endpos + 1);
+
+			receive_buffer.consume(len);
+		}
+#else
 		if (argc == 1 && !std::getline(std::cin, cmd))
 			cmd = "quit";
+#endif
 
+#ifdef MASTER
+		// スレーブにUSIコマンドを送信
+		for (auto& master_socket : master_sockets) {
+			// 次のコマンドが重複して送付されることを避けるため同期送信
+			boost::system::error_code error;
+			asio::write(master_socket, asio::buffer(cmd + "\n", cmd.size() + 1), error);
+			if (error) {
+				std::cout << "send stop failed: " << error.message() << std::endl;
+			}
+		}
+#endif
 		//std::cout << "info string " << cmd << std::endl;
 		std::istringstream ssCmd(cmd);
 
@@ -151,6 +253,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMode(CONST_PLAYOUT_MODE);
 			SetPlayout(1);
 			InitializeSearchSetting();
+			StopUctSearch();
 			Move ponder;
 			UctSearchGenmove(&pos_tmp, ponder);
 			SetPlayout(CONST_PLAYOUT); // 元に戻す
@@ -171,6 +274,50 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
 
+#ifdef MASTER
+			// スレーブのreadyokを受信
+			for (auto& master_socket : master_sockets) {
+				asio::streambuf receive_buffer;
+				boost::system::error_code error;
+				assert(master_socket.available() == 8);
+				size_t len = asio::read_until(master_socket, receive_buffer, "\n", error);
+				if (len == 0) {
+					std::cout << "readyok failed: " << error.message() << std::endl;
+					throw std::runtime_error("readyok failed");
+				}
+				const char* data = asio::buffer_cast<const char*>(receive_buffer.data());
+				if (std::strncmp(data, "readyok", 7) != 0) {
+					throw std::runtime_error("readyok failed");
+				}
+			}
+
+			// スレーブのルートの統計を収集
+			// 一定時間間隔でスレーブから送信される統計データを繰り返し受信する
+			for (int i = 0; i < master_sockets.size(); ++i) {
+				auto& master_socket = master_sockets[i];
+				th_stats.emplace_back(new std::thread([&master_socket, i] {
+					while (true) {
+						// 受信
+						boost::system::error_code error;
+						size_t len = asio::read(master_socket, asio::buffer(&slave_stats[i], sizeof(child_node_stats)), asio::transfer_exactly(sizeof(child_node_stats)), error);
+						if (len != sizeof(child_node_stats)) {
+							std::cout << error.message() << std::endl;
+							return;
+						}
+						//std::cout << slave_stats[i].ply << std::endl;
+					}
+			}));
+	};
+#endif
+#ifdef SLAVE
+			// マスターにreadyokを送信
+			asio::write(slave_socket, asio::buffer("readyok\n", 8), error);
+			if (error) {
+				std::cout << "send readok failed: " << error.message() << std::endl;
+			}
+
+#endif
+
 			std::cout << "readyok" << std::endl;
 		}
 		else if (token == "setoption") setOption(ssCmd);
@@ -179,6 +326,16 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 	if (th.joinable())
 		th.join();
+#ifdef MASTER
+	for (auto& master_socket : master_sockets) {
+		master_socket.cancel();
+		master_socket.shutdown(tcp::socket::shutdown_both);
+	}
+	for (auto& th : th_stats) {
+		if (th->joinable())
+			th->join();
+	}
+#endif
 }
 
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd) {
@@ -263,6 +420,18 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 	// UCTによる探索
 	Move ponderMove = Move::moveNone();
 	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
+
+#ifdef MASTER
+	// スレーブの探索を停止
+	for (auto& master_socket : master_sockets) {
+		// 次のコマンドが重複して送付されることを避けるため同期送信
+		boost::system::error_code error;
+		asio::write(master_socket, asio::buffer("stop\n", 5), error);
+		if (error) {
+			std::cout << "send stop failed: " << error.message() << std::endl;
+		}
+	}
+#endif
 
 	// Ponderの場合、結果を返さない
 	if (limits.ponder)

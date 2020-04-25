@@ -27,6 +27,20 @@
 #include "nn_senet10.h"
 #include "nn_tensorrt.h"
 
+#if defined(MASTER) || defined(SLAVE)
+#include <boost/asio.hpp>
+
+namespace asio = boost::asio;
+using asio::ip::tcp;
+#endif
+#ifdef MASTER
+extern std::vector<tcp::socket> master_sockets;
+extern std::vector<child_node_stats> slave_stats;
+#endif
+#ifdef SLAVE
+extern tcp::socket slave_socket;
+#endif
+
 #if defined (_WIN32)
 #define NOMINMAX
 #include <Windows.h>
@@ -45,7 +59,6 @@ using namespace std;
 #define UNLOCK_NODE(var) mutex_nodes[(var)].unlock()
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
-
 
 ////////////////
 //  大域変数  //
@@ -620,6 +633,34 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Run();
 
+#ifdef SLAVE
+	// 一定間隔でマスターにルートの統計を送信する
+	std::condition_variable cv_stat;
+	std::mutex mtx_stat;
+	std::unique_ptr<std::thread> th_stat(new std::thread([&cv_stat, &mtx_stat] {
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		while (!uct_search_stop) {
+			child_node_stats stats;
+			stats.ply = pos_root->gamePly();
+			const auto& root_node = uct_node[current_root];
+			// 多少のずれを許容してロックしないで送信する
+			for (int i = 0; i < root_node.child_num; ++i) {
+				stats.child[i].win = root_node.child[i].win;
+				stats.child[i].move_count = root_node.child[i].move_count;
+			}
+			boost::system::error_code error;
+			size_t len = asio::write(slave_socket, asio::buffer(&stats, sizeof(stats)), error);
+			if (len != sizeof(stats)) {
+				std::cout << "write failed: " << error.message() << std::endl;
+				return;
+			}
+
+			std::unique_lock<std::mutex> lock(mtx_stat);
+			cv_stat.wait_for(lock, std::chrono::milliseconds(100), [] { return uct_search_stop == true; });
+		}
+	}));
+#endif
+
 	// 探索スレッド終了待機
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
@@ -643,6 +684,16 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Join();
 	}
+
+#ifdef SLAVE
+	// 統計の送信を停止
+	{
+		std::unique_lock<std::mutex> lock(mtx_stat);
+		uct_search_stop = true;
+		cv_stat.notify_all();
+	}
+	th_stat->join();
+#endif
 
 	// 探索にかかった時間を求める
 	finish_time = GetSpendTime(begin_time);
@@ -1353,6 +1404,17 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 		}
 		float win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
+#ifdef MASTER
+		// スレーブの統計を合計する
+		if (depth == 0) {
+			for (auto& slave_stat : slave_stats) {
+				if (slave_stat.ply == pos->gamePly()) {
+					win += slave_stat.child[i].win;
+					move_count += slave_stat.child[i].move_count;
+				}
+			}
+		}
+#endif
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
