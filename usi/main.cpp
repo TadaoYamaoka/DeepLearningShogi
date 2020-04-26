@@ -103,7 +103,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 	}
 	slave_stats_tmp.reset(new child_node_stats[master_sockets.size()]);
+	std::memset(slave_stats_tmp.get(), 0, sizeof(child_node_stats) * master_sockets.size());
 	slave_stats.reset(new child_node_stats[master_sockets.size()]);
+	std::memset(slave_stats.get(), 0, sizeof(child_node_stats) * master_sockets.size());
 	std::vector<std::unique_ptr<std::thread>> th_stats;
 	argc = 1;
 #elif defined(SLAVE)

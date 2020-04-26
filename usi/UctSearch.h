@@ -63,8 +63,6 @@ struct node_stat {
 struct child_node_stats {
 	int ply;
 	node_stat child[UCT_CHILD_MAX];
-
-	child_node_stats() : ply(0), child{ 0 } {}
 };
 #endif
 
