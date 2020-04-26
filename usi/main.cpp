@@ -298,7 +298,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// スレーブのルートの統計を収集
 			// 一定時間間隔でスレーブから送信される統計データを繰り返し受信する
-			for (int i = 0; i < master_sockets.size(); ++i) {
+			for (size_t i = 0; i < master_sockets.size(); ++i) {
 				auto& master_socket = master_sockets[i];
 				th_stats.emplace_back(new std::thread([&master_socket, i] {
 					while (true) {

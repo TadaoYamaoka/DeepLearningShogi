@@ -1416,7 +1416,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 #ifdef MASTER
 		// スレーブの統計を合計する
 		if (depth == 0) {
-			for (int j = 0; j < master_sockets.size(); ++j) {
+			for (size_t j = 0; j < master_sockets.size(); ++j) {
 				if (slave_stats[j].ply == pos->gamePly()) {
 					win += slave_stats[j].child[i].win;
 					move_count += slave_stats[j].child[i].move_count;
