@@ -646,6 +646,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			stats.ply = pos_root->gamePly();
 			const auto& root_node = uct_node[current_root];
 			// 多少のずれを許容してロックしないで送信する
+			stats.move_count = root_node.move_count;
 			for (int i = 0; i < root_node.child_num; ++i) {
 				stats.child[i].win = root_node.child[i].win;
 				stats.child[i].move_count = root_node.child[i].move_count;
@@ -1378,7 +1379,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	const child_node_t *uct_child = uct_node[current].child;
 	const int child_num = uct_node[current].child_num;
 	int max_child = 0;
-	const int sum = uct_node[current].move_count;
+	int sum = uct_node[current].move_count;
 	float q, u, max_value;
 	float ucb_value;
 	int child_win_count = 0;
@@ -1391,8 +1392,14 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 
 #ifdef MASTER
 	if (depth == 0) {
-		std::lock_guard<std::mutex> lock(slave_mutex);
-		std::memcpy(slave_stats.get(), slave_stats_tmp.get(), sizeof(child_node_stats) * master_sockets.size());
+		{
+			std::lock_guard<std::mutex> lock(slave_mutex);
+			std::memcpy(slave_stats.get(), slave_stats_tmp.get(), sizeof(child_node_stats) * master_sockets.size());
+		}
+		for (size_t j = 0; j < master_sockets.size(); ++j) {
+			if (slave_stats[j].ply == pos->gamePly())
+				sum += slave_stats[j].move_count;
+		}
 	}
 #endif
 

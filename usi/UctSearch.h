@@ -62,6 +62,7 @@ struct node_stat {
 };
 struct child_node_stats {
 	int ply;
+	int move_count;
 	node_stat child[UCT_CHILD_MAX];
 };
 #endif
