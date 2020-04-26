@@ -1299,13 +1299,6 @@ void UCTSearcher::NextStep()
 			else
 				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 			AddTeacher(eval, best_move);
-
-			// 一定の手数以上で引き分け
-			if (ply >= MAX_PLY) {
-				gameResult = Draw;
-				NextGame();
-				return;
-			}
 		}
 
 		NextPly(best_move);
@@ -1314,6 +1307,13 @@ void UCTSearcher::NextStep()
 
 void UCTSearcher::NextPly(const Move move)
 {
+	// 一定の手数以上で引き分け
+	if (ply >= MAX_PLY) {
+		gameResult = Draw;
+		NextGame();
+		return;
+	}
+
 	// 着手
 	pos_root->doMove(move, states[ply]);
 	pos_root->setStartPosPly(ply + 1);
