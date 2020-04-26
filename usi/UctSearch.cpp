@@ -35,7 +35,9 @@ using asio::ip::tcp;
 #endif
 #ifdef MASTER
 extern std::vector<tcp::socket> master_sockets;
-extern std::vector<child_node_stats> slave_stats;
+extern std::unique_ptr<child_node_stats[]> slave_stats_tmp;
+extern std::unique_ptr<child_node_stats[]> slave_stats;
+extern std::mutex slave_mutex;
 #endif
 #ifdef SLAVE
 extern tcp::socket slave_socket;
@@ -1387,6 +1389,13 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 	if (depth > 0)
 		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
 
+#ifdef MASTER
+	if (depth == 0) {
+		std::lock_guard<std::mutex> lock(slave_mutex);
+		std::memcpy(slave_stats.get(), slave_stats_tmp.get(), sizeof(child_node_stats) * master_sockets.size());
+	}
+#endif
+
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].index != NOT_EXPANDED) {
@@ -1407,10 +1416,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 #ifdef MASTER
 		// スレーブの統計を合計する
 		if (depth == 0) {
-			for (auto& slave_stat : slave_stats) {
-				if (slave_stat.ply == pos->gamePly()) {
-					win += slave_stat.child[i].win;
-					move_count += slave_stat.child[i].move_count;
+			for (int j = 0; j < master_sockets.size(); ++j) {
+				if (slave_stats[j].ply == pos->gamePly()) {
+					win += slave_stats[j].child[i].win;
+					move_count += slave_stats[j].child[i].move_count;
 				}
 			}
 		}

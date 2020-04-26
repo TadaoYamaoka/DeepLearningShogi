@@ -22,7 +22,9 @@ asio::io_service io_service;
 #endif
 #ifdef MASTER
 std::vector<tcp::socket> master_sockets;
-std::vector<child_node_stats> slave_stats;
+std::unique_ptr<child_node_stats[]> slave_stats_tmp;
+std::unique_ptr<child_node_stats[]> slave_stats;
+std::mutex slave_mutex;
 #endif
 #ifdef SLAVE
 tcp::socket slave_socket(io_service);
@@ -100,7 +102,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			return;
 		}
 	}
-	slave_stats.resize(master_sockets.size());
+	slave_stats_tmp.reset(new child_node_stats[master_sockets.size()]);
+	slave_stats.reset(new child_node_stats[master_sockets.size()]);
 	std::vector<std::unique_ptr<std::thread>> th_stats;
 	argc = 1;
 #elif defined(SLAVE)
@@ -299,12 +302,17 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					while (true) {
 						// 受信
 						boost::system::error_code error;
-						size_t len = asio::read(master_socket, asio::buffer(&slave_stats[i], sizeof(child_node_stats)), asio::transfer_exactly(sizeof(child_node_stats)), error);
+						child_node_stats stat;
+						size_t len = asio::read(master_socket, asio::buffer(&stat, sizeof(child_node_stats)), asio::transfer_exactly(sizeof(child_node_stats)), error);
 						if (len != sizeof(child_node_stats)) {
-							std::cout << error.message() << std::endl;
+							if (error != boost::asio::error::interrupted)
+								std::cout << error.message() << std::endl;
 							return;
 						}
-						//std::cout << slave_stats[i].ply << std::endl;
+						{
+							std::lock_guard<std::mutex> lock(slave_mutex);
+							std::memcpy(&slave_stats_tmp[i], &stat, sizeof(child_node_stats));
+						}
 					}
 			}));
 	};
