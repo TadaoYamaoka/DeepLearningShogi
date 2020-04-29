@@ -1432,6 +1432,7 @@ CalculateNextPlayouts(const Position *pos)
 			divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
 		}
 		time_limit = remaining_time[color] / divisor + inc_time[color];
+		// 秒読みの場合、秒読み時間未満にしない
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
 			time_limit < const_thinking_time) {
 			time_limit = const_thinking_time;
