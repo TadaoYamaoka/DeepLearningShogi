@@ -10,7 +10,7 @@
 
 constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
-constexpr double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
+constexpr double CONST_TIME = 5.0;          // 1手あたりの思考時間(デフォルト)
 constexpr int PLAYOUT_SPEED = 5000;         // 初期盤面におけるプレイアウト速度
 
 // 候補手の最大数(盤上全体)

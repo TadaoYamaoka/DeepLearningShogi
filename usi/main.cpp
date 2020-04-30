@@ -18,7 +18,7 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd);
+void go_uct(Position& pos, std::istringstream& ssCmd);
 bool nyugyoku(const Position& pos);
 void make_book(std::istringstream& ssCmd);
 
@@ -51,7 +51,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	std::string cmd;
 	std::string token;
 	std::thread th;
-	std::string prevPosCmd;
 
 	for (int i = 1; i < argc; ++i)
 		cmd += std::string(argv[i]) + " ";
@@ -79,28 +78,23 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			std::cout << "bestmove resign" << std::endl;
 		}
 		else if (token == "ponderhit" || token == "go") {
-			if (token == "ponderhit") {
-				StopUctSearch();
-				if (th.joinable())
-					th.join();
-				// 確率的なPonderの場合
-				if (pos.searcher()->options["Stochastic_Ponder"]) {
-					// 局面を戻す
-					std::istringstream ssTmpCmd(prevPosCmd);
-					setPosition(pos, ssTmpCmd);
-				}
-			}
-			else {
-				if (th.joinable())
-					th.join();
-			}
-			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &prevPosCmd] {
+			// ponderの探索を停止
+			StopUctSearch();
+			if (th.joinable())
+				th.join();
+
+			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1)] {
 				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd, prevPosCmd);
+				go_uct(pos, ssCmd);
 			});
 		}
 		else if (token == "position") {
-			prevPosCmd = cmd.substr((size_t)ssCmd.tellg() + 1);
+			// 確率的なPonderの探索を停止
+			// 探索中にsetPositionを行うとStateInfoが壊れるため、探索を停止してから変更する必要がある
+			StopUctSearch();
+			if (th.joinable())
+				th.join();
+
 			setPosition(pos, ssCmd);
 		}
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
@@ -169,7 +163,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// PonderingMode
 			if (GetMode() != CONST_PLAYOUT_MODE)
-				SetPonderingMode(options["USI_Ponder"]);
+				SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -184,7 +178,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPosCmd) {
+void go_uct(Position& pos, std::istringstream& ssCmd) {
 	LimitsType limits;
 	std::string token;
 
@@ -218,12 +212,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
 	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
 
-	// 確率的なPonder
-	if (limits.ponder && pos.searcher()->options["Stochastic_Ponder"]) {
-		// 相手局面から探索
-		std::istringstream ssTmpCmd(prevPosCmd.substr(0, prevPosCmd.rfind(" ")));
-		setPosition(pos, ssTmpCmd);
-	}
+	Move ponderMove = Move::moveNone();
 
 	// Book使用
 	static Book book;
@@ -235,7 +224,17 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 				<< " pv " << std::get<0>(bookMoveScore).toUSI()
 				<< std::endl;
 
-			std::cout << "bestmove " << std::get<0>(bookMoveScore).toUSI() << std::endl;
+			auto move = std::get<0>(bookMoveScore);
+			std::cout << "bestmove " << move.toUSI() << std::endl;
+
+			// 確率的なPonderの場合、相手局面から探索を継続する
+			if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+				StateInfo st;
+				pos.doMove(move, st);
+				pos.setStartPosPly(pos.gamePly() + 1);
+
+				UctSearchGenmove(&pos, ponderMove, true);
+			}
 			return;
 		}
 	}
@@ -264,7 +263,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 	}
 
 	// UCTによる探索
-	Move ponderMove = Move::moveNone();
 	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
 
 	// Ponderの場合、結果を返さない
@@ -301,9 +299,21 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& prevPos
 		return;
 	}
 	std::cout << "bestmove " << move.toUSI();
-	if (ponderMove != Move::moveNone())
-		std::cout << " ponder " << ponderMove.toUSI();
-	std::cout << std::endl;
+	// 確率的なPonderの場合、ponderを返さない
+	if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+		std::cout << std::endl;
+
+		// 相手局面から探索を継続する
+		StateInfo st;
+		pos.doMove(move, st);
+		pos.setStartPosPly(pos.gamePly() + 1);
+
+		UctSearchGenmove(&pos, ponderMove, true);
+	}
+	else if (ponderMove != Move::moveNone())
+		std::cout << " ponder " << ponderMove.toUSI() << std::endl;
+	else
+		std::cout << std::endl;
 }
 
 struct child_node_t_copy {
