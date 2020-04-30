@@ -96,7 +96,11 @@ double time_limit;
 // ハッシュの再利用
 bool reuse_subtree = true;
 
+// 思考開始時刻
 game_clock::time_point begin_time;
+// 探索スレッドの思考開始時刻
+game_clock::time_point search_begin_time;
+atomic<bool> init_search_begin_time;
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -568,6 +572,10 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	Move move;
 	double finish_time;
 
+	// 探索開始時刻の記録
+	begin_time = game_clock::now();
+	init_search_begin_time = false;
+
 	// ルート局面をグローバル変数に保存
 	pos_root = pos;
 
@@ -582,9 +590,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	else {
 		uct_hash.ClearUctHash();
 	}
-
-	// 探索開始時刻の記録
-	begin_time = game_clock::now();
 
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
@@ -631,11 +636,13 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 時間延長を行う設定になっていて,
 	// 探索時間延長をすべきときは
 	// 探索回数を1.5倍に増やす
-	if (pos->gamePly() > 20 &&
+	if (!pondering &&
+		!uct_search_stop &&
+		pos->gamePly() > 20 &&
 		extend_time &&
-		time_limit > const_thinking_time * 1.5 &&
+		remaining_time[pos->turn()] > time_limit * 1.5 &&
 		ExtendTime()) {
-		if (debug_message) cout << "ExtendTime" << endl;
+		cout << "ExtendTime" << endl;
 		po_info.halt = (int)(1.5 * po_info.halt);
 		time_limit *= 1.5;
 		// 探索スレッド開始
@@ -923,7 +930,7 @@ InterruptionCheck(void)
 		return uct_search_stop;
 
 	if (mode != CONST_PLAYOUT_MODE && po_info.halt < 0) {
-		const auto spend_time = GetSpendTime(begin_time);
+		const auto spend_time = GetSpendTime(search_begin_time);
 		// ハッシュの状況によってはすぐに返せる場合があるが、速度計測のため1/10は探索する
 		if (spend_time * 10.0 < time_limit)
 			return false;
@@ -933,7 +940,7 @@ InterruptionCheck(void)
 		po_info.num = (int)(po_per_sec * time_limit);
 		const int rest_uct_hash = uct_hash.GetRestUctHash();
 		if (po_info.num > rest_uct_hash) {
-			po_info.halt = rest_uct_hash;
+			po_info.halt = rest_uct_hash + po_info.count;
 		}
 		else {
 			po_info.halt = po_info.num;
@@ -959,7 +966,7 @@ InterruptionCheck(void)
 
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	if (max - second > rest) {
+	if (max - second >= rest) {
 		return true;
 	}
 	else {
@@ -1023,6 +1030,9 @@ UCTSearcher::ParallelUctSearch()
 
 	bool interruption = false;
 	bool enough_size = true;
+
+	if (!init_search_begin_time.exchange(true))
+		search_begin_time = game_clock::now();
 
 	// 探索経路のバッチ
 	vector<vector<pair<unsigned int, unsigned int>>> trajectories_batch;
@@ -1425,6 +1435,7 @@ CalculateNextPlayouts(const Position *pos)
 			divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
 		}
 		time_limit = remaining_time[color] / divisor + inc_time[color];
+		// 秒読みの場合、秒読み時間未満にしない
 		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
 			time_limit < const_thinking_time) {
 			time_limit = const_thinking_time;
