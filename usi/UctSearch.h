@@ -26,10 +26,10 @@ constexpr int VIRTUAL_LOSS = 1;
 
 extern float c_init;
 extern float c_base;
-extern float c_fpu;
+extern float c_fpu_reduction;
 extern float c_init_root;
 extern float c_base_root;
-extern float c_fpu_root;
+extern float c_fpu_reduction_root;
 
 enum SEARCH_MODE {
 	CONST_PLAYOUT_MODE,             // 1手のプレイアウト回数を固定したモード
