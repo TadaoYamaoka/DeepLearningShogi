@@ -195,12 +195,24 @@ def kifu_line(kifu, board, move_usi, sec, sec_sum, info):
         kifu.write(comment + '\n')
 
 def objective(trial):
-    C_init = trial.suggest_int('C_init', 80, 180)
-    C_base = trial.suggest_int('C_base', 20000, 50000)
-    C_fpu = trial.suggest_int('C_fpu', 0, 100)
-    Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 80, 180)
+    if trial.number == 0:
+        C_init = trial.suggest_int('C_init', 118, 118)
+        C_base = trial.suggest_int('C_base', 37903, 37903)
+        C_fpu_reduction = trial.suggest_int('C_fpu_reduction', 27, 27)
+        C_init_root = trial.suggest_int('C_init_root', 161, 161)
+        C_base_root = trial.suggest_int('C_base_root', 32767, 32767)
+        C_fpu_reduction_root = trial.suggest_int('C_fpu_reduction_root', 0, 0)
+        Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 179, 179)
+    else:
+        C_init = trial.suggest_int('C_init', 100, 200)
+        C_base = trial.suggest_int('C_base', 25000, 50000)
+        C_fpu_reduction = trial.suggest_int('C_fpu_reduction', 0, 40)
+        C_init_root = trial.suggest_int('C_init_root', 100, 200)
+        C_base_root = trial.suggest_int('C_base_root', 25000, 50000)
+        C_fpu_reduction_root = trial.suggest_int('C_fpu_reduction_root', 0, 40)
+        Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 120, 200)
 
-    logging.info('C_init = {}, C_base = {}, C_fpu = {}, Softmax_Temperature = {}'.format(C_init, C_base, C_fpu, Softmax_Temperature))
+    logging.info('C_init = {}, C_base = {}, C_fpu_reduction = {}, C_init_root = {}, C_base_root = {}, C_fpu_reduction_root = {}, Softmax_Temperature = {}'.format(C_init, C_base, C_fpu_reduction, C_init_root, C_base_root, C_fpu_reduction_root, Softmax_Temperature))
 
     win_count = 0
     draw_count = 0
@@ -239,7 +251,10 @@ def objective(trial):
             if n % 2 == i:
                 p.stdin.write(b'setoption name C_init value ' + str(C_init).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name C_base value ' + str(C_base).encode('ascii') + b'\n')
-                p.stdin.write(b'setoption name C_fpu value ' + str(C_fpu).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_fpu_reduction value ' + str(C_fpu_reduction).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_init_root value ' + str(C_init_root).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_base_root value ' + str(C_base_root).encode('ascii') + b'\n')
+                p.stdin.write(b'setoption name C_fpu_reduction_root value ' + str(C_fpu_reduction_root).encode('ascii') + b'\n')
                 p.stdin.write(b'setoption name Softmax_Temperature value ' + str(Softmax_Temperature).encode('ascii') + b'\n')
 
             p.stdin.write(b'usi\n')
