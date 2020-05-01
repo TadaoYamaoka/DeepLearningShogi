@@ -114,10 +114,10 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
     (*this)["C_init"]                      = USIOption(107, 0, 500);
     (*this)["C_base"]                      = USIOption(36465, 10000, 100000);
-    (*this)["C_fpu"]                       = USIOption(26, 0, 100);
+    (*this)["C_fpu_reduction"]             = USIOption(26, 0, 100);
     (*this)["C_init_root"]                 = USIOption(162, 0, 500);
     (*this)["C_base_root"]                 = USIOption(31962, 10000, 100000);
-    (*this)["C_fpu_root"]                  = USIOption(37, 0, 100);
+    (*this)["C_fpu_reduction_root"]        = USIOption(37, 0, 100);
     (*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
