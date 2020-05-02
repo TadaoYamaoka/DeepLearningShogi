@@ -422,8 +422,6 @@ void NewGame()
 
 void GameOver()
 {
-	delete[] search_groups;
-	delete[] mutex_nodes;
 }
 
 // 投了の閾値設定（1000分率）
@@ -633,7 +631,8 @@ InitializeSearchSetting(void)
 void
 FinalizeUctSearch(void)
 {
-
+	delete[] search_groups;
+	delete[] mutex_nodes;
 }
 
 void
