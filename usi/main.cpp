@@ -69,7 +69,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				th.join();
 			FinalizeUctSearch();
 		}
-		if (token == "gameover") {
+		else if (token == "gameover") {
 			StopUctSearch();
 			GameOver();
 		}
