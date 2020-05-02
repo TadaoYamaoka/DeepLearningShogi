@@ -766,7 +766,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		}
 
 		if (!pondering) {
-			cout << "info nps " << int((uct_node[current_root].move_count - pre_simulated) / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+			cout << "info nps " << int(po_info.count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
 			remaining_time[pos->turn()] -= finish_time;
 		}
