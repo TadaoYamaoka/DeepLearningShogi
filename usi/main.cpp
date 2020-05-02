@@ -62,11 +62,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 		ssCmd >> std::skipws >> token;
 
-		if (token == "quit" || token == "gameover") {
+		if (token == "quit") {
 			StopUctSearch();
 			TerminateUctSearch();
 			if (th.joinable())
 				th.join();
+			FinalizeUctSearch();
+		}
+		if (token == "gameover") {
+			StopUctSearch();
 			GameOver();
 		}
 		else if (token == "stop") {
