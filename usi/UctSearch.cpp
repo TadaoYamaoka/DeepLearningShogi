@@ -210,7 +210,9 @@ public:
 	}
 	void Run();
 	void Join();
+#ifdef THREAD_POOL
 	void Term();
+#endif
 
 	// GPUID
 	int gpu_id;
@@ -237,8 +239,10 @@ public:
 		thread_id(thread_id),
 		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
 		handle(nullptr),
+#ifdef THREAD_POOL
 		ready_th(true),
 		term_th(false),
+#endif
 		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
 		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
@@ -261,6 +265,7 @@ public:
 	}
 
 	void Run() {
+#ifdef THREAD_POOL
 		if (handle == nullptr) {
 			handle = new thread([this]() {
 				// スレッドにGPUIDを関連付けてから初期化する
@@ -284,12 +289,27 @@ public:
 			ready_th = true;
 			cond_th.notify_all();
 		}
+#else
+		handle = new thread([this]() {
+			// スレッドにGPUIDを関連付けてから初期化する
+			cudaSetDevice(grp->gpu_id);
+			grp->InitGPU();
+
+			this->ParallelUctSearch();
+		});
+#endif
 	}
 	// スレッド終了待機
 	void Join() {
+#ifdef THREAD_POOL
 		std::unique_lock<std::mutex> lk(mtx_th);
 		cond_th.wait(lk, [this] { return ready_th == false || term_th; });
+#else
+		handle->join();
+		delete handle;
+#endif
 	}
+#ifdef THREAD_POOL
 	// スレッドを終了
 	void Term() {
 		term_th = true;
@@ -298,6 +318,7 @@ public:
 		handle->join();
 		delete handle;
 	}
+#endif
 
 private:
 	// UCT探索
@@ -320,11 +341,13 @@ private:
 	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
+#ifdef THREAD_POOL
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
 	bool ready_th;
 	bool term_th;
+#endif
 
 	int policy_value_batch_maxsize;
 	features1_t* features1;
@@ -399,6 +422,8 @@ void NewGame()
 
 void GameOver()
 {
+	delete[] search_groups;
+	delete[] mutex_nodes;
 }
 
 // 投了の閾値設定（1000分率）
@@ -467,6 +492,7 @@ UCTSearcherGroup::Join()
 	}
 }
 
+#ifdef THREAD_POOL
 // スレッド終了
 void
 UCTSearcherGroup::Term()
@@ -478,6 +504,7 @@ UCTSearcherGroup::Term()
 		}
 	}
 }
+#endif
 
 //////////////////////
 //  持ち時間の設定  //
@@ -561,11 +588,10 @@ InitializeUctSearch(const unsigned int hash_size)
 //  UCT探索の終了処理
 void TerminateUctSearch()
 {
+#ifdef THREAD_POOL
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Term();
-
-	delete[] search_groups;
-	delete[] mutex_nodes;
+#endif
 }
 
 ////////////////////////
