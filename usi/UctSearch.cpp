@@ -293,6 +293,7 @@ public:
 	// スレッドを終了
 	void Term() {
 		term_th = true;
+		ready_th = false;
 		cond_th.notify_all();
 		handle->join();
 		delete handle;
