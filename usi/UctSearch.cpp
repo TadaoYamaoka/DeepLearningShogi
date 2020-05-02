@@ -288,7 +288,7 @@ public:
 	// スレッド終了待機
 	void Join() {
 		std::unique_lock<std::mutex> lk(mtx_th);
-		cond_th.wait(lk, [this] { return ready_th == false; });
+		cond_th.wait(lk, [this] { return ready_th == false || term_th; });
 	}
 	// スレッドを終了
 	void Term() {
