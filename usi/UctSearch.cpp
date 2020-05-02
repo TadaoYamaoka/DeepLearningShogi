@@ -635,19 +635,19 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 着手が21手以降で,
 	// 時間延長を行う設定になっていて,
 	// 探索時間延長をすべきときは
-	// 探索回数を1.5倍に増やす
+	// 探索回数を2倍に増やす
 	if (!pondering &&
 		!uct_search_stop &&
 		pos->gamePly() > 20 &&
 		extend_time &&
-		remaining_time[pos->turn()] > time_limit * 1.5 &&
+		remaining_time[pos->turn()] > time_limit * 2 &&
 		ExtendTime()) {
-		cout << "ExtendTime" << endl;
-		po_info.halt = (int)(1.5 * po_info.halt);
-		time_limit *= 1.5;
+		po_info.halt *= 2;
+		time_limit *= 2;
 		// 探索スレッド開始
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Run();
+		cout << "ExtendTime" << endl;
 
 		// 探索スレッド終了待機
 		for (int i = 0; i < max_gpu; i++)
@@ -982,6 +982,7 @@ static bool
 ExtendTime(void)
 {
 	int max = 0, second = 0;
+	float max_eval = 0, second_eval = 0;
 	const int child_num = uct_node[current_root].child_num;
 	const child_node_t *uct_child = uct_node[current_root].child;
 
@@ -990,15 +991,17 @@ ExtendTime(void)
 		if (uct_child[i].move_count > max) {
 			second = max;
 			max = uct_child[i].move_count;
+			max_eval = uct_child[i].win / uct_child[i].move_count;
 		}
 		else if (uct_child[i].move_count > second) {
 			second = uct_child[i].move_count;
+			second_eval = uct_child[i].win / uct_child[i].move_count;
 		}
 	}
 
-	// 最善手の探索回数がが次善手の探索回数の
-	// 1.2倍未満なら探索延長
-	if (max < second * 1.2) {
+	// 最善手の探索回数がが次善手の探索回数の1.5倍未満
+	// もしくは、勝率が逆なら探索延長
+	if (max < second * 1.5 || max_eval < second_eval) {
 		return true;
 	}
 	else {
