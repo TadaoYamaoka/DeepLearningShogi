@@ -11,6 +11,7 @@ parser.add_argument('--model', default=r'F:\model\model_rl_val_fused_wideresnet1
 args = parser.parse_args()
 
 engine = Engine(args.engine, debug=True)
+engine.setoption('USI_Ponder', 'false')
 engine.setoption('DNN_Model', args.model)
 engine.setoption('Byoyomi_Margin', '0')
 engine.setoption('UCT_Hash', str(args.hash))
