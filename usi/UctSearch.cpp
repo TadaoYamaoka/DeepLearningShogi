@@ -210,6 +210,7 @@ public:
 	}
 	void Run();
 	void Join();
+	void Term();
 
 	// GPUID
 	int gpu_id;
@@ -235,6 +236,9 @@ public:
 		grp(grp),
 		thread_id(thread_id),
 		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
+		handle(nullptr),
+		ready_th(true),
+		term_th(false),
 		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
 		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
@@ -257,10 +261,39 @@ public:
 	}
 
 	void Run() {
-		handle = new thread([this]() { this->ParallelUctSearch(); });
+		if (handle == nullptr) {
+			handle = new thread([this]() {
+				// スレッドにGPUIDを関連付けてから初期化する
+				cudaSetDevice(grp->gpu_id);
+				grp->InitGPU();
+
+				while (!term_th) {
+					this->ParallelUctSearch();
+
+					ready_th = false;
+					cond_th.notify_all();
+
+					// スレッドを停止しないで待機する
+					std::unique_lock<std::mutex> lk(mtx_th);
+					cond_th.wait(lk, [this] { return ready_th || term_th; });
+				}
+			});
+		}
+		else {
+			// スレッドを再開する
+			ready_th = true;
+			cond_th.notify_all();
+		}
 	}
 	// スレッド終了待機
 	void Join() {
+		std::unique_lock<std::mutex> lk(mtx_th);
+		cond_th.wait(lk, [this] { return ready_th == false; });
+	}
+	// スレッドを終了
+	void Term() {
+		term_th = true;
+		cond_th.notify_all();
 		handle->join();
 		delete handle;
 	}
@@ -278,7 +311,6 @@ private:
 	void QueuingNode(const Position* pos, unsigned int index);
 	// ノードを評価
 	void EvalNode();
-	// スレッド開始
 
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
@@ -287,6 +319,11 @@ private:
 	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
+	// スレッドプール用
+	std::mutex mtx_th;
+	std::condition_variable cond_th;
+	bool ready_th;
+	bool term_th;
 
 	int policy_value_batch_maxsize;
 	features1_t* features1;
@@ -429,6 +466,18 @@ UCTSearcherGroup::Join()
 	}
 }
 
+// スレッド終了
+void
+UCTSearcherGroup::Term()
+{
+	if (threads > 0) {
+		// 探索用スレッド
+		for (int i = 0; i < threads; i++) {
+			searchers[i].Term();
+		}
+	}
+}
+
 //////////////////////
 //  持ち時間の設定  //
 //////////////////////
@@ -511,6 +560,9 @@ InitializeUctSearch(const unsigned int hash_size)
 //  UCT探索の終了処理
 void TerminateUctSearch()
 {
+	for (int i = 0; i < max_gpu; i++)
+		search_groups[i].Term();
+
 	delete[] search_groups;
 	delete[] mutex_nodes;
 }
@@ -1018,10 +1070,6 @@ ExtendTime(void)
 void
 UCTSearcher::ParallelUctSearch()
 {
-	// スレッドにGPUIDを関連付けてから初期化する
-	cudaSetDevice(grp->gpu_id);
-	grp->InitGPU();
-
 	// ルートノードを評価
 	LOCK_EXPAND;
 	if (!uct_node[current_root].evaled) {
