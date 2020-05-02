@@ -40,8 +40,6 @@ int main(int argc, char* argv[]) {
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
-
-	TerminateUctSearch();
 }
 
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
@@ -66,6 +64,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 		if (token == "quit" || token == "gameover") {
 			StopUctSearch();
+			TerminateUctSearch();
 			if (th.joinable())
 				th.join();
 			GameOver();
