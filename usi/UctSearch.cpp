@@ -814,39 +814,39 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 			cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
 		}
 
-		// PV表示
-		string pv = move.toUSI();
-		int depth = 1;
-		{
-			unsigned int best_index = select_index;
-			const child_node_t *best_node = uct_child;
-
-			while (best_node[best_index].index != NOT_EXPANDED) {
-				const int best_node_index = best_node[best_index].index;
-
-				best_node = uct_node[best_node_index].child;
-				max_count = 0;
-				best_index = 0;
-				for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
-					if (best_node[i].move_count > max_count) {
-						best_index = i;
-						max_count = best_node[i].move_count;
-					}
-				}
-
-				// ponderの着手
-				if (pondering_mode && ponderMove == Move::moveNone())
-					ponderMove = best_node[best_index].move;
-
-				if (max_count < 1)
-					break;
-
-				pv += " " + best_node[best_index].move.toUSI();
-				depth++;
-			}
-		}
-
 		if (!pondering) {
+			// PV表示
+			string pv = move.toUSI();
+			int depth = 1;
+			{
+				unsigned int best_index = select_index;
+				const child_node_t *best_node = uct_child;
+
+				while (best_node[best_index].index != NOT_EXPANDED) {
+					const int best_node_index = best_node[best_index].index;
+
+					best_node = uct_node[best_node_index].child;
+					max_count = 0;
+					best_index = 0;
+					for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
+						if (best_node[i].move_count > max_count) {
+							best_index = i;
+							max_count = best_node[i].move_count;
+						}
+					}
+
+					// ponderの着手
+					if (pondering_mode && ponderMove == Move::moveNone())
+						ponderMove = best_node[best_index].move;
+
+					if (max_count < 1)
+						break;
+
+					pv += " " + best_node[best_index].move.toUSI();
+					depth++;
+				}
+			}
+
 			cout << "info nps " << int(po_info.count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
 			remaining_time[pos->turn()] -= finish_time;
