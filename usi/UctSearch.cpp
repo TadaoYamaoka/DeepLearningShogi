@@ -85,7 +85,7 @@ int playout = CONST_PLAYOUT;
 // デフォルトの持ち時間
 double default_remaining_time = ALL_THINKING_TIME;
 
-bool pondering_mode = false;
+PONDERING_MODE pondering_mode = PONDERING_MODE::NO_PONDER;
 
 bool pondering = false;
 
@@ -362,9 +362,18 @@ private:
 //  予測読みの設定  //
 /////////////////////
 void
-SetPonderingMode(bool flag)
+SetPonderingMode(bool usi_ponder, bool stochastic_ponder)
 {
-	pondering_mode = flag;
+	if (usi_ponder) {
+		if (stochastic_ponder)
+			pondering_mode = PONDERING_MODE::STOCHASTIC_PONDER;
+		else
+			pondering_mode = PONDERING_MODE::NORMAL_PONDER;
+	}
+	else {
+		pondering_mode = PONDERING_MODE::NO_PONDER;
+	}
+	
 }
 
 ////////////////////////
@@ -664,7 +673,16 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 	const auto start = chrono::system_clock::now();
 	if (reuse_subtree) {
-		uct_hash.DeleteOldHash(pos);
+		// ハッシュの使用率が50%以上の場合、クリアする
+		// Ponderが有効の場合は、Ponder中のみ実行する
+		if ((pondering_mode == PONDERING_MODE::NO_PONDER || pondering) && uct_hash.GetUctHashUsageRate() >= 500) {
+			std::cout << "delete old hash\n";
+			uct_hash.DeleteOldHash(pos);
+		}
+		else {
+			// 手数が前の一部のノードのみ削除する
+			uct_hash.DeleteBeforHash(pos);
+		}
 	}
 	else {
 		uct_hash.ClearUctHash();
@@ -836,7 +854,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 					}
 
 					// ponderの着手
-					if (pondering_mode && ponderMove == Move::moveNone())
+					if (pondering_mode == PONDERING_MODE::NORMAL_PONDER && ponderMove == Move::moveNone())
 						ponderMove = best_node[best_index].move;
 
 					if (max_count < 1)

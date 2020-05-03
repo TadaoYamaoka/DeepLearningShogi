@@ -38,6 +38,11 @@ enum SEARCH_MODE {
 	TIME_SETTING_WITH_BYOYOMI_MODE, // 持ち時間ありのモード(秒読みあり)
 };
 
+enum PONDERING_MODE {
+	NO_PONDER,
+	NORMAL_PONDER,
+	STOCHASTIC_PONDER,
+};
 
 struct child_node_t {
 	Move move;  // 着手する座標
@@ -78,7 +83,7 @@ extern unsigned int current_root;
 void StopUctSearch(void);
 
 // 予測読みのモードの設定
-void SetPonderingMode(bool flag);
+void SetPonderingMode(bool usi_ponder, bool stochastic_ponder);
 
 // 探索のモードの指定
 void SetMode(enum SEARCH_MODE mode);

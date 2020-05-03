@@ -34,7 +34,8 @@ public:
 	void ClearUctHash();
 
 	// 古いデータの削除
-	void DeleteOldHash(const Position *pos);
+	void DeleteOldHash(const Position* pos);
+	void DeleteBeforHash(const Position *pos);
 
 	// 未使用のインデックスを探す
 	unsigned int SearchEmptyIndex(const unsigned long long hash, const Color color, const int moves);

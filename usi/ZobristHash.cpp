@@ -74,13 +74,15 @@ UctHash::ClearUctHash(void)
 ///////////////////////
 void
 UctHash::delete_hash_recursively(const unsigned int index) {
-	node_hash[index].flag = true;
+	auto& node = node_hash[index];
+	if (node.flag) return;
+	node.flag = true;
 	used++;
 
 	const child_node_t *child_node = uct_node[index].child;
 	for (int i = 0; i < uct_node[index].child_num; i++) {
 		const auto child_index = child_node[i].index;
-		if (child_index != NOT_EXPANDED && node_hash[child_index].flag == false) {
+		if (child_index != NOT_EXPANDED) {
 			delete_hash_recursively(child_index);
 		}
 	}
@@ -102,6 +104,28 @@ UctHash::DeleteOldHash(const Position* pos)
 	}
 
 	enough_size = true;
+}
+
+void
+UctHash::DeleteBeforHash(const Position* pos)
+{
+	// 現在の局面よりも手番が前のエントリを削除する
+	unsigned int ply = pos->gamePly();
+
+	used = 0;
+	for (unsigned int i = 0; i < uct_hash_size; i++) {
+		auto& node = node_hash[i];
+		if (node.flag) {
+			if (node.moves < ply) {
+				node.flag = false;
+			}
+			else {
+				++used;
+			}
+		}
+	}
+
+	enough_size = used <= uct_hash_limit;
 }
 
 //////////////////////////////////////
