@@ -110,7 +110,7 @@ void
 UctHash::DeleteBeforHash(const Position* pos)
 {
 	// 現在の局面よりも手番が前のエントリを削除する
-	unsigned int ply = pos->gamePly();
+	const int ply = (int)pos->gamePly();
 
 	used = 0;
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
