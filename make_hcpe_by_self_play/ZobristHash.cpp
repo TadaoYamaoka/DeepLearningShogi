@@ -76,8 +76,9 @@ UctHash::delete_hash_recursively(const uct_node_t* uct_node, const unsigned int 
 
 	const child_node_t *child_node = uct_node[index].child;
 	for (int i = 0; i < uct_node[index].child_num; i++) {
-		if (child_node[i].index != NOT_EXPANDED && node_hash[child_node[i].index].id == NOT_USE) {
-			delete_hash_recursively(uct_node, child_node[i].index, id);
+		const auto child_index = child_node[i].index;
+		if (child_index != NOT_EXPANDED && node_hash[child_index].id == NOT_USE) {
+			delete_hash_recursively(uct_node, child_index, id);
 		}
 	}
 }
