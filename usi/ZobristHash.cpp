@@ -73,25 +73,37 @@ UctHash::ClearUctHash(void)
 //  古いデータの削除  //
 ///////////////////////
 void
+UctHash::delete_hash_recursively(const unsigned int index) {
+	auto& node = node_hash[index];
+	if (node.flag) return;
+	node.flag = true;
+	used++;
+
+	const child_node_t *child_node = uct_node[index].child;
+	for (int i = 0; i < uct_node[index].child_num; i++) {
+		const auto child_index = child_node[i].index;
+		if (child_index != NOT_EXPANDED) {
+			delete_hash_recursively(child_index);
+		}
+	}
+}
+
+void
 UctHash::DeleteOldHash(const Position* pos)
 {
-	// 現在の局面よりも手番が前のエントリを削除する
-	const int ply = (int)pos->gamePly();
+	// 現在の局面をルートとする局面以外を削除する
+	unsigned int root = FindSameHashIndex(pos->getKey(), pos->gamePly());
 
 	used = 0;
 	for (unsigned int i = 0; i < uct_hash_size; i++) {
-		auto& node = node_hash[i];
-		if (node.flag) {
-			if (node.moves < ply) {
-				node.flag = false;
-			}
-			else {
-				++used;
-			}
-		}
+		node_hash[i].flag = false;
 	}
 
-	enough_size = used <= uct_hash_limit;
+	if (root != NOT_FOUND) {
+		delete_hash_recursively(root);
+	}
+
+	enough_size = true;
 }
 
 //////////////////////////////////////
