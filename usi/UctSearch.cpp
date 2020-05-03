@@ -676,12 +676,12 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 		// ハッシュの使用率が50%以上の場合、クリアする
 		// Ponderが有効の場合は、Ponder中のみ実行する
 		if ((pondering_mode == PONDERING_MODE::NO_PONDER || pondering) && uct_hash.GetUctHashUsageRate() >= 500) {
-			std::cout << "delete old hash\n";
-			uct_hash.DeleteOldHash(pos);
+			std::cout << "clear hash\n";
+			uct_hash.ClearUctHash();
 		}
 		else {
 			// 手数が前の一部のノードのみ削除する
-			uct_hash.DeleteBeforHash(pos);
+			uct_hash.DeleteOldHash(pos);
 		}
 	}
 	else {
