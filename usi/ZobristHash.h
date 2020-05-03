@@ -73,5 +73,5 @@ private:
 	}
 
 	// 古いハッシュの削除
-	void delete_hash_recursively(Position &pos, const unsigned int index);
+	void delete_hash_recursively(const unsigned int index);
 };
