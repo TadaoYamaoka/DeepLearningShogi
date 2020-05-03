@@ -662,15 +662,12 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	// 探索情報をクリア
 	po_info.count = 0;
 
-	const auto start = chrono::system_clock::now();
 	if (reuse_subtree) {
 		uct_hash.DeleteOldHash(pos);
 	}
 	else {
 		uct_hash.ClearUctHash();
 	}
-	const auto end = chrono::system_clock::now();
-	std::cout << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "\n";
 
 	// UCTの初期化
 	current_root = ExpandRoot(pos);
