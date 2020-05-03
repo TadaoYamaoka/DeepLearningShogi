@@ -70,17 +70,14 @@ UctHash::ClearUctHash(const int id)
 //  古いデータの削除  //
 ///////////////////////
 void
-UctHash::delete_hash_recursively(Position &pos, const uct_node_t* uct_node, const unsigned int index, const int id) {
+UctHash::delete_hash_recursively(const uct_node_t* uct_node, const unsigned int index, const int id) {
 	node_hash[index].id = id;
 	used++;
 
 	const child_node_t *child_node = uct_node[index].child;
 	for (int i = 0; i < uct_node[index].child_num; i++) {
 		if (child_node[i].index != NOT_EXPANDED && node_hash[child_node[i].index].id == NOT_USE) {
-			StateInfo st;
-			pos.doMove(child_node[i].move, st);
-			delete_hash_recursively(pos, uct_node, child_node[i].index, id);
-			pos.undoMove(child_node[i].move);
+			delete_hash_recursively(uct_node, child_node[i].index, id);
 		}
 	}
 }
@@ -99,9 +96,7 @@ UctHash::DeleteOldHash(const Position* pos, const uct_node_t* uct_node, const in
 		}
 	}
 
-	// 盤面のコピー
-	Position pos_copy(*pos);
-	delete_hash_recursively(pos_copy, uct_node, root, id);
+	delete_hash_recursively(uct_node, root, id);
 
 	enough_size = true;
 }

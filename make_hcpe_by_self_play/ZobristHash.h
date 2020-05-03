@@ -68,5 +68,5 @@ private:
 	}
 
 	//  古いデータの削除
-	void delete_hash_recursively(Position &pos, const uct_node_t* uct_node, const unsigned int index, const int id);
+	void delete_hash_recursively(const uct_node_t* uct_node, const unsigned int index, const int id);
 };
