@@ -74,13 +74,15 @@ UctHash::ClearUctHash(void)
 ///////////////////////
 void
 UctHash::delete_hash_recursively(const unsigned int index) {
-	node_hash[index].flag = true;
+	auto& node = node_hash[index];
+	if (node.flag) return;
+	node.flag = true;
 	used++;
 
 	const child_node_t *child_node = uct_node[index].child;
 	for (int i = 0; i < uct_node[index].child_num; i++) {
 		const auto child_index = child_node[i].index;
-		if (child_index != NOT_EXPANDED && node_hash[child_index].flag == false) {
+		if (child_index != NOT_EXPANDED) {
 			delete_hash_recursively(child_index);
 		}
 	}
