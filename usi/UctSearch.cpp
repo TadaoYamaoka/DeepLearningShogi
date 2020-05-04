@@ -587,8 +587,10 @@ InitializeUctSearch(const unsigned int hash_size)
 void TerminateUctSearch()
 {
 #ifdef THREAD_POOL
-	for (int i = 0; i < max_gpu; i++)
-		search_groups[i].Term();
+	if (search_groups) {
+		for (int i = 0; i < max_gpu; i++)
+			search_groups[i].Term();
+	}
 #endif
 }
 
