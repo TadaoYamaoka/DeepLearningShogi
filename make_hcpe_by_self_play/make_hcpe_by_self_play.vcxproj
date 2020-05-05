@@ -260,7 +260,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\usi\fastmath.h" />
-    <ClInclude Include="..\usi\LruCache.h" />
+    <ClInclude Include="LruCache.h" />
     <ClInclude Include="UctSearch.h" />
     <ClInclude Include="USIEngine.h" />
     <ClInclude Include="ZobristHash.h" />
