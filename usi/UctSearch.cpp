@@ -875,7 +875,6 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 
 	getPV_from_root(select_index, ponderMove, true);
 	
-	std::cout<<"pn"<<ponderMove.toUSI()<<std::endl;
 	
 	// 探索にかかった時間を求める
 	finish_time = GetSpendTime(begin_time);
