@@ -164,9 +164,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			InitializeSearchSetting();
 
-			// PonderingMode
-			if (GetMode() != CONST_PLAYOUT_MODE)
-				SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
+			SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
