@@ -71,6 +71,8 @@ static bool extend_time = false;
 const Position *pos_root;
 // 現在のルートのインデックス
 unsigned int current_root;
+// ノード数の上限
+extern unsigned int node_max;
 
 unsigned int uct_hash_size;
 mutex* mutex_nodes;
@@ -536,31 +538,6 @@ SetReuseSubtree(bool flag)
 	reuse_subtree = flag;
 }
 
-//////////////////////////////////////
-//  time_settingsコマンドによる設定  //
-//////////////////////////////////////
-void
-SetTimeSettings(int main_time, int byoyomi, int stone)
-{
-	if (main_time == 0) {
-		const_thinking_time = (double)byoyomi * 0.85;
-		mode = CONST_TIME_MODE;
-		cerr << "Const Thinking Time Mode" << endl;
-	}
-	else {
-		if (byoyomi == 0) {
-			default_remaining_time = main_time;
-			mode = TIME_SETTING_MODE;
-			cerr << "Time Setting Mode" << endl;
-		}
-		else {
-			default_remaining_time = main_time;
-			const_thinking_time = ((double)byoyomi) / stone;
-			mode = TIME_SETTING_WITH_BYOYOMI_MODE;
-			cerr << "Time Setting Mode (byoyomi)" << endl;
-		}
-	}
-}
 
 /////////////////////////
 //  UCT探索の初期設定  //

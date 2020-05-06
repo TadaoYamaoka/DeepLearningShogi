@@ -73,6 +73,8 @@ extern uct_node_t *uct_node;
 // 現在のルートのインデックス
 extern unsigned int current_root;
 
+// ノード数の上限
+extern unsigned int node_max;
 
 // 予測読みを止める
 void StopUctSearch(void);
@@ -99,8 +101,6 @@ void SetTime(double time);
 void SetRemainingTime(double time, Color c);
 void SetIncTime(double time, Color c);
 
-// time_settingsコマンドによる設定
-void SetTimeSettings(int main_time, int byoyomi, int stones);
 
 // 投了の閾値設定（1000分率）
 void SetResignThreshold(const int resign_threshold);
