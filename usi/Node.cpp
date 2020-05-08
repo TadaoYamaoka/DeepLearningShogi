@@ -67,7 +67,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
     // ˆê‚Â‚ğc‚µ‚Äíœ‚·‚é
     bool found = false;
-    for (size_t i = 0; i < child_num; ++i) {
+    for (int i = 0; i < child_num; ++i) {
         auto& uct_child = child[i];
         if (uct_child.move == move) {
             found = true;
@@ -101,7 +101,8 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 
 uct_node_t* child_node_t::ExpandNode(const Position* pos)
 {
-    node = std::make_unique<uct_node_t>(MoveList<Legal>(*pos));
+    MoveList<Legal> ml(*pos);
+    node = std::make_unique<uct_node_t>(ml);
     return node.get();
 }
 
