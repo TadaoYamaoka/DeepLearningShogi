@@ -855,8 +855,10 @@ static void
 ExpandRoot(const Position *pos)
 {
 	uct_node_t* current_head = tree->GetCurrentHead();
-	if (current_head->child_num == 0)
-		current_head->CreateChildNode(MoveList<Legal>(*pos));
+	if (current_head->child_num == 0) {
+		MoveList<Legal> ml(*pos);
+		current_head->CreateChildNode(ml);
+	}
 }
 
 
@@ -1044,7 +1046,7 @@ UCTSearcher::ParallelUctSearch()
 		// 探索を打ち切るか確認
 		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
 		// UCTノードに余裕があるか確認
-		if (current_root->move_count >= uct_node_limit) break;
+		if ((unsigned int)current_root->move_count >= uct_node_limit) break;
 	} while (!InterruptionCheck());
 
 	return;
