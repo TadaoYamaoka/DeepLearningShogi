@@ -1036,7 +1036,14 @@ UCTSearcher::ParallelUctSearch()
 				child_node_t* uct_child = current->child.get();
 				if ((size_t)i == trajectories.size() - 1) {
 					const uct_node_t* child_node = uct_child[next_index].node.get();
-					result = 1.0f - child_node->value_win;
+					const float value_win = child_node->value_win;
+					// 他スレッドの詰みの伝播によりvalue_winがVALUE_WINまたはVALUE_LOSEに上書きされる場合があるためチェックする
+					if (value_win == VALUE_WIN)
+						result = 0.0f;
+					else if (value_win == VALUE_LOSE)
+						result = 1.0f;
+					else
+						result = 1.0f - value_win;
 				}
 				UpdateResult(&uct_child[next_index], result, current);
 				result = 1.0f - result;
