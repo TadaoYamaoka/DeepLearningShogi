@@ -65,11 +65,10 @@ struct uct_node_t {
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
 	void Lock() {
-		while (lock.test_and_set(std::memory_order_acquire))
-			;
+		mtx.lock();
 	}
 	void UnLock() {
-		lock.clear(std::memory_order_release);
+		mtx.unlock();
 	}
 
 	std::atomic<int> move_count;
@@ -80,7 +79,7 @@ struct uct_node_t {
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
 
-	std::atomic_flag lock = ATOMIC_FLAG_INIT;
+	std::mutex mtx;
 };
 
 class NodeTree {
