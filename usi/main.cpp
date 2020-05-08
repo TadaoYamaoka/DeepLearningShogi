@@ -286,8 +286,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 	dfpn.dfpn_stop(false);
 	std::atomic<bool> dfpn_done(false);
 	bool mate = false;
+	Position pos_copy(pos);
 	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
-		Position pos_copy(pos);
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
 			if (!pos_copy.inCheck()) {
 				mate = dfpn.dfpn(pos_copy);
