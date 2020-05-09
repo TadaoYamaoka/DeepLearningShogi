@@ -997,10 +997,12 @@ UCTSearcher::ParallelUctSearch()
 
 	// 探索経路のバッチ
 	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch;
+	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch_discarded;
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
 		trajectories_batch.clear();
+		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
 
 		// バッチサイズ分探索を繰り返す
@@ -1016,10 +1018,25 @@ UCTSearcher::ParallelUctSearch()
 				// 探索回数を1回増やす
 				atomic_fetch_add(&po_info.count, 1);
 			}
+			else {
+				// 破棄した探索経路を保存
+				trajectories_batch_discarded.emplace_back(trajectories_batch.back());
+			}
 
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
 				trajectories_batch.pop_back();
+			}
+		}
+
+		// 破棄した探索経路のVirtual Lossを戻す
+		for (auto& trajectories : trajectories_batch_discarded) {
+			for (int i = trajectories.size() - 1; i >= 0; i--) {
+				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
+				uct_node_t* current = current_next.first;
+				child_node_t* uct_child = current->child.get();
+				const unsigned int next_index = current_next.second;
+				SubVirtualLoss(&uct_child[next_index], current);
 			}
 		}
 
@@ -1218,8 +1235,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	if (result == QUEUING)
 		return result;
 	else if (result == DISCARDED) {
-		// Virtual Lossを戻す
-		SubVirtualLoss(&uct_child[next_index], current);
+		// Virtual Lossはバッチ完了までそのままにする
 		return result;
 	}
 
