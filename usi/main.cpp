@@ -181,35 +181,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 
 	limits.startTime.restart();
 
-	while (ssCmd >> token) {
-		if (token == "ponder") limits.ponder = true;
-		else if (token == "btime") ssCmd >> limits.time[Black];
-		else if (token == "wtime") ssCmd >> limits.time[White];
-		else if (token == "binc") ssCmd >> limits.inc[Black];
-		else if (token == "winc") ssCmd >> limits.inc[White];
-		else if (token == "infinite") limits.infinite = true;
-		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
-		else if (token == "mate") ssCmd >> limits.mate;
-		else if (token == "depth") ssCmd >> limits.depth;
-		else if (token == "nodes") ssCmd >> limits.nodes;
-		else if (token == "searchmoves") {
-			while (ssCmd >> token)
-				limits.searchmoves.push_back(usiToMove(pos, token));
-		}
-	}
-	if (limits.moveTime != 0) {
-		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-		SetConstTime(limits.moveTime / 1000.0);
-	}
-	else if (pos.searcher()->options["Time_Margin"] != 0)
-		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
-
-	// 持ち時間設定
-	if (limits.time[pos.turn()] > 0)
-		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
-	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
-
 	// 探索開始局面設定
+	// 持ち時間設定よりも前に実行が必要
 	Key starting_pos_key;
 	std::vector<Move> moves;
 	{
@@ -246,6 +219,34 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 		}
 		pos.setStartPosPly(currentPly);
 	}
+
+	while (ssCmd >> token) {
+		if (token == "ponder") limits.ponder = true;
+		else if (token == "btime") ssCmd >> limits.time[Black];
+		else if (token == "wtime") ssCmd >> limits.time[White];
+		else if (token == "binc") ssCmd >> limits.inc[Black];
+		else if (token == "winc") ssCmd >> limits.inc[White];
+		else if (token == "infinite") limits.infinite = true;
+		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
+		else if (token == "mate") ssCmd >> limits.mate;
+		else if (token == "depth") ssCmd >> limits.depth;
+		else if (token == "nodes") ssCmd >> limits.nodes;
+		else if (token == "searchmoves") {
+			while (ssCmd >> token)
+				limits.searchmoves.push_back(usiToMove(pos, token));
+		}
+	}
+	if (limits.moveTime != 0) {
+		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+		SetConstTime(limits.moveTime / 1000.0);
+	}
+	else if (pos.searcher()->options["Time_Margin"] != 0)
+		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+
+	// 持ち時間設定
+	if (limits.time[pos.turn()] > 0)
+		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
+	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
 
 	Move ponderMove = Move::moveNone();
 
