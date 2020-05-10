@@ -40,7 +40,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update -y  && apt-get insta
 RUN wget https://bootstrap.pypa.io/get-pip.py
 RUN python3.7 get-pip.py && rm -f get-pip.py
 
-RUN pip3 install torch chainer && \
+RUN pip3 install torch && \
     rm -r ~/.cache/pip
 
 RUN ln -f -n -s /usr/bin/python3.7 /usr/bin/python
