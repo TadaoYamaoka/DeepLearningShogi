@@ -120,6 +120,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 
     if (!gamebegin_node_) {
         gamebegin_node_ = std::make_unique<uct_node_t>();
+        current_head_ = gamebegin_node_.get();
     }
 
     history_starting_pos_key_ = starting_pos_key;
@@ -139,12 +140,18 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     // ただし、古いヘッドが現れない場合は、以前に検索された位置の祖先である位置がある可能性があることを意味する
     // つまり、古い子が以前にトリミングされていても、current_head_は古いデータを保持する可能性がある
     // その場合、current_head_をリセットする必要がある
-    if (prev_head && !seen_old_head) {
-        assert(prev_head->child_num == 1);
-        auto& prev_uct_child = prev_head->child[0];
-        gNodeGc.AddToGcQueue(std::move(prev_uct_child.node));
-        prev_uct_child.node = std::make_unique<uct_node_t>();
-        current_head_ = prev_uct_child.node.get();
+    if (!seen_old_head && current_head_ != old_head) {
+        if (prev_head) {
+            assert(prev_head->child_num == 1);
+            auto& prev_uct_child = prev_head->child[0];
+            gNodeGc.AddToGcQueue(std::move(prev_uct_child.node));
+            prev_uct_child.node = std::make_unique<uct_node_t>();
+            current_head_ = prev_uct_child.node.get();
+        }
+        else {
+            // 開始局面に戻った場合
+            DeallocateTree();
+        }
     }
     return seen_old_head;
 }
@@ -152,6 +159,6 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 void NodeTree::DeallocateTree() {
     // gamebegin_node_.reset（）と同じだが、実際の割り当て解除はGCスレッドで行われる
     gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
-    gamebegin_node_ = nullptr;
-    current_head_ = nullptr;
+    gamebegin_node_ = std::make_unique<uct_node_t>();
+    current_head_ = gamebegin_node_.get();
 }
