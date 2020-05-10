@@ -128,6 +128,9 @@ inline Move UctSearchGenmoveNoPonder(Position *pos) {
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);
 
+// PV表示間隔設定
+void SetPvInterval(const int interval);
+
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
 
