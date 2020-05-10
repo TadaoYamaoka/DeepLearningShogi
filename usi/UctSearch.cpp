@@ -998,6 +998,8 @@ UCTSearcher::ParallelUctSearch()
 	// 探索経路のバッチ
 	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch;
 	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch_discarded;
+	trajectories_batch.reserve(policy_value_batch_maxsize);
+	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
