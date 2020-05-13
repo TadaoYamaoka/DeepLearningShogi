@@ -277,18 +277,19 @@ public:
 				while (!term_th) {
 					this->ParallelUctSearch();
 
-					ready_th.store(false, std::memory_order_release);
+					std::unique_lock<std::mutex> lk(mtx_th);
+					ready_th = false;
 					cond_th.notify_all();
 
 					// スレッドを停止しないで待機する
-					std::unique_lock<std::mutex> lk(mtx_th);
-					cond_th.wait(lk, [this] { return ready_th.load(std::memory_order_acquire) || term_th.load(std::memory_order_acquire); });
+					cond_th.wait(lk, [this] { return ready_th || term_th; });
 				}
 			});
 		}
 		else {
 			// スレッドを再開する
-			ready_th.store(true, std::memory_order_release);
+			std::unique_lock<std::mutex> lk(mtx_th);
+			ready_th = true;
 			cond_th.notify_all();
 		}
 #else
@@ -305,7 +306,8 @@ public:
 	void Join() {
 #ifdef THREAD_POOL
 		std::unique_lock<std::mutex> lk(mtx_th);
-		cond_th.wait(lk, [this] { return ready_th.load(std::memory_order_acquire) == false || term_th.load(std::memory_order_acquire); });
+		if (ready_th && !term_th)
+			cond_th.wait(lk, [this] { return !ready_th || term_th; });
 #else
 		handle->join();
 		delete handle;
@@ -314,9 +316,12 @@ public:
 #ifdef THREAD_POOL
 	// スレッドを終了
 	void Term() {
-		term_th.store(true, std::memory_order_release);
-		ready_th.store(false, std::memory_order_release);
-		cond_th.notify_all();
+		{
+			std::unique_lock<std::mutex> lk(mtx_th);
+			term_th = true;
+			ready_th = false;
+			cond_th.notify_all();
+		}
 		handle->join();
 		delete handle;
 	}
@@ -347,8 +352,8 @@ private:
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
-	std::atomic<bool> ready_th;
-	std::atomic<bool> term_th;
+	bool ready_th;
+	bool term_th;
 #endif
 
 	int policy_value_batch_maxsize;
