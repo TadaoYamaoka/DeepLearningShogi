@@ -26,6 +26,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="benchmark.py" />
+    <Compile Include="matches.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
     </Compile>
