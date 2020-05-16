@@ -646,12 +646,13 @@ StopUctSearch(void)
 }
 
 
-unsigned int find_best_from_root()
+std::tuple<Move, float, Move> get_and_print_pv()
 {
-	unsigned int select_index = 0;
-	int max_count = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
+
+	unsigned int select_index = 0;
+	int max_count = 0;
 	const int child_num = current_root->child_num;
 	int child_win_count = 0;
 	int child_lose_count = 0;
@@ -687,31 +688,19 @@ unsigned int find_best_from_root()
 			max_count = uct_child[i].move_count;
 		}
 	}
-	return select_index;
-}
 
-float get_win_value_from_root(const unsigned int select_index)
-{
-	const uct_node_t* current_root = tree->GetCurrentHead();
-	const child_node_t* uct_child = current_root->child.get();
 	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
-	const float child_value_win = uct_child[select_index].node->value_win;
 
-	if (child_value_win == VALUE_WIN) {
-		best_wp = 0.0f;
-	}
-	else if (child_value_win == VALUE_LOSE) {
+	// 勝ちの場合
+	if (child_lose_count > 0) {
 		best_wp = 1.0f;
 	}
-	return best_wp;
-}
+	// すべて負けの場合
+	else if (child_win_count == child_num) {
+		best_wp = 0.0f;
+	}
 
-void print_pv(const unsigned int select_index, Move& ponderMove)
-{
-	const float best_wp = get_win_value_from_root(select_index);
-	const uct_node_t* current_root = tree->GetCurrentHead();
-	const child_node_t* uct_child = current_root->child.get();
-	Move move = uct_child[select_index].move;
+	const Move move = uct_child[select_index].move;
 	int cp;
 	if (best_wp == 1.0f) {
 		cp = 30000;
@@ -725,7 +714,7 @@ void print_pv(const unsigned int select_index, Move& ponderMove)
 
 	// PV表示
 	string pv = move.toUSI();
-	int max_count = 0;
+	Move ponderMove = Move::moveNone();
 	int depth = 1;
 	{
 		unsigned int best_index = select_index;
@@ -757,9 +746,11 @@ void print_pv(const unsigned int select_index, Move& ponderMove)
 	}
 
 	// 探索にかかった時間を求める
-	double finish_time = GetSpendTime(begin_time);
+	const double finish_time = GetSpendTime(begin_time);
 
 	cout << "info nps " << int(po_info.count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << current_root->move_count << " hashfull " << current_root->move_count * 1000 / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+
+	return { move, best_wp, ponderMove };
 }
 
 
@@ -769,8 +760,6 @@ void print_pv(const unsigned int select_index, Move& ponderMove)
 Move
 UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder)
 {
-	Move move;
-
 	// 探索開始時刻の記録
 	begin_time = game_clock::now();
 	init_search_begin_time = false;
@@ -854,23 +843,15 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 			search_groups[i].Join();
 	}
 
-	// 探索回数最大の手を見つける
-	const unsigned int select_index = find_best_from_root();
-
-	// 選択した着手の勝率の算出
-	const float best_wp = get_win_value_from_root(select_index);
+	// PV取得と表示
+	Move move;
+	float best_wp;
+	std::tie(move, best_wp, ponderMove) = get_and_print_pv();
 	
 	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();
 	}
-	else {
-		const child_node_t* uct_child = current_root->child.get();
-		move = uct_child[select_index].move;
-	}
 
-	// PV表示
-	print_pv(select_index, ponderMove);
-	
 	// 探索にかかった時間を求める
 	const double finish_time = GetSpendTime(begin_time);
 	remaining_time[pos->turn()] -= finish_time;
@@ -1114,9 +1095,8 @@ UCTSearcher::ParallelUctSearch()
 			if (elapsed_time > last_pv_print + pv_interval) {
 				const unsigned int prev_last_pv_print = last_pv_print.exchange(elapsed_time);
 				if (elapsed_time > prev_last_pv_print + pv_interval) {
-					Move ponderMove;
-					const unsigned int select_index = find_best_from_root();
-					print_pv(select_index, ponderMove);
+					// PV表示
+					get_and_print_pv();
 				}
 			}
 		}
