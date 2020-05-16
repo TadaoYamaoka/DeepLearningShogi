@@ -18,9 +18,8 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
-void go_uct(Position& pos, std::istringstream& ssCmd);
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
 bool nyugyoku(const Position& pos);
-void make_book(std::istringstream& ssCmd);
 
 ns_dfpn::DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -45,6 +44,7 @@ int main(int argc, char* argv[]) {
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::string posCmd("startpos");
 
 	std::string cmd;
 	std::string token;
@@ -85,20 +85,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-
-			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1)] {
+			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &posCmd] {
 				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd);
+				go_uct(pos, ssCmd, posCmd);
 			});
 		}
 		else if (token == "position") {
-			// 確率的なPonderの探索を停止
-			// 探索中にsetPositionを行うとStateInfoが壊れるため、探索を停止してから変更する必要がある
-			StopUctSearch();
-			if (th.joinable())
-				th.join();
-
-			setPosition(pos, ssCmd);
+			// 探索中にsetPositionを行うとStateInfoが壊れるため、探索を停止してから変更する必要があるため、
+			// 文字列の保存のみ行う
+			posCmd = cmd.substr((size_t)ssCmd.tellg() + 1);
 		}
 		else if (token == "usinewgame"); // isready で準備は出来たので、対局開始時に特にする事はない。
 		else if (token == "usi") std::cout << "id name " << std::string(options["Engine_Name"])
@@ -109,7 +104,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			static bool initialized = false;
 			if (!initialized) {
 				// 各種初期化
-				InitializeUctSearch(options["UCT_Hash"]);
+				InitializeUctSearch(options["UCT_NodeLimit"]);
 				const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"], options["DNN_Model5"], options["DNN_Model6"], options["DNN_Model7"], options["DNN_Model8"] };
 				SetModelPath(model_paths);
 				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
@@ -153,7 +148,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetPlayout(1);
 			InitializeSearchSetting();
 			Move ponder;
-			UctSearchGenmove(&pos_tmp, ponder);
+			UctSearchGenmove(&pos_tmp, pos.getKey(), {}, ponder);
 			SetPlayout(CONST_PLAYOUT); // 元に戻す
 			SetMode(search_mode); // 元に戻す
 
@@ -175,18 +170,56 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			std::cout << "readyok" << std::endl;
 		}
 		else if (token == "setoption") setOption(ssCmd);
-		else if (token == "make_book") make_book(ssCmd);
 	} while (token != "quit" && argc == 1);
 
 	if (th.joinable())
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd) {
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
 	LimitsType limits;
 	std::string token;
 
 	limits.startTime.restart();
+
+	// 探索開始局面設定
+	// 持ち時間設定よりも前に実行が必要
+	Key starting_pos_key;
+	std::vector<Move> moves;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		starting_pos_key = pos.getKey();
+
+		Ply currentPly = pos.gamePly();
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.searcher()->states->push_back(StateInfo());
+			pos.doMove(move, pos.searcher()->states->back());
+			++currentPly;
+			moves.emplace_back(move);
+		}
+		pos.setStartPosPly(currentPly);
+	}
 
 	while (ssCmd >> token) {
 		if (token == "ponder") limits.ponder = true;
@@ -237,7 +270,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 				pos.doMove(move, st);
 				pos.setStartPosPly(pos.gamePly() + 1);
 
-				UctSearchGenmove(&pos, ponderMove, true);
+				moves.emplace_back(move);
+				UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
 			}
 			return;
 		}
@@ -267,7 +301,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 	}
 
 	// UCTによる探索
-	Move move = UctSearchGenmove(&pos, ponderMove, limits.ponder);
+	Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, limits.ponder);
 
 	// Ponderの場合、結果を返さない
 	if (limits.ponder)
@@ -312,262 +346,11 @@ void go_uct(Position& pos, std::istringstream& ssCmd) {
 		pos.doMove(move, st);
 		pos.setStartPosPly(pos.gamePly() + 1);
 
-		UctSearchGenmove(&pos, ponderMove, true);
+		moves.emplace_back(move);
+		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
 	}
 	else if (ponderMove != Move::moveNone())
 		std::cout << " ponder " << ponderMove.toUSI() << std::endl;
 	else
 		std::cout << std::endl;
-}
-
-struct child_node_t_copy {
-	Move move;  // 着手する座標
-	int move_count;  // 探索回数
-	float win;         // 勝った回数
-
-	child_node_t_copy(const child_node_t& child) {
-		this->move = child.move;
-		this->move_count = child.move_count;
-		this->win = child.win;
-	}
-};
-
-void make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
-	std::cout << "position startpos moves ";
-	for (Move move : moves) {
-		std::cout << move.toUSI() << " ";
-	}
-	std::cout << std::endl;
-
-	// UCT探索を使用
-	UctSearchGenmoveNoPonder(&pos);
-
-	if (uct_node[current_root].child_num == 0) {
-		std::cerr << "Error: child_num" << std::endl;
-		exit(EXIT_FAILURE);
-	}
-
-	// 探索回数で降順ソート
-	std::vector<child_node_t_copy> movelist;
-	int num = 0;
-	const child_node_t *uct_child = uct_node[current_root].child;
-	for (int i = 0; i < uct_node[current_root].child_num; i++) {
-		movelist.emplace_back(uct_child[i]);
-		if (double(uct_child[i].move_count) / uct_node[current_root].move_count > 0.1) { // 閾値
-			num++;
-		}
-	}
-	if (num == 0) {
-		num = (uct_node[current_root].child_num + 2) / 3;
-	}
-
-	std::cout << "movelist.size: " << num << std::endl;
-
-	std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
-		return left.move_count > right.move_count;
-	});
-
-	for (int i = 0; i < num; i++) {
-		auto &child = movelist[i];
-		// 定跡追加
-		BookEntry be;
-		float wintrate = child.win / child.move_count;
-		be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
-		be.key = key;
-		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
-		be.count = (u16)((double)child.move_count / (double)uct_node[current_root].move_count * 1000.0);
-		outMap[key].emplace_back(be);
-
-		count++;
-	}
-}
-
-// 定跡作成(再帰処理)
-void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, std::vector<Move> &moves) {
-	pos.setStartPosPly(depth + 1);
-	const Key key = Book::bookKey(pos);
-	if ((depth % 2 == 0) == isBlack) {
-
-		if (outMap.find(key) == outMap.end()) {
-			// 先端ノード
-			// UCT探索で定跡作成
-			make_book_entry_with_uct(pos, key, outMap, count, moves);
-		}
-		else {
-			// 探索済みの場合
-			{
-				// 最上位の手を選択
-				// (定跡の幅を広げたい場合は確率的に選択するように変更する)
-				auto entry = outMap[key][0];
-
-				Move move = move16toMove(Move(entry.fromToPro), pos);
-
-				StateInfo state;
-				pos.doMove(move, state);
-				// 繰り返しになる場合、別の手を選ぶ
-				if (outMap[key].size() >= 2 && pos.isDraw() == RepetitionDraw) {
-					pos.undoMove(move);
-					entry = outMap[key][1];
-					move = move16toMove(Move(entry.fromToPro), pos);
-					pos.doMove(move, state);
-				}
-
-				moves.emplace_back(move);
-
-				// 次の手を探索
-				make_book_inner(pos, bookMap, outMap, count, depth + 1, isBlack, moves);
-
-				pos.undoMove(move);
-			}
-		}
-	}
-	else {
-		// 定跡を使用
-		std::vector<BookEntry> *entries;
-
-		// 局面が定跡にあるか確認
-		auto itr = bookMap.find(key);
-		if (itr != bookMap.end()) {
-			entries = &itr->second;
-		}
-		else {
-			// 定跡にない場合、探索結果を使う
-			itr = outMap.find(Book::bookKey(pos));
-
-			if (itr == outMap.end()) {
-				// 定跡になく未探索の局面の場合
-				// UCT探索で定跡作成
-				make_book_entry_with_uct(pos, key, outMap, count, moves);
-			}
-
-			entries = &outMap[key];
-		}
-
-		// 確率的に手を選択
-		std::vector<double> probabilities;
-		for (auto& entry : *entries) {
-			probabilities.emplace_back(entry.count);
-		}
-		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-		size_t selected = dist(g_randomTimeSeed);
-
-		Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
-
-		StateInfo state;
-		pos.doMove(move, state);
-		moves.emplace_back(move);
-
-		// 次の手を探索
-		make_book_inner(pos, bookMap, outMap, count, depth + 1, isBlack, moves);
-
-		pos.undoMove(move);
-	}
-}
-
-// 定跡読み込み
-void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
-	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
-	if (!ifs) {
-		std::cerr << "Error: cannot open " << bookFileName << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	BookEntry entry;
-	size_t count = 0;
-	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-		count++;
-		auto itr = bookMap.find(entry.key);
-		if (itr != bookMap.end()) {
-			// すでにある場合、追加
-			itr->second.emplace_back(entry);
-		}
-		else {
-			bookMap[entry.key].emplace_back(entry);
-		}
-	}
-	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
-}
-
-// 定跡作成
-void make_book(std::istringstream& ssCmd) {
-	// isreadyを先に実行しておくこと。
-
-	std::string bookFileName;
-	std::string outFileName;
-	int playoutNum;
-	int limitTrialNum;
-
-	ssCmd >> bookFileName;
-	ssCmd >> outFileName;
-	ssCmd >> playoutNum;
-	ssCmd >> limitTrialNum;
-
-	// プレイアウト数固定
-	SetMode(CONST_PLAYOUT_MODE);
-	SetPlayout(playoutNum);
-	InitializeSearchSetting();
-	SetReuseSubtree(false);
-
-	// outFileが存在するときは追加する
-	int input_num = 0;
-	std::map<Key, std::vector<BookEntry> > outMap;
-	{
-		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
-		if (ifsOutFile) {
-			BookEntry entry;
-			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-				outMap[entry.key].emplace_back(entry);
-				input_num++;
-			}
-			std::cout << "outMap.size: " << outMap.size() << std::endl;
-		}
-	}
-
-	Searcher s;
-	s.init();
-	Position pos(DefaultStartPositionSFEN, &s);
-
-	// 定跡読み込み
-	std::map<Key, std::vector<BookEntry> > bookMap;
-	read_book(bookFileName, bookMap);
-
-	// シグナル設定
-	signal(SIGINT, sigint_handler);
-
-	int black_num = 0;
-	int white_num = 0;
-	std::vector<Move> moves;
-	for (int trial = 0; trial < limitTrialNum; trial += 2) {
-		// 先手番
-		int count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, bookMap, outMap, count, 0, true, moves);
-		black_num += count;
-
-		// 後手番
-		count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, bookMap, outMap, count, 0, false, moves);
-		white_num += count;
-
-		if (stopflg)
-			break;
-	}
-
-	// 保存
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (auto& elem : outMap) {
-		for (auto& elel : elem.second)
-			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-	}
-
-	// 結果表示
-	std::cout << "input\t" << input_num << std::endl;
-	std::cout << "black\t" << black_num << std::endl;
-	std::cout << "white\t" << white_num << std::endl;
-	std::cout << "sum\t" << black_num + white_num << std::endl;
-	std::cout << "entries\t" << outMap.size() << std::endl;
 }
