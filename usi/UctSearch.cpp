@@ -1050,6 +1050,9 @@ UCTSearcher::ParallelUctSearch()
 			}
 		}
 
+		// 評価
+		EvalNode();
+
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto& trajectories : trajectories_batch_discarded) {
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
@@ -1060,9 +1063,6 @@ UCTSearcher::ParallelUctSearch()
 				SubVirtualLoss(&uct_child[next_index], current);
 			}
 		}
-
-		// 評価
-		EvalNode();
 
 		// バックアップ
 		float result = 0.0f;
