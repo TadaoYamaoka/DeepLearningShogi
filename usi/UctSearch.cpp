@@ -53,7 +53,7 @@ using namespace std;
 // 持ち時間
 double remaining_time[ColorNum];
 double inc_time[ColorNum];
-double po_per_sec = PLAYOUT_SPEED;
+
 
 // ゲーム木
 std::unique_ptr<NodeTree> tree;
@@ -69,15 +69,6 @@ const Position *pos_root;
 unsigned int uct_node_limit; // UCTノードの上限
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
-// 探索の設定
-enum SEARCH_MODE mode = SEARCH_MODE::TIME_SETTING_WITH_BYOYOMI_MODE;
-// 1手あたりの試行時間
-double const_thinking_time = CONST_TIME;
-// 1手当たりのプレイアウト数
-int playout = CONST_PLAYOUT;
-// デフォルトの持ち時間
-double default_remaining_time = ALL_THINKING_TIME;
-
 bool pondering_mode = false;
 
 bool pondering = false;
@@ -85,6 +76,7 @@ bool pondering = false;
 atomic<bool> uct_search_stop(false);
 
 double time_limit;
+double minimum_time = 0.0;
 
 atomic<unsigned int> last_pv_print(0); // 最後にpvが表示された時刻
 unsigned int pv_interval = 500; // pvを表示する周期(ms)
@@ -153,8 +145,8 @@ static void AddVirtualLoss(child_node_t *child, uct_node_t* current);
 static void SubVirtualLoss(child_node_t *child, uct_node_t* current);
 
 // 次のプレイアウト回数の設定
-static void CalculatePlayoutPerSec(double finish_time);
-static void CalculateNextPlayouts(const Position *pos);
+// static void CalculatePlayoutPerSec(double finish_time);
+// static void CalculateNextPlayouts(const Position *pos);
 
 // ルートの展開
 static void ExpandRoot(const Position *pos);
@@ -377,39 +369,6 @@ SetPonderingMode(bool flag)
 	pondering_mode = flag;
 }
 
-////////////////////////
-//  探索モードの指定  //
-////////////////////////
-void
-SetMode(enum SEARCH_MODE new_mode)
-{
-	mode = new_mode;
-}
-SEARCH_MODE GetMode()
-{
-	return mode;
-}
-
-///////////////////////////////////////
-//  1手あたりのプレイアウト数の指定  //
-///////////////////////////////////////
-void
-SetPlayout(int po)
-{
-	playout = po;
-}
-
-
-/////////////////////////////////
-//  1手にかける試行時間の設定  //
-/////////////////////////////////
-void
-SetConstTime(double time)
-{
-	const_thinking_time = time;
-}
-
-
 ////////////////////////////////
 //  使用するスレッド数の指定  //
 ////////////////////////////////
@@ -513,25 +472,6 @@ UCTSearcherGroup::Term()
 }
 #endif
 
-//////////////////////
-//  持ち時間の設定  //
-//////////////////////
-void
-SetTime(double time)
-{
-	default_remaining_time = time;
-}
-void
-SetRemainingTime(double time, Color c)
-{
-	remaining_time[c] = time;
-}
-void
-SetIncTime(double time, Color c)
-{
-	inc_time[c] = time;
-	uct_search_stop = false;
-}
 
 //////////////////////////
 //  ノード再利用の設定  //
@@ -546,32 +486,6 @@ SetReuseSubtree(bool flag)
 void SetPvInterval(const int interval)
 {
 	pv_interval = interval;
-}
-
-//////////////////////////////////////
-//  time_settingsコマンドによる設定  //
-//////////////////////////////////////
-void
-SetTimeSettings(int main_time, int byoyomi, int stone)
-{
-	if (main_time == 0) {
-		const_thinking_time = (double)byoyomi * 0.85;
-		mode = CONST_TIME_MODE;
-		cerr << "Const Thinking Time Mode" << endl;
-	}
-	else {
-		if (byoyomi == 0) {
-			default_remaining_time = main_time;
-			mode = TIME_SETTING_MODE;
-			cerr << "Time Setting Mode" << endl;
-		}
-		else {
-			default_remaining_time = main_time;
-			const_thinking_time = ((double)byoyomi) / stone;
-			mode = TIME_SETTING_WITH_BYOYOMI_MODE;
-			cerr << "Time Setting Mode (byoyomi)" << endl;
-		}
-	}
 }
 
 /////////////////////////
@@ -597,36 +511,25 @@ void TerminateUctSearch()
 #endif
 }
 
-////////////////////////
-//  探索設定の初期化  //
-////////////////////////
-void
-InitializeSearchSetting(void)
-{
-	// 持ち時間の初期化
-	for (int i = 0; i < ColorNum; i++) {
-		remaining_time[i] = default_remaining_time;
-	}
+// position抜きで探索の条件を指定する
+void SetLimits(const LimitsType limits){
+	time_limit = 0.001 * limits.moveTime;
+	po_info.halt = limits.nodes;
+	minimum_time = 0.001 * limits.moveTime;
+}
 
-	// 制限時間を設定
-	// プレイアウト回数の初期化
-	if (mode == CONST_PLAYOUT_MODE) {
-		time_limit = 100000.0;
-		po_info.num = playout;
-		extend_time = false;
+
+// go cmd前に呼ばれ、探索の条件を指定する
+void SetLimits(const Position *pos, const LimitsType limits){
+	const int color = pos->turn();
+	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
+	remaining_time[color] = 0.001 * limits.time[color];
+	time_limit = remaining_time[color] / divisor + 0.001 * limits.inc[color];
+	minimum_time = 0.001 * limits.moveTime;
+	if(time_limit < 0.001 * limits.moveTime){
+		time_limit = 0.001 * limits.moveTime;
 	}
-	else if (mode == CONST_TIME_MODE) {
-		time_limit = const_thinking_time;
-		po_info.num = 100000000;
-		extend_time = false;
-	}
-	else if (mode == TIME_SETTING_MODE ||
-		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		time_limit = remaining_time[0];
-		po_info.num = (int)(PLAYOUT_SPEED * time_limit);
-		extend_time = true;
-	}
-	po_per_sec = PLAYOUT_SPEED;
+	po_info.halt = limits.nodes;
 }
 
 
@@ -760,6 +663,8 @@ std::tuple<Move, float, Move> get_and_print_pv()
 Move
 UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder)
 {
+	uct_search_stop=false;
+
 	// 探索開始時刻の記録
 	begin_time = game_clock::now();
 	init_search_begin_time = false;
@@ -806,7 +711,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	int pre_simulated = current_root->move_count;
 
 	// 探索回数の閾値を設定
-	CalculateNextPlayouts(pos);
+	// CalculateNextPlayouts(pos);
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
@@ -910,43 +815,39 @@ InterruptionCheck(void)
 {
 	if (uct_search_stop)
 		return true;
-
+	
 	if (pondering)
 		return uct_search_stop;
 
-	if (mode != CONST_PLAYOUT_MODE && po_info.halt < 0) {
-		const auto spend_time = GetSpendTime(search_begin_time);
-		// ハッシュの状況によってはすぐに返せる場合があるが、速度計測のため1/10は探索する
-		if (spend_time * 10.0 < time_limit)
-			return false;
-
-		// プレイアウト速度を計算
-		CalculatePlayoutPerSec(spend_time);
-		po_info.num = (int)(po_per_sec * time_limit);
-		po_info.halt = po_info.num;
+	if(time_limit < 0.000001){
+		return false;
 	}
-
-	int max = 0, second = 0;
+	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
-	const int rest = po_info.halt - po_info.count;
+	const int rest_po = int(double((1+po_info.count) * 1000 * (time_limit - GetSpendTime(begin_time)) / (1 + 1000 * GetSpendTime(begin_time))));
 	const child_node_t *uct_child = current_root->child.get();
 
-
+	// 消費時間が短い場合は打ち止めしない
+	if (GetSpendTime(begin_time) * 10.0 < time_limit || GetSpendTime(begin_time) < minimum_time) {
+		return false;
+	}
+	
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max) {
-			second = max;
-			max = uct_child[i].move_count;
+		if (uct_child[i].move_count > max_searched) {
+			second = max_searched;
+			max_searched = uct_child[i].move_count;
 		}
 		else if (uct_child[i].move_count > second) {
 			second = uct_child[i].move_count;
 		}
 	}
 
+	// cout<<time_limit<<","<<GetSpendTime(begin_time)<<","<<max_searched<<","<<rest_po<<endl;
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	if (max - second >= rest) {
+	if (max_searched - second > rest_po) {
 		return true;
 	}
 	else {
@@ -1102,10 +1003,31 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// 探索を打ち切るか確認
-		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
-		// UCTノードに余裕があるか確認
-		if ((unsigned int)current_root->move_count >= uct_node_limit) break;
-	} while (!InterruptionCheck());
+
+		bool interruption = InterruptionCheck();
+ 
+		// 探索の強制終了
+		
+		// 計算時間が予定の値を超えている
+		if (!pondering && GetSpendTime(begin_time) > time_limit && time_limit > 0) {
+			cout<<"info string interrupt_time_limit"<<endl;
+			break;
+		}
+		// po_info.halt を超えたら打ち切る
+		if (po_info.count > po_info.halt && po_info.halt > 0){
+			cout<<"info string interrupt_node_limit"<<endl;
+			break;
+		}
+		// これ以上読んでもbestmoveが変わらない
+		if (interruption) {
+			cout<<"info string interrupt_no_movechange"<<endl;
+			break;
+		}
+		if ((unsigned int)current_root->move_count >= uct_node_limit){
+			cout<<"info string interrupt_no_hash"<<endl;
+			break;
+		}
+	} while(1);
 
 	return;
 }
@@ -1400,20 +1322,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 }
 
 
-/////////////////////////////////
-//  プレイアウト速度の計算     //
-/////////////////////////////////
-static void
-CalculatePlayoutPerSec(double finish_time)
-{
-	if (finish_time != 0.0) {
-		po_per_sec = po_info.count / finish_time;
-	}
-	else {
-		po_per_sec = PLAYOUT_SPEED;
-	}
-}
-
+/*
 static void
 CalculateNextPlayouts(const Position *pos)
 {
@@ -1441,6 +1350,7 @@ CalculateNextPlayouts(const Position *pos)
 		po_info.halt = po_info.num;
 	}
 }
+*/
 
 void SetModelPath(const std::string path[max_gpu])
 {
