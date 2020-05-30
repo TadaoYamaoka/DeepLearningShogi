@@ -7,6 +7,7 @@
 #include "move.hpp"
 #include "generateMoves.hpp"
 #include "ZobristHash.h"
+#include "search.hpp"
 
 constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
@@ -31,12 +32,14 @@ extern float c_init_root;
 extern float c_base_root;
 extern float c_fpu_reduction_root;
 
+/*
 enum SEARCH_MODE {
 	CONST_PLAYOUT_MODE,             // 1手のプレイアウト回数を固定したモード
 	CONST_TIME_MODE,                // 1手の思考時間を固定したモード
 	TIME_SETTING_MODE,              // 持ち時間ありのモード(秒読みなし)
 	TIME_SETTING_WITH_BYOYOMI_MODE, // 持ち時間ありのモード(秒読みあり)
 };
+*/
 
 
 struct child_node_t {
@@ -64,6 +67,8 @@ struct po_info_t {
 	std::atomic<int> count;       // 現在の探索回数
 };
 
+void SetLimits(const Position *pos, const LimitsType limits);
+void SetLimits(const LimitsType limits);
 
 // 残り時間
 extern double remaining_time[ColorNum];
@@ -74,7 +79,7 @@ extern uct_node_t *uct_node;
 extern unsigned int current_root;
 
 // ノード数の上限
-extern unsigned int node_max;
+extern unsigned int po_max;
 
 // 予測読みを止める
 void StopUctSearch(void);
@@ -82,24 +87,10 @@ void StopUctSearch(void);
 // 予測読みのモードの設定
 void SetPonderingMode(bool flag);
 
-// 探索のモードの指定
-void SetMode(enum SEARCH_MODE mode);
-SEARCH_MODE GetMode();
-
-// 1手あたりのプレイアウト回数の指定
-void SetPlayout(int po);
-
-// 1手あたりの思考時間の指定
-void SetConstTime(double time);
 
 // 使用するスレッド数の指定
 constexpr int max_gpu = 8;
 void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu]);
-
-// 持ち時間の指定
-void SetTime(double time);
-void SetRemainingTime(double time, Color c);
-void SetIncTime(double time, Color c);
 
 
 // 投了の閾値設定（1000分率）
@@ -114,7 +105,7 @@ void InitializeUctSearch(const unsigned int hash_size);
 void TerminateUctSearch();
 
 // 探索設定の初期化
-void InitializeSearchSetting(void);
+// void InitializeSearchSetting(void);
 
 // UCT探索の終了処理
 void FinalizeUctSearch(void);

@@ -54,7 +54,7 @@ using namespace std;
 // 持ち時間
 double remaining_time[ColorNum];
 double inc_time[ColorNum];
-double po_per_sec = PLAYOUT_SPEED;
+
 
 // UCTハッシュ
 UctHash uct_hash;
@@ -77,15 +77,6 @@ extern unsigned int node_max;
 unsigned int uct_hash_size;
 mutex* mutex_nodes;
 mutex mutex_expand;       // ノード展開を排他処理するためのmutex
-
-// 探索の設定
-enum SEARCH_MODE mode = SEARCH_MODE::TIME_SETTING_WITH_BYOYOMI_MODE;
-// 1手あたりの試行時間
-double const_thinking_time = CONST_TIME;
-// 1手当たりのプレイアウト数
-int playout = CONST_PLAYOUT;
-// デフォルトの持ち時間
-double default_remaining_time = ALL_THINKING_TIME;
 
 bool pondering_mode = false;
 
@@ -160,8 +151,8 @@ static void AddVirtualLoss(child_node_t *child, unsigned int current);
 static void SubVirtualLoss(child_node_t *child, unsigned int current);
 
 // 次のプレイアウト回数の設定
-static void CalculatePlayoutPerSec(double finish_time);
-static void CalculateNextPlayouts(const Position *pos);
+// static void CalculatePlayoutPerSec(double finish_time);
+// static void CalculateNextPlayouts(const Position *pos);
 
 // ルートの展開
 static unsigned int ExpandRoot(const Position *pos);
@@ -372,39 +363,6 @@ SetPonderingMode(bool flag)
 	pondering_mode = flag;
 }
 
-////////////////////////
-//  探索モードの指定  //
-////////////////////////
-void
-SetMode(enum SEARCH_MODE new_mode)
-{
-	mode = new_mode;
-}
-SEARCH_MODE GetMode()
-{
-	return mode;
-}
-
-///////////////////////////////////////
-//  1手あたりのプレイアウト数の指定  //
-///////////////////////////////////////
-void
-SetPlayout(int po)
-{
-	playout = po;
-}
-
-
-/////////////////////////////////
-//  1手にかける試行時間の設定  //
-/////////////////////////////////
-void
-SetConstTime(double time)
-{
-	const_thinking_time = time;
-}
-
-
 ////////////////////////////////
 //  使用するスレッド数の指定  //
 ////////////////////////////////
@@ -509,25 +467,6 @@ UCTSearcherGroup::Term()
 }
 #endif
 
-//////////////////////
-//  持ち時間の設定  //
-//////////////////////
-void
-SetTime(double time)
-{
-	default_remaining_time = time;
-}
-void
-SetRemainingTime(double time, Color c)
-{
-	remaining_time[c] = time;
-}
-void
-SetIncTime(double time, Color c)
-{
-	inc_time[c] = time;
-	uct_search_stop = false;
-}
 
 //////////////////////////
 //  ノード再利用の設定  //
@@ -574,36 +513,26 @@ void TerminateUctSearch()
 #endif
 }
 
-////////////////////////
-//  探索設定の初期化  //
-////////////////////////
-void
-InitializeSearchSetting(void)
-{
-	// 持ち時間の初期化
-	for (int i = 0; i < ColorNum; i++) {
-		remaining_time[i] = default_remaining_time;
-	}
+// go cmd前に呼ばれ、探索の条件を指定する。
+// 持ち時間、または、ノード数を固定する用
+void SetLimits(const LimitsType limits){
+	time_limit = 0.001 * limits.moveTime;
+	po_info.halt = limits.nodes;
+	cout<<time_limit<<","<<po_info.halt<<endl;
+}
 
-	// 制限時間を設定
-	// プレイアウト回数の初期化
-	if (mode == CONST_PLAYOUT_MODE) {
-		time_limit = 100000.0;
-		po_info.num = playout;
-		extend_time = false;
+
+// go cmd前に呼ばれ、探索の条件を指定する
+void SetLimits(const Position *pos, const LimitsType limits){
+	const int color = pos->turn();
+	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
+	remaining_time[color] = 0.001 * limits.time[color];
+	time_limit = remaining_time[color] / divisor + limits.inc[color];
+	if(time_limit < 0.001 * limits.moveTime){
+		time_limit = 0.001 * limits.moveTime;
 	}
-	else if (mode == CONST_TIME_MODE) {
-		time_limit = const_thinking_time;
-		po_info.num = 100000000;
-		extend_time = false;
-	}
-	else if (mode == TIME_SETTING_MODE ||
-		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		time_limit = remaining_time[0];
-		po_info.num = (int)(PLAYOUT_SPEED * time_limit);
-		extend_time = true;
-	}
-	po_per_sec = PLAYOUT_SPEED;
+	po_info.halt = limits.nodes;
+	cout<<time_limit<<","<<po_info.halt<<endl;
 }
 
 
@@ -625,119 +554,119 @@ StopUctSearch(void)
 
 
 unsigned int findbest_from_root(){
-  unsigned int select_index = 0;
-  int max_count = 0;
-  const child_node_t *uct_child = uct_node[current_root].child;
-  const int child_num = uct_node[current_root].child_num;
-  int child_win_count = 0;
-  int child_lose_count = 0;
+	unsigned int select_index = 0;
+	int max_count = 0;
+	const child_node_t *uct_child = uct_node[current_root].child;
+	const int child_num = uct_node[current_root].child_num;
+	int child_win_count = 0;
+	int child_lose_count = 0;
 
-  for (int i = 0; i < child_num; i++) {
-    if (uct_child[i].index != NOT_EXPANDED) {
-      uct_node_t& child_node = uct_node[uct_child[i].index];
-      // 詰みの場合evaledは更新しないためevaledはチェックしない
-      const float child_value_win = child_node.value_win;
-      if (child_value_win == VALUE_WIN) {
-	// 負けが確定しているノードは選択しない
-	if (child_win_count == i || uct_child[i].move_count > max_count) {
-	  // すべて負けの場合は、探索回数が最大の手を選択する
-	  select_index = i;
-	  max_count = uct_child[i].move_count;
+	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].index != NOT_EXPANDED) {
+			uct_node_t& child_node = uct_node[uct_child[i].index];
+			// 詰みの場合evaledは更新しないためevaledはチェックしない
+			const float child_value_win = child_node.value_win;
+			if (child_value_win == VALUE_WIN) {
+				// 負けが確定しているノードは選択しない
+				if (child_win_count == i || uct_child[i].move_count > max_count) {
+					// すべて負けの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_win_count++;
+				continue;
+			}
+			else if (child_value_win == VALUE_LOSE) {
+				// 子ノードに一つでも負けがあれば、勝ちなので選択する
+				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+					// すべて勝ちの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_lose_count++;
+				continue;
+			}
+		}
+		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+			select_index = i;
+			max_count = uct_child[i].move_count;
+		}
 	}
-	child_win_count++;
-	continue;
-      }
-      else if (child_value_win == VALUE_LOSE) {
-	// 子ノードに一つでも負けがあれば、勝ちなので選択する
-	if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-	  // すべて勝ちの場合は、探索回数が最大の手を選択する
-	  select_index = i;
-	  max_count = uct_child[i].move_count;
-	}
-	child_lose_count++;
-	continue;
-      }
-    }
-    if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-      select_index = i;
-      max_count = uct_child[i].move_count;
-    }
-  }
-  return select_index;
+	return select_index;
 }
 
 float get_win_value_from_root(const unsigned int select_index){
-  const child_node_t* uct_child = uct_node[current_root].child;
-  float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
-  uct_node_t& child_node = uct_node[uct_child[select_index].index];
-  const float child_value_win = child_node.value_win;
+	const child_node_t* uct_child = uct_node[current_root].child;
+	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+	uct_node_t& child_node = uct_node[uct_child[select_index].index];
+	const float child_value_win = child_node.value_win;
   
-  if (child_value_win == VALUE_WIN) {
-    best_wp = 0.0f;
-  }
-  else if (child_value_win == VALUE_LOSE) {
-    best_wp = 1.0f;
-  }
-  return best_wp;
+	if (child_value_win == VALUE_WIN) {
+		best_wp = 0.0f;
+	}
+	else if (child_value_win == VALUE_LOSE) {
+		best_wp = 1.0f;
+	}
+	return best_wp;
 }
 
 
 void getPV_from_root(const unsigned int select_index, Move &ponderMove, const bool printpv){
-  const float best_wp = get_win_value_from_root(select_index);
-  const child_node_t *uct_child = uct_node[current_root].child;
-  Move move = uct_child[select_index].move;
-  int cp;
-  if (best_wp == 1.0f) {
-    cp = 30000;
-  }
-  else if (best_wp == 0.0f) {
-    cp = -30000;
-  }
-  else {
-    cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-  }
-  
-  // PV表示
-  string pv = move.toUSI();
-  int max_count = 0;
-  int depth = 1;
-  {
-    unsigned int best_index = select_index;
-    const child_node_t *best_node = uct_child;
-    
-    while (best_node[best_index].index != NOT_EXPANDED) {
-      const int best_node_index = best_node[best_index].index;
-      
-      best_node = uct_node[best_node_index].child;
-      max_count = 0;
-      best_index = 0;
-      for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
-	if (best_node[i].move_count > max_count) {
-	  best_index = i;
-	  max_count = best_node[i].move_count;
+	const float best_wp = get_win_value_from_root(select_index);
+	const child_node_t *uct_child = uct_node[current_root].child;
+	Move move = uct_child[select_index].move;
+	int cp;
+	if (best_wp == 1.0f) {
+		cp = 30000;
 	}
-      }
-      
-      // ponderの着手
-      if (ponderMove == Move::moveNone()){
-	ponderMove = best_node[best_index].move;
-      }
-      
-      if (max_count < 1)
-	break;
-      
-      pv += " " + best_node[best_index].move.toUSI();
-      depth++;
-    }
-  }
+	else if (best_wp == 0.0f) {
+		cp = -30000;
+	}
+	else {
+		cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+	}
+	
+	// PV表示
+	string pv = move.toUSI();
+	int max_count = 0;
+	int depth = 1;
+	{
+		unsigned int best_index = select_index;
+		const child_node_t *best_node = uct_child;
+		
+		while (best_node[best_index].index != NOT_EXPANDED) {
+			const int best_node_index = best_node[best_index].index;
+			
+			best_node = uct_node[best_node_index].child;
+			max_count = 0;
+			best_index = 0;
+			for (int i = 0; i < uct_node[best_node_index].child_num; i++) {
+				if (best_node[i].move_count > max_count) {
+					best_index = i;
+					max_count = best_node[i].move_count;
+				}
+			}
+			
+			// ponderの着手
+			if (ponderMove == Move::moveNone()){
+				ponderMove = best_node[best_index].move;
+			}
+			
+			if (max_count < 1)
+				break;
+			
+			pv += " " + best_node[best_index].move.toUSI();
+			depth++;
+		}
+	}
 
-  double finish_time;
-  // 探索にかかった時間を求める
-  finish_time = GetSpendTime(begin_time);
+	double finish_time;
+	// 探索にかかった時間を求める
+	finish_time = GetSpendTime(begin_time);
 
-  if(printpv){
-    cout << "info nps " << int(uct_node[current_root].move_count / finish_time ) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
-  }
+	if(printpv){
+		cout << "info nps " << int(uct_node[current_root].move_count / finish_time ) << " time " << int(finish_time * 1000) << " nodes " << uct_node[current_root].move_count << " hashfull " << uct_hash.GetUctHashUsageRate() << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+	}
 }
 
 
@@ -747,6 +676,7 @@ void getPV_from_root(const unsigned int select_index, Move &ponderMove, const bo
 Move
 UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 {
+	uct_search_stop=false;
 	Move move;
 	double finish_time;
 
@@ -797,7 +727,7 @@ UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder)
 	int pre_simulated = uct_node[current_root].move_count;
 
 	// 探索回数の閾値を設定
-	CalculateNextPlayouts(pos);
+	// CalculateNextPlayouts(pos);
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
@@ -1009,48 +939,38 @@ InterruptionCheck(void)
 {
 	if (uct_search_stop)
 		return true;
-
+	
 	if (pondering)
 		return uct_search_stop;
 
-	if (mode != CONST_PLAYOUT_MODE && po_info.halt < 0) {
-		const auto spend_time = GetSpendTime(search_begin_time);
-		// ハッシュの状況によってはすぐに返せる場合があるが、速度計測のため1/10は探索する
-		if (spend_time * 10.0 < time_limit)
-			return false;
-
-		// プレイアウト速度を計算
-		CalculatePlayoutPerSec(spend_time);
-		po_info.num = (int)(po_per_sec * time_limit);
-		const int rest_uct_hash = uct_hash.GetRestUctHash();
-		if (po_info.num > rest_uct_hash) {
-			po_info.halt = rest_uct_hash + po_info.count;
-		}
-		else {
-			po_info.halt = po_info.num;
-		}
+	if(time_limit < 0.000001){
+		return false;
 	}
-
-	int max = 0, second = 0;
+	int max_searched = 0, second = 0;
 	const int child_num = uct_node[current_root].child_num;
-	const int rest = po_info.halt - po_info.count;
+	const int rest_po = int(double((1+po_info.count) * 1000 * (time_limit - GetSpendTime(begin_time)) / (1 + 1000 * GetSpendTime(begin_time))));
 	const child_node_t *uct_child = uct_node[current_root].child;
 
-
+	// 消費時間が短い場合は打ち止めしない
+	if (GetSpendTime(begin_time) * 10.0 < time_limit) {
+		return false;
+	}
+	
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max) {
-			second = max;
-			max = uct_child[i].move_count;
+		if (uct_child[i].move_count > max_searched) {
+			second = max_searched;
+			max_searched = uct_child[i].move_count;
 		}
 		else if (uct_child[i].move_count > second) {
 			second = uct_child[i].move_count;
 		}
 	}
 
+	// cout<<time_limit<<","<<GetSpendTime(begin_time)<<","<<max_searched<<","<<rest_po<<endl;
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	if (max - second >= rest) {
+	if (max_searched - second > rest_po) {
 		return true;
 	}
 	else {
@@ -1173,18 +1093,40 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		if(thread_id == 0 && pv_interval > 0 && 1000 * GetSpendTime(begin_time) > last_pv_print + pv_interval){
-		  Move dump;
-		  unsigned int select_index = findbest_from_root();
-		  getPV_from_root(select_index, dump, true);
-		  last_pv_print = 1000 * GetSpendTime(begin_time);
+			Move dump;
+			unsigned int select_index = findbest_from_root();
+			getPV_from_root(select_index, dump, true);
+			last_pv_print = 1000 * GetSpendTime(begin_time);
 		}
 		
 		// 探索を打ち切るか確認
 		interruption = InterruptionCheck();
 		// ハッシュに余裕があるか確認
 		enough_size = uct_hash.CheckRemainingHashSize();
-		if (!pondering && GetSpendTime(begin_time) > time_limit) break;
-	} while (!interruption && enough_size);
+ 
+		// 探索の強制終了
+		
+		// 計算時間が予定の値を超えている
+		if (!pondering && GetSpendTime(begin_time) > time_limit && time_limit > 0) {
+			//cout<<"time limit"<<endl;
+			break;
+		}
+		// po_info.halt を超えたら打ち切る
+		if (po_info.count > po_info.halt && po_info.halt > 0){
+			//cout<<"node limit"<<endl;
+			break;
+		}
+		// これ以上読んでもbestmoveが変わらない
+		if (interruption) {
+			//cout<<"no movechange"<<endl;
+			break;
+		}
+		// ハッシュの残りがもう無い
+		if (!enough_size){
+			// cout<<"no hash"<<endl;
+			break;
+		}
+	} while(1);
 
 	return;
 }
@@ -1495,20 +1437,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, const unsigned int current, 
 }
 
 
-/////////////////////////////////
-//  プレイアウト速度の計算     //
-/////////////////////////////////
-static void
-CalculatePlayoutPerSec(double finish_time)
-{
-	if (finish_time != 0.0) {
-		po_per_sec = po_info.count / finish_time;
-	}
-	else {
-		po_per_sec = PLAYOUT_SPEED;
-	}
-}
-
+/*
 static void
 CalculateNextPlayouts(const Position *pos)
 {
@@ -1536,6 +1465,7 @@ CalculateNextPlayouts(const Position *pos)
 		po_info.halt = po_info.num;
 	}
 }
+*/
 
 void SetModelPath(const std::string path[max_gpu])
 {
