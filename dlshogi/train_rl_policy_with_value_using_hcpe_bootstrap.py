@@ -38,7 +38,7 @@ args = parser.parse_args()
 
 if args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
-if args.network == 'senet10':
+elif args.network == 'senet10':
     from dlshogi.policy_value_network_senet10 import *
 else:
     from dlshogi.policy_value_network import *

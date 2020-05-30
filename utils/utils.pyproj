@@ -26,6 +26,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="benchmark.py" />
+    <Compile Include="csa_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="matches.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
     </Compile>

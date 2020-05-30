@@ -6,8 +6,8 @@
 #include "position.hpp"
 #include "move.hpp"
 #include "generateMoves.hpp"
-#include "ZobristHash.h"
 #include "search.hpp"
+#include "Node.h"
 
 constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
 constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
@@ -41,26 +41,6 @@ enum SEARCH_MODE {
 };
 */
 
-
-struct child_node_t {
-	Move move;  // 着手する座標
-	std::atomic<int> move_count;  // 探索回数
-	std::atomic<float> win;         // 勝った回数
-	unsigned int index;   // インデックス
-	float nnrate; // ニューラルネットワークでのレート
-};
-
-struct uct_node_t {
-	std::atomic<int> move_count;
-	std::atomic<float> win;
-	std::atomic<bool> evaled;      // 評価済か
-	std::atomic<bool> draw;        // 千日手の可能性あり
-	std::atomic<float> value_win;
-	std::atomic<float> visited_nnrate;
-	int child_num;                      // 子ノードの数
-	child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
-};
-
 struct po_info_t {
 	int num;   // 次の手の探索回数
 	int halt;  // 探索を打ち切る回数
@@ -72,8 +52,6 @@ void SetLimits(const LimitsType limits);
 
 // 残り時間
 extern double remaining_time[ColorNum];
-// UCTのノード
-extern uct_node_t *uct_node;
 
 // 現在のルートのインデックス
 extern unsigned int current_root;
@@ -100,7 +78,7 @@ void SetResignThreshold(const int resign_threshold);
 void SetDrawValue(const int value_black, const int value_white);
 
 // UCT探索の初期設定
-void InitializeUctSearch(const unsigned int hash_size);
+void InitializeUctSearch(const unsigned int node_limit);
 // UCT探索の終了処理
 void TerminateUctSearch();
 
@@ -111,13 +89,13 @@ void TerminateUctSearch();
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position *pos, Move &ponderMove, bool ponder = false);
-inline Move UctSearchGenmoveNoPonder(Position *pos) {
-	Move move = Move::moveNone();
-	return UctSearchGenmove(pos, move);
-}
+Move UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder = false);
+
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);
+
+// PV表示間隔設定
+void SetPvInterval(const int interval);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);

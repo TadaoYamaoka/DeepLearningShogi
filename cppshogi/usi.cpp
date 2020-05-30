@@ -118,10 +118,11 @@ void OptionsMap::init(Searcher* s) {
     (*this)["C_init_root"]                 = USIOption(149, 0, 500);
     (*this)["C_base_root"]                 = USIOption(39470, 10000, 100000);
     (*this)["C_fpu_reduction_root"]        = USIOption(0, 0, 100);
-    (*this)["UCT_Hash"]                    = USIOption(1048576, 65536, 1073741824); // UCTハッシュサイズ
+    (*this)["UCT_NodeLimit"]               = USIOption(10000000, 100000, 1000000000); // UCTノードの上限
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
+    (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
