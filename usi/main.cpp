@@ -142,27 +142,17 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetPvInterval(options["PV_Interval"]);
 
 			// 初回探索をキャッシュ
-			SEARCH_MODE search_mode = GetMode();
 			Position pos_tmp(DefaultStartPositionSFEN, thisptr);
-			SetMode(CONST_PLAYOUT_MODE);
-			SetPlayout(1);
-			InitializeSearchSetting();
+			LimitsType limits;
+			limits.nodes = 1;
+			limits.time[0] = 0;
+			limits.time[1] = 0;
+
+			SetLimits(limits);
 			Move ponder;
 			UctSearchGenmove(&pos_tmp, pos.getKey(), {}, ponder);
-			SetPlayout(CONST_PLAYOUT); // 元に戻す
-			SetMode(search_mode); // 元に戻す
 
-			// 固定プレイアウトモード
-			if (options["Const_Playout"] > 0) {
-				SetMode(CONST_PLAYOUT_MODE);
-				SetPlayout(options["Const_Playout"]);
-			}
-
-			InitializeSearchSetting();
-
-			// PonderingMode
-			if (GetMode() != CONST_PLAYOUT_MODE)
-				SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
+			SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -239,16 +229,19 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 	}
 	if (limits.moveTime != 0) {
 		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-		SetConstTime(limits.moveTime / 1000.0);
 	}
-	else if (pos.searcher()->options["Time_Margin"] != 0)
+	else if (pos.searcher()->options["Time_Margin"] != 0){
 		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+	}
 
+	/*
 	// 持ち時間設定
 	if (limits.time[pos.turn()] > 0)
 		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
 	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
+	*/
 
+	SetLimits(&pos, limits);
 	Move ponderMove = Move::moveNone();
 
 	// Book使用
