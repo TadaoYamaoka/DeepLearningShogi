@@ -9,10 +9,11 @@
 #include <cstdlib>
 #endif
 
+#include "cppshogi.h"
+
 #include <onnxruntime_cxx_api.h>
 //#include <dnnl_provider_factory.h>
-
-#include "cppshogi.h"
+#include <dml_provider_factory.h>
 
 #pragma comment(lib, "onnxruntime.lib")
 
@@ -63,8 +64,13 @@ int main(int argc, char* argv[]) {
 	//session_options.SetGraphOptimizationLevel(ORT_ENABLE_ALL);
 	//session_options.EnableCpuMemArena();
 	//session_options.SetInterOpNumThreads(8);
-	session_options.SetIntraOpNumThreads(8);
+	//session_options.SetIntraOpNumThreads(8);
 	//session_options.SetExecutionMode(ORT_PARALLEL);
+
+	session_options.DisableMemPattern();
+	session_options.SetExecutionMode(ORT_SEQUENTIAL);
+	OrtSessionOptionsAppendExecutionProvider_DML(session_options, 0);
+
 	Ort::Session session{ env, onnx_filename.c_str(), session_options };
 
 	auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
