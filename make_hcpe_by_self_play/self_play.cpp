@@ -75,6 +75,8 @@ int usi_threads;
 string usi_options;
 int usi_byoyomi;
 
+std::mutex mutex_all_gpu;
+
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
 constexpr int MAX_PLY = 320; // 最大手数
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
@@ -334,7 +336,7 @@ public:
 		delete nn;
 	}
 	void InitGPU() {
-		mutex_gpu.lock();
+		mutex_all_gpu.lock();
 		if (nn == nullptr) {
 			if (model_path.find("onnx") != string::npos)
 				nn = (NN*)new NNTensorRT(gpu_id, policy_value_batch_maxsize);
@@ -349,7 +351,7 @@ public:
 			}
 			nn->load_model(model_path.c_str());
 		}
-		mutex_gpu.unlock();
+		mutex_all_gpu.unlock();
 	}
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
