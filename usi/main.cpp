@@ -234,13 +234,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
 	}
 
-	/*
-	// 持ち時間設定
-	if (limits.time[pos.turn()] > 0)
-		SetRemainingTime(limits.time[pos.turn()] / 1000.0, pos.turn());
-	SetIncTime(limits.inc[pos.turn()] / 1000.0, pos.turn());
-	*/
-
 	SetLimits(&pos, limits);
 	Move ponderMove = Move::moveNone();
 

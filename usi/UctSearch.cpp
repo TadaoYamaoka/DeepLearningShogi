@@ -144,10 +144,6 @@ static void AddVirtualLoss(child_node_t *child, uct_node_t* current);
 // Virtual Lossを減算
 static void SubVirtualLoss(child_node_t *child, uct_node_t* current);
 
-// 次のプレイアウト回数の設定
-// static void CalculatePlayoutPerSec(double finish_time);
-// static void CalculateNextPlayouts(const Position *pos);
-
 // ルートの展開
 static void ExpandRoot(const Position *pos);
 
@@ -512,7 +508,8 @@ void TerminateUctSearch()
 }
 
 // position抜きで探索の条件を指定する
-void SetLimits(const LimitsType limits){
+void SetLimits(const LimitsType limits)
+{
 	time_limit = 0.001 * limits.moveTime;
 	po_info.halt = limits.nodes;
 	minimum_time = 0.001 * limits.moveTime;
@@ -520,13 +517,14 @@ void SetLimits(const LimitsType limits){
 
 
 // go cmd前に呼ばれ、探索の条件を指定する
-void SetLimits(const Position *pos, const LimitsType limits){
+void SetLimits(const Position* pos, const LimitsType limits)
+{
 	const int color = pos->turn();
 	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
 	remaining_time[color] = 0.001 * limits.time[color];
 	time_limit = remaining_time[color] / divisor + 0.001 * limits.inc[color];
 	minimum_time = 0.001 * limits.moveTime;
-	if(time_limit < 0.001 * limits.moveTime){
+	if (time_limit < 0.001 * limits.moveTime) {
 		time_limit = 0.001 * limits.moveTime;
 	}
 	po_info.halt = limits.nodes;
@@ -663,7 +661,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 Move
 UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder)
 {
-	uct_search_stop=false;
+	uct_search_stop = false;
 
 	// 探索開始時刻の記録
 	begin_time = game_clock::now();
@@ -709,9 +707,6 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 
 	// 前回から持ち込んだ探索回数を記録
 	int pre_simulated = current_root->move_count;
-
-	// 探索回数の閾値を設定
-	// CalculateNextPlayouts(pos);
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	PrintPlayoutLimits(time_limit, po_info.halt);
@@ -815,24 +810,24 @@ InterruptionCheck(void)
 {
 	if (uct_search_stop)
 		return true;
-	
+
 	if (pondering)
 		return uct_search_stop;
 
-	if(time_limit < 0.000001){
+	if (time_limit < 0.000001) {
 		return false;
 	}
 	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
-	const int rest_po = int(double((1+po_info.count) * 1000 * (time_limit - GetSpendTime(begin_time)) / (1 + 1000 * GetSpendTime(begin_time))));
-	const child_node_t *uct_child = current_root->child.get();
+	const child_node_t* uct_child = current_root->child.get();
 
 	// 消費時間が短い場合は打ち止めしない
-	if (GetSpendTime(begin_time) * 10.0 < time_limit || GetSpendTime(begin_time) < minimum_time) {
+	const auto spend_time = GetSpendTime(begin_time);
+	if (spend_time * 10.0 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
-	
+
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
@@ -844,6 +839,7 @@ InterruptionCheck(void)
 		}
 	}
 
+	const int rest_po = int((1.0 + po_info.count) * 1000.0 * (time_limit - spend_time) / (1.0 + 1000.0 * spend_time));
 	// cout<<time_limit<<","<<GetSpendTime(begin_time)<<","<<max_searched<<","<<rest_po<<endl;
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
@@ -1003,31 +999,29 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// 探索を打ち切るか確認
-
 		bool interruption = InterruptionCheck();
- 
-		// 探索の強制終了
-		
+
+		// 探索の強制終了		
 		// 計算時間が予定の値を超えている
 		if (!pondering && GetSpendTime(begin_time) > time_limit && time_limit > 0) {
-			cout<<"info string interrupt_time_limit"<<endl;
+			cout << "info string interrupt_time_limit" << endl;
 			break;
 		}
 		// po_info.halt を超えたら打ち切る
-		if (po_info.count > po_info.halt && po_info.halt > 0){
-			cout<<"info string interrupt_node_limit"<<endl;
+		if (po_info.count > po_info.halt && po_info.halt > 0) {
+			cout << "info string interrupt_node_limit" << endl;
 			break;
 		}
 		// これ以上読んでもbestmoveが変わらない
 		if (interruption) {
-			cout<<"info string interrupt_no_movechange"<<endl;
+			cout << "info string interrupt_no_movechange" << endl;
 			break;
 		}
-		if ((unsigned int)current_root->move_count >= uct_node_limit){
-			cout<<"info string interrupt_no_hash"<<endl;
+		if ((unsigned int)current_root->move_count >= uct_node_limit) {
+			cout << "info string interrupt_no_hash" << endl;
 			break;
 		}
-	} while(1);
+	} while (true);
 
 	return;
 }
@@ -1321,36 +1315,6 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	return max_child;
 }
 
-
-/*
-static void
-CalculateNextPlayouts(const Position *pos)
-{
-	if (pondering)
-		return;
-
-	// 探索の時の探索回数を求める
-	if (mode == TIME_SETTING_MODE ||
-		mode == TIME_SETTING_WITH_BYOYOMI_MODE) {
-		int color = pos->turn();
-		int divisor = 14 + std::max(0, 30 - pos->gamePly());
-		if (draw_ply > 0) {
-			// 引き分けとする手数までに時間を使い切る
-			divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
-		}
-		time_limit = remaining_time[color] / divisor + inc_time[color];
-		// 秒読みの場合、秒読み時間未満にしない
-		if (mode == TIME_SETTING_WITH_BYOYOMI_MODE &&
-			time_limit < const_thinking_time) {
-			time_limit = const_thinking_time;
-		}
-		po_info.halt = -1;
-	}
-	else {
-		po_info.halt = po_info.num;
-	}
-}
-*/
 
 void SetModelPath(const std::string path[max_gpu])
 {
