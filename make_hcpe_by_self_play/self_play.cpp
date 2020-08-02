@@ -259,8 +259,7 @@ public:
 	~UCTSearcher() {
 		// USIエンジンが思考中の場合待機する
 		if (need_usi_engine) {
-			while (grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads) == Move::moveNone())
-				std::this_thread::yield();
+			grp->usi_engines[id % usi_threads].WaitThinking();
 		}
 
 		delete pos_root;

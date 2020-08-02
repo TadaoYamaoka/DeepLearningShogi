@@ -22,6 +22,11 @@ public:
 	Move Think(const Position& pos, const std::string& usi_position, const int byoyomi);
 	void ThinkAsync(const int id, const Position& pos, const std::string& usi_position, const int byoyomi);
 	Move ThinkDone(const int id) { return results[id]; }
+	void WaitThinking() {
+		if (t) {
+			std::lock_guard<std::mutex> lock(mtx);
+		}
+	}
 
 private:
 	boost::process::opstream ops;
