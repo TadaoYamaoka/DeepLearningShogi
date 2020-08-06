@@ -1000,7 +1000,7 @@ UCTSearcher::ParallelUctSearch()
 
 		// 探索の強制終了		
 		// 計算時間が予定の値を超えている
-		if (!pondering && GetSpendTime(begin_time) > time_limit && time_limit > 0) {
+		if (!pondering && GetSpendTime(begin_time) > time_limit) {
 			cout << "info string interrupt_time_limit" << endl;
 			break;
 		}
