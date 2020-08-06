@@ -817,7 +817,7 @@ InterruptionCheck(void)
 
 	// 消費時間が短い場合は打ち止めしない
 	const auto spend_time = GetSpendTime(begin_time);
-	if (spend_time * 10.0 < time_limit) {
+	if (spend_time * 10.0 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
 
@@ -1019,7 +1019,7 @@ UCTSearcher::ParallelUctSearch()
 			break;
 		}
 		// 探索を打ち切るか確認
-		if (!pondering && po_info.halt == 0 && minimum_time == 0 && monitoring_thread)
+		if (!pondering && po_info.halt == 0 && monitoring_thread)
 			interruption = InterruptionCheck();
 		// 探索打ち切り
 		if (interruption) {
