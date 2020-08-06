@@ -810,16 +810,16 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node)
 static bool
 InterruptionCheck(void)
 {
-	int max_searched = 0, second = 0;
-	const uct_node_t* current_root = tree->GetCurrentHead();
-	const int child_num = current_root->child_num;
-	const child_node_t* uct_child = current_root->child.get();
-
 	// 消費時間が短い場合は打ち止めしない
 	const auto spend_time = GetSpendTime(begin_time);
 	if (spend_time * 10.0 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
+
+	int max_searched = 0, second = 0;
+	const uct_node_t* current_root = tree->GetCurrentHead();
+	const int child_num = current_root->child_num;
+	const child_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
