@@ -78,7 +78,7 @@ atomic<bool> uct_search_stop(false);
 double time_limit;
 double minimum_time = 0.0;
 
-atomic<unsigned int> last_pv_print(0); // 最後にpvが表示された時刻
+unsigned int last_pv_print; // 最後にpvが表示された時刻
 unsigned int pv_interval = 500; // pvを表示する周期(ms)
 
 // ハッシュの再利用
@@ -89,6 +89,7 @@ game_clock::time_point begin_time;
 // 探索スレッドの思考開始時刻
 game_clock::time_point search_begin_time;
 atomic<bool> init_search_begin_time;
+atomic<bool> interruption;
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -528,6 +529,7 @@ void SetLimits(const Position* pos, const LimitsType limits)
 		time_limit = 0.001 * limits.moveTime;
 	}
 	po_info.halt = limits.nodes;
+	extend_time = limits.moveTime == 0 && limits.nodes == 0;
 }
 
 
@@ -666,6 +668,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	// 探索開始時刻の記録
 	begin_time = game_clock::now();
 	init_search_begin_time = false;
+	interruption = false;
 
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
@@ -731,7 +734,6 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		extend_time &&
 		remaining_time[pos->turn()] > time_limit * 2 &&
 		ExtendTime()) {
-		po_info.halt *= 2;
 		time_limit *= 2;
 		// 探索スレッド開始
 		for (int i = 0; i < max_gpu; i++)
@@ -808,12 +810,6 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node)
 static bool
 InterruptionCheck(void)
 {
-	if (uct_search_stop)
-		return true;
-
-	if (pondering)
-		return uct_search_stop;
-
 	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
@@ -841,6 +837,7 @@ InterruptionCheck(void)
 	// 最善手を超えられない場合は探索を打ち切る
 	const int rest_po = int((1.0 + po_info.count) * 1000.0 * (time_limit - spend_time) / (1.0 + 1000.0 * spend_time));
 	if (max_searched - second > rest_po) {
+		cout << "info string interrupt_no_movechange" << endl;
 		return true;
 	}
 	else {
@@ -903,9 +900,12 @@ UCTSearcher::ParallelUctSearch()
 	}
 	UNLOCK_EXPAND;
 
+	// いずれか一つのスレッドが時間を監視する
+	bool monitoring_thread = false;
 	if (!init_search_begin_time.exchange(true)) {
 		search_begin_time = game_clock::now();
 		last_pv_print = 0;
+		monitoring_thread = true;
 	}
 
 	// 探索経路のバッチ
@@ -983,11 +983,12 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// PV表示
-		if (pv_interval > 0) {
+		if (monitoring_thread && pv_interval > 0) {
 			const unsigned int elapsed_time = (unsigned int)(1000 * GetSpendTime(search_begin_time));
 			// いずれかのスレッドが1回だけ表示する
 			if (elapsed_time > last_pv_print + pv_interval) {
-				const unsigned int prev_last_pv_print = last_pv_print.exchange(elapsed_time);
+				const unsigned int prev_last_pv_print = last_pv_print;
+				last_pv_print = elapsed_time;
 				if (elapsed_time > prev_last_pv_print + pv_interval) {
 					// PV表示
 					get_and_print_pv();
@@ -995,27 +996,33 @@ UCTSearcher::ParallelUctSearch()
 			}
 		}
 
-		// 探索を打ち切るか確認
-		bool interruption = InterruptionCheck();
-
-		// 探索の強制終了		
+		// stop
+		if (uct_search_stop)
+			break;
+		// 探索の強制終了
 		// 計算時間が予定の値を超えている
-		if (!pondering && GetSpendTime(begin_time) > time_limit) {
-			cout << "info string interrupt_time_limit" << endl;
+		if (!pondering && po_info.halt == 0 && GetSpendTime(begin_time) > time_limit) {
+			if (monitoring_thread)
+				cout << "info string interrupt_time_limit" << endl;
 			break;
 		}
 		// po_info.halt を超えたら打ち切る
-		if (po_info.count > po_info.halt && po_info.halt > 0) {
-			cout << "info string interrupt_node_limit" << endl;
+		if (!pondering && po_info.halt > 0 && po_info.count > po_info.halt) {
+			if (monitoring_thread)
+				cout << "info string interrupt_node_limit" << endl;
 			break;
 		}
-		// これ以上読んでもbestmoveが変わらない
-		if (interruption) {
-			cout << "info string interrupt_no_movechange" << endl;
-			break;
-		}
+		// ハッシュフル
 		if ((unsigned int)current_root->move_count >= uct_node_limit) {
-			cout << "info string interrupt_no_hash" << endl;
+			if (monitoring_thread)
+				cout << "info string interrupt_no_hash" << endl;
+			break;
+		}
+		// 探索を打ち切るか確認
+		if (!pondering && po_info.halt == 0 && monitoring_thread)
+			interruption = InterruptionCheck();
+		// 探索打ち切り
+		if (interruption) {
 			break;
 		}
 	} while (true);
