@@ -814,9 +814,6 @@ InterruptionCheck(void)
 	if (pondering)
 		return uct_search_stop;
 
-	if (time_limit < 0.000001) {
-		return false;
-	}
 	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
@@ -839,10 +836,10 @@ InterruptionCheck(void)
 		}
 	}
 
-	const int rest_po = int((1.0 + po_info.count) * 1000.0 * (time_limit - spend_time) / (1.0 + 1000.0 * spend_time));
-	// cout<<time_limit<<","<<GetSpendTime(begin_time)<<","<<max_searched<<","<<rest_po<<endl;
+
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
+	const int rest_po = int((1.0 + po_info.count) * 1000.0 * (time_limit - spend_time) / (1.0 + 1000.0 * spend_time));
 	if (max_searched - second > rest_po) {
 		return true;
 	}
