@@ -152,6 +152,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			Move ponder;
 			UctSearchGenmove(&pos_tmp, pos.getKey(), {}, ponder);
 
+			// 固定プレイアウトモード
+			SetConstPlayout(options["Const_Playout"]);
+
+			// PonderingMode
 			SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
 
 			// DebugMessageMode

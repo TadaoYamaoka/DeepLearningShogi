@@ -9,11 +9,6 @@
 #include "search.hpp"
 #include "Node.h"
 
-constexpr double ALL_THINKING_TIME = 1.0;   // 持ち時間(デフォルト)
-constexpr int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
-constexpr double CONST_TIME = 5.0;          // 1手あたりの思考時間(デフォルト)
-constexpr int PLAYOUT_SPEED = 5000;         // 初期盤面におけるプレイアウト速度
-
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.
@@ -32,15 +27,6 @@ extern float c_init_root;
 extern float c_base_root;
 extern float c_fpu_reduction_root;
 
-/*
-enum SEARCH_MODE {
-	CONST_PLAYOUT_MODE,             // 1手のプレイアウト回数を固定したモード
-	CONST_TIME_MODE,                // 1手の思考時間を固定したモード
-	TIME_SETTING_MODE,              // 持ち時間ありのモード(秒読みなし)
-	TIME_SETTING_WITH_BYOYOMI_MODE, // 持ち時間ありのモード(秒読みあり)
-};
-*/
-
 struct po_info_t {
 	int num;   // 次の手の探索回数
 	int halt;  // 探索を打ち切る回数
@@ -49,6 +35,7 @@ struct po_info_t {
 
 void SetLimits(const Position *pos, const LimitsType limits);
 void SetLimits(const LimitsType limits);
+void SetConstPlayout(const int playout);
 
 // 残り時間
 extern double remaining_time[ColorNum];

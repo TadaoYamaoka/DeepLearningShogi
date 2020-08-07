@@ -53,7 +53,7 @@ using namespace std;
 // 持ち時間
 double remaining_time[ColorNum];
 double inc_time[ColorNum];
-
+int const_playout = 0;
 
 // ゲーム木
 std::unique_ptr<NodeTree> tree;
@@ -520,6 +520,10 @@ void SetLimits(const LimitsType limits)
 // go cmd前に呼ばれ、探索の条件を指定する
 void SetLimits(const Position* pos, const LimitsType limits)
 {
+	if (const_playout > 0) {
+		po_info.halt = const_playout;
+		return;
+	}
 	const int color = pos->turn();
 	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
 	remaining_time[color] = 0.001 * limits.time[color];
@@ -532,6 +536,12 @@ void SetLimits(const Position* pos, const LimitsType limits)
 	extend_time = limits.moveTime == 0 && limits.nodes == 0;
 }
 
+// 1手のプレイアウト回数を固定したモード
+// 0の場合は無効
+void SetConstPlayout(const int playout)
+{
+	const_playout = playout;
+}
 
 ////////////
 //  終了  //
