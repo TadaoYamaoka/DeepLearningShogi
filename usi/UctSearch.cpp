@@ -744,6 +744,8 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		remaining_time[pos->turn()] > time_limit * 2 &&
 		ExtendTime()) {
 		time_limit *= 2;
+		init_search_begin_time = false;
+		interruption = false;
 		// 探索スレッド開始
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Run();
