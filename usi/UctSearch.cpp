@@ -842,7 +842,7 @@ InterruptionCheck(void)
 
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	const int rest_po = (1 + po_info.count) * (time_limit - spend_time) / (1 + spend_time);
+	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
 	if (max_searched - second > rest_po) {
 		cout << "info string interrupt_no_movechange" << endl;
 		return true;
