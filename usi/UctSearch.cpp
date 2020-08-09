@@ -20,7 +20,6 @@
 #include "Message.h"
 #include "UctSearch.h"
 #include "Node.h"
-#include "Utility.h"
 #include "mate.h"
 #include "nn_wideresnet10.h"
 #include "nn_fused_wideresnet10.h"
@@ -51,8 +50,8 @@ using namespace std;
 ////////////////
 
 // 持ち時間
-double remaining_time[ColorNum];
-double inc_time[ColorNum];
+int remaining_time[ColorNum];
+int inc_time[ColorNum];
 int const_playout = 0;
 
 // ゲーム木
@@ -75,19 +74,19 @@ bool pondering = false;
 
 atomic<bool> uct_search_stop(false);
 
-double time_limit;
-double minimum_time = 0.0;
+int time_limit;
+int minimum_time = 0;
 
-unsigned int last_pv_print; // 最後にpvが表示された時刻
-unsigned int pv_interval = 500; // pvを表示する周期(ms)
+int last_pv_print; // 最後にpvが表示された時刻
+int pv_interval = 500; // pvを表示する周期(ms)
 
 // ハッシュの再利用
 bool reuse_subtree = true;
 
 // 思考開始時刻
-game_clock::time_point begin_time;
+Timer begin_time;
 // 探索スレッドの思考開始時刻
-game_clock::time_point search_begin_time;
+Timer search_begin_time;
 atomic<bool> init_search_begin_time;
 atomic<bool> interruption;
 
@@ -405,7 +404,7 @@ void SetDrawValue(const int value_black, const int value_white)
 // 1手にかける時間取得（ms）
 int GetTimeLimit()
 {
-	return (int)(time_limit * 1000);
+	return time_limit;
 }
 
 // 引き分けとする手数の設定
@@ -509,28 +508,30 @@ void TerminateUctSearch()
 }
 
 // position抜きで探索の条件を指定する
-void SetLimits(const LimitsType limits)
+void SetLimits(const LimitsType& limits)
 {
-	time_limit = 0.001 * limits.moveTime;
+	begin_time = limits.startTime;
+	time_limit = limits.moveTime;
 	po_info.halt = limits.nodes;
-	minimum_time = 0.001 * limits.moveTime;
+	minimum_time = limits.moveTime;
 }
 
 
 // go cmd前に呼ばれ、探索の条件を指定する
-void SetLimits(const Position* pos, const LimitsType limits)
+void SetLimits(const Position* pos, const LimitsType& limits)
 {
+	begin_time = limits.startTime;
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
 		return;
 	}
 	const int color = pos->turn();
 	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
-	remaining_time[color] = 0.001 * limits.time[color];
-	time_limit = remaining_time[color] / divisor + 0.001 * limits.inc[color];
-	minimum_time = 0.001 * limits.moveTime;
-	if (time_limit < 0.001 * limits.moveTime) {
-		time_limit = 0.001 * limits.moveTime;
+	remaining_time[color] = limits.time[color];
+	time_limit = remaining_time[color] / divisor + limits.inc[color];
+	minimum_time = limits.moveTime;
+	if (time_limit < limits.moveTime) {
+		time_limit = limits.moveTime;
 	}
 	po_info.halt = limits.nodes;
 	extend_time = limits.moveTime == 0 && limits.nodes == 0;
@@ -659,9 +660,9 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	}
 
 	// 探索にかかった時間を求める
-	const double finish_time = GetSpendTime(begin_time);
+	const int finish_time = begin_time.elapsed();
 
-	cout << "info nps " << int(po_info.count / finish_time) << " time " << int(finish_time * 1000) << " nodes " << current_root->move_count << " hashfull " << current_root->move_count * 1000 / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+	cout << "info nps " << po_info.count * 1000 / finish_time << " time " << finish_time << " nodes " << current_root->move_count << " hashfull " << current_root->move_count * 1000 / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
 	return { move, best_wp, ponderMove };
 }
@@ -675,8 +676,6 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 {
 	uct_search_stop = false;
 
-	// 探索開始時刻の記録
-	begin_time = game_clock::now();
 	init_search_begin_time = false;
 	interruption = false;
 
@@ -765,11 +764,9 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	}
 
 	// 探索にかかった時間を求める
-	const double finish_time = GetSpendTime(begin_time);
+	const int finish_time = begin_time.elapsed();
 	remaining_time[pos->turn()] -= finish_time;
 
-	// 最善応手列を出力
-	//PrintBestSequence(pos, uct_node, current_root);
 	// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
 	if (debug_message) PrintPlayoutInformation(current_root, &po_info, finish_time, pre_simulated);
 
@@ -821,8 +818,8 @@ static bool
 InterruptionCheck(void)
 {
 	// 消費時間が短い場合は打ち止めしない
-	const auto spend_time = GetSpendTime(begin_time);
-	if (spend_time * 10.0 < time_limit || spend_time < minimum_time) {
+	const auto spend_time = begin_time.elapsed();
+	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
 
@@ -845,7 +842,7 @@ InterruptionCheck(void)
 
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	const int rest_po = int((1.0 + po_info.count) * 1000.0 * (time_limit - spend_time) / (1.0 + 1000.0 * spend_time));
+	const int rest_po = (1 + po_info.count) * (time_limit - spend_time) / (1 + spend_time);
 	if (max_searched - second > rest_po) {
 		cout << "info string interrupt_no_movechange" << endl;
 		return true;
@@ -913,7 +910,7 @@ UCTSearcher::ParallelUctSearch()
 	// いずれか一つのスレッドが時間を監視する
 	bool monitoring_thread = false;
 	if (!init_search_begin_time.exchange(true)) {
-		search_begin_time = game_clock::now();
+		search_begin_time.restart();
 		last_pv_print = 0;
 		monitoring_thread = true;
 	}
@@ -994,10 +991,10 @@ UCTSearcher::ParallelUctSearch()
 
 		// PV表示
 		if (monitoring_thread && pv_interval > 0) {
-			const unsigned int elapsed_time = (unsigned int)(1000 * GetSpendTime(search_begin_time));
+			const auto elapsed_time = search_begin_time.elapsed();
 			// いずれかのスレッドが1回だけ表示する
 			if (elapsed_time > last_pv_print + pv_interval) {
-				const unsigned int prev_last_pv_print = last_pv_print;
+				const auto prev_last_pv_print = last_pv_print;
 				last_pv_print = elapsed_time;
 				if (elapsed_time > prev_last_pv_print + pv_interval) {
 					// PV表示
@@ -1011,7 +1008,7 @@ UCTSearcher::ParallelUctSearch()
 			break;
 		// 探索の強制終了
 		// 計算時間が予定の値を超えている
-		if (!pondering && po_info.halt == 0 && GetSpendTime(begin_time) > time_limit) {
+		if (!pondering && po_info.halt == 0 && begin_time.elapsed() > time_limit) {
 			if (monitoring_thread)
 				cout << "info string interrupt_time_limit" << endl;
 			break;

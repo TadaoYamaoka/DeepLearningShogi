@@ -28,12 +28,11 @@
 // 時間や探索深さの制限を格納する為の構造体
 struct LimitsType {
 	LimitsType() {
-		nodes = time[Black] = time[White] = inc[Black] = inc[White] = movesToGo = depth = moveTime = mate = infinite = ponder = 0;
+		nodes = time[Black] = time[White] = inc[Black] = inc[White] = movesToGo = moveTime = mate = infinite = ponder = 0;
 	}
-	bool useTimeManagement() const { return !(mate | moveTime | depth | nodes | infinite); }
+	bool useTimeManagement() const { return !(mate | moveTime | nodes | infinite); }
 
-	std::vector<Move> searchmoves;
-	int time[ColorNum], inc[ColorNum], movesToGo, depth, moveTime, mate, infinite, ponder;
+	int time[ColorNum], inc[ColorNum], movesToGo, moveTime, mate, infinite, ponder;
 	s64 nodes;
 	Timer startTime;
 };

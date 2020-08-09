@@ -37,16 +37,17 @@ GetDebugMessageMode()
 //  探索の情報の表示  //
 ///////////////////////
 void
-PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const double finish_time, const int pre_simulated)
+PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const int finish_time, const int pre_simulated)
 {
 	double winning_percentage = (double)root->win / root->move_count;
+	double finish_time_sec = finish_time / 1000.0;
 
 	cout << "All Playouts       :  " << setw(7) << root->move_count << endl;
 	cout << "Pre Simulated      :  " << setw(7) << pre_simulated << endl;
-	cout << "Thinking Time      :  " << setw(7) << finish_time << " sec" << endl;
+	cout << "Thinking Time      :  " << setw(7) << finish_time_sec << " sec" << endl;
 	cout << "Winning Percentage :  " << setw(7) << (winning_percentage * 100) << "%" << endl;
-	if (finish_time != 0.0) {
-		cout << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time) << " PO/sec " << endl;
+	if (finish_time_sec != 0.0) {
+		cout << "Playout Speed      :  " << setw(7) << (int)(po_info->count / finish_time_sec) << " PO/sec " << endl;
 	}
 }
 

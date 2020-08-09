@@ -28,17 +28,16 @@ extern float c_base_root;
 extern float c_fpu_reduction_root;
 
 struct po_info_t {
-	int num;   // 次の手の探索回数
 	int halt;  // 探索を打ち切る回数
 	std::atomic<int> count;       // 現在の探索回数
 };
 
-void SetLimits(const Position *pos, const LimitsType limits);
-void SetLimits(const LimitsType limits);
+void SetLimits(const LimitsType& limits);
+void SetLimits(const Position* pos, const LimitsType& limits);
 void SetConstPlayout(const int playout);
 
 // 残り時間
-extern double remaining_time[ColorNum];
+extern int remaining_time[ColorNum];
 
 // 現在のルートのインデックス
 extern unsigned int current_root;

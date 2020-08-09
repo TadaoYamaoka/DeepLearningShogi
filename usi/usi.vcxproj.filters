@@ -101,9 +101,6 @@
     <ClInclude Include="UctSearch.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Utility.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="Message.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

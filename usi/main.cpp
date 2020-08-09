@@ -144,9 +144,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// 初回探索をキャッシュ
 			Position pos_tmp(DefaultStartPositionSFEN, thisptr);
 			LimitsType limits;
+			limits.startTime.restart();
 			limits.nodes = 1;
-			limits.time[0] = 0;
-			limits.time[1] = 0;
 
 			SetLimits(limits);
 			Move ponder;
@@ -224,12 +223,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 		else if (token == "infinite") limits.infinite = true;
 		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
 		else if (token == "mate") ssCmd >> limits.mate;
-		else if (token == "depth") ssCmd >> limits.depth;
 		else if (token == "nodes") ssCmd >> limits.nodes;
-		else if (token == "searchmoves") {
-			while (ssCmd >> token)
-				limits.searchmoves.push_back(usiToMove(pos, token));
-		}
 	}
 	if (limits.moveTime != 0) {
 		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];

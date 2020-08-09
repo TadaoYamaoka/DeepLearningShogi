@@ -10,7 +10,7 @@ void SetDebugMessageMode(const bool flag);
 bool GetDebugMessageMode();
 
 //  探索の情報の表示
-void PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const double finish_time, const int pre_simulated);
+void PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const int finish_time, const int pre_simulated);
 
 //  探索時間の出力
 void PrintPlayoutLimits(const double time_limit, const int playout_limit);
