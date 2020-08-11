@@ -202,7 +202,7 @@ for e in range(args.epoch):
                 loss3 = bce_with_logits_loss(y2, value)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                logging.info('epoch = {}, iteration = {}, loss = {:.8}, {:.8}, {:.8}, {:.8}, test loss = {:.8}, {:.8}, {:.8}, {:.8}, test accuracy = {:.8}, {:.8}'.format(
+                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
                     epoch + 1, t,
                     sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
                     loss1.item(), loss2.item(), loss3.item(), loss.item(),
@@ -253,7 +253,7 @@ for e in range(args.epoch):
             entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
             sum_test_entropy2 +=entropy2.mean().item()
 
-        logging.info('epoch = {}, iteration = {}, train loss avr = {:.8}, {:.8}, {:.8}, {:.8}, test_loss = {:.8}, {:.8}, {:.8}, {:.8}, test accuracy = {:.8}, {:.8}, test entropy = {:.8}, {:.8}'.format(
+        logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test_loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
             epoch + 1, t,
             sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
             sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss / itr_test,
