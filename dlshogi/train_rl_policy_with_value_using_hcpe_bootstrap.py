@@ -34,6 +34,7 @@ parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
+parser.add_argument('--swa_lr', type=float)
 parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 args = parser.parse_args()
 
@@ -61,7 +62,7 @@ model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_n_avr=args.swa_n_avr)
+optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
