@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ソース ファイル">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ヘッダー ファイル">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ソース ファイル\cppshogi">
+      <UniqueIdentifier>{baf9bad7-02c2-47ea-a769-4940e6a28c0e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\cppshogi\bitboard.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\book.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\common.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\generateMoves.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\hand.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\init.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\move.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\mt64bit.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\position.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\search.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\square.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\usi.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="self_play.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\mate.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cppshogi\cppshogi.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\npz.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\cudnn_dtype.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ZobristHash.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet10.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_wideresnet15.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\dfpn.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_senet10.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="USIEngine.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\nn_tensorrt.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ZobristHash.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="UctSearch.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="USIEngine.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\usi\fastmath.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="LruCache.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
