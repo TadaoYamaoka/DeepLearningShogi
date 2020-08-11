@@ -34,6 +34,7 @@ parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
+parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 args = parser.parse_args()
 
 if args.network == 'wideresnet15':
@@ -63,6 +64,9 @@ base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_
 optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_n_avr=args.swa_n_avr)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
+if args.use_amp:
+    logging.info('use amp')
+    scaler = torch.cuda.amp.GradScaler()
 
 # Init/Resume
 if args.initmodel:
@@ -146,6 +150,10 @@ for e in range(args.epoch):
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
     for i in range(0, len(train_data) - args.batchsize + 1, args.batchsize):
+        if args.use_amp:
+            amp_context = torch.cuda.amp.autocast()
+            amp_context.__enter__()
+
         model.train()
 
         x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
@@ -158,8 +166,15 @@ for e in range(args.epoch):
         loss2 = bce_with_logits_loss(y2, t2)
         loss3 = bce_with_logits_loss(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
-        loss.backward()
-        optimizer.step()
+
+        if args.use_amp:
+            amp_context.__exit__()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
 
         t += 1
         itr += 1
