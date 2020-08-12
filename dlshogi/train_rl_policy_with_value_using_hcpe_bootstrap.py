@@ -79,6 +79,8 @@ if args.resume:
     epoch = checkpoint['epoch']
     t = checkpoint['t']
     base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if args.use_amp and 'scaler_state_dict' in checkpoint:
+        scaler.load_state_dict(checkpoint['scaler_state_dict'])
 else:
     epoch = 0
     t = 0
@@ -268,8 +270,11 @@ for e in range(args.epoch):
 print('save the model')
 serializers.save_npz(args.model, model)
 print('save the optimizer')
-torch.save({
+state = {
     'epoch': epoch,
     't': t,
     'optimizer_state_dict': base_optimizer.state_dict(),
-    }, args.state)
+    }
+if args.use_amp:
+    state['scaler_state_dict'] = scaler.state_dict()
+torch.save(state, args.state)
