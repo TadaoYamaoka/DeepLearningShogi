@@ -216,7 +216,15 @@ for e in range(args.epoch):
             sum_loss = 0
 
     optimizer.swap_swa_sgd()
+
+    if args.use_amp:
+        amp_context = torch.cuda.amp.autocast()
+        amp_context.__enter__()
+
     optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+
+    if args.use_amp:
+        amp_context.__exit__()
 
     # print train loss for each epoch
     itr_test = 0
