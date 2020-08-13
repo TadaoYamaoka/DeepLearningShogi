@@ -270,6 +270,7 @@ def main():
         sec_sum = [0.0, 0.0]
         while not is_game_over:
             for i, p in enumerate(procs):
+                if __debug__: engine_id = 'engine1' if (n + i) % 2 == 0 else 'engine2'
                 info = None
 
                 # 持将棋
@@ -283,7 +284,7 @@ def main():
                 line = 'position startpos moves'
                 for m in board.move_stack:
                     line += ' ' + m.usi()
-                if __debug__: logging.debug(line)
+                if __debug__: logging.debug('[{}] {}'.format(engine_id, line))
                 p.stdin.write(line.encode('ascii') + b'\n')
                 p.stdin.flush()
 
@@ -298,7 +299,7 @@ def main():
                 while True:
                     p.stdout.flush()
                     line = p.stdout.readline().strip().decode('ascii')
-                    if __debug__: logging.debug(line)
+                    if __debug__: logging.debug('[{}] {}'.format(engine_id, line))
                     if line[:8] == 'bestmove':
                         sec = time.time() - time_start
                         sec_sum[i] += sec
