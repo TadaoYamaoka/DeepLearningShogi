@@ -155,4 +155,4 @@ class PolicyValueNetwork(nn.Module):
         Args:
             memory_efficient (bool): Whether to use memory-efficient version of swish.
         """
-        self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
+        self.swish = MemoryEfficientSwish() if memory_efficient else Swish()
