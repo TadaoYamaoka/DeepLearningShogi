@@ -30,7 +30,6 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="fused_policy_value_network.py" />
     <Compile Include="convert_model_to_onnx.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="policy_value_network_senet10.py" />
@@ -43,9 +42,7 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="test_fused_policy_value_network.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
-    <Compile Include="fuse_policy_value_network.py" />
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
