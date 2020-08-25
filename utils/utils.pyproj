@@ -29,6 +29,7 @@
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="hcp_uniq.py" />
     <Compile Include="matches.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
