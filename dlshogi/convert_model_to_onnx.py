@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model')
 parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10'])
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'wideresnet10_swish', 'normal_resnet10_swish', 'normal_resnet20_256_swish'])
 args = parser.parse_args()
 
 if args.gpu >= 0:
@@ -25,6 +25,12 @@ elif args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
 elif args.network == 'senet10':
     from dlshogi.policy_value_network_senet10 import *
+elif args.network == 'wideresnet10_swish':
+    from dlshogi.policy_value_network_swish import *
+elif args.network == 'normal_resnet10_swish':
+    from dlshogi.policy_value_network_normal_resnet10_swish import *
+elif args.network == 'normal_resnet20_256_swish':
+    from dlshogi.policy_value_network_normal_resnet20_256_swish import *
 baseclass = PolicyValueNetwork
 
 class PolicyValueNetworkAddSigmoid(baseclass):
