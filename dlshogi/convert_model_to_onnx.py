@@ -42,6 +42,8 @@ class PolicyValueNetworkAddSigmoid(baseclass):
         return y1, F.sigmoid(y2)
 
 model = PolicyValueNetworkAddSigmoid()
+if args.network.endswith('_swish'):
+    model.set_swish(False)
 model.to(device)
 
 serializers.load_npz(args.model, model)
