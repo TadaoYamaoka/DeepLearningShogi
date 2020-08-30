@@ -65,6 +65,13 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 
 		pos.doMove(m, si, ci, true);
 
+		// 千日手のチェック
+		if (pos.isDraw(16) == RepetitionWin) {
+			// 受け側の反則勝ち
+			pos.undoMove(m);
+			continue;
+		}
+
 		// この局面ですべてのevasionを試す
 		MovePicker<false, false> move_picker2(pos);
 

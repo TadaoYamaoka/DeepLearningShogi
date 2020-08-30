@@ -326,6 +326,13 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 					n.doMove(m, si, ci, true);
 
+					// 千日手のチェック
+					if (n.isDraw(16) == RepetitionWin) {
+						// 受け側の反則勝ち
+						n.undoMove(m);
+						continue;
+					}
+
 					auto& entry2 = transposition_table.LookUp<false>(n, depth + 1);
 
 					// この局面ですべてのevasionを試す

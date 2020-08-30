@@ -29,6 +29,7 @@
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="hcp_uniq.py" />
     <Compile Include="matches.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
@@ -44,6 +45,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="plot_log_policy_value.py" />
+    <Compile Include="psv_to_hcp.py" />
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="throughput.py">
       <SubType>Code</SubType>
