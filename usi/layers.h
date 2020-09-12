@@ -20,20 +20,12 @@ public:
 #ifdef FP16
 		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
 #else
-		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION));
+		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
 #endif
 		cudnnConvolutionFwdAlgoPerf_t algo_perf[4];
 		int returnedAlgoCount;
 		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 4, &returnedAlgoCount, algo_perf));
 		int algo_index = 0;
-#ifndef FP16
-		for (int i = 0; i < returnedAlgoCount; i++) {
-			if (algo_perf[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && algo_perf[i].mathType == CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION) {
-				algo_index = i;
-				break;
-			}
-		}
-#endif
 		algo = algo_perf[algo_index].algo;
 		workSpaceSizeInBytes = algo_perf[algo_index].memory;
 		checkCudaErrors(cudaMalloc(&workSpace, workSpaceSizeInBytes));
