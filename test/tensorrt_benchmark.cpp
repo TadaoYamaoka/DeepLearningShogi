@@ -134,16 +134,19 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 	std::cout << "Output2 name : " << network->getOutput(1)->getName() << std::endl;
 
 	// Optimization Profiles
-	auto profile = builder->createOptimizationProfile();
-	const auto dims1 = inputDims[0].d;
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(batchsize, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(batchsize, dims1[1], dims1[2], dims1[3]));
-	const auto dims2 = inputDims[1].d;
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(batchsize, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(batchsize, dims2[1], dims2[2], dims2[3]));
-	config->addOptimizationProfile(profile);
+	if (calibration_hcpe == "")
+	{
+		auto profile = builder->createOptimizationProfile();
+		const auto dims1 = inputDims[0].d;
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(batchsize, dims1[1], dims1[2], dims1[3]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(batchsize, dims1[1], dims1[2], dims1[3]));
+		const auto dims2 = inputDims[1].d;
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(batchsize, dims2[1], dims2[2], dims2[3]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(batchsize, dims2[1], dims2[2], dims2[3]));
+		config->addOptimizationProfile(profile);
+	}
 
 
 	engine = InferUniquePtr<nvinfer1::ICudaEngine>(builder->buildEngineWithConfig(*network, *config));
