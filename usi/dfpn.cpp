@@ -101,8 +101,8 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 				// 残りのエントリに優越関係を満たす局面があり証明済みの場合、それを返す
 				for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
 					TTEntry& entry_rest = entries.entries[i];
-					if (entry_rest.hash_high == 0) break;
-					if (hash_high == entry_rest.hash_high) {
+					if (generation != entry_rest.generation) break;
+					if (hash_high == entry_rest.hash_high && generation == entry_rest.generation) {
 						if (entry_rest.pn == 0) {
 							if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
 								entry_rest.generation = generation;
