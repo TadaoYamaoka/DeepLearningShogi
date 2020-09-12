@@ -17,14 +17,14 @@ public:
 	void init(cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t yDesc) {
 		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_TYPE, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
 		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_TYPE));
-#ifdef FP16
-		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
-#else
-		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
-#endif
 		cudnnConvolutionFwdAlgoPerf_t algo_perf[4];
 		int returnedAlgoCount;
+#ifdef FP16
+		checkCUDNN(cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
 		checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(handle, xDesc, wDesc, convDesc, yDesc, 4, &returnedAlgoCount, algo_perf));
+#else
+		checkCUDNN(cudnnFindConvolutionForwardAlgorithm(handle, xDesc, wDesc, convDesc, yDesc, 4, &returnedAlgoCount, algo_perf));
+#endif
 		int algo_index = 0;
 		algo = algo_perf[algo_index].algo;
 		workSpaceSizeInBytes = algo_perf[algo_index].memory;
