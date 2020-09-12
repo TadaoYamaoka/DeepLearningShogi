@@ -102,7 +102,7 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 				for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
 					TTEntry& entry_rest = entries.entries[i];
 					if (generation != entry_rest.generation) break;
-					if (hash_high == entry_rest.hash_high && generation == entry_rest.generation) {
+					if (hash_high == entry_rest.hash_high) {
 						if (entry_rest.pn == 0) {
 							if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
 								entry_rest.generation = generation;
