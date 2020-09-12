@@ -11,6 +11,7 @@ parser.add_argument('model')
 parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10'])
+parser.add_argument('--fixed_batchsize', type=int)
 args = parser.parse_args()
 
 if args.gpu >= 0:
@@ -33,7 +34,7 @@ class PolicyValueNetworkAddSigmoid(baseclass):
 
     def __call__(self, x1, x2):
         y1, y2 = super(PolicyValueNetworkAddSigmoid, self).__call__(x1, x2)
-        return y1, F.sigmoid(y2)
+        return y1, torch.sigmoid(y2)
 
 model = PolicyValueNetworkAddSigmoid()
 model.to(device)
@@ -60,17 +61,25 @@ def mini_batch(hcpevec):
             torch.tensor(value.reshape((len(value), 1))).to(device)
             )
 
-hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)], HuffmanCodedPosAndEval)
+batchsize = 1 if args.fixed_batchsize is None else args.fixed_batchsize
+hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)] * batchsize, HuffmanCodedPosAndEval)
 x1, x2, t1, t2, z, value = mini_batch(hcpevec)
 
-torch.onnx.export(model, (x1, x2), args.onnx,
-    verbose = True,
-    do_constant_folding = True,
-    input_names = ['input1', 'input2'],
-    output_names = ['output_policy', 'output_value'],
-    dynamic_axes={
-        'input1' : {0 : 'batch_size'},
-        'input2' : {0 : 'batch_size'},
-        'output_policy' : {0 : 'batch_size'},
-        'output_value' : {0 : 'batch_size'},
-        })
+if args.fixed_batchsize is None:
+    torch.onnx.export(model, (x1, x2), args.onnx,
+        verbose = True,
+        do_constant_folding = True,
+        input_names = ['input1', 'input2'],
+        output_names = ['output_policy', 'output_value'],
+        dynamic_axes={
+            'input1' : {0 : 'batch_size'},
+            'input2' : {0 : 'batch_size'},
+            'output_policy' : {0 : 'batch_size'},
+            'output_value' : {0 : 'batch_size'},
+            })
+else:
+    torch.onnx.export(model, (x1, x2), args.onnx,
+        verbose = True,
+        do_constant_folding = True,
+        input_names = ['input1', 'input2'],
+        output_names = ['output_policy', 'output_value'])

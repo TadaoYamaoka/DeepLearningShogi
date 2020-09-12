@@ -102,8 +102,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -113,13 +113,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.0.0.11\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.0.0.11\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -250,6 +250,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="mate.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_fused_wideresnet10.cpp" />
+    <ClCompile Include="int8_calibrator.cpp" />
     <ClCompile Include="nn_senet10.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="nn_wideresnet10.cpp" />
@@ -269,6 +270,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="Message.h" />
     <ClInclude Include="nn.h" />
     <ClInclude Include="nn_fused_wideresnet10.h" />
+    <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_senet10.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="nn_wideresnet10.h" />

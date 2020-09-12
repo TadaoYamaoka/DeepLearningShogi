@@ -84,7 +84,29 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	builder->setMaxBatchSize(max_batch_size);
 	config->setMaxWorkspaceSize(64_MiB);
 
-	config->setFlag(nvinfer1::BuilderFlag::kFP16);
+	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
+	if (builder->platformHasFastInt8())
+	{
+		// キャリブレーションキャッシュがある場合のみINT8を使用
+		std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
+		std::ifstream calibcache(calibration_cache_filename);
+		if (calibcache.is_open())
+		{
+			calibcache.close();
+
+			config->setFlag(nvinfer1::BuilderFlag::kINT8);
+			calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1));
+			config->setInt8Calibrator(calibrator.get());
+		}
+		else if (builder->platformHasFastFp16())
+		{
+			config->setFlag(nvinfer1::BuilderFlag::kFP16);
+		}
+	}
+	else if (builder->platformHasFastFp16())
+	{
+		config->setFlag(nvinfer1::BuilderFlag::kFP16);
+	}
 
 	assert(network->getNbInputs() == 2);
 	nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
@@ -114,7 +136,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 
 void NNTensorRT::load_model(const char* filename)
 {
-	const std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
+	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 	if (seriarizedFile.is_open())
 	{

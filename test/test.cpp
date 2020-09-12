@@ -356,7 +356,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 using namespace ns_dfpn;
 // DfPnテスト

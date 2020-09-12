@@ -1,4 +1,4 @@
-#if 0
+#if 1
 // TensorRTベンチマーク
 #include <iostream>
 #include <chrono>
@@ -10,6 +10,7 @@
 
 #include "cppshogi.h"
 #include "cudnn_wrapper.h"
+#include "int8_calibrator.h"
 
 using namespace std;
 
@@ -27,8 +28,8 @@ class Logger : public nvinfer1::ILogger
 			case Severity::kVERBOSE: std::cout << "[V] "; break;
 			default: assert(0);
 			}
-			std::cout << msg << std::endl;
 		}
+		//std::cout << msg << std::endl;
 	}
 } gLogger;
 
@@ -66,7 +67,7 @@ static void  showDevices(int i)
 		<< ", boardGroupID=" << prop.multiGpuBoardGroupID << endl;
 }
 
-bool build(const string& onnx_filename, const int batchsize, const int fp16, InferUniquePtr<nvinfer1::ICudaEngine>& engine)
+bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine, const string& calibration_hcpe)
 {
 	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
 	if (!builder)
@@ -104,9 +105,19 @@ bool build(const string& onnx_filename, const int batchsize, const int fp16, Inf
 
 	builder->setMaxBatchSize(batchsize);
 	config->setMaxWorkspaceSize(64_MiB);
+	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
 
-	if (fp16 == 1)
+	if (mode == "fp16")
+	{
 		config->setFlag(nvinfer1::BuilderFlag::kFP16);
+	}
+	else if (mode == "int8")
+	{
+		if (!builder->platformHasFastInt8()) return false;
+		config->setFlag(nvinfer1::BuilderFlag::kINT8);
+		calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1, calibration_hcpe.c_str()));
+		config->setInt8Calibrator(calibrator.get());
+	}
 
 	assert(network->getNbInputs() == 2);
 	nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
@@ -134,6 +145,7 @@ bool build(const string& onnx_filename, const int batchsize, const int fp16, Inf
 	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(batchsize, dims2[1], dims2[2], dims2[3]));
 	config->addOptimizationProfile(profile);
 
+
 	engine = InferUniquePtr<nvinfer1::ICudaEngine>(builder->buildEngineWithConfig(*network, *config));
 	if (!engine)
 	{
@@ -146,7 +158,7 @@ bool build(const string& onnx_filename, const int batchsize, const int fp16, Inf
 
 int main(int argc, char* argv[]) {
 	if (argc < 6) {
-		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> <fp16[0|1]>" << endl;
+		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> <[fp16|int8]> [calibration_hcpe]" << endl;
 		return 0;
 	}
 
@@ -155,13 +167,18 @@ int main(int argc, char* argv[]) {
 	int num = stoi(argv[3]);
 	int gpu_id = stoi(argv[4]);
 	int batchsize = stoi(argv[5]);
-	int fp16 = stoi(argv[6]);
+	std::string mode;
+	std::string calibration_hcpe;
+	if (argc > 6)
+		mode = argv[6];
+	if (argc > 7)
+		calibration_hcpe = argv[7];
 
 	cout << "onnx_filename = " << onnx_filename << endl;
 	cout << "num = " << num << endl;
 	cout << "gpu_id = " << gpu_id << endl;
 	cout << "batchsize = " << batchsize << endl;
-	cout << "fp16 = " << fp16 << endl;
+	cout << "mode = " << mode << endl;
 
 	initTable();
 	HuffmanCodedPos::init();
@@ -183,7 +200,7 @@ int main(int argc, char* argv[]) {
 
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
 
-	const string serialized_filename = onnx_filename + (fp16 == 1 ? ".fp16" : "") + ".serialized";
+	const string serialized_filename = onnx_filename + "." + std::to_string(gpu_id) + "." + std::to_string(batchsize) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 	if (seriarizedFile.is_open())
 	{
@@ -198,10 +215,9 @@ int main(int argc, char* argv[]) {
 	}
 	else
 	{
-
 		// build
 		auto build_start = std::chrono::system_clock::now();
-		if (!build(onnx_filename, batchsize, fp16, engine))
+		if (!build(onnx_filename, batchsize, mode, engine, calibration_hcpe))
 		{
 			return 1;
 		}
