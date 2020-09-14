@@ -660,7 +660,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	}
 
 	// 探索にかかった時間を求める
-	const int finish_time = begin_time.elapsed();
+	const int finish_time = std::max(1, begin_time.elapsed());
 
 	cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
