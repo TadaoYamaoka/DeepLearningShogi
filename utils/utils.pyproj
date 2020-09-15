@@ -30,6 +30,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="hcp_uniq.py" />
+    <Compile Include="kif_to_pgn.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="matches.py" />
     <Compile Include="measure_entropy.py">
       <SubType>Code</SubType>
