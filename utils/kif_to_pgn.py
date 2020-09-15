@@ -15,9 +15,11 @@ pgn = PGN.Exporter(args.pgn)
 
 for filepath in glob.glob(os.path.join(args.kif_dir, '**', '*.kif'), recursive=True):
     kif = KIF.Parser.parse_file(filepath)[0]
-    pgn.tag_pair(
-        kif['names'],
-        BLACK_WIN if kif['win'] == 'b' else (WHITE_WIN if kif['win'] == 'w' else DRAW),
-        starttime=kif['starttime'])
+    win = kif['win']
+    if win:
+        pgn.tag_pair(
+            kif['names'],
+            BLACK_WIN if kif['win'] == 'b' else (WHITE_WIN if kif['win'] == 'w' else DRAW),
+            starttime=kif['starttime'])
 
 pgn.close()
