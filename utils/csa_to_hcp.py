@@ -22,17 +22,25 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
         assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
         # gameResult
         skip = False
+        kachi = parser.endgame == '%KACHI'
+        if args.before_kachi_moves:
+            kachi_moves = len(parser.moves) - args.before_kachi_moves
+        else:
+            kachi_moves = None
         for i, (move, score) in enumerate(zip(parser.moves, parser.scores)):
-            if i >= limit_moves:
-                break
-
             if not board.is_legal(move):
                 print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
                 skip = True
                 break
 
             # hcp
-            board.to_hcp(hcps[i:i+1])
+            if i >= limit_moves:
+                if kachi_moves and kachi and i <= kachi_moves:
+                    board.to_hcp(hcps[i:i+1])
+                else:
+                    break
+            else:
+                board.to_hcp(hcps[i:i+1])
 
             board.push(move)
 
@@ -40,9 +48,9 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
             continue
 
         # write data
-        hcps[:i+1].tofile(f)
+        hcps[:i].tofile(f)
 
-        num_positions += i + 1
+        num_positions += i
         num_games += 1
 
     return num_games, num_positions
@@ -57,6 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--filter_rating', type=int, default=0, help='filter by rating')
     parser.add_argument('--recursive', '-r', action='store_true')
     parser.add_argument('--limit_moves', type=int, default=40, help='upper limit of move count')
+    parser.add_argument('--before_kachi_moves', type=int, help='output the position until N moves before sengen kachi')
 
     args = parser.parse_args()
 
