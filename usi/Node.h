@@ -32,6 +32,8 @@ struct child_node_t {
 	std::atomic<float> win;      // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
 	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
+
+	std::mutex mtx;
 };
 
 struct uct_node_t {
@@ -64,13 +66,6 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	void Lock() {
-		mtx.lock();
-	}
-	void UnLock() {
-		mtx.unlock();
-	}
-
 	std::atomic<int> move_count;
 	std::atomic<float> win;
 	std::atomic<bool> evaled;      // 評価済か
@@ -78,8 +73,6 @@ struct uct_node_t {
 	std::atomic<float> visited_nnrate;
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
-
-	std::mutex mtx;
 };
 
 class NodeTree {
