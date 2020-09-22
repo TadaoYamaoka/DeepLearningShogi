@@ -4,12 +4,10 @@
 #include "cudnn_wrapper.h"
 #include "NvInfer.h"
 
-constexpr size_t int8_calibration_data_size = 16384;
-
 class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2
 {
 public:
-	Int8EntropyCalibrator2(const char* model_filename, const int batch_size, const char* hcpe_filename) : batch_size(batch_size), features1(new features1_t[batch_size]), features2(new features2_t[batch_size]) {
+	Int8EntropyCalibrator2(const char* model_filename, const int batch_size, const char* hcpe_filename, const size_t int8_calibration_data_size) : batch_size(batch_size), int8_calibration_data_size(int8_calibration_data_size), features1(new features1_t[batch_size]), features2(new features2_t[batch_size]) {
 		calibration_cache_filename = std::string(model_filename) + ".calibcache";
 		checkCudaErrors(cudaMalloc(&input1, sizeof(features1_t) * batch_size));
 		checkCudaErrors(cudaMalloc(&input2, sizeof(features2_t) * batch_size));
@@ -42,7 +40,7 @@ public:
 			}
 		}
 	}
-	Int8EntropyCalibrator2(const char* model_filename, const int batch_size) : Int8EntropyCalibrator2(model_filename, batch_size, "") {}
+	Int8EntropyCalibrator2(const char* model_filename, const int batch_size) : Int8EntropyCalibrator2(model_filename, batch_size, "", 0) {}
 
 	~Int8EntropyCalibrator2() {
 		checkCudaErrors(cudaFree(input1));
@@ -107,5 +105,6 @@ private:
 	void* input1;
 	void* input2;
 	std::string calibration_cache_filename;
+	size_t int8_calibration_data_size;
 	std::vector<char> calibration_cache;
 };

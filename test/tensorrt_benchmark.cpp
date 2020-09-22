@@ -67,7 +67,7 @@ static void  showDevices(int i)
 		<< ", boardGroupID=" << prop.multiGpuBoardGroupID << endl;
 }
 
-bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine, const string& calibration_hcpe)
+bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine, const string& calibration_hcpe, const size_t int8_calibration_data_size)
 {
 	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
 	if (!builder)
@@ -115,7 +115,7 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 	{
 		if (!builder->platformHasFastInt8()) return false;
 		config->setFlag(nvinfer1::BuilderFlag::kINT8);
-		calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1, calibration_hcpe.c_str()));
+		calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1, calibration_hcpe.c_str(), int8_calibration_data_size));
 		config->setInt8Calibrator(calibrator.get());
 	}
 
@@ -161,7 +161,7 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 
 int main(int argc, char* argv[]) {
 	if (argc < 6) {
-		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> <[fp16|int8]> [calibration_hcpe]" << endl;
+		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> <[fp16|int8]> [calibration_hcpe] [calibration_data_size]" << endl;
 		return 0;
 	}
 
@@ -172,10 +172,13 @@ int main(int argc, char* argv[]) {
 	int batchsize = stoi(argv[5]);
 	std::string mode;
 	std::string calibration_hcpe;
+	size_t int8_calibration_data_size = 16384;
 	if (argc > 6)
 		mode = argv[6];
 	if (argc > 7)
 		calibration_hcpe = argv[7];
+	if (argc > 8)
+		int8_calibration_data_size = stoi(argv[8]);
 
 	cout << "onnx_filename = " << onnx_filename << endl;
 	cout << "num = " << num << endl;
@@ -220,7 +223,7 @@ int main(int argc, char* argv[]) {
 	{
 		// build
 		auto build_start = std::chrono::system_clock::now();
-		if (!build(onnx_filename, batchsize, mode, engine, calibration_hcpe))
+		if (!build(onnx_filename, batchsize, mode, engine, calibration_hcpe, int8_calibration_data_size))
 		{
 			return 1;
 		}
