@@ -49,6 +49,11 @@ using namespace std;
 //  大域変数  //
 ////////////////
 
+#ifdef MAKE_BOOK
+#include "book.hpp"
+extern std::map<Key, std::vector<BookEntry> > bookMap;
+#endif
+
 // 持ち時間
 int remaining_time[ColorNum];
 int inc_time[ColorNum];
@@ -241,6 +246,9 @@ public:
 		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
+#ifdef MAKE_BOOK
+		policy_value_book_key = new Key[policy_value_batch_maxsize];
+#endif
 
 		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -353,6 +361,9 @@ private:
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
+#ifdef MAKE_BOOK
+	Key* policy_value_book_key;
+#endif
 	int current_policy_value_batch_index;
 };
 
@@ -809,6 +820,9 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node)
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn() };
+#ifdef MAKE_BOOK
+	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
+#endif
 	current_policy_value_batch_index++;
 }
 
@@ -1385,6 +1399,30 @@ void UCTSearcher::EvalNode() {
 		node->value_win = __half2float(*value);
 #else
 		node->value_win = *value;
+#endif
+
+#ifdef MAKE_BOOK
+		// 定跡作成時は、事前確率に定跡の遷移確率も使用する
+		constexpr float alpha = 0.5f;
+		const Key& key = policy_value_book_key[i];
+		const auto itr = bookMap.find(key);
+		if (itr != bookMap.end()) {
+			const auto& entries = itr->second;
+			// countから分布を作成
+			std::map<u16, u16> count_map;
+			int sum = 0;
+			for (const auto& entry : entries) {
+				count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+				sum += entry.count;
+			}
+			// policyと定跡から作成した分布の加重平均
+			for (int j = 0; j < child_num; ++j) {
+				const Move& move = uct_child[j].move;
+				const auto itr2 = count_map.find((u16)move.proFromAndTo());
+				const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+				uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+			}
+		}
 #endif
 		node->evaled = true;
 		node->UnLock();
