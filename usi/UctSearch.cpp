@@ -1123,9 +1123,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
 
-	// 経路を記録
-	trajectories.emplace_back(current, next_index);
-
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
@@ -1136,6 +1133,9 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 		// 現在見ているノードのロックを解除
 		current->UnLock();
+
+		// 経路を記録
+		trajectories.emplace_back(current, next_index);
 
 		if (child_node->child_num == 0) {
 			// 詰み
@@ -1222,6 +1222,9 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	else {
 		// 現在見ているノードのロックを解除
 		current->UnLock();
+
+		// 経路を記録
+		trajectories.emplace_back(current, next_index);
 
 		// 手番を入れ替えて1手深く読む
 		result = UctSearch(pos, uct_child[next_index].node.get(), depth + 1, trajectories);
