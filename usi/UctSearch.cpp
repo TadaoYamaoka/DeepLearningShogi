@@ -132,22 +132,10 @@ float draw_value_white = 0.5f;
 // 引き分けとする手数（0以外の場合、この手数に達した場合引き分けとする）
 int draw_ply = 0;
 
-//template<float>
-double atomic_fetch_add(std::atomic<float> *obj, float arg) {
-	float expected = obj->load();
-	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
-		;
-	return expected;
-}
 
 ////////////
 //  関数  //
 ////////////
-
-// Virtual Lossを加算
-static void AddVirtualLoss(child_node_t *child, uct_node_t* current);
-// Virtual Lossを減算
-static void SubVirtualLoss(child_node_t *child, uct_node_t* current);
 
 // ルートの展開
 static void ExpandRoot(const Position *pos);
@@ -161,11 +149,41 @@ static void InitializeCandidate(child_node_t *uct_child, Move move);
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
-// 結果の更新
-static void UpdateResult(child_node_t *child, float result, uct_node_t* current);
-
 // 入玉宣言勝ち
 bool nyugyoku(const Position& pos);
+
+
+inline void atomic_fetch_add(std::atomic<float>* obj, float arg) {
+	float expected = obj->load();
+	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
+		;
+}
+
+// Virtual Lossの加算
+inline void
+AddVirtualLoss(child_node_t* child, uct_node_t* current)
+{
+	current->move_count += VIRTUAL_LOSS;
+	child->move_count += VIRTUAL_LOSS;
+}
+
+// Virtual Lossを減算
+inline void
+SubVirtualLoss(child_node_t* child, uct_node_t* current)
+{
+	current->move_count -= VIRTUAL_LOSS;
+	child->move_count -= VIRTUAL_LOSS;
+}
+
+// 探索結果の更新
+inline void
+UpdateResult(child_node_t* child, float result, uct_node_t* current)
+{
+	atomic_fetch_add(&current->win, result);
+	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
+	atomic_fetch_add(&child->win, result);
+	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
+}
 
 
 // バッチの要素
@@ -1222,50 +1240,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	return 1.0f - result;
 }
 
-
-//////////////////////////
-//  Virtual Lossの加算  //
-//////////////////////////
-static void
-AddVirtualLoss(child_node_t *child, uct_node_t* current)
-{
-	atomic_fetch_add(&current->move_count, VIRTUAL_LOSS);
-	atomic_fetch_add(&child->move_count, VIRTUAL_LOSS);
-}
-
-// Virtual Lossを減算
-static void
-SubVirtualLoss(child_node_t *child, uct_node_t* current)
-{
-	atomic_fetch_add(&current->move_count, -VIRTUAL_LOSS);
-	atomic_fetch_add(&child->move_count, -VIRTUAL_LOSS);
-}
-
-//////////////////////
-//  探索結果の更新  //
-/////////////////////
-static void
-UpdateResult(child_node_t *child, float result, uct_node_t* current)
-{
-	atomic_fetch_add(&current->win, result);
-	atomic_fetch_add(&current->move_count, 1 - VIRTUAL_LOSS);
-	atomic_fetch_add(&child->win, result);
-	atomic_fetch_add(&child->move_count, 1 - VIRTUAL_LOSS);
-}
-
-// ディリクレ分布
-void random_dirichlet(std::mt19937_64 &mt, float *x, const int size) {
-	const float dirichlet_alpha = 0.15f;
-	static std::gamma_distribution<float> gamma(dirichlet_alpha, 1.0f);
-
-	float sum_y = 0;
-	for (int i = 0; i < size; i++) {
-		float y = gamma(mt);
-		sum_y += y;
-		x[i] = y;
-	}
-	std::for_each(x, x + size, [sum_y](float &v) mutable { v /= sum_y; });
-}
 
 /////////////////////////////////////////////////////
 //  UCBが最大となる子ノードのインデックスを返す関数  //
