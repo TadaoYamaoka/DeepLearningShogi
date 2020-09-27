@@ -2,7 +2,7 @@
 PYTHON_PREFIX=/usr
 
 CC = g++
-CFLAGS = -std=c++14 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2 -fPIC
+CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2 -fPIC
 LDFLAGS = -lpthread -lz -flto
 INCLUDE = -I$(PYTHON_PREFIX)/include/python3.7m -I$(PYTHON_PREFIX)/include
 LIB = -L$(PYTHON_PREFIX)/lib -lpython3.7m -lboost_python -lboost_numpy -lpthread -ldl -lutil -lm -Xlinker -export-dynamic
