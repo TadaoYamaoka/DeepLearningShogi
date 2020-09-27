@@ -25,7 +25,7 @@ public:
 				std::uniform_int_distribution<s64> inputFileDist(0, entryNum - 1);
 				std::mt19937_64 mt_64(std::chrono::system_clock::now().time_since_epoch().count());
 				HuffmanCodedPosAndEval hcpe;
-				for (int i = 0; i < int8_calibration_data_size; ++i)
+				for (size_t i = 0; i < int8_calibration_data_size; ++i)
 				{
 					ifs.seekg(inputFileDist(mt_64) * sizeof(HuffmanCodedPosAndEval), std::ios_base::beg);
 					ifs.read(reinterpret_cast<char*>(&hcpe), sizeof(hcpe));
@@ -99,7 +99,7 @@ private:
 	std::vector<HuffmanCodedPos> int8_calibration_data;
 	Position pos;
 	const int batch_size;
-	int current_pos = 0;
+	size_t current_pos = 0;
 	std::unique_ptr<features1_t[]> features1;
 	std::unique_ptr<features2_t[]> features2;
 	void* input1;
