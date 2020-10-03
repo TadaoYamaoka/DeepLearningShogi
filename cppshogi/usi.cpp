@@ -128,6 +128,7 @@ void OptionsMap::init(Searcher* s) {
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
+    (*this)["MultiPV"]                     = USIOption(1, 1, 593);
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");

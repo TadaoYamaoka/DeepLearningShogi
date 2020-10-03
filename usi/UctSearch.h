@@ -32,6 +32,19 @@ struct po_info_t {
 	std::atomic<int> count;       // 現在の探索回数
 };
 
+struct pv_eval_info {
+	bool is_value_win; // 子nodeがvalue_win = 負け
+	bool is_value_lose; // 子nodeがvalue_win = 勝ち
+	int move_count; // todo ここ本当にintでいいの?
+	int pv_id; // pvのid
+	pv_eval_info(){
+		is_value_lose = false;
+		is_value_win = false;
+		move_count = 0;
+		pv_id = 0;
+	}
+};
+
 void SetLimits(const LimitsType& limits);
 void SetLimits(const Position* pos, const LimitsType& limits);
 void SetConstPlayout(const int playout);
@@ -82,6 +95,9 @@ void SetReuseSubtree(bool flag);
 
 // PV表示間隔設定
 void SetPvInterval(const int interval);
+
+// multipv設定
+void SetMultiPV(const int multipv);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);

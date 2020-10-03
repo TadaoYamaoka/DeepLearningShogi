@@ -84,6 +84,7 @@ int minimum_time = 0;
 
 int last_pv_print; // 最後にpvが表示された時刻
 int pv_interval = 500; // pvを表示する周期(ms)
+int multi_pv = 1; // multipvで出力する手の数
 
 // ハッシュの再利用
 bool reuse_subtree = true;
@@ -513,6 +514,12 @@ void SetPvInterval(const int interval)
 	pv_interval = interval;
 }
 
+// multipv設定
+void SetMultiPV(const int multipv)
+{
+	multi_pv = multipv;
+}
+
 /////////////////////////
 //  UCT探索の初期設定  //
 /////////////////////////
@@ -588,6 +595,21 @@ StopUctSearch(void)
 	uct_search_stop = true;
 }
 
+bool pv_info_better( const pv_eval_info& left, const pv_eval_info& right ) {
+    if (left.is_value_win && !right.is_value_win){
+		return false;
+	}
+	if (left.is_value_lose && !right.is_value_lose){
+		return true;
+	}
+	if (right.is_value_lose){
+		return false;
+	}
+	if (right.is_value_win){
+		return true;
+	}
+	return left.move_count > right.move_count;
+}
 
 std::tuple<Move, float, Move> get_and_print_pv()
 {
@@ -600,7 +622,12 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	int child_win_count = 0;
 	int child_lose_count = 0;
 
+	vector<pv_eval_info> pv_info;
+	pv_info.resize(child_num);
+
 	for (int i = 0; i < child_num; i++) {
+		pv_info[i].move_count = uct_child[i].move_count;
+		pv_info[i].pv_id = i;
 		if (uct_child[i].node) {
 			const uct_node_t* child_node = uct_child[i].node.get();
 			// 詰みの場合evaledは更新しないためevaledはチェックしない
@@ -612,6 +639,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 					select_index = i;
 					max_count = uct_child[i].move_count;
 				}
+				pv_info[i].is_value_win = true;
 				child_win_count++;
 				continue;
 			}
@@ -622,6 +650,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 					select_index = i;
 					max_count = uct_child[i].move_count;
 				}
+				pv_info[i].is_value_lose = true;
 				child_lose_count++;
 				continue;
 			}
@@ -631,69 +660,87 @@ std::tuple<Move, float, Move> get_and_print_pv()
 			max_count = uct_child[i].move_count;
 		}
 	}
+	sort(pv_info.begin() , pv_info.end(), pv_info_better);
+	// cout << select_index << "," << pv_info[0].pv_id << endl; // debug
+	Move best_move;
+	Move best_ponder_move = Move::moveNone();
+	float best_wp;
+	for (int i=0; i<min(multi_pv, child_num); ++i){
+		select_index = pv_info[i].pv_id;
+		float wp = uct_child[select_index].win / uct_child[select_index].move_count;
 
-	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+		// 勝ちの場合
+		if (child_lose_count > 0) {
+			wp = 1.0f;
+		}
+		// すべて負けの場合
+		else if (child_win_count == child_num) {
+			wp = 0.0f;
+		}
 
-	// 勝ちの場合
-	if (child_lose_count > 0) {
-		best_wp = 1.0f;
-	}
-	// すべて負けの場合
-	else if (child_win_count == child_num) {
-		best_wp = 0.0f;
-	}
+		const Move move = uct_child[select_index].move;
+		if(i==0){
+			best_move = move;
+			best_wp = wp;
+		}
+		int cp;
+		if (wp == 1.0f) {
+			cp = 30000;
+		}
+		else if (wp == 0.0f) {
+			cp = -30000;
+		}
+		else {
+			cp = int(-logf(1.0f / wp - 1.0f) * 756.0864962951762f);
+		}
 
-	const Move move = uct_child[select_index].move;
-	int cp;
-	if (best_wp == 1.0f) {
-		cp = 30000;
-	}
-	else if (best_wp == 0.0f) {
-		cp = -30000;
-	}
-	else {
-		cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-	}
 
-	// PV表示
-	string pv = move.toUSI();
-	Move ponderMove = Move::moveNone();
-	int depth = 1;
-	{
-		unsigned int best_index = select_index;
-		const child_node_t* best_node = uct_child;
+		// PV表示
+		string pv = move.toUSI();
+		Move ponderMove = Move::moveNone();
 
-		while (best_node[best_index].node) {
-			const uct_node_t* best_child_node = best_node[best_index].node.get();
+		int depth = 1;
+		{
+			unsigned int best_index = select_index;
+			const child_node_t* best_node = uct_child;
 
-			best_node = best_child_node->child.get();
-			max_count = 0;
-			best_index = 0;
-			for (int i = 0; i < best_child_node->child_num; i++) {
-				if (best_node[i].move_count > max_count) {
-					best_index = i;
-					max_count = best_node[i].move_count;
+			while (best_node[best_index].node) {
+				const uct_node_t* best_child_node = best_node[best_index].node.get();
+
+				best_node = best_child_node->child.get();
+				max_count = 0;
+				best_index = 0;
+				for (int i = 0; i < best_child_node->child_num; i++) {
+					if (best_node[i].move_count > max_count) {
+						best_index = i;
+						max_count = best_node[i].move_count;
+					}
 				}
+
+				// ponderの着手
+				if (pondering_mode && ponderMove == Move::moveNone())
+					ponderMove = best_node[best_index].move;
+					if(i==0){
+						best_ponder_move = ponderMove;
+					}
+
+				if (max_count < 1)
+					break;
+
+				pv += " " + best_node[best_index].move.toUSI();
+				depth++;
 			}
+		}
 
-			// ponderの着手
-			if (pondering_mode && ponderMove == Move::moveNone())
-				ponderMove = best_node[best_index].move;
-
-			if (max_count < 1)
-				break;
-
-			pv += " " + best_node[best_index].move.toUSI();
-			depth++;
+		// 探索にかかった時間を求める
+		const int finish_time = std::max(1, begin_time.elapsed());
+		if(multi_pv == 1){
+			cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+		}else{
+			cout << "info multipv " << i+1 <<" nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 		}
 	}
-
-	// 探索にかかった時間を求める
-	const int finish_time = std::max(1, begin_time.elapsed());
-
-	cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
-
-	return std::tuple<Move, float, Move>(move, best_wp, ponderMove);
+	return std::tuple<Move, float, Move>(best_move, best_wp, best_ponder_move);
 }
 
 
