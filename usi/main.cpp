@@ -21,7 +21,7 @@ struct MySearcher : Searcher {
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
 bool nyugyoku(const Position& pos);
 #ifdef MAKE_BOOK
-void make_book(std::istringstream& ssCmd);
+void make_book(std::istringstream& ssCmd, OptionsMap& options);
 #endif
 
 ns_dfpn::DfPn dfpn;
@@ -167,7 +167,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "setoption") setOption(ssCmd);
 #ifdef MAKE_BOOK
-		else if (token == "make_book") make_book(ssCmd);
+		else if (token == "make_book") make_book(ssCmd, options);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -367,7 +367,7 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
-bool make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
+bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
 	std::cout << "position startpos moves ";
 	for (Move move : moves) {
 		std::cout << move.toUSI() << " ";
@@ -375,6 +375,8 @@ bool make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::
 	std::cout << std::endl;
 
 	// UCT探索を使用
+	limits.startTime.restart();
+	SetLimits(limits);
 	UctSearchGenmoveNoPonder(&pos, moves);
 
 	const uct_node_t* current_root = tree->GetCurrentHead();
@@ -421,7 +423,7 @@ bool make_book_entry_with_uct(Position& pos, const Key& key, std::map<Key, std::
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, std::vector<Move> &moves) {
+void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, std::vector<Move> &moves) {
 	pos.setStartPosPly(depth + 1);
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
@@ -429,7 +431,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 		if (outMap.find(key) == outMap.end()) {
 			// 先端ノード
 			// UCT探索で定跡作成
-			make_book_entry_with_uct(pos, key, outMap, count, moves);
+			make_book_entry_with_uct(pos, limits, key, outMap, count, moves);
 		}
 		else {
 			// 探索済みの場合
@@ -453,7 +455,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 				moves.emplace_back(move);
 
 				// 次の手を探索
-				make_book_inner(pos, bookMap, outMap, count, depth + 1, isBlack, moves);
+				make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves);
 
 				pos.undoMove(move);
 			}
@@ -475,7 +477,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 			if (itr == outMap.end()) {
 				// 定跡になく未探索の局面の場合
 				// UCT探索で定跡作成
-				if (!make_book_entry_with_uct(pos, key, outMap, count, moves))
+				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
 				{
 					// 詰みの局面の場合何もしない
 					return;
@@ -500,7 +502,7 @@ void make_book_inner(Position& pos, std::map<Key, std::vector<BookEntry> >& book
 		moves.emplace_back(move);
 
 		// 次の手を探索
-		make_book_inner(pos, bookMap, outMap, count, depth + 1, isBlack, moves);
+		make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves);
 
 		pos.undoMove(move);
 	}
@@ -530,7 +532,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡作成
-void make_book(std::istringstream& ssCmd) {
+void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 	// isreadyを先に実行しておくこと。
 
 	std::string bookFileName;
@@ -544,7 +546,12 @@ void make_book(std::istringstream& ssCmd) {
 	ssCmd >> limitTrialNum;
 
 	// プレイアウト数固定
-	SetConstPlayout(playoutNum);
+	LimitsType limits;
+	limits.nodes = playoutNum;
+
+	// 保存間隔
+	int save_book_interval = options["Save_Book_Interval"];
+
 	SetReuseSubtree(false);
 
 	// outFileが存在するときは追加する
@@ -582,7 +589,7 @@ void make_book(std::istringstream& ssCmd) {
 		moves.clear();
 		// 探索
 		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, bookMap, outMap, count, 0, true, moves);
+		make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
 		black_num += count;
 
 		// 後手番
@@ -590,18 +597,21 @@ void make_book(std::istringstream& ssCmd) {
 		moves.clear();
 		// 探索
 		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, bookMap, outMap, count, 0, false, moves);
+		make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
 		white_num += count;
+
+		// 完了時および100回ごとに途中経過を保存
+		if ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg)
+		{
+			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+			for (auto& elem : outMap) {
+				for (auto& elel : elem.second)
+					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+			}
+		}
 
 		if (stopflg)
 			break;
-	}
-
-	// 保存
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (auto& elem : outMap) {
-		for (auto& elel : elem.second)
-			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
 	}
 
 	// 結果表示

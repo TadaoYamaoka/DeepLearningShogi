@@ -122,7 +122,12 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
+#ifdef MAKE_BOOK
+    (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
+    (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
+#else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
+#endif // !MAKE_BOOK
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
