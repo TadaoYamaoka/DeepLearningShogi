@@ -662,7 +662,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	}
 	sort(pv_info.begin() , pv_info.end(), pv_info_better);
 	// cout << select_index << "," << pv_info[0].pv_id << endl; // debug
-	Move best_move;
+	Move best_move = Move::moveNone();;
 	Move best_ponder_move = Move::moveNone();
 	float best_wp;
 	for (int i=0; i<min(multi_pv, child_num); ++i){
@@ -699,10 +699,11 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		string pv = move.toUSI();
 		Move ponderMove = Move::moveNone();
 
+		unsigned int best_index = select_index;
+		const child_node_t* best_node = uct_child;
 		int depth = 1;
 		{
-			unsigned int best_index = select_index;
-			const child_node_t* best_node = uct_child;
+
 
 			while (best_node[best_index].node) {
 				const uct_node_t* best_child_node = best_node[best_index].node.get();
@@ -737,7 +738,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		if(multi_pv == 1){
 			cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 		}else{
-			cout << "info multipv " << i+1 <<" nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+			cout << "info multipv " << i+1 <<" nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << best_node[select_index].move_count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 		}
 	}
 	return std::tuple<Move, float, Move>(best_move, best_wp, best_ponder_move);
