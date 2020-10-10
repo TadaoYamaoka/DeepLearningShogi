@@ -738,7 +738,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		if(multi_pv == 1){
 			cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 		}else{
-			cout << "info multipv " << i+1 <<" nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << best_node[select_index].move_count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+			cout << "info multipv " << i+1 <<" nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << pv_info[i].move_count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 		}
 	}
 	return std::tuple<Move, float, Move>(best_move, best_wp, best_ponder_move);
