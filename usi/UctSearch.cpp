@@ -878,7 +878,7 @@ InterruptionCheck(void)
 	// 最善手を超えられない場合は探索を打ち切る
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
 	if (max_searched - second > rest_po) {
-		cout << "info string interrupt_no_movechange" << endl;
+		//cout << "info string interrupt_no_movechange" << endl;
 		return true;
 	}
 	else {
@@ -1043,20 +1043,20 @@ UCTSearcher::ParallelUctSearch()
 		// 探索の強制終了
 		// 計算時間が予定の値を超えている
 		if (!pondering && po_info.halt == 0 && begin_time.elapsed() > time_limit) {
-			if (monitoring_thread)
-				cout << "info string interrupt_time_limit" << endl;
+			/*if (monitoring_thread)
+				cout << "info string interrupt_time_limit" << endl;*/
 			break;
 		}
 		// po_info.halt を超えたら打ち切る
 		if (!pondering && po_info.halt > 0 && po_info.count > po_info.halt) {
-			if (monitoring_thread)
-				cout << "info string interrupt_node_limit" << endl;
+			/*if (monitoring_thread)
+				cout << "info string interrupt_node_limit" << endl;*/
 			break;
 		}
 		// ハッシュフル
 		if ((unsigned int)current_root->move_count >= uct_node_limit) {
-			if (monitoring_thread)
-				cout << "info string interrupt_no_hash" << endl;
+			/*if (monitoring_thread)
+				cout << "info string interrupt_no_hash" << endl;*/
 			break;
 		}
 		// 探索を打ち切るか確認
