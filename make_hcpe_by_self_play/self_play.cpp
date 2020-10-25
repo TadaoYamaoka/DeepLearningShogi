@@ -130,7 +130,7 @@ float c_base;
 float c_fpu_reduction;
 float c_init_root;
 float c_base_root;
-float temperature = 1.66f;
+float temperature;
 
 
 // 探索経路のノード
