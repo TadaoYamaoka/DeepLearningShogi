@@ -1,12 +1,12 @@
 ﻿CC = g++
-CFLAGS = -g -std=c++14 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+CFLAGS = -g -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcuda -lcudnn -lcudart -lcublas -lz -flto
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda-10.2/lib64
 
 target = bin/test
-sources = tensorrt_benchmark.cpp
-usi_sources = mate.cpp dfpn.cpp Message.cpp UctSearch.cpp ZobristHash.cpp nn_fused_wideresnet10.cpp nn_senet10.cpp nn_wideresnet10.cpp nn_wideresnet15.cpp npz.cpp cudnn_dtype.cpp
+sources = gpubenchmark.cpp
+usi_sources = mate.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_fused_wideresnet10.cpp nn_senet10.cpp nn_wideresnet10.cpp nn_wideresnet15.cpp nn_tensorrt.cpp npz.cpp cudnn_dtype.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))

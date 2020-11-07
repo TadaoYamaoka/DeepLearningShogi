@@ -1,3 +1,4 @@
+#if 1
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -6,13 +7,13 @@
 
 using namespace std;
 
-#if 0
 // GPUベンチマーク
 #include "nn.h"
 #include "nn_wideresnet10.h"
 #include "nn_fused_wideresnet10.h"
 #include "nn_wideresnet15.h"
 #include "nn_senet10.h"
+#include "nn_tensorrt.h"
 
 static void  showDevices(int i)
 {
@@ -62,7 +63,10 @@ int main(int argc, char* argv[]) {
 	showDevices(gpu_id);
 	cudaSetDevice(gpu_id);
 	std::unique_ptr<NN> nn;
-	if (model_path.find("fused_wideresnet10") != std::string::npos) {
+	if (model_path.find("onnx") != string::npos) {
+		nn.reset((NN*)new NNTensorRT(gpu_id, batchsize));
+	}
+	else if (model_path.find("fused_wideresnet10") != std::string::npos) {
 		nn.reset((NN*)new NNFusedWideResnet10(batchsize));
 	}
 	else if (model_path.find("wideresnet15") != std::string::npos) {
