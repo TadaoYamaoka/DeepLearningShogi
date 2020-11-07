@@ -1,4 +1,4 @@
-#if 0
+#if 1
 // TensorRTベンチマーク
 #include <iostream>
 #include <chrono>
@@ -14,24 +14,27 @@
 
 using namespace std;
 
-class Logger : public nvinfer1::ILogger
+namespace tensorrt_benchmark
 {
-	void log(Severity severity, const char* msg)
+	class Logger : public nvinfer1::ILogger
 	{
-		if (severity == Severity::kINTERNAL_ERROR) {
-			switch (severity)
-			{
-			case Severity::kINTERNAL_ERROR: std::cout << "[F] "; break;
-			case Severity::kERROR: std::cout << "[E] "; break;
-			case Severity::kWARNING: std::cout << "[W] "; break;
-			case Severity::kINFO: std::cout << "[I] "; break;
-			case Severity::kVERBOSE: std::cout << "[V] "; break;
-			default: assert(0);
+		void log(Severity severity, const char* msg)
+		{
+			if (severity == Severity::kINTERNAL_ERROR) {
+				switch (severity)
+				{
+				case Severity::kINTERNAL_ERROR: std::cout << "[F] "; break;
+				case Severity::kERROR: std::cout << "[E] "; break;
+				case Severity::kWARNING: std::cout << "[W] "; break;
+				case Severity::kINFO: std::cout << "[I] "; break;
+				case Severity::kVERBOSE: std::cout << "[V] "; break;
+				default: assert(0);
+				}
 			}
+			//std::cout << msg << std::endl;
 		}
-		//std::cout << msg << std::endl;
-	}
-} gLogger;
+	} gLogger;
+}
 
 struct InferDeleter
 {
@@ -69,7 +72,7 @@ static void  showDevices(int i)
 
 bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine, const string& calibration_hcpe, const size_t int8_calibration_data_size)
 {
-	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
+	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(tensorrt_benchmark::gLogger));
 	if (!builder)
 	{
 		return false;
@@ -89,7 +92,7 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 		return false;
 	}
 
-	auto parser = InferUniquePtr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, gLogger));
+	auto parser = InferUniquePtr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, tensorrt_benchmark::gLogger));
 	if (!parser)
 	{
 		std::cerr << "Error: createParser" << std::endl;
@@ -208,7 +211,7 @@ int main(int argc, char* argv[]) {
 
 	const string serialized_filename = onnx_filename + "." + std::to_string(gpu_id) + "." + std::to_string(batchsize) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
-	if (seriarizedFile.is_open())
+	if (seriarizedFile.is_open() && calibration_hcpe == "")
 	{
 		// deserializing a model
 		seriarizedFile.seekg(0, std::ios_base::end);
@@ -216,7 +219,7 @@ int main(int argc, char* argv[]) {
 		seriarizedFile.seekg(0, std::ios_base::beg);
 		std::unique_ptr<char[]> blob(new char[modelSize]);
 		seriarizedFile.read(blob.get(), modelSize);
-		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
+		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(tensorrt_benchmark::gLogger));
 		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize, nullptr));
 	}
 	else

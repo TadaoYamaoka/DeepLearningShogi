@@ -175,8 +175,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
