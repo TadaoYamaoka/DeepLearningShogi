@@ -158,8 +158,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -180,18 +180,18 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.1.3.4\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.1.3.4\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
