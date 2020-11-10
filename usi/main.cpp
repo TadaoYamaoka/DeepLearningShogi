@@ -444,12 +444,10 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 				StateInfo state;
 				pos.doMove(move, state);
-				// 繰り返しになる場合、別の手を選ぶ
-				if (outMap[key].size() >= 2 && pos.isDraw() == RepetitionDraw) {
+				// 繰り返しになる場合、探索終了
+				if (pos.isDraw() == RepetitionDraw) {
 					pos.undoMove(move);
-					entry = outMap[key][1];
-					move = move16toMove(Move(entry.fromToPro), pos);
-					pos.doMove(move, state);
+					return;
 				}
 
 				moves.emplace_back(move);

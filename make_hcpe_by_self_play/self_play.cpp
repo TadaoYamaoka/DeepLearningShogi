@@ -125,10 +125,12 @@ constexpr float VALUE_LOSE = -FLT_MAX;
 constexpr float QUEUING = FLT_MAX;
 constexpr float DISCARDED = -FLT_MAX;
 
-float c_init = 1.49f;
-float c_base = 39470.0f;
-float c_fpu = 0.2f;
-float temperature = 1.66f;
+float c_init;
+float c_base;
+float c_fpu_reduction;
+float c_init_root;
+float c_base_root;
+float temperature;
 
 
 // 探索経路のノード
@@ -744,7 +746,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 	float fpu_reduction = 0.0f;
 	if (depth > 0)
-		fpu_reduction = c_fpu * sqrtf(uct_node[current].visited_nnrate);
+		fpu_reduction = c_fpu_reduction * sqrtf(uct_node[current].visited_nnrate);
 
 	NNCacheLock cache_lock(&nn_cache, uct_node[current].key);
 
@@ -785,7 +787,9 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 			rate = (rate + 1.0f) / 2.0f;
 		}
 
-		const float c = FastLog((sum + c_base + 1.0f) / c_base) + c_init;
+		const float c = depth > 0 ?
+			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
+			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 		ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
@@ -1524,6 +1528,9 @@ int main(int argc, char* argv[]) {
 			("mate_rand_limit_nodes", "mate search randomize limit nodes", cxxopts::value<bool>(MATE_SEARCH_RAND_LIMIT_NODES))
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
+			("c_fpu_reduction", "UCT parameter c_fpu_reduction", cxxopts::value<float>(c_fpu_reduction)->default_value("20"), "val")
+			("c_init_root", "UCT parameter c_init_root", cxxopts::value<float>(c_init_root)->default_value("1.49"), "val")
+			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
@@ -1619,6 +1626,9 @@ int main(int argc, char* argv[]) {
 	logger->info("mate rand limit nodes:{}", MATE_SEARCH_RAND_LIMIT_NODES);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
+	logger->info("c_fpu_reduction:{}", c_fpu_reduction);
+	logger->info("c_init_root:{}", c_init_root);
+	logger->info("c_base_root:{}", c_base_root);
 	logger->info("temperature:{}", temperature);
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
