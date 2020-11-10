@@ -602,10 +602,10 @@ bool pv_info_better( const pv_eval_info& left, const pv_eval_info& right ) {
 	if (left.is_value_lose && !right.is_value_lose){
 		return true;
 	}
-	if (right.is_value_lose){
+	if (right.is_value_lose && !left.is_value_lose){
 		return false;
 	}
-	if (right.is_value_win){
+	if (right.is_value_win && !left.is_value_win){
 		return true;
 	}
 	return left.move_count > right.move_count;
@@ -624,7 +624,6 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 	vector<pv_eval_info> pv_info;
 	pv_info.resize(child_num);
-
 	for (int i = 0; i < child_num; i++) {
 		pv_info[i].move_count = uct_child[i].move_count;
 		pv_info[i].pv_id = i;
@@ -661,7 +660,6 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		}
 	}
 	sort(pv_info.begin() , pv_info.end(), pv_info_better);
-	// cout << select_index << "," << pv_info[0].pv_id << endl; // debug
 	Move best_move = Move::moveNone();;
 	Move best_ponder_move = Move::moveNone();
 	float best_wp;
