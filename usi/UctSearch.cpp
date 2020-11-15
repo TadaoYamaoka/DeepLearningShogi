@@ -789,7 +789,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	Move move;
 	float best_wp;
 	std::tie(move, best_wp, ponderMove) = get_and_print_pv();
-	
+
 	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();
 	}
@@ -798,8 +798,20 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	const int finish_time = begin_time.elapsed();
 	remaining_time[pos->turn()] -= finish_time;
 
-	// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
-	if (debug_message) PrintPlayoutInformation(current_root, &po_info, finish_time, pre_simulated);
+	// デバッグ用
+	if (debug_message)
+	{
+		// 候補手の情報を出力
+		for (int i = 0; i < child_num; i++) {
+			const auto& child = current_root->child[i];
+			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
+				<< " value_win:" << (child.node ? (float)child.node->value_win : 0)
+				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
+		}
+
+		// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
+		PrintPlayoutInformation(current_root, &po_info, finish_time, pre_simulated);
+	}
 
 	return move;
 }

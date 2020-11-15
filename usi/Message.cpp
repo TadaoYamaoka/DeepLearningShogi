@@ -15,7 +15,7 @@
 using namespace std;
 
 
-bool debug_message = true;
+bool debug_message = false;
 
 
 ////////////////////////////////////

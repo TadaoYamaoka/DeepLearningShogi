@@ -14,9 +14,6 @@
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.
 constexpr int UCT_CHILD_MAX = 593;
 
-// 未展開のノードのインデックス
-constexpr unsigned int NOT_EXPANDED = -1;
-
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
 
