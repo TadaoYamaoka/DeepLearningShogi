@@ -144,6 +144,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);
+			// DebugMessageMode
+			SetDebugMessageMode(options["DebugMessage"]);
+
 			// 初回探索をキャッシュ
 			Position pos_tmp(DefaultStartPositionSFEN, thisptr);
 			LimitsType limits;
@@ -159,9 +162,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// PonderingMode
 			SetPonderingMode(options["USI_Ponder"] && !options["Stochastic_Ponder"]);
-
-			// DebugMessageMode
-			SetDebugMessageMode(options["DebugMessage"]);
 
 			std::cout << "readyok" << std::endl;
 		}
