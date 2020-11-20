@@ -18,7 +18,7 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit);
 bool nyugyoku(const Position& pos);
 #ifdef MAKE_BOOK
 void make_book(std::istringstream& ssCmd, OptionsMap& options);
@@ -88,9 +88,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &posCmd] {
+			const bool ponderhit = token == "ponderhit";
+			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &posCmd, ponderhit] {
 				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd, posCmd);
+				go_uct(pos, ssCmd, posCmd, ponderhit);
 			});
 		}
 		else if (token == "position") {
@@ -175,8 +176,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
-	LimitsType limits;
+void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit) {
+	LimitsType& limits = pos.searcher()->limits;
 	std::string token;
 
 	limits.startTime.restart();
@@ -220,22 +221,36 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 		pos.setStartPosPly(currentPly);
 	}
 
-	while (ssCmd >> token) {
-		if (token == "ponder") limits.ponder = true;
-		else if (token == "btime") ssCmd >> limits.time[Black];
-		else if (token == "wtime") ssCmd >> limits.time[White];
-		else if (token == "binc") ssCmd >> limits.inc[Black];
-		else if (token == "winc") ssCmd >> limits.inc[White];
-		else if (token == "infinite") limits.infinite = true;
-		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
-		else if (token == "mate") ssCmd >> limits.mate;
-		else if (token == "nodes") ssCmd >> limits.nodes;
+	if (ponderhit) {
+		// 前のlimitsの設定で探索する
+		limits.ponder = false;
 	}
-	if (limits.moveTime != 0) {
-		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-	}
-	else if (pos.searcher()->options["Time_Margin"] != 0){
-		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+	else {
+		ssCmd >> token;
+		if (token == "ponder") {
+			// limitsを残す
+			limits.ponder = true;
+		}
+		else {
+			// limitsをクリアして再設定
+			limits.nodes = limits.time[Black] = limits.time[White] = limits.inc[Black] = limits.inc[White] = limits.movesToGo = limits.moveTime = limits.mate = limits.infinite = limits.ponder = 0;
+			do {
+				if (token == "btime") ssCmd >> limits.time[Black];
+				else if (token == "wtime") ssCmd >> limits.time[White];
+				else if (token == "binc") ssCmd >> limits.inc[Black];
+				else if (token == "winc") ssCmd >> limits.inc[White];
+				else if (token == "infinite") limits.infinite = true;
+				else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
+				else if (token == "mate") ssCmd >> limits.mate;
+				else if (token == "nodes") ssCmd >> limits.nodes;
+			} while (ssCmd >> token);
+			if (limits.moveTime != 0) {
+				limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+			}
+			else if (pos.searcher()->options["Time_Margin"] != 0) {
+				limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+			}
+		}
 	}
 
 	SetLimits(&pos, limits);
@@ -339,8 +354,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd)
 		moves.emplace_back(move);
 		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
 	}
-	else if (ponderMove != Move::moveNone())
+	else if (ponderMove != Move::moveNone()) {
 		std::cout << " ponder " << ponderMove.toUSI() << std::endl;
+		limits.time[pos.turn()] -= limits.startTime.elapsed();
+	}
 	else
 		std::cout << std::endl;
 }
