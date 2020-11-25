@@ -585,7 +585,10 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	if (time_limit < limits.moveTime) {
 		time_limit = limits.moveTime;
 	}
-	po_info.halt = limits.nodes;
+	if (limits.infinite)
+		po_info.halt = INT_MAX;
+	else
+		po_info.halt = limits.nodes;
 	extend_time = limits.moveTime == 0 && limits.nodes == 0;
 }
 
