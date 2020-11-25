@@ -11,7 +11,7 @@ void debug_print_dev(DType* dev, const size_t size) {
 	std::cout << std::endl;
 }
 
-NNSENet10::NNSENet10(const int max_batch_size) : max_batch_size(max_batch_size)
+NNSENet10::NNSENet10(const char* filename, const int max_batch_size) : max_batch_size(max_batch_size)
 {
 	prepare_desc(max_batch_size);
 
@@ -70,6 +70,8 @@ NNSENet10::NNSENet10(const int max_batch_size) : max_batch_size(max_batch_size)
 	checkCudaErrors(cudaMalloc((void**)&h22v_bn_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
 	checkCudaErrors(cudaMalloc((void**)&h23v_dev, max_batch_size * fcl * sizeof(DType)));
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
+
+	load_model(filename);
 }
 
 NNSENet10::~NNSENet10() {

@@ -1,7 +1,7 @@
 ﻿#include "nn_fused_wideresnet10.h"
 #include "npz.h"
 
-NNFusedWideResnet10::NNFusedWideResnet10(const int max_batch_size) : max_batch_size(max_batch_size)
+NNFusedWideResnet10::NNFusedWideResnet10(const char* filename, const int max_batch_size) : max_batch_size(max_batch_size)
 {
 	prepare_desc(max_batch_size);
 
@@ -56,6 +56,8 @@ NNFusedWideResnet10::NNFusedWideResnet10(const int max_batch_size) : max_batch_s
 	checkCudaErrors(cudaMalloc((void**)&h22v_bn_dev, conv22v.get_ysize(max_batch_size, 9, 9)));
 	checkCudaErrors(cudaMalloc((void**)&h23v_dev, max_batch_size * fcl * sizeof(DType)));
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
+
+	load_model(filename);
 }
 
 NNFusedWideResnet10::~NNFusedWideResnet10() {

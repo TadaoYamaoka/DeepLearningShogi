@@ -79,7 +79,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(false);
     (*this)["Stochastic_Ponder"]           = USIOption(true);
-    (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
+    (*this)["Byoyomi_Margin"]              = USIOption(0, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["Draw_Ply"]                    = USIOption(0, 0, INT_MAX);
     (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
@@ -91,7 +91,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_Threads6"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads7"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads8"]                = USIOption(0, 0, 256);
-    (*this)["DNN_Model"]                   = USIOption(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
+    (*this)["DNN_Model"]                   = USIOption(R"(model.onnx)");
     (*this)["DNN_Model2"]                  = USIOption("");
     (*this)["DNN_Model3"]                  = USIOption("");
     (*this)["DNN_Model4"]                  = USIOption("");

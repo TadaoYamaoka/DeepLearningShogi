@@ -24,9 +24,8 @@ using InferUniquePtr = std::unique_ptr<T, InferDeleter>;
 
 class NNTensorRT : NN {
 public:
-	NNTensorRT(const int gpu_id, const int max_batch_size);
+	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
-	void load_model(const char* filename);
 	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
 private:
@@ -42,5 +41,6 @@ private:
 	nvinfer1::Dims inputDims1;
 	nvinfer1::Dims inputDims2;
 
+	void load_model(const char* filename);
 	void build(const std::string& onnx_filename);
 };

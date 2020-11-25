@@ -29,7 +29,7 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 	return val * (1 << 20);
 }
 
-NNTensorRT::NNTensorRT(const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
+NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
 {
 	// Create host and device buffers
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
@@ -38,6 +38,8 @@ NNTensorRT::NNTensorRT(const int gpu_id, const int max_batch_size) : gpu_id(gpu_
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
 
 	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+
+	load_model(filename);
 }
 
 NNTensorRT::~NNTensorRT()

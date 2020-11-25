@@ -1,17 +1,17 @@
 ﻿#pragma once
 
 #include "nn.h"
+#include "layers.h"
 
 class NNWideResnet15 : NN {
 public:
-	NNWideResnet15(const int max_batch_size);
+	NNWideResnet15(const char* filename, const int max_batch_size);
 	~NNWideResnet15();
-
-	void load_model(const char* filename);
 
 	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
 private:
+	void load_model(const char* filename);
 	void prepare_desc(const int batch_size);
 
 	CudnnHandle cudnnHandle;

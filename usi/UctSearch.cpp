@@ -21,11 +21,16 @@
 #include "UctSearch.h"
 #include "Node.h"
 #include "mate.h"
+
+#ifdef ONNXRUNTIME
+#include "nn_onnxruntime.h"
+#else
 #include "nn_wideresnet10.h"
 #include "nn_fused_wideresnet10.h"
 #include "nn_wideresnet15.h"
 #include "nn_senet10.h"
 #include "nn_tensorrt.h"
+#endif
 
 #if defined (_WIN32)
 #define NOMINMAX
@@ -204,18 +209,20 @@ public:
 	void InitGPU() {
 		mutex_gpu.lock();
 		if (nn == nullptr) {
+#ifdef ONNXRUNTIME
+			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+#else
 			if (model_path[gpu_id].find("onnx") != string::npos)
-				nn = (NN*)new NNTensorRT(gpu_id, policy_value_batch_maxsize);
+				nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("wideresnet15") != string::npos)
-				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
+				nn = (NN*)new NNWideResnet15(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
-				nn = (NN*)new NNFusedWideResnet10(policy_value_batch_maxsize);
+				nn = (NN*)new NNFusedWideResnet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
 			else if (model_path[gpu_id].find("senet10") != string::npos)
-				nn = (NN*)new NNSENet10(policy_value_batch_maxsize);
+				nn = (NN*)new NNSENet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
 			else
-				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
-			nn->load_model(model_path[gpu_id].c_str());
-		
+				nn = (NN*)new NNWideResnet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
+#endif
 		}
 		mutex_gpu.unlock();
 	}
@@ -261,26 +268,40 @@ public:
 #endif
 		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
+#ifdef ONNXRUNTIME
+		features1 = new features1_t[policy_value_batch_maxsize];
+		features2 = new features2_t[policy_value_batch_maxsize];
+		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
+		y2 = new DType[policy_value_batch_maxsize];
+#else
 		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+#endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
 		policy_value_book_key = new Key[policy_value_batch_maxsize];
 #endif
 
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	}
 	UCTSearcher(UCTSearcher&& o) :
 		grp(grp),
 		thread_id(thread_id),
 		mt(move(o.mt)) {}
 	~UCTSearcher() {
+#ifdef ONNXRUNTIME
+		delete[] features1;
+		delete[] features2;
+		delete[] y1;
+		delete[] y2;
+#else
 		checkCudaErrors(cudaFreeHost(features1));
 		checkCudaErrors(cudaFreeHost(features2));
-		delete[] policy_value_batch;
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
+#endif
+		delete[] policy_value_batch;
 	}
 
 	void Run() {
@@ -311,8 +332,10 @@ public:
 		}
 #else
 		handle = new thread([this]() {
+#ifndef ONNXRUNTIME
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
+#endif
 			grp->InitGPU();
 
 			this->ParallelUctSearch();

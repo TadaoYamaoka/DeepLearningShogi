@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{a14ab8e7-348f-45b0-bba3-ba1721ffe242}</ProjectGuid>
+    <RootNamespace>usionnxruntime</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>.\;..\usi;..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <TargetName>dlshogi_onnxruntime</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>.\;..\usi;..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <TargetName>dlshogi_onnxruntime</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>ONNXRUNTIME;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>ONNXRUNTIME;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\cppshogi\bitboard.cpp" />
+    <ClCompile Include="..\cppshogi\book.cpp" />
+    <ClCompile Include="..\cppshogi\common.cpp" />
+    <ClCompile Include="..\cppshogi\cppshogi.cpp" />
+    <ClCompile Include="..\cppshogi\generateMoves.cpp" />
+    <ClCompile Include="..\cppshogi\hand.cpp" />
+    <ClCompile Include="..\cppshogi\init.cpp" />
+    <ClCompile Include="..\cppshogi\move.cpp" />
+    <ClCompile Include="..\cppshogi\mt64bit.cpp" />
+    <ClCompile Include="..\cppshogi\position.cpp" />
+    <ClCompile Include="..\cppshogi\search.cpp" />
+    <ClCompile Include="..\cppshogi\square.cpp" />
+    <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="..\usi\dfpn.cpp" />
+    <ClCompile Include="..\usi\main.cpp" />
+    <ClCompile Include="..\usi\mate.cpp" />
+    <ClCompile Include="..\usi\Message.cpp" />
+    <ClCompile Include="..\usi\Node.cpp" />
+    <ClCompile Include="..\usi\UctSearch.cpp" />
+    <ClCompile Include="nn_onnxruntime.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="nn_onnxruntime.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.5.2\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets'))" />
+  </Target>
+</Project>

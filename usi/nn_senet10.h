@@ -1,13 +1,12 @@
 #pragma once
 
 #include "nn.h"
+#include "layers.h"
 
 class NNSENet10 : NN {
 public:
-	NNSENet10(const int max_batch_size);
+	NNSENet10(const char* filename, const int max_batch_size);
 	~NNSENet10();
-
-	void load_model(const char* filename);
 
 	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
@@ -16,6 +15,7 @@ private:
 	static constexpr int fcl = 256;
 	static constexpr int reduction = 16;
 
+	void load_model(const char* filename);
 	void prepare_desc(const int batch_size);
 	void se(Linear<k, k / reduction>& se_l1, Linear<k / reduction, k>& se_l2, const int &batch_size, DType* x_dev);
 
