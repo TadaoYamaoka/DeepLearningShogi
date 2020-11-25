@@ -48,10 +48,9 @@ int main(int argc, char** argv)
 
 	std::unique_ptr<NN> nn;
 	if (std::string(model_path).find("wideresnet15") != std::string::npos)
-		nn.reset((NN*)new NNWideResnet15(max_batch_size));
+		nn.reset((NN*)new NNWideResnet15(model_path, max_batch_size));
 	else
-		nn.reset((NN*)new NNWideResnet10(max_batch_size));
-	nn->load_model(model_path);
+		nn.reset((NN*)new NNWideResnet10(model_path, max_batch_size));
 
 	initTable();
 	Position::initZobrist();

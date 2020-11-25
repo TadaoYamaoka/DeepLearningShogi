@@ -340,17 +340,16 @@ public:
 		mutex_all_gpu.lock();
 		if (nn == nullptr) {
 			if (model_path.find("onnx") != string::npos)
-				nn = (NN*)new NNTensorRT(gpu_id, policy_value_batch_maxsize);
+				nn = (NN*)new NNTensorRT(model_path.c_str(), gpu_id, policy_value_batch_maxsize);
 			else if (model_path.find("wideresnet15") != string::npos) {
-				nn = (NN*)new NNWideResnet15(policy_value_batch_maxsize);
+				nn = (NN*)new NNWideResnet15(model_path.c_str(), policy_value_batch_maxsize);
 			}
 			else if (model_path.find("senet10") != string::npos) {
-				nn = (NN*)new NNSENet10(policy_value_batch_maxsize);
+				nn = (NN*)new NNSENet10(model_path.c_str(), policy_value_batch_maxsize);
 			}
 			else {
-				nn = (NN*)new NNWideResnet10(policy_value_batch_maxsize);
+				nn = (NN*)new NNWideResnet10(model_path.c_str(), policy_value_batch_maxsize);
 			}
-			nn->load_model(model_path.c_str());
 		}
 		mutex_all_gpu.unlock();
 	}
