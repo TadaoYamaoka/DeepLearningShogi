@@ -33,17 +33,18 @@ http://tadaoyamaoka.hatenablog.com/
 * Ubuntu 18.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 10.2
-* cuDNN 7.6
-* TensorRT 7
+* CUDA 11.0
+* cuDNN 8.0
+* TensorRT 7.2.1
+※CUDA 10.0以上であれば変更可
 
 ### 学習部
 上記USIエンジンのビルド環境に加えて以下が必要
-* [Pytorch](https://pytorch.org/) 1.3以上
-* Python 3.5以上 ([Anaconda](https://www.continuum.io/downloads))
+* [Pytorch](https://pytorch.org/) 1.6以上
+* Python 3.7以上 ([Anaconda](https://www.continuum.io/downloads))
 * [Boost](http://www.boost.org/) 1.69.0
-* CUDA 10.1
-* cuDNN 7.6
+* CUDA (PyTorchに対応したバージョン)
+* cuDNN (CUDAに対応したバージョン)
 
 ## ライセンス
 ライセンスはGPLライセンスとします。
