@@ -36,6 +36,7 @@ http://tadaoyamaoka.hatenablog.com/
 * CUDA 11.0
 * cuDNN 8.0
 * TensorRT 7.2.1
+
 ※CUDA 10.0以上であれば変更可
 
 ### 学習部
