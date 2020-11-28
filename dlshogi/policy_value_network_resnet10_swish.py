@@ -18,24 +18,6 @@ class Swish(nn.Module):
         return x * torch.sigmoid(x)
 
 
-# A memory-efficient implementation of Swish function
-class SwishImplementation(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, i):
-        result = i * torch.sigmoid(i)
-        ctx.save_for_backward(i)
-        return result
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        i = ctx.saved_tensors[0]
-        sigmoid_i = torch.sigmoid(i)
-        return grad_output * (sigmoid_i * (1 + i * (1 - sigmoid_i)))
-
-class MemoryEfficientSwish(nn.Module):
-    def forward(self, x):
-        return SwishImplementation.apply(x)
-
 k = 192
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(nn.Module):
@@ -93,8 +75,7 @@ class PolicyValueNetwork(nn.Module):
         self.norm20 = nn.BatchNorm2d(k)
         self.norm21 = nn.BatchNorm2d(k)
         self.norm22_v = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
-        # swish
-        self.swish = MemoryEfficientSwish()
+        self.swish = nn.SiLU()
 
     def __call__(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
@@ -155,4 +136,4 @@ class PolicyValueNetwork(nn.Module):
         Args:
             memory_efficient (bool): Whether to use memory-efficient version of swish.
         """
-        self.swish = MemoryEfficientSwish() if memory_efficient else Swish()
+        self.swish = nn.SiLU() if memory_efficient else Swish()
