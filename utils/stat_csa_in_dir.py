@@ -1,13 +1,14 @@
 ﻿import argparse
 import os
 import sys
-import shogi
-import shogi.CSA
+from cshogi import *
+from cshogi import CSA
 import statistics
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dir', type=str)
+parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
 def find_all_files(directory):
@@ -17,18 +18,21 @@ def find_all_files(directory):
 
 kifu_num = 0
 kifu_moves_len = []
-max_hand_fu = []
+kachi_num = 0
+#max_hand_fu = []
 for filepath in find_all_files(args.dir):
-    kifu_num += 1
-    kifu = shogi.CSA.Parser.parse_file(filepath, encoding='utf-8')[0]
-    moves_len = len(kifu['moves'])
-    kifu_moves_len.append(moves_len)
-    board = shogi.Board()
-    max_hand_fu_in_game = 0
-    for move in kifu['moves']:
-        board.push_usi(move)
-        max_hand_fu_in_game = max(max_hand_fu_in_game, board.pieces_in_hand[shogi.BLACK][shogi.PAWN], board.pieces_in_hand[shogi.WHITE][shogi.PAWN])
-    max_hand_fu.append(max_hand_fu_in_game)
+    for kifu in CSA.Parser.parse_file(filepath):
+        kifu_num += 1
+        moves_len = len(kifu.moves)
+        kifu_moves_len.append(moves_len)
+        if kifu.endgame == '%KACHI':
+            kachi_num += 1
+        #board = Board()
+        #max_hand_fu_in_game = 0
+        #for move in kifu.moves:
+        #    board.push(move)
+        #    max_hand_fu_in_game = max(max_hand_fu_in_game, board.pieces_in_hand[BLACK][HPAWN], board.pieces_in_hand[WHITE][HPAWN])
+        #max_hand_fu.append(max_hand_fu_in_game)
 
 print('kifu num : {}'.format(kifu_num))
 print('moves sum : {}'.format(sum(kifu_moves_len)))
@@ -36,10 +40,12 @@ print('moves mean : {}'.format(statistics.mean(kifu_moves_len)))
 print('moves median : {}'.format(statistics.median(kifu_moves_len)))
 print('moves max : {}'.format(max(kifu_moves_len)))
 print('moves min : {}'.format(min(kifu_moves_len)))
-print('max hand fu : {}'.format(max(max_hand_fu)))
+print('nyugyoku kachi : {}'.format(kachi_num))
+#print('max hand fu : {}'.format(max(max_hand_fu)))
 
-plt.hist(kifu_moves_len)
-plt.show()
+if args.plot:
+    plt.hist(kifu_moves_len)
+    plt.show()
 
-plt.hist(max_hand_fu, bins=18, range=(0, 18))
-plt.show()
+    #plt.hist(max_hand_fu, bins=18, range=(0, 18))
+    #plt.show()
