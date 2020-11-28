@@ -19,6 +19,8 @@ for filepath in csa_file_list:
     print(filepath)
     p = 0
     for kif in CSA.Parser.parse_file(filepath):
+        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN'):
+            continue
         board.set_sfen(kif.sfen)
         # 30手までで最善手以外が指された手番を見つける
         start = -1
