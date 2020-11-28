@@ -21,7 +21,7 @@ for filepath in csa_file_list:
     print(filepath)
     p = 0
     for kif in CSA.Parser.parse_file(filepath):
-        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN'):
+        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN') or len(kif.moves) <= 30:
             continue
         kif_num += 1
         board.set_sfen(kif.sfen)
