@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>aoba_to_hcpe.py</StartupFile>
+    <StartupFile>csa_to_roots_hcp.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,7 +13,7 @@
     <Name>utils</Name>
     <RootNamespace>utils</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\csa R:\hcpe</CommandLineArguments>
+    <CommandLineArguments>F:\floodgate\2020 R:\hcpe</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -29,6 +29,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="benchmark.py" />
+    <Compile Include="csa_to_roots_hcp.py" />
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
     </Compile>
