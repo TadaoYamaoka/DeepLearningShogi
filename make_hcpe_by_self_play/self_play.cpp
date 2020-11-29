@@ -50,6 +50,8 @@ void sigint_handler(int signum)
 
 // ランダムムーブの手数
 int RANDOM_MOVE;
+// 出力する最低手数
+int MIN_MOVE;
 
 // 終局とする勝率の閾値
 float WINRATE_THRESHOLD;
@@ -1367,7 +1369,7 @@ void UCTSearcher::NextGame()
 		elem.gameResult = gameResult;
 
 	// 局面出力
-	if (hcpevec.size() > 0) {
+	if (hcpevec.size() >= MIN_MOVE) {
 		std::unique_lock<Mutex> lock(omutex);
 		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 		madeTeacherNodes += hcpevec.size();
@@ -1521,6 +1523,7 @@ int main(int argc, char* argv[]) {
 			("positional", "", cxxopts::value<std::vector<int>>())
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
+			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
@@ -1581,6 +1584,10 @@ int main(int argc, char* argv[]) {
 		cerr << "too few random move number" << endl;
 		return 0;
 	}
+	if (MIN_MOVE <= 0) {
+		cerr << "too few mini_move" << endl;
+		return 0;
+	}
 	if (WINRATE_THRESHOLD <= 0) {
 		cerr << "too few threashold" << endl;
 		return 0;
@@ -1619,6 +1626,7 @@ int main(int argc, char* argv[]) {
 
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
+	logger->info("min_move:{}", MIN_MOVE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
