@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcp')
 parser.add_argument('--moves', type=int, default=26)
-parser.add_argument('--filter_moves', type=int, default=40)
+parser.add_argument('--filter_moves', type=int, default=80)
 parser.add_argument('--filter_rating', type=int, default=3000)
 parser.add_argument('--recursive', '-r', action='store_true')
 parser.add_argument('--percentile', type=float, default=0.99)
@@ -30,7 +30,7 @@ dic = {}
 num_games = 0
 for filepath in csa_file_list:
     parser.parse_csa_file(filepath)
-    if parser.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE') or len(parser.moves) < args.filter_moves:
+    if parser.endgame not in ('%TORYO', '%KACHI') or len(parser.moves) < args.filter_moves:
         continue
     if filter_rating > 0 and (parser.ratings[0] < filter_rating and parser.ratings[1] < filter_rating):
         continue
