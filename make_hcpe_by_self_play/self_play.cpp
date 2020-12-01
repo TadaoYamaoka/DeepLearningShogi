@@ -257,12 +257,12 @@ public:
 		playout(0),
 		ply(0) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
-		need_usi_engine = grp->usi_engines.size() > 0 && id < usi_engine_num;
+		usi_engine_turn = (grp->usi_engines.size() > 0 && id < usi_engine_num) ? rnd(*mt) % 2 : -1;
 	}
 	UCTSearcher(UCTSearcher&& o) : uct_hash(o.uct_hash), nn_cache(o.nn_cache) {} // not use
 	~UCTSearcher() {
 		// USIエンジンが思考中の場合待機する
-		if (need_usi_engine) {
+		if (usi_engine_turn >= 0) {
 			grp->usi_engines[id % usi_threads].WaitThinking();
 		}
 
@@ -323,7 +323,7 @@ private:
 	HuffmanCodedPos hcp;
 
 	// USIエンジン
-	bool need_usi_engine = false;
+	int usi_engine_turn; // -1:未使用、0:偶数手、1:奇数手
 	std::string usi_position;
 };
 
@@ -1059,12 +1059,17 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				}
 
 				// USIエンジン
-				if (need_usi_engine) {
+				if (usi_engine_turn >= 0) {
 					// 開始局面設定
 					usi_position = "position " + pos_root->toSFEN() + " moves";
+
+					if (usi_engine_turn == 1 && RANDOM_MOVE == 0) {
+						grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
+						return;
+					}
 				}
 			}
-			else if (need_usi_engine && ply % 2 == 0 && ply > RANDOM_MOVE) {
+			else if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
 				return;
 			}
 
@@ -1132,7 +1137,7 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 void UCTSearcher::NextStep()
 {
 	// USIエンジン
-	if (need_usi_engine && ply % 2 == 0 && ply > RANDOM_MOVE) {
+	if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
 		const Move move = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
 		if (move == Move::moveNone())
 			return;
@@ -1354,9 +1359,9 @@ void UCTSearcher::NextPly(const Move move)
 	playout = 0;
 	ply++;
 
-	if (need_usi_engine) {
+	if (usi_engine_turn >= 0) {
 		usi_position += " " + move.toUSI();
-		if (ply % 2 == 0)
+		if (ply % 2 == usi_engine_turn)
 			grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 	}
 }
@@ -1381,13 +1386,20 @@ void UCTSearcher::NextGame()
 	}
 
 	// USIエンジンとの対局結果
-	if (need_usi_engine) {
+	if (usi_engine_turn >= 0) {
 		++usi_games;
-		if (ply % 2 == 1 && (pos_root->turn() == Black && gameResult == BlackWin || pos_root->turn() == White && gameResult == WhiteWin) ||
-			ply % 2 == 0 && (pos_root->turn() == Black && gameResult == WhiteWin || pos_root->turn() == White && gameResult == BlackWin))
+		if (ply % 2 == 1 && (pos_root->turn() == Black && gameResult == (BlackWin + usi_engine_turn) || pos_root->turn() == White && gameResult == (WhiteWin - usi_engine_turn)) ||
+			ply % 2 == 0 && (pos_root->turn() == Black && gameResult == (WhiteWin - usi_engine_turn) || pos_root->turn() == White && gameResult == (BlackWin + usi_engine_turn))) {
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} usi win", grp->gpu_id, grp->group_id, id, ply);
 			++usi_wins;
-		else if (gameResult == Draw)
+		}
+		else if (gameResult == Draw) {
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} usi draw", grp->gpu_id, grp->group_id, id, ply);
 			++usi_draws;
+		}
+		else {
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} usi lose", grp->gpu_id, grp->group_id, id, ply);
+		}
 	}
 
 	// すぐに終局した初期局面を削除候補とする
