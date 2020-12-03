@@ -52,6 +52,8 @@ void sigint_handler(int signum)
 int RANDOM_MOVE;
 // 出力する最低手数
 int MIN_MOVE;
+// ルートの方策に加えるノイズの確率(千分率)
+int ROOT_NOISE;
 
 // 終局とする勝率の閾値
 float WINRATE_THRESHOLD;
@@ -784,7 +786,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, unsigned int current, const 
 
 		float rate = cache_lock->nnrate[i];
 		// ランダムに確率を上げる
-		if (depth == 0 && rnd(*mt) <= 2) {
+		if (depth == 0 && rnd(*mt) < ROOT_NOISE) {
 			rate = (rate + 1.0f) / 2.0f;
 		}
 
@@ -1536,6 +1538,7 @@ int main(int argc, char* argv[]) {
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
+			("root_noise", "add noise to the policy prior at the root", cxxopts::value<int>(ROOT_NOISE)->default_value("3"), "per mille")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
@@ -1600,6 +1603,10 @@ int main(int argc, char* argv[]) {
 		cerr << "too few mini_move" << endl;
 		return 0;
 	}
+	if (ROOT_NOISE < 0) {
+		cerr << "too few root_noise" << endl;
+		return 0;
+	}
 	if (WINRATE_THRESHOLD <= 0) {
 		cerr << "too few threashold" << endl;
 		return 0;
@@ -1639,6 +1646,7 @@ int main(int argc, char* argv[]) {
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("min_move:{}", MIN_MOVE);
+	logger->info("root_noise:{}", ROOT_NOISE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
