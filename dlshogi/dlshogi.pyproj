@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
+    <StartupFile>train_tree_policy.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 100 -b 64 --swa_freq 100</CommandLineArguments>
+    <CommandLineArguments>F:\selfplay\selfplay-438_org F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 1000 -b 128</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -33,6 +33,8 @@
     <Compile Include="convert_model_to_onnx.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="policy_value_network_resnet10_swish.py" />
+    <Compile Include="train_tree_policy.py" />
+    <Compile Include="tree_policy.py" />
     <Compile Include="policy_value_network_senet10.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
