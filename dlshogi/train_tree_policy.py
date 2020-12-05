@@ -159,13 +159,6 @@ for e in range(args.epoch):
             itr = 0
             sum_loss = 0
 
-    if args.use_amp:
-        amp_context = torch.cuda.amp.autocast()
-        amp_context.__enter__()
-
-    if args.use_amp:
-        amp_context.__exit__()
-
     # print train loss for each epoch
     itr_test = 0
     sum_test_loss = 0
