@@ -67,22 +67,26 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
     // 一つを残して削除する
     bool found = false;
-    for (int i = 0; i < child_num; ++i) {
-        auto& uct_child = child[i];
-        if (uct_child.move == move) {
-            found = true;
-            if (!uct_child.node) {
-                // 新しいノードを作成する
-                uct_child.node = std::make_unique<uct_node_t>();
+    if (child) {
+        for (int i = 0; i < child_num; ++i) {
+            auto& uct_child = child[i];
+            if (candidates[i] == move) {
+                found = true;
+                if (!uct_child.node) {
+                    // 新しいノードを作成する
+                    uct_child.node = std::make_unique<uct_node_t>();
+                }
+                // 0番目の要素に移動する
+                if (i != 0) {
+                    child[0] = std::move(uct_child);
+                    candidates[0] = move;
+                }
             }
-            // 0番目の要素に移動する
-            if (i != 0)
-                child[0] = std::move(uct_child);
-        }
-        else {
-            // 子ノードを削除（ガベージコレクタに追加）
-            if (uct_child.node)
-                gNodeGc.AddToGcQueue(std::move(uct_child.node));
+            else {
+                // 子ノードを削除（ガベージコレクタに追加）
+                if (uct_child.node)
+                    gNodeGc.AddToGcQueue(std::move(uct_child.node));
+            }
         }
     }
 
@@ -94,7 +98,6 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
     else {
         // 子ノードが見つからなかった場合、新しいノードを作成する
         CreateSingleChildNode(move);
-        child[0].node = std::make_unique<uct_node_t>();
         return child[0].node.get();
     }
 }

@@ -669,7 +669,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		best_wp = 0.0f;
 	}
 
-	const Move move = uct_child[select_index].move;
+	const Move move = current_root->candidates[select_index];
 	int cp;
 	if (best_wp == 1.0f) {
 		cp = 30000;
@@ -692,7 +692,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		while (best_node[best_index].node) {
 			const uct_node_t* best_child_node = best_node[best_index].node.get();
 
+			if (!best_child_node->child) break;
+
 			best_node = best_child_node->child.get();
+			const auto best_child_candidates = best_child_node->candidates.get();
 			max_count = 0;
 			best_index = 0;
 			for (int i = 0; i < best_child_node->child_num; i++) {
@@ -704,12 +707,12 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 			// ponderの着手
 			if (pondering_mode && ponderMove == Move::moveNone())
-				ponderMove = best_node[best_index].move;
+				ponderMove = best_child_candidates[best_index];
 
 			if (max_count < 1)
 				break;
 
-			pv += " " + best_node[best_index].move.toUSI();
+			pv += " " + best_child_candidates[best_index].toUSI();
 			depth++;
 		}
 	}
@@ -830,7 +833,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		// 候補手の情報を出力
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
-			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
+			cout << i << ":" << current_root->candidates[i].toUSI() << " move_count:" << child.move_count << " nnrate:" << current_root->nnrate[i]
 				<< " value_win:" << (child.node ? (float)child.node->value_win : 0)
 				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
 		}
@@ -852,7 +855,7 @@ ExpandRoot(const Position *pos)
 	uct_node_t* current_head = tree->GetCurrentHead();
 	if (current_head->child_num == 0) {
 		MoveList<Legal> ml(*pos);
-		current_head->CreateChildNode(ml);
+		current_head->InitCandidates(ml);
 	}
 }
 
@@ -1151,15 +1154,18 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	float result;
 	unsigned int next_index;
 	double score;
-	child_node_t *uct_child = current->child.get();
 
 	// 現在見ているノードをロック
 	current->Lock();
+	// 初回に訪問した場合、子ノードを展開する（メモリを節約するためExpandNodeでは候補手のみ準備して子ノードは展開していない）
+	if (!current->child) current->CreateChildNode();
 	// UCB値最大の手を求める
 	next_index = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
+	pos->doMove(current->candidates[next_index], st);
+
+	child_node_t* uct_child = current->child.get();
 
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
@@ -1331,7 +1337,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		const float rate = uct_child[i].nnrate;
+		const float rate = current->nnrate[i];
 
 		const float c = depth > 0 ?
 			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
@@ -1351,7 +1357,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	// for FPU reduction
 	if (uct_child[max_child].node) {
-		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
+		atomic_fetch_add(&current->visited_nnrate, current->nnrate[max_child]);
 	}
 
 	return max_child;
@@ -1393,7 +1399,7 @@ void UCTSearcher::EvalNode() {
 		std::vector<float> legal_move_probabilities;
 		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
-			Move move = uct_child[j].move;
+			Move move = node->candidates[j];
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 #ifdef FP16
 			const float logit = __half2float((*logits)[move_label]);
@@ -1407,7 +1413,7 @@ void UCTSearcher::EvalNode() {
 		softmax_temperature_with_normalize(legal_move_probabilities);
 
 		for (int j = 0; j < child_num; j++) {
-			uct_child[j].nnrate = legal_move_probabilities[j];
+			node->nnrate[j] = legal_move_probabilities[j];
 		}
 
 #ifdef FP16
