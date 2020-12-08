@@ -669,7 +669,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		best_wp = 0.0f;
 	}
 
-	const Move move = current_root->candidates[select_index];
+	const Move move = current_root->candidates[select_index].move;
 	int cp;
 	if (best_wp == 1.0f) {
 		cp = 30000;
@@ -707,12 +707,12 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 			// ponderの着手
 			if (pondering_mode && ponderMove == Move::moveNone())
-				ponderMove = best_child_candidates[best_index];
+				ponderMove = best_child_candidates[best_index].move;
 
 			if (max_count < 1)
 				break;
 
-			pv += " " + best_child_candidates[best_index].toUSI();
+			pv += " " + best_child_candidates[best_index].move.toUSI();
 			depth++;
 		}
 	}
@@ -833,7 +833,8 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		// 候補手の情報を出力
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
-			cout << i << ":" << current_root->candidates[i].toUSI() << " move_count:" << child.move_count << " nnrate:" << current_root->nnrate[i]
+			const auto& candidate = current_root->candidates[i];
+			cout << i << ":" << candidate.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << candidate.nnrate
 				<< " value_win:" << (child.node ? (float)child.node->value_win : 0)
 				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
 		}
@@ -1163,7 +1164,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	next_index = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
-	pos->doMove(current->candidates[next_index], st);
+	pos->doMove(current->candidates[next_index].move, st);
 
 	child_node_t* uct_child = current->child.get();
 
@@ -1337,7 +1338,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		const float rate = current->nnrate[i];
+		const float rate = current->candidates[i].nnrate;
 
 		const float c = depth > 0 ?
 			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
@@ -1357,7 +1358,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	// for FPU reduction
 	if (uct_child[max_child].node) {
-		atomic_fetch_add(&current->visited_nnrate, current->nnrate[max_child]);
+		atomic_fetch_add(&current->visited_nnrate, current->candidates[max_child].nnrate);
 	}
 
 	return max_child;
@@ -1399,7 +1400,7 @@ void UCTSearcher::EvalNode() {
 		std::vector<float> legal_move_probabilities;
 		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
-			Move move = node->candidates[j];
+			Move move = node->candidates[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 #ifdef FP16
 			const float logit = __half2float((*logits)[move_label]);
@@ -1413,7 +1414,7 @@ void UCTSearcher::EvalNode() {
 		softmax_temperature_with_normalize(legal_move_probabilities);
 
 		for (int j = 0; j < child_num; j++) {
-			node->nnrate[j] = legal_move_probabilities[j];
+			node->candidates[j].nnrate = legal_move_probabilities[j];
 		}
 
 #ifdef FP16

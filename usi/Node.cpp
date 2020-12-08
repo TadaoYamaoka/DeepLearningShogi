@@ -70,7 +70,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
     if (child) {
         for (int i = 0; i < child_num; ++i) {
             auto& uct_child = child[i];
-            if (candidates[i] == move) {
+            if (candidates[i].move == move) {
                 found = true;
                 if (!uct_child.node) {
                     // V‚µ‚¢ƒm[ƒh‚ðì¬‚·‚é
@@ -79,7 +79,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
                 // 0”Ô–Ú‚Ì—v‘f‚ÉˆÚ“®‚·‚é
                 if (i != 0) {
                     child[0] = std::move(uct_child);
-                    candidates[0] = move;
+                    candidates[0].move = move;
                 }
             }
             else {

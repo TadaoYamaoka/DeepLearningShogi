@@ -30,15 +30,20 @@ struct child_node_t {
 	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
 
+struct candidate_t {
+	Move move;    // 候補手
+	float nnrate; // ポリシーネットワークの確率
+};
+
 struct uct_node_t {
 	uct_node_t()
 		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
 	// 合法手の一覧で初期化する
 	uct_node_t(MoveList<Legal>& ml)
 		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f),
-		child_num(ml.size()), candidates(std::make_unique<Move[]>(child_num)), nnrate(std::make_unique<float[]>(child_num)) {
-		auto* move = candidates.get();
-		for (; !ml.end(); ++ml) *(move++) = ml.move();
+		child_num(ml.size()), candidates(std::make_unique<candidate_t[]>(child_num)) {
+		auto* candidate = candidates.get();
+		for (; !ml.end(); ++ml) (candidate++)->move = ml.move();
 	}
 
 	// 子ノード一つのみで初期化する
@@ -46,15 +51,15 @@ struct uct_node_t {
 		child_num = 1;
 		child = std::make_unique<child_node_t[]>(1);
 		child[0].node = std::make_unique<uct_node_t>();
-		candidates.reset(new Move[1]{ move });
+		candidates = std::make_unique<candidate_t[]>(1);
+		candidates[0].move = move;
 	}
 	// 合法手の一覧で初期化する
 	void InitCandidates(MoveList<Legal>& ml) {
 		child_num = ml.size();
-		candidates = std::make_unique<Move[]>(child_num);
-		auto* move = candidates.get();
-		for (; !ml.end(); ++ml) *(move++) = ml.move();
-		nnrate = std::make_unique<float[]>(child_num);
+		candidates = std::make_unique<candidate_t[]>(child_num);
+		auto* candidate = candidates.get();
+		for (; !ml.end(); ++ml) (candidate++)->move = ml.move();
 	}
 	// 子ノードを初期化する
 	void CreateChildNode() {
@@ -78,10 +83,9 @@ struct uct_node_t {
 	std::atomic<bool> evaled;      // 評価済か
 	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
-	int child_num;                         // 子ノードの数
-	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
-	std::unique_ptr<Move[]> candidates;    // 候補手
-	std::unique_ptr<float[]> nnrate;       // ニューラルネットワークでのレート
+	int child_num;                             // 子ノードの数
+	std::unique_ptr<child_node_t[]> child;     // 子ノードの情報
+	std::unique_ptr<candidate_t[]> candidates; // 候補手の情報
 
 	std::mutex mtx;
 };
