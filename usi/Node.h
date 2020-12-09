@@ -23,7 +23,7 @@ struct child_node_t {
 	}
 
 	// ノードの展開
-	uct_node_t* ExpandNode(const Position* pos);
+	uct_node_t* ExpandNode();
 
 	std::atomic<int> move_count; // 探索回数
 	std::atomic<float> win;      // 勝った回数
@@ -38,13 +38,6 @@ struct candidate_t {
 struct uct_node_t {
 	uct_node_t()
 		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
-	// 合法手の一覧で初期化する
-	uct_node_t(MoveList<Legal>& ml)
-		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f),
-		child_num(ml.size()), candidates(std::make_unique<candidate_t[]>(child_num)) {
-		auto* candidate = candidates.get();
-		for (; !ml.end(); ++ml) (candidate++)->move = ml.move();
-	}
 
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
@@ -55,7 +48,8 @@ struct uct_node_t {
 		candidates[0].move = move;
 	}
 	// 合法手の一覧で初期化する
-	void InitCandidates(MoveList<Legal>& ml) {
+	void InitCandidates(const Position* pos) {
+		MoveList<Legal> ml(*pos);
 		child_num = ml.size();
 		candidates = std::make_unique<candidate_t[]>(child_num);
 		auto* candidate = candidates.get();

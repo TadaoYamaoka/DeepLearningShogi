@@ -102,10 +102,9 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
     }
 }
 
-uct_node_t* child_node_t::ExpandNode(const Position* pos)
+uct_node_t* child_node_t::ExpandNode()
 {
-    MoveList<Legal> ml(*pos);
-    node = std::make_unique<uct_node_t>(ml);
+    node = std::make_unique<uct_node_t>();
     return node.get();
 }
 
