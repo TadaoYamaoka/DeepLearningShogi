@@ -154,9 +154,6 @@ static void InitializeCandidate(child_node_t *uct_child, Move move);
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
-// 入玉宣言勝ち
-bool nyugyoku(const Position& pos);
-
 
 inline void atomic_fetch_add(std::atomic<float>* obj, float arg) {
 	float expected = obj->load();
@@ -1222,6 +1219,10 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
 					isMate = 1;
 				}
+				// 入玉勝ちかどうかを判定
+				else if (nyugyoku<false>(*pos)) {
+					isMate = 1;
+				}
 			}
 			else {
 				if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
@@ -1231,11 +1232,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				/*else if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
 					isMate = -1;
 				}*/
-			}
-
-			// 入玉勝ちかどうかを判定
-			if (nyugyoku(*pos)) {
-				isMate = 1;
 			}
 
 			// 詰みの場合、ValueNetの値を上書き

@@ -146,7 +146,6 @@ struct TrajectorEntry {
 };
 
 void UpdateResult(uct_node_t* uct_node, child_node_t *child, const float result, const unsigned int current);
-bool nyugyoku(const Position& pos);
 
 // 詰み探索スロット
 struct MateSearchEntry {
@@ -668,6 +667,10 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
 						isMate = 1;
 					}
+					// 入玉勝ちかどうかを判定
+					else if (nyugyoku<false>(*pos)) {
+						isMate = 1;
+					}
 				}
 				else {
 					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
@@ -677,11 +680,6 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					/*if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
 						isMate = -1;
 					}*/
-				}
-
-				// 入玉勝ちかどうかを判定
-				if (nyugyoku(*pos)) {
-					isMate = 1;
 				}
 
 				// 詰みの場合、ValueNetの値を上書き

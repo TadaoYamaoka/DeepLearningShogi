@@ -19,7 +19,7 @@ struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 };
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit);
-bool nyugyoku(const Position& pos);
+
 #ifdef MAKE_BOOK
 void make_book(std::istringstream& ssCmd, OptionsMap& options);
 #endif
