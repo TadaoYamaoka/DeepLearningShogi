@@ -629,7 +629,6 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].node) {
 			const uct_node_t* child_node = uct_child[i].node.get();
-			// 詰みの場合evaledは更新しないためevaledはチェックしない
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
 				// 負けが確定しているノードは選択しない
@@ -1120,6 +1119,10 @@ UCTSearcher::ParallelUctSearch()
 float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories)
 {
+	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+	if (!current->evaled)
+		return DISCARDED;
+
 	if (current != tree->GetCurrentHead()) {
 		// 詰みのチェック
 		if (current->child_num == 0) {
@@ -1146,10 +1149,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 			}
 		}
 	}
-
-	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->evaled)
-		return DISCARDED;
 
 	float result;
 	unsigned int next_index;
@@ -1265,6 +1264,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				}
 			}
 		}
+		child_node->evaled = true;
 	}
 	else {
 		// 現在見ているノードのロックを解除
