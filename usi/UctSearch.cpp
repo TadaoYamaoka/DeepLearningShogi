@@ -1124,11 +1124,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		return DISCARDED;
 
 	if (current != tree->GetCurrentHead()) {
-		// 詰みのチェック
-		if (current->child_num == 0) {
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-		else if (current->value_win == VALUE_WIN) {
+		if (current->value_win == VALUE_WIN) {
 			// 詰み、もしくはRepetitionWinかRepetitionSuperior
 			return 0.0f;  // 反転して値を返すため0を返す
 		}
@@ -1147,6 +1143,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				// 黒が選んだ手なので、黒の引き分けの価値を返す
 				return draw_value_black;
 			}
+		}
+
+		// 詰みのチェック
+		if (current->child_num == 0) {
+			return 1.0f; // 反転して値を返すため1を返す
 		}
 	}
 
