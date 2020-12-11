@@ -154,9 +154,9 @@ static void InitializeCandidate(child_node_t *uct_child, Move move);
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
-
-inline void atomic_fetch_add(std::atomic<float>* obj, float arg) {
-	float expected = obj->load();
+template <typename T>
+inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
+	T expected = obj->load();
 	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
 		;
 }
