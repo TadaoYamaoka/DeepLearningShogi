@@ -415,7 +415,7 @@ def objective(trial):
 
         # 見込みのない最適化ステップを打ち切り
         trial.report(-win_rate, n)
-        if trial.should_prune(n):
+        if trial.should_prune():
             logging.info('trial {} game {} pruned'.format(trial.number, n))
             raise TrialPruned()
 
