@@ -148,9 +148,6 @@ static void ExpandRoot(const Position *pos);
 // 思考時間を延長する処理
 static bool ExtendTime(void);
 
-// 候補手の初期化
-static void InitializeCandidate(child_node_t *uct_child, Move move);
-
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
@@ -162,27 +159,20 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 }
 
 // Virtual Lossの加算
-inline void
-AddVirtualLoss(child_node_t* child, uct_node_t* current)
+inline void AddVirtualLoss(uct_node_t* child)
 {
-	current->move_count += VIRTUAL_LOSS;
 	child->move_count += VIRTUAL_LOSS;
 }
 
 // Virtual Lossを減算
-inline void
-SubVirtualLoss(child_node_t* child, uct_node_t* current)
+inline void SubVirtualLoss(uct_node_t* child)
 {
-	current->move_count -= VIRTUAL_LOSS;
 	child->move_count -= VIRTUAL_LOSS;
 }
 
 // 探索結果の更新
-inline void
-UpdateResult(child_node_t* child, float result, uct_node_t* current)
+inline void UpdateResult(uct_node_t* child, float result)
 {
-	atomic_fetch_add(&current->win, result);
-	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
 	atomic_fetch_add(&child->win, result);
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
@@ -615,7 +605,7 @@ StopUctSearch(void)
 std::tuple<Move, float, Move> get_and_print_pv()
 {
 	const uct_node_t* current_root = tree->GetCurrentHead();
-	const child_node_t* uct_child = current_root->child.get();
+	const uct_node_t* uct_child = current_root->child.get();
 
 	unsigned int select_index = 0;
 	int max_count = 0;
@@ -624,8 +614,8 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	int child_lose_count = 0;
 
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].node) {
-			const uct_node_t* child_node = uct_child[i].node.get();
+		if (uct_child[i].move_count > 0) {
+			const uct_node_t* child_node = &uct_child[i];
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
 				// 負けが確定しているノードは選択しない
@@ -683,10 +673,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	int depth = 1;
 	{
 		unsigned int best_index = select_index;
-		const child_node_t* best_node = uct_child;
+		const uct_node_t* best_node = uct_child;
 
-		while (best_node[best_index].node) {
-			const uct_node_t* best_child_node = best_node[best_index].node.get();
+		while (best_node[best_index].move_count > 0) {
+			const uct_node_t* best_child_node = &best_node[best_index];
 
 			best_node = best_child_node->child.get();
 			max_count = 0;
@@ -827,7 +817,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
 			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
-				<< " value_win:" << (child.node ? (float)child.node->value_win : 0)
+				<< " value_win:" << (child.move_count > 0 ? (float)child.value_win : 0)
 				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
 		}
 
@@ -893,7 +883,7 @@ InterruptionCheck(void)
 	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
-	const child_node_t* uct_child = current_root->child.get();
+	const uct_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -930,7 +920,7 @@ ExtendTime(void)
 	float max_eval = 0, second_eval = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
-	const child_node_t *uct_child = current_root->child.get();
+	const uct_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1026,9 +1016,9 @@ UCTSearcher::ParallelUctSearch()
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
 				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
-				child_node_t* uct_child = current->child.get();
+				uct_node_t* uct_child = current->child.get();
 				const unsigned int next_index = current_next.second;
-				SubVirtualLoss(&uct_child[next_index], current);
+				SubVirtualLoss(&uct_child[next_index]);
 			}
 		}
 
@@ -1039,9 +1029,9 @@ UCTSearcher::ParallelUctSearch()
 				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				const unsigned int next_index = current_next.second;
-				child_node_t* uct_child = current->child.get();
+				uct_node_t* uct_child = current->child.get();
 				if ((size_t)i == trajectories.size() - 1) {
-					const uct_node_t* child_node = uct_child[next_index].node.get();
+					const uct_node_t* child_node = &uct_child[next_index];
 					const float value_win = child_node->value_win;
 					// 他スレッドの詰みの伝播によりvalue_winがVALUE_WINまたはVALUE_LOSEに上書きされる場合があるためチェックする
 					if (value_win == VALUE_WIN)
@@ -1051,7 +1041,7 @@ UCTSearcher::ParallelUctSearch()
 					else
 						result = 1.0f - value_win;
 				}
-				UpdateResult(&uct_child[next_index], result, current);
+				UpdateResult(&uct_child[next_index], result);
 				result = 1.0f - result;
 			}
 		}
@@ -1147,7 +1137,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	float result;
 	unsigned int next_index;
 	double score;
-	child_node_t *uct_child = current->child.get();
+	uct_node_t* uct_child = current->child.get();
 
 	// 現在見ているノードをロック
 	current->Lock();
@@ -1158,12 +1148,10 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	pos->doMove(uct_child[next_index].move, st);
 
 	// Virtual Lossを加算
-	AddVirtualLoss(&uct_child[next_index], current);
+	AddVirtualLoss(&uct_child[next_index]);
 	// ノードの展開の確認
-	if (!uct_child[next_index].node) {
-		// ノードの作成
-		uct_node_t* child_node = uct_child[next_index].CreateChildNode();
-		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
+	if (!uct_child[next_index].child) {
+		uct_node_t* child_node = &uct_child[next_index];
 
 		// 現在見ているノードのロックを解除
 		current->UnLock();
@@ -1265,7 +1253,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		trajectories.emplace_back(current, next_index);
 
 		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, uct_child[next_index].node.get(), depth + 1, trajectories);
+		result = UctSearch(pos, &uct_child[next_index], depth + 1, trajectories);
 	}
 
 	if (result == QUEUING)
@@ -1276,7 +1264,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	}
 
 	// 探索結果の反映
-	UpdateResult(&uct_child[next_index], result, current);
+	UpdateResult(&uct_child[next_index], result);
 
 	return 1.0f - result;
 }
@@ -1288,7 +1276,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 int
 UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const int depth)
 {
-	const child_node_t *uct_child = current->child.get();
+	const uct_node_t* uct_child = current->child.get();
 	const int child_num = current->child_num;
 	int max_child = 0;
 	const int sum = current->move_count;
@@ -1302,8 +1290,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].node) {
-			const uct_node_t* child_node = uct_child[i].node.get();
+		if (uct_child[i].move_count > 0) {
+			const uct_node_t* child_node = &uct_child[i];
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
 				child_win_count++;
@@ -1350,7 +1338,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	}
 
 	// for FPU reduction
-	if (uct_child[max_child].node) {
+	if (uct_child[max_child].move_count > 0) {
 		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 	}
 
@@ -1387,7 +1375,7 @@ void UCTSearcher::EvalNode() {
 		node->Lock();
 
 		const int child_num = node->child_num;
-		child_node_t *uct_child = node->child.get();
+		uct_node_t* uct_child = node->child.get();
 
 		// 合法手一覧
 		std::vector<float> legal_move_probabilities;
