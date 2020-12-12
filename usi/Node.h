@@ -32,7 +32,7 @@ struct child_node_t {
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
-	std::atomic<float> win;      // 勝った回数
+	std::atomic<double> win;     // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
 	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
@@ -69,7 +69,7 @@ struct uct_node_t {
 	}
 
 	std::atomic<int> move_count;
-	std::atomic<float> win;
+	std::atomic<double> win;
 	std::atomic<bool> evaled;      // 評価済か
 	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;

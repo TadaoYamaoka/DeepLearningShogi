@@ -181,9 +181,9 @@ SubVirtualLoss(child_node_t* child, uct_node_t* current)
 inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
-	atomic_fetch_add(&current->win, result);
+	atomic_fetch_add(&current->win, (double)result);
 	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
-	atomic_fetch_add(&child->win, result);
+	atomic_fetch_add(&child->win, (double)result);
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
@@ -1298,7 +1298,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	max_value = -FLT_MAX;
 
-	float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
+	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1315,19 +1315,19 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 				current->value_win = VALUE_WIN;
 			}
 		}
-		float win = uct_child[i].win;
+		const double win = uct_child[i].win;
 		int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
 			if (current->win > 0)
-				q = std::max(0.0f, current->win / current->move_count - fpu_reduction);
+				q = std::max(0.0f, (float)(current->win / current->move_count) - fpu_reduction);
 			else
 				q = 0.0f;
 			u = sum == 0 ? 1.0f : sqrtf(sum);
 		}
 		else {
-			q = win / move_count;
+			q = (float)(win / move_count);
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
