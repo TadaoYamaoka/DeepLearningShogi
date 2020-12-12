@@ -24,8 +24,11 @@ struct child_node_t {
 		return *this;
 	}
 
-	// ノードの展開
-	uct_node_t* ExpandNode(const Position* pos);
+	// 子ノード作成
+	uct_node_t* CreateChildNode() {
+		node = std::make_unique<uct_node_t>();
+		return node.get();
+	}
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
@@ -37,13 +40,6 @@ struct child_node_t {
 struct uct_node_t {
 	uct_node_t()
 		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
-	// 合法手の一覧で初期化する
-	uct_node_t(MoveList<Legal>& ml)
-		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f),
-		child_num(ml.size()), child(std::make_unique<child_node_t[]>(ml.size())) {
-		auto* child_node = child.get();
-		for (; !ml.end(); ++ml) child_node++->move = ml.move();
-	}
 
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
@@ -51,8 +47,9 @@ struct uct_node_t {
 		child = std::make_unique<child_node_t[]>(1);
 		child[0].move = move;
 	}
-	// 合法手の一覧で初期化する
-	void CreateChildNode(MoveList<Legal>& ml) {
+	// 候補手の展開
+	void ExpandNode(const Position* pos) {
+		MoveList<Legal> ml(*pos);
 		child_num = ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();

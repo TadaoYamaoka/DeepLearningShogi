@@ -847,8 +847,7 @@ ExpandRoot(const Position *pos)
 {
 	uct_node_t* current_head = tree->GetCurrentHead();
 	if (current_head->child_num == 0) {
-		MoveList<Legal> ml(*pos);
-		current_head->CreateChildNode(ml);
+		current_head->ExpandNode(pos);
 	}
 }
 
@@ -1118,11 +1117,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		return DISCARDED;
 
 	if (current != tree->GetCurrentHead()) {
-		// 詰みのチェック
-		if (current->child_num == 0) {
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-		else if (current->value_win == VALUE_WIN) {
+		if (current->value_win == VALUE_WIN) {
 			// 詰み、もしくはRepetitionWinかRepetitionSuperior
 			return 0.0f;  // 反転して値を返すため0を返す
 		}
@@ -1141,6 +1136,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				// 黒が選んだ手なので、黒の引き分けの価値を返す
 				return draw_value_black;
 			}
+		}
+
+		// 詰みのチェック
+		if (current->child_num == 0) {
+			return 1.0f; // 反転して値を返すため1を返す
 		}
 	}
 
@@ -1161,8 +1161,8 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開の確認
 	if (!uct_child[next_index].node) {
-		// ノードの展開
-		uct_node_t* child_node = uct_child[next_index].ExpandNode(pos);
+		// ノードの作成
+		uct_node_t* child_node = uct_child[next_index].CreateChildNode();
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 現在見ているノードのロックを解除
@@ -1171,81 +1171,84 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		if (child_node->child_num == 0) {
-			// 詰み
-			child_node->value_win = VALUE_LOSE;
-			result = 1.0f;
+		// 千日手チェック
+		int isDraw = 0;
+		switch (pos->isDraw(16)) {
+		case NotRepetition: break;
+		case RepetitionDraw: isDraw = 2; break; // Draw
+		case RepetitionWin: isDraw = 1; break;
+		case RepetitionLose: isDraw = -1; break;
+		case RepetitionSuperior: isDraw = 1; break;
+		case RepetitionInferior: isDraw = -1; break;
+		default: UNREACHABLE;
 		}
-		else {
-			// 千日手チェック
-			int isDraw = 0;
-			switch (pos->isDraw(16)) {
-			case NotRepetition: break;
-			case RepetitionDraw: isDraw = 2; break; // Draw
-			case RepetitionWin: isDraw = 1; break;
-			case RepetitionLose: isDraw = -1; break;
-			case RepetitionSuperior: isDraw = 1; break;
-			case RepetitionInferior: isDraw = -1; break;
-			default: UNREACHABLE;
-			}
 
-			// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
-			if (isDraw != 0) {
-				if (isDraw == 1) {
-					child_node->value_win = VALUE_WIN;
-					result = 0.0f;
-				}
-				else if (isDraw == -1) {
-					child_node->value_win = VALUE_LOSE;
-					result = 1.0f;
+		// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
+		if (isDraw != 0) {
+			if (isDraw == 1) {
+				child_node->value_win = VALUE_WIN;
+				result = 0.0f;
+			}
+			else if (isDraw == -1) {
+				child_node->value_win = VALUE_LOSE;
+				result = 1.0f;
+			}
+			else {
+				child_node->value_win = VALUE_DRAW;
+				if (pos->turn() == Black) {
+					// 白が選んだ手なので、白の引き分けの価値を使う
+					result = draw_value_white;
 				}
 				else {
-					child_node->value_win = VALUE_DRAW;
-					if (pos->turn() == Black) {
-						// 白が選んだ手なので、白の引き分けの価値を使う
-						result = draw_value_white;
-					}
-					else {
-						// 黒が選んだ手なので、黒の引き分けの価値を使う
-						result = draw_value_black;
-					}
+					// 黒が選んだ手なので、黒の引き分けの価値を使う
+					result = draw_value_black;
+				}
+			}
+		}
+		else {
+			// 詰みチェック
+			int isMate = 0;
+			if (!pos->inCheck()) {
+				if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+					isMate = 1;
+				}
+				// 入玉勝ちかどうかを判定
+				else if (nyugyoku<false>(*pos)) {
+					isMate = 1;
 				}
 			}
 			else {
-				// 詰みチェック
-				int isMate = 0;
-				if (!pos->inCheck()) {
-					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
-						isMate = 1;
-					}
-					// 入玉勝ちかどうかを判定
-					else if (nyugyoku<false>(*pos)) {
-						isMate = 1;
-					}
+				if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+					isMate = 1;
 				}
-				else {
-					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
-						isMate = 1;
-					}
-					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
-					/*else if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-						isMate = -1;
-					}*/
-				}
-
-
-				// 詰みの場合、ValueNetの値を上書き
-				if (isMate == 1) {
-					child_node->value_win = VALUE_WIN;
-					result = 0.0f;
-				}
-				/*else if (isMate == -1) {
-					uct_node[child_index].value_win = VALUE_LOSE;
-					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-					current->value_win = VALUE_WIN;
-					result = 1.0f;
+				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
+				/*else if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
+					isMate = -1;
 				}*/
-				else {
+			}
+
+
+			// 詰みの場合、ValueNetの値を上書き
+			if (isMate == 1) {
+				child_node->value_win = VALUE_WIN;
+				result = 0.0f;
+			}
+			/*else if (isMate == -1) {
+				uct_node[child_index].value_win = VALUE_LOSE;
+				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+				current->value_win = VALUE_WIN;
+				result = 1.0f;
+			}*/
+			else {
+				// 候補手を展開する（千日手や詰みの場合は候補手の展開が不要なため、タイミングを遅らせる）
+				child_node->ExpandNode(pos);
+				if (child_node->child_num == 0) {
+					// 詰み
+					child_node->value_win = VALUE_LOSE;
+					result = 1.0f;
+				}
+				else
+				{
 					// ノードをキューに追加
 					QueuingNode(pos, child_node);
 					return QUEUING;
