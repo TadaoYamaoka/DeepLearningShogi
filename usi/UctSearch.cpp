@@ -1139,8 +1139,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	double score;
 	uct_node_t* uct_child = current->child.get();
 
-	// 現在見ているノードをロック
-	current->Lock();
 	// UCB値最大の手を求める
 	next_index = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
@@ -1153,9 +1151,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 		// Virtual Lossを加算
 		AddVirtualLoss(child_node);
-
-		// 現在見ているノードのロックを解除
-		current->UnLock();
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -1249,9 +1244,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	else {
 		// Virtual Lossを加算
 		AddVirtualLoss(&uct_child[next_index]);
-
-		// 現在見ているノードのロックを解除
-		current->UnLock();
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -1376,8 +1368,6 @@ void UCTSearcher::EvalNode() {
 		uct_node_t* node = policy_value_batch[i].node;
 		Color color = policy_value_batch[i].color;
 
-		node->Lock();
-
 		const int child_num = node->child_num;
 		uct_node_t* uct_child = node->child.get();
 
@@ -1432,6 +1422,5 @@ void UCTSearcher::EvalNode() {
 		}
 #endif
 		node->evaled = true;
-		node->UnLock();
 	}
 }

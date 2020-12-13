@@ -43,13 +43,6 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	void Lock() {
-		mtx.lock();
-	}
-	void UnLock() {
-		mtx.unlock();
-	}
-
 	Move move;                    // 着手する座標
 	std::atomic<int> move_count;  // 探索回数
 	std::atomic<float> win;       // 価値の合計
@@ -59,8 +52,6 @@ struct uct_node_t {
 	std::atomic<float> visited_nnrate;
 	int child_num;                       // 子ノードの数
 	std::unique_ptr<uct_node_t[]> child; // 子ノード
-
-	std::mutex mtx;
 };
 
 class NodeTree {
