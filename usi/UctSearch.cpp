@@ -148,9 +148,6 @@ static void ExpandRoot(const Position *pos);
 // 思考時間を延長する処理
 static bool ExtendTime(void);
 
-// 候補手の初期化
-static void InitializeCandidate(child_node_t *uct_child, Move move);
-
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
