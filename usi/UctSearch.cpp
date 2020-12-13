@@ -159,9 +159,9 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 }
 
 // Virtual Lossの加算
-inline void AddVirtualLoss(uct_node_t* child)
+inline int AddVirtualLoss(uct_node_t* child)
 {
-	child->move_count += VIRTUAL_LOSS;
+	return child->move_count.fetch_add(VIRTUAL_LOSS);
 }
 
 // Virtual Lossを減算
@@ -361,8 +361,8 @@ private:
 	float UctSearch(Position* pos, uct_node_t* current, const int depth, vector<uct_node_t*>& trajectories);
 	// ノードの展開
 	unsigned int ExpandNode(Position* pos, const int depth);
-	// UCB値が最大の子ノードを返す
-	int SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
+	// UCB値が最大の子ノードと直前の訪問回数を返す
+	std::tuple<uct_node_t*, int> SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
 	// ノードをキューに追加
 	void QueuingNode(const Position* pos, uct_node_t* node);
 	// ノードを評価
@@ -1127,22 +1127,17 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	}
 
 	float result;
-	unsigned int next_index;
-	double score;
-	uct_node_t* uct_child = current->child.get();
+	uct_node_t* child_node;
+	int move_count;
 
 	// UCB値最大の手を求める
-	next_index = SelectMaxUcbChild(pos, current, depth);
+	std::tie(child_node, move_count) = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
-
-	uct_node_t* child_node = &uct_child[next_index];
+	pos->doMove(child_node->move, st);
 
 	// ノードの展開の確認
-	if (child_node->move_count == 0) {
-		// Virtual Lossを加算
-		AddVirtualLoss(child_node);
+	if (move_count == 0) {
 
 		// 経路を記録
 		trajectories.emplace_back(child_node);
@@ -1234,14 +1229,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		child_node->evaled = true;
 	}
 	else {
-		// Virtual Lossを加算
-		AddVirtualLoss(child_node);
-
 		// 経路を記録
 		trajectories.emplace_back(child_node);
 
 		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, &uct_child[next_index], depth + 1, trajectories);
+		result = UctSearch(pos, child_node, depth + 1, trajectories);
 	}
 
 	if (result == QUEUING)
@@ -1252,7 +1244,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	}
 
 	// 探索結果の反映
-	UpdateResult(&uct_child[next_index], result);
+	UpdateResult(child_node, result);
 
 	return 1.0f - result;
 }
@@ -1261,12 +1253,12 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 /////////////////////////////////////////////////////
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
-int
+std::tuple<uct_node_t*, int>
 UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const int depth)
 {
-	const uct_node_t* uct_child = current->child.get();
+	uct_node_t* uct_child = current->child.get();
 	const int child_num = current->child_num;
-	int max_child = 0;
+	uct_node_t* max_child = &uct_child[0];
 	const int sum = current->move_count;
 	float q, u, max_value;
 	float ucb_value;
@@ -1278,8 +1270,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].evaled) {
-			const uct_node_t* child_node = &uct_child[i];
+		uct_node_t* child_node = &uct_child[i];
+		if (child_node->evaled) {
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
 				child_win_count++;
@@ -1291,8 +1283,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 				current->value_win = VALUE_WIN;
 			}
 		}
-		float win = uct_child[i].win;
-		int move_count = uct_child[i].move_count;
+		float win = child_node->win;
+		int move_count = child_node->move_count;
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
@@ -1307,7 +1299,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			u = sqrtf(sum) / (1 + move_count);
 		}
 
-		const float rate = uct_child[i].nnrate;
+		const float rate = child_node->nnrate;
 
 		const float c = depth > 0 ?
 			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
@@ -1316,9 +1308,13 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;
-			max_child = i;
+			max_child = child_node;
 		}
 	}
+
+	// Virtual Lossを加算
+	int prev_move_count = AddVirtualLoss(max_child);
+
 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
@@ -1326,11 +1322,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	}
 
 	// for FPU reduction
-	if (uct_child[max_child].evaled) {
-		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
+	if (max_child->evaled) {
+		atomic_fetch_add(&current->visited_nnrate, max_child->nnrate);
 	}
 
-	return max_child;
+	return std::tuple<uct_node_t*, int>(max_child, prev_move_count);
 }
 
 
