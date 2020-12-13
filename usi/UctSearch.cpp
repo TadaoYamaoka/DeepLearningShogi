@@ -614,7 +614,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	int child_lose_count = 0;
 
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > 0) {
+		if (uct_child[i].evaled) {
 			const uct_node_t* child_node = &uct_child[i];
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
@@ -675,7 +675,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		unsigned int best_index = select_index;
 		const uct_node_t* best_node = uct_child;
 
-		while (best_node[best_index].move_count > 0) {
+		while (best_node[best_index].evaled) {
 			const uct_node_t* best_child_node = &best_node[best_index];
 
 			best_node = best_child_node->child.get();
@@ -817,8 +817,8 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
 			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
-				<< " value_win:" << (child.move_count > 0 ? (float)child.value_win : 0)
-				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
+				<< " value_win:" << (child.evaled ? (float)child.value_win : 0)
+				<< " win_rate:" << (child.evaled ? child.win / child.move_count : 0) << endl;
 		}
 
 		// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
@@ -1147,11 +1147,12 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
 
-	// Virtual Lossを加算
-	AddVirtualLoss(&uct_child[next_index]);
 	// ノードの展開の確認
-	if (!uct_child[next_index].child) {
+	if (uct_child[next_index].move_count == 0) {
 		uct_node_t* child_node = &uct_child[next_index];
+
+		// Virtual Lossを加算
+		AddVirtualLoss(child_node);
 
 		// 現在見ているノードのロックを解除
 		current->UnLock();
@@ -1246,6 +1247,9 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		child_node->evaled = true;
 	}
 	else {
+		// Virtual Lossを加算
+		AddVirtualLoss(&uct_child[next_index]);
+
 		// 現在見ているノードのロックを解除
 		current->UnLock();
 
@@ -1290,7 +1294,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > 0) {
+		if (uct_child[i].evaled) {
 			const uct_node_t* child_node = &uct_child[i];
 			const float child_value_win = child_node->value_win;
 			if (child_value_win == VALUE_WIN) {
@@ -1338,7 +1342,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	}
 
 	// for FPU reduction
-	if (uct_child[max_child].move_count > 0) {
+	if (uct_child[max_child].evaled) {
 		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 	}
 

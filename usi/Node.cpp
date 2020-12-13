@@ -23,7 +23,6 @@ public:
         // Flips stop flag and waits for a worker thread to stop.
         stop_.store(true);
         gc_thread_.join();
-        std::cout << "end " << subtrees_to_gc_.size() << std::endl;
     }
 
 private:
