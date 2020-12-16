@@ -1244,6 +1244,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 					child_node->value_win = VALUE_LOSE;
 					result = 1.0f;
 				}
+				else if (child_node->child_num == 1) {
+					// 候補手が1手のみの場合、評価済みにして1手深く読む
+					child_node->evaled = true;
+					result = UctSearch(pos, child_node, depth + 1, trajectories);
+				}
 				else
 				{
 					// ノードをキューに追加
