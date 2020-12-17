@@ -16,6 +16,7 @@ constexpr int UCT_CHILD_MAX = 593;
 
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
+constexpr int COLLISION_LOSS = 1;
 
 extern float c_init;
 extern float c_base;

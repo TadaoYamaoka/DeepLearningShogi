@@ -158,25 +158,6 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 		;
 }
 
-// Virtual Lossの加算
-inline int AddVirtualLoss(uct_node_t* child)
-{
-	return child->move_count.fetch_add(VIRTUAL_LOSS);
-}
-
-// Virtual Lossを減算
-inline void SubVirtualLoss(uct_node_t* child)
-{
-	child->move_count -= VIRTUAL_LOSS;
-}
-
-// 探索結果の更新
-inline void UpdateResult(uct_node_t* child, float result)
-{
-	atomic_fetch_add(&child->win, result);
-	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
-}
-
 
 // バッチの要素
 struct batch_element_t {
@@ -367,6 +348,22 @@ private:
 	void QueuingNode(const Position* pos, uct_node_t* node);
 	// ノードを評価
 	void EvalNode();
+	// Virtual Lossの加算
+	int AddVirtualLoss(uct_node_t* child)
+	{
+		return child->move_count.fetch_add(virtual_loss);
+	}
+	// Virtual Lossを減算
+	void SubVirtualLoss(uct_node_t* child)
+	{
+		child->move_count -= VIRTUAL_LOSS;
+	}
+	// 探索結果の更新
+	void UpdateResult(uct_node_t* child, float result)
+	{
+		atomic_fetch_add(&child->win, result);
+		if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
+	}
 
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
@@ -393,6 +390,13 @@ private:
 	Key* policy_value_book_key;
 #endif
 	int current_policy_value_batch_index;
+
+	// 通常探索時のvirtual loss
+	int virtual_loss;
+	// 再探索時に設定する
+	bool collision;
+	// 仮展開したノードに到達した
+	bool cache_hit;
 };
 
 /////////////////////
@@ -975,14 +979,19 @@ UCTSearcher::ParallelUctSearch()
 	// 探索経路のバッチ
 	vector<vector<uct_node_t*>> trajectories_batch;
 	vector<vector<uct_node_t*>> trajectories_batch_discarded;
+	vector<vector<uct_node_t*>> trajectories_batch_collided;
 	trajectories_batch.reserve(policy_value_batch_maxsize);
 	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
+	trajectories_batch_collided.reserve(policy_value_batch_maxsize);
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
 		trajectories_batch.clear();
 		trajectories_batch_discarded.clear();
+		trajectories_batch_collided.clear();
 		current_policy_value_batch_index = 0;
+		virtual_loss = VIRTUAL_LOSS;
+		collision = false;
 
 		// バッチサイズ分探索を繰り返す
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
@@ -991,7 +1000,20 @@ UCTSearcher::ParallelUctSearch()
 			
 			// 1回プレイアウトする
 			trajectories_batch.emplace_back();
+			cache_hit = false;
 			float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+
+			while (cache_hit) {
+				// 仮展開したノードに到達した場合、再探索する
+				atomic_fetch_add(&po_info.count, 1);
+				trajectories_batch.pop_back();
+
+				// 再探索する
+				Position pos(*pos_root);
+				trajectories_batch.emplace_back();
+				cache_hit = false;
+				result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+			}
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
@@ -999,12 +1021,36 @@ UCTSearcher::ParallelUctSearch()
 			}
 			else {
 				// 破棄した探索経路を保存
-				trajectories_batch_discarded.emplace_back(trajectories_batch.back());
+				trajectories_batch_discarded.emplace_back(std::move(trajectories_batch.back()));
 			}
 
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
 				trajectories_batch.pop_back();
+			}
+		}
+
+		// 衝突した数だけ再探索する
+		if (trajectories_batch_discarded.size() > 0) {
+			virtual_loss = 0;
+			collision = true;
+
+			for (int i = 0; i < trajectories_batch_discarded.size(); i++) {
+				// 盤面のコピー
+				Position pos(*pos_root);
+
+				// バックアップしないため一時的なtrajectoriesを作成
+				vector<uct_node_t*> trajectories_tmp;
+
+				// 1回プレイアウトする
+				float result = UctSearch(&pos, current_root, 0, trajectories_tmp);
+
+				// 探索回数は増やさない
+
+				if (result == DISCARDED) {
+					// 破棄した探索経路を保存
+					trajectories_batch_collided.emplace_back(std::move(trajectories_tmp));
+				}
 			}
 		}
 
@@ -1014,7 +1060,14 @@ UCTSearcher::ParallelUctSearch()
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto& trajectories : trajectories_batch_discarded) {
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
+				trajectories[i]->collision_loss = 0;
 				SubVirtualLoss(trajectories[i]);
+			}
+		}
+		// collision_lossを戻す
+		for (auto& trajectories : trajectories_batch_collided) {
+			for (int i = trajectories.size() - 1; i >= 0; i--) {
+				trajectories[i]->collision_loss = 0;
 			}
 		}
 
@@ -1095,8 +1148,10 @@ float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<uct_node_t*>& trajectories)
 {
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->evaled)
+	if (!current->evaled) {
+		current->collision_loss += COLLISION_LOSS;
 		return DISCARDED;
+	}
 
 	if (current != tree->GetCurrentHead()) {
 		if (current->value_win == VALUE_WIN) {
@@ -1138,6 +1193,29 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 	// ノードの展開の確認
 	if (move_count == 0) {
+		if (collision) {
+			// 衝突時の探索の場合は仮展開
+			if (child_node->collision_loss == 0) {
+				child_node->collision_loss = -1;
+			}
+			else {
+				// 同じノードを仮展開しようとした場合、探索を破棄
+				current->collision_loss += COLLISION_LOSS;
+				return DISCARDED;
+			}
+		}
+		else if (child_node->collision_loss == -1) {
+			// 仮展開済みノードの場合
+			child_node->collision_loss = 0;
+			if (child_node->evaled) {
+				// すぐにバックアップ
+				cache_hit = true;
+				result = child_node->value_win;
+				UpdateResult(child_node, result);
+				return 1.0f - result;
+			}
+			// 仮展開済みノードが評価中の場合、バックアップが必要なため後続処理を実装する（重複して評価する）
+		}
 
 		// 経路を記録
 		trajectories.emplace_back(child_node);
@@ -1218,6 +1296,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 					child_node->value_win = VALUE_LOSE;
 					result = 1.0f;
 				}
+				else if (child_node->child_num == 1) {
+					// 候補手が1手のみの場合、評価済みにして1手深く読む
+					child_node->evaled = true;
+					result = UctSearch(pos, child_node, depth + 1, trajectories);
+				}
 				else
 				{
 					// ノードをキューに追加
@@ -1239,6 +1322,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	if (result == QUEUING)
 		return result;
 	else if (result == DISCARDED) {
+		current->collision_loss += COLLISION_LOSS;
 		// Virtual Lossはバッチ完了までそのままにする
 		return result;
 	}
@@ -1259,7 +1343,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	uct_node_t* uct_child = current->child.get();
 	const int child_num = current->child_num;
 	uct_node_t* max_child = &uct_child[0];
-	const int sum = current->move_count;
+	const int sum = current->move_count + current->collision_loss * collision;
 	float q, u, max_value;
 	float ucb_value;
 	int child_win_count = 0;
@@ -1284,7 +1368,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			}
 		}
 		const float win = child_node->win;
-		const int move_count = child_node->move_count;
+		const int move_count = child_node->move_count + child_node->collision_loss * collision;
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
