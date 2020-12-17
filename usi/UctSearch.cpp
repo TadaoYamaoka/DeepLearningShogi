@@ -1006,7 +1006,7 @@ UCTSearcher::ParallelUctSearch()
 			}
 			else {
 				// 破棄した探索経路を保存
-				trajectories_batch_discarded.emplace_back(trajectories_batch.back());
+				trajectories_batch_discarded.emplace_back(std::move(trajectories_batch.back()));
 			}
 
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
