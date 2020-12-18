@@ -1094,15 +1094,15 @@ UCTSearcher::ParallelUctSearch()
 float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<uct_node_t*>& trajectories)
 {
-	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->evaled)
-		return DISCARDED;
-
 	// Virtual Lossを加算
 	AddVirtualLoss(current);
 
 	// 経路を記録
 	trajectories.emplace_back(current);
+
+	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+	if (!current->evaled)
+		return DISCARDED;
 
 	if (current != tree->GetCurrentHead()) {
 		if (current->value_win == VALUE_WIN) {
