@@ -159,22 +159,22 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 }
 
 // Virtual Lossの加算
-inline void AddVirtualLoss(uct_node_t* node)
+inline int AddVirtualLoss(uct_node_t* child)
 {
-	node->move_count += VIRTUAL_LOSS;
+	return child->move_count.fetch_add(VIRTUAL_LOSS);
 }
 
 // Virtual Lossを減算
-inline void SubVirtualLoss(uct_node_t* node)
+inline void SubVirtualLoss(uct_node_t* child)
 {
-	node->move_count -= VIRTUAL_LOSS;
+	child->move_count -= VIRTUAL_LOSS;
 }
 
 // 探索結果の更新
-inline void UpdateResult(uct_node_t* node, float result)
+inline void UpdateResult(uct_node_t* child, float result)
 {
-	atomic_fetch_add(&node->win, result);
-	if constexpr (VIRTUAL_LOSS != 1) node->move_count += 1 - VIRTUAL_LOSS;
+	atomic_fetch_add(&child->win, result);
+	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
 
@@ -991,6 +991,8 @@ UCTSearcher::ParallelUctSearch()
 			
 			// 1回プレイアウトする
 			trajectories_batch.emplace_back();
+			AddVirtualLoss(current_root);
+			trajectories_batch.back().emplace_back(current_root);
 			float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
 
 			if (result != DISCARDED) {
@@ -1094,12 +1096,6 @@ UCTSearcher::ParallelUctSearch()
 float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<uct_node_t*>& trajectories)
 {
-	// Virtual Lossを加算
-	AddVirtualLoss(current);
-
-	// 経路を記録
-	trajectories.emplace_back(current);
-
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
 	if (!current->evaled)
 		return DISCARDED;
@@ -1135,15 +1131,16 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	float result;
 
 	// UCB値最大の手を求める
-	uct_node_t*  child_node = SelectMaxUcbChild(pos, current, depth);
+	uct_node_t* child_node = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(child_node->move, st);
 
+	// Virtual Lossを加算
+	const int move_count = AddVirtualLoss(child_node);
+
 	// ノードの展開の確認
-	if (child_node->move_count == 0) {
-		// Virtual Lossを加算
-		AddVirtualLoss(child_node);
+	if (move_count == 0) {
 
 		// 経路を記録
 		trajectories.emplace_back(child_node);
@@ -1235,6 +1232,9 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		child_node->evaled = true;
 	}
 	else {
+		// 経路を記録
+		trajectories.emplace_back(child_node);
+
 		// 手番を入れ替えて1手深く読む
 		result = UctSearch(pos, child_node, depth + 1, trajectories);
 	}
