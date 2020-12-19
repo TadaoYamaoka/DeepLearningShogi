@@ -8,7 +8,7 @@
 
 struct uct_node_t {
 	uct_node_t()
-		: move_count(0), win(0.0f), evaled(false), nnrate(0.0f), value_win(0.0f), visited_nnrate(0.0f), child_num(0), collision_loss(0) {}
+		: move_count(0), win(0.0f), evaled(false), nnrate(0.0f), value_win(0.0f), visited_nnrate(0.0f), child_num(0), collision_loss(0), expanded(false) {}
 
 	uct_node_t& operator=(uct_node_t&& o) noexcept {
 		move = o.move;
@@ -54,6 +54,7 @@ struct uct_node_t {
 	int child_num;                       // 子ノードの数
 	std::unique_ptr<uct_node_t[]> child; // 子ノード
 	std::atomic<int> collision_loss; // ノード衝突時のvirtual loss
+	std::atomic<bool> expanded;      // ノードが展開済みか
 };
 
 class NodeTree {
