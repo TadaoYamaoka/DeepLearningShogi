@@ -1139,12 +1139,11 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	// Virtual Lossを加算
 	const int move_count = AddVirtualLoss(child_node);
 
+	// 経路を記録
+	trajectories.emplace_back(child_node);
+
 	// ノードの展開の確認
 	if (move_count == 0) {
-
-		// 経路を記録
-		trajectories.emplace_back(child_node);
-
 		// 千日手チェック
 		int isDraw = 0;
 		switch (pos->isDraw(16)) {
@@ -1232,9 +1231,6 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		child_node->evaled = true;
 	}
 	else {
-		// 経路を記録
-		trajectories.emplace_back(child_node);
-
 		// 手番を入れ替えて1手深く読む
 		result = UctSearch(pos, child_node, depth + 1, trajectories);
 	}
