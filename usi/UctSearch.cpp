@@ -1241,6 +1241,14 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 	// ノードの展開の確認（仮展開を含めて同時に展開できない）
 	if (!expanded) {
+		if (collision) {
+			// 仮展開
+			assert(child_node->child_num == 0 && !child_node->child);
+			child_node->ExpandNode(pos);
+			// ノードをキューに追加
+			QueuingNode(pos, child_node);
+			return QUEUING;
+		}
 
 		// 千日手チェック
 		int isDraw = 0;
@@ -1328,56 +1336,83 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 			}
 		}
 		child_node->evaled = true;
-
-		// 仮展開の場合はバックアップしない
-		if (collision)
-			return DISCARDED2;
 	}
 	else {
 
 		// 仮展開済みノードの場合
 		if (!collision && move_count == 0) {
 			cache_hit = true;
-			// 仮展開ノードが評価済みか
-			if (child_node->evaled) {
-				// 評価済みの場合、すぐにバックアップ
 
-				if (child_node->value_win == VALUE_WIN) {
-					// 詰み、もしくはRepetitionWinかRepetitionSuperior
-					result = 0.0f;  // 反転して値を返すため0を返す
+			// 仮展開ノードは千日手と詰みチェックは未実施のためチェックする
+			// 千日手チェック
+			int isDraw = 0;
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: isDraw = 2; break; // Draw
+			case RepetitionWin: isDraw = 1; break;
+			case RepetitionLose: isDraw = -1; break;
+			case RepetitionSuperior: isDraw = 1; break;
+			case RepetitionInferior: isDraw = -1; break;
+			default: UNREACHABLE;
+			}
+
+			// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
+			if (isDraw != 0) {
+				if (isDraw == 1) {
+					child_node->value_win = VALUE_WIN;
+					result = 0.0f;
 				}
-				else if (child_node->value_win == VALUE_LOSE) {
-					// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
-					result = 1.0f; // 反転して値を返すため1を返す
+				else if (isDraw == -1) {
+					child_node->value_win = VALUE_LOSE;
+					result = 1.0f;
 				}
-				// 千日手チェック
-				else if (child_node->value_win == VALUE_DRAW) {
+				else {
+					child_node->value_win = VALUE_DRAW;
 					if (pos->turn() == Black) {
-						// 白が選んだ手なので、白の引き分けの価値を返す
+						// 白が選んだ手なので、白の引き分けの価値を使う
 						result = draw_value_white;
 					}
 					else {
-						// 黒が選んだ手なので、黒の引き分けの価値を返す
+						// 黒が選んだ手なので、黒の引き分けの価値を使う
 						result = draw_value_black;
 					}
 				}
-				// 詰みのチェック
-				else if (child_node->child_num == 0) {
-					result = 1.0f; // 反転して値を返すため1を返す
+			}
+			else {
+				// 詰みチェック
+				int isMate = 0;
+				if (!pos->inCheck()) {
+					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
+					}
+					// 入玉勝ちかどうかを判定
+					else if (nyugyoku<false>(*pos)) {
+						isMate = 1;
+					}
 				}
-				else
-				{
-					result = child_node->value_win;
+				else {
+					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+						isMate = 1;
+					}
 				}
 
-				UpdateResult(child_node, result);
-				return 1.0f - result;
+				// 詰みの場合、ValueNetの値を上書き
+				if (isMate == 1) {
+					child_node->value_win = VALUE_WIN;
+					result = 0.0f;
+				}
+				// 仮展開ノードが評価済みか
+				else if (child_node->evaled) {
+					result = child_node->value_win;
+				}
+				else {
+					// 仮展開済みノードが評価中の場合
+					return QUEUING;
+				}
 			}
-			else
-			{
-				// 仮展開済みノードが評価中の場合
-				return QUEUING;
-			}
+
+			UpdateResult(child_node, result);
+			return 1.0f - result;
 		}
 
 		// 手番を入れ替えて1手深く読む
