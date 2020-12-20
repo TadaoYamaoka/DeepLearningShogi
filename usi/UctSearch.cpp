@@ -1365,8 +1365,6 @@ void UCTSearcher::EvalNode() {
 		uct_node_t* node = policy_value_batch[i].node;
 		Color color = policy_value_batch[i].color;
 
-		node->Lock();
-
 		const int child_num = node->child_num;
 		uct_node_t* uct_child = node->child.get();
 
@@ -1421,6 +1419,5 @@ void UCTSearcher::EvalNode() {
 		}
 #endif
 		node->evaled = true;
-		node->UnLock();
 	}
 }
