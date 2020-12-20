@@ -159,9 +159,9 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 }
 
 // Virtual Lossの加算
-inline int AddVirtualLoss(uct_node_t* child)
+inline void AddVirtualLoss(uct_node_t* child)
 {
-	return child->move_count.fetch_add(VIRTUAL_LOSS);
+	child->move_count += VIRTUAL_LOSS;
 }
 
 // Virtual Lossを減算
@@ -1130,20 +1130,25 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 	float result;
 
+	// 現在見ているノードをロック
+	current->Lock();
 	// UCB値最大の手を求める
 	uct_node_t* child_node = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(child_node->move, st);
 
-	// Virtual Lossを加算
-	const int move_count = AddVirtualLoss(child_node);
-
-	// 経路を記録
-	trajectories.emplace_back(child_node);
-
 	// ノードの展開の確認
-	if (move_count == 0) {
+	if (child_node->move_count == 0) {
+		// Virtual Lossを加算
+		AddVirtualLoss(child_node);
+
+		// 現在見ているノードのロックを解除
+		current->UnLock();
+
+		// 経路を記録
+		trajectories.emplace_back(child_node);
+
 		// 千日手チェック
 		int isDraw = 0;
 		switch (pos->isDraw(16)) {
@@ -1231,6 +1236,15 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		child_node->evaled = true;
 	}
 	else {
+		// Virtual Lossを加算
+		AddVirtualLoss(child_node);
+
+		// 現在見ているノードのロックを解除
+		current->UnLock();
+
+		// 経路を記録
+		trajectories.emplace_back(child_node);
+
 		// 手番を入れ替えて1手深く読む
 		result = UctSearch(pos, child_node, depth + 1, trajectories);
 	}
@@ -1351,6 +1365,8 @@ void UCTSearcher::EvalNode() {
 		uct_node_t* node = policy_value_batch[i].node;
 		Color color = policy_value_batch[i].color;
 
+		node->Lock();
+
 		const int child_num = node->child_num;
 		uct_node_t* uct_child = node->child.get();
 
@@ -1405,5 +1421,6 @@ void UCTSearcher::EvalNode() {
 		}
 #endif
 		node->evaled = true;
+		node->UnLock();
 	}
 }
