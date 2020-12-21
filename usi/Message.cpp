@@ -57,8 +57,6 @@ PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const 
 void
 PrintPlayoutLimits(const double time_limit, const int playout_limit)
 {
-	if (!debug_message) return;
-
 	cout << "Time Limit    : " << time_limit << " Sec" << endl;
 	cout << "Playout Limit : " << playout_limit << " PO" << endl;
 }
