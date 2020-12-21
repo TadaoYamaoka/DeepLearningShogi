@@ -37,7 +37,7 @@ GetDebugMessageMode()
 //  探索の情報の表示  //
 ///////////////////////
 void
-PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const int finish_time, const int pre_simulated)
+PrintPlayoutInformation(const child_node_t* root, const po_info_t* po_info, const int finish_time, const int pre_simulated)
 {
 	double winning_percentage = (double)root->win / root->move_count;
 	double finish_time_sec = finish_time / 1000.0;
@@ -57,8 +57,6 @@ PrintPlayoutInformation(const uct_node_t *root, const po_info_t *po_info, const 
 void
 PrintPlayoutLimits(const double time_limit, const int playout_limit)
 {
-	if (!debug_message) return;
-
 	cout << "Time Limit    : " << time_limit << " Sec" << endl;
 	cout << "Playout Limit : " << playout_limit << " PO" << endl;
 }

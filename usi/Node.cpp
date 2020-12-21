@@ -3,8 +3,6 @@
 #include <thread>
 #include <mutex>
 
-MutexPool mutex_pool(1048576);
-
 // Periodicity of garbage collection, milliseconds.
 const int kGCIntervalMs = 100;
 
@@ -15,10 +13,10 @@ public:
 
     // Takes ownership of a subtree, to dispose it in a separate thread when
     // it has time.
-    void AddToGcQueue(uct_node_t* node) {
-        if (!node->child) return;
+    void AddToGcQueue(std::unique_ptr<uct_node_t> node) {
+        if (!node) return;
         std::lock_guard<std::mutex> lock(gc_mutex_);
-        subtrees_to_gc_.emplace_back(std::move(node->child));
+        subtrees_to_gc_.emplace_back(std::move(node));
     }
 
     ~NodeGarbageCollector() {
@@ -31,7 +29,7 @@ private:
     void GarbageCollect() {
         while (!stop_.load()) {
             // Node will be released in destructor when mutex is not locked.
-            std::unique_ptr<uct_node_t[]> node_to_gc;
+            std::unique_ptr<uct_node_t> node_to_gc;
             {
                 // Lock the mutex and move last subtree from subtrees_to_gc_ into
                 // node_to_gc.
@@ -51,7 +49,7 @@ private:
     }
 
     mutable std::mutex gc_mutex_;
-    std::vector<std::unique_ptr<uct_node_t[]>> subtrees_to_gc_;
+    std::vector<std::unique_ptr<uct_node_t>> subtrees_to_gc_;
 
     // When true, Worker() should stop and exit.
     std::atomic<bool> stop_{ false };
@@ -65,7 +63,7 @@ NodeGarbageCollector gNodeGc;
 // uct_node_t
 /////////////////////////////////////////////////////////////////////////
 
-uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
+child_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
     // 一つを残して削除する
     bool found = false;
@@ -73,13 +71,18 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
         auto& uct_child = child[i];
         if (uct_child.move == move) {
             found = true;
+            if (!uct_child.node) {
+                // 新しいノードを作成する
+                uct_child.node = std::make_unique<uct_node_t>();
+            }
             // 0番目の要素に移動する
             if (i != 0)
                 child[0] = std::move(uct_child);
         }
         else {
             // 子ノードを削除（ガベージコレクタに追加）
-            gNodeGc.AddToGcQueue(&uct_child);
+            if (uct_child.node)
+                gNodeGc.AddToGcQueue(std::move(uct_child.node));
         }
     }
 
@@ -91,6 +94,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
     else {
         // 子ノードが見つからなかった場合、新しいノードを作成する
         CreateSingleChildNode(move);
+        child[0].node = std::make_unique<uct_node_t>();
         return &child[0];
     }
 }
@@ -108,20 +112,21 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     }
 
     if (!gamebegin_node_) {
-        gamebegin_node_ = std::make_unique<uct_node_t>();
+        gamebegin_node_ = std::make_unique<child_node_t>();
+        gamebegin_node_->node = std::make_unique<uct_node_t>();
         current_head_ = gamebegin_node_.get();
     }
 
     history_starting_pos_key_ = starting_pos_key;
 
-    uct_node_t* old_head = current_head_;
-    uct_node_t* prev_head = nullptr;
+    child_node_t* old_head = current_head_;
+    child_node_t* prev_head = nullptr;
     current_head_ = gamebegin_node_.get();
     bool seen_old_head = (gamebegin_node_.get() == old_head);
     for (const auto& move : moves) {
         prev_head = current_head_;
         // current_head_に着手を追加する
-        current_head_ = current_head_->ReleaseChildrenExceptOne(move);
+        current_head_ = current_head_->node->ReleaseChildrenExceptOne(move);
         if (old_head == current_head_) seen_old_head = true;
     }
 
@@ -131,15 +136,11 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     // その場合、current_head_をリセットする必要がある
     if (!seen_old_head && current_head_ != old_head) {
         if (prev_head) {
-            assert(prev_head->child_num == 1);
-            uct_node_t* prev_uct_child = &prev_head->child[0];
-            gNodeGc.AddToGcQueue(prev_uct_child);
+            assert(prev_head->node->child_num == 1);
+            child_node_t* prev_uct_child = &prev_head->node->child[0];
+            gNodeGc.AddToGcQueue(std::move(prev_uct_child->node));
+            prev_uct_child->node = std::make_unique<uct_node_t>();
             current_head_ = prev_uct_child;
-            current_head_->move_count = 0;
-            current_head_->win = 0;
-            current_head_->evaled = false;
-            current_head_->visited_nnrate = 0;
-            current_head_->child_num = 0;
         }
         else {
             // 開始局面に戻った場合
@@ -151,7 +152,8 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 
 void NodeTree::DeallocateTree() {
     // gamebegin_node_.reset（）と同じだが、実際の割り当て解除はGCスレッドで行われる
-    gNodeGc.AddToGcQueue(gamebegin_node_.get());
-    gamebegin_node_ = std::make_unique<uct_node_t>();
+    gNodeGc.AddToGcQueue(std::move(gamebegin_node_->node));
+    gamebegin_node_ = std::make_unique<child_node_t>();
+    gamebegin_node_->node = std::make_unique<uct_node_t>();
     current_head_ = gamebegin_node_.get();
 }
