@@ -766,10 +766,11 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	}*/
 
 	// 前回から持ち込んだ探索回数を記録
-	int pre_simulated = current_root->move_count;
+	const int pre_simulated = current_root->move_count;
 
 	// 探索時間とプレイアウト回数の予定値を出力
-	PrintPlayoutLimits(time_limit, po_info.halt);
+	if (debug_message)
+		PrintPlayoutLimits(time_limit, po_info.halt);
 
 	// 探索スレッド開始
 	for (int i = 0; i < max_gpu; i++)
@@ -998,7 +999,7 @@ UCTSearcher::ParallelUctSearch()
 			
 			// 1回プレイアウトする
 			trajectories_batch.emplace_back();
-			float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+			const float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
@@ -1142,14 +1143,12 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	}
 
 	float result;
-	unsigned int next_index;
-	double score;
 	child_node_t *uct_child = current->child.get();
 
 	// 現在見ているノードをロック
 	current->Lock();
 	// UCB値最大の手を求める
-	next_index = SelectMaxUcbChild(pos, current, depth);
+	const unsigned int next_index = SelectMaxUcbChild(pos, current, depth);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
@@ -1290,12 +1289,11 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	int max_child = 0;
 	const int sum = current->move_count;
 	float q, u, max_value;
-	float ucb_value;
 	int child_win_count = 0;
 
 	max_value = -FLT_MAX;
 
-	float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
+	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1312,8 +1310,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 				current->value_win = VALUE_WIN;
 			}
 		}
-		float win = uct_child[i].win;
-		int move_count = uct_child[i].move_count;
+		const float win = uct_child[i].win;
+		const int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
@@ -1333,7 +1331,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 		const float c = depth > 0 ?
 			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
 			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
-		ucb_value = q + c * u * rate;
+		const float ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;
@@ -1379,7 +1377,7 @@ void UCTSearcher::EvalNode() {
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 		uct_node_t* node = policy_value_batch[i].node;
-		Color color = policy_value_batch[i].color;
+		const Color color = policy_value_batch[i].color;
 
 		const int child_num = node->child_num;
 		child_node_t *uct_child = node->child.get();
@@ -1388,7 +1386,7 @@ void UCTSearcher::EvalNode() {
 		std::vector<float> legal_move_probabilities;
 		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
-			Move move = uct_child[j].move;
+			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 #ifdef FP16
 			const float logit = __half2float((*logits)[move_label]);
