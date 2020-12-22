@@ -3,8 +3,6 @@
 #include <thread>
 #include <mutex>
 
-MutexPool mutex_pool(8192);
-
 // Periodicity of garbage collection, milliseconds.
 const int kGCIntervalMs = 100;
 

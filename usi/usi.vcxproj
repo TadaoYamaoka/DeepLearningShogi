@@ -275,7 +275,6 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="Node.h" />
     <ClInclude Include="npz.h" />
     <ClInclude Include="UctSearch.h" />
-    <ClInclude Include="xoshiro128.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
