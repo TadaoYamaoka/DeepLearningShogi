@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "cppshogi.h"
+#include "xoshiro128.h"
 
 class MutexPool {
 public:
@@ -20,8 +21,8 @@ public:
 			num = n ^ (n >> 1);
 		}
 	}
-	uint32_t GetIndex(const uint64_t key) const {
-		return ((key & 0xffffffff) ^ ((key >> 32) & 0xffffffff)) & (num - 1);
+	uint32_t GetIndex() {
+		return rnd.next() & (num - 1);
 	}
 	std::mutex& operator[] (const uint32_t idx) {
 		assert(idx < num);
@@ -31,6 +32,7 @@ public:
 private:
 	uint32_t num;
 	std::unique_ptr<std::mutex[]> mutexes;
+	Xoshiro128 rnd;
 };
 extern MutexPool mutex_pool;
 
@@ -82,7 +84,7 @@ struct uct_node_t {
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
-		mutex_idx = mutex_pool.GetIndex(pos->getKey());
+		mutex_idx = mutex_pool.GetIndex();
 	}
 
 	// 1‚Â‚ğœ‚­‚·‚×‚Ä‚Ìq‚ğíœ‚·‚é
