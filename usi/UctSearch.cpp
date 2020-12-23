@@ -162,16 +162,16 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 inline void
 AddVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count += VIRTUAL_LOSS;
-	child->move_count += VIRTUAL_LOSS;
+	current->move_count.fetch_add(VIRTUAL_LOSS, std::memory_order_relaxed);
+	child->move_count.fetch_add(VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 // Virtual Lossを減算
 inline void
 SubVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count -= VIRTUAL_LOSS;
-	child->move_count -= VIRTUAL_LOSS;
+	current->move_count.fetch_sub(VIRTUAL_LOSS, std::memory_order_relaxed);
+	child->move_count.fetch_sub(VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 // 探索結果の更新
@@ -179,9 +179,9 @@ inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
 	atomic_fetch_add(&current->win, result);
-	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
+	if constexpr (VIRTUAL_LOSS != 1) current->move_count.fetch_add(1 - VIRTUAL_LOSS, std::memory_order_relaxed);
 	atomic_fetch_add(&child->win, result);
-	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
+	if constexpr (VIRTUAL_LOSS != 1) child->move_count.fetch_add(1 - VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 
@@ -605,7 +605,7 @@ FinalizeUctSearch(void)
 void
 StopUctSearch(void)
 {
-	uct_search_stop = true;
+	uct_search_stop.store(true, std::memory_order_relaxed);
 }
 
 
@@ -621,37 +621,38 @@ std::tuple<Move, float, Move> get_and_print_pv()
 	int child_lose_count = 0;
 
 	for (int i = 0; i < child_num; i++) {
+		const int move_count = uct_child[i].move_count.load(std::memory_order_relaxed);
 		if (uct_child[i].node) {
 			const uct_node_t* child_node = uct_child[i].node.get();
-			const float child_value_win = child_node->value_win;
+			const float child_value_win = child_node->value_win.load(std::memory_order_relaxed);
 			if (child_value_win == VALUE_WIN) {
 				// 負けが確定しているノードは選択しない
-				if (child_win_count == i || uct_child[i].move_count > max_count) {
+				if (child_win_count == i || move_count > max_count) {
 					// すべて負けの場合は、探索回数が最大の手を選択する
 					select_index = i;
-					max_count = uct_child[i].move_count;
+					max_count = move_count;
 				}
 				child_win_count++;
 				continue;
 			}
 			else if (child_value_win == VALUE_LOSE) {
 				// 子ノードに一つでも負けがあれば、勝ちなので選択する
-				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+				if (child_lose_count == 0 || move_count > max_count) {
 					// すべて勝ちの場合は、探索回数が最大の手を選択する
 					select_index = i;
-					max_count = uct_child[i].move_count;
+					max_count = move_count;
 				}
 				child_lose_count++;
 				continue;
 			}
 		}
-		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+		if (child_lose_count == 0 && move_count > max_count) {
 			select_index = i;
-			max_count = uct_child[i].move_count;
+			max_count = move_count;
 		}
 	}
 
-	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+	float best_wp = uct_child[select_index].win.load(std::memory_order_relaxed) / uct_child[select_index].move_count.load(std::memory_order_relaxed);
 
 	// 勝ちの場合
 	if (child_lose_count > 0) {
@@ -689,9 +690,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 			max_count = 0;
 			best_index = 0;
 			for (int i = 0; i < best_child_node->child_num; i++) {
-				if (best_node[i].move_count > max_count) {
+				const int best_move_count = best_node[i].move_count.load(std::memory_order_relaxed);
+				if (best_move_count > max_count) {
 					best_index = i;
-					max_count = best_node[i].move_count;
+					max_count = best_move_count;
 				}
 			}
 
@@ -709,8 +711,9 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 	// 探索にかかった時間を求める
 	const int finish_time = std::max(1, begin_time.elapsed());
-
-	cout << "info nps " << po_info.count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_info.count << " hashfull " << current_root->move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+	const int po_count = po_info.count.load(std::memory_order_relaxed);
+	const int root_move_count = current_root->move_count.load(std::memory_order_relaxed);
+	cout << "info nps " << po_count * 1000LL / finish_time << " time " << finish_time << " nodes " << po_count << " hashfull " << root_move_count * 1000LL / uct_node_limit << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
 
 	return std::tuple<Move, float, Move>(move, best_wp, ponderMove);
 }
@@ -722,10 +725,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 Move
 UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder)
 {
-	uct_search_stop = false;
+	uct_search_stop.store(false, std::memory_order_relaxed);
 
-	init_search_begin_time = false;
-	interruption = false;
+	init_search_begin_time.store(false, std::memory_order_relaxed);
+	interruption.store(false, std::memory_order_relaxed);
 
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
@@ -738,7 +741,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	pondering = ponder;
 
 	// 探索情報をクリア
-	po_info.count = 0;
+	po_info.count.store(0, std::memory_order_relaxed);
 
 	// UCTの初期化
 	ExpandRoot(pos);
@@ -748,7 +751,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	if (child_num == 0) {
 		return Move::moveNone();
 	}
-	if (current_root->value_win == VALUE_WIN) {
+	if (current_root->value_win.load(std::memory_order_relaxed) == VALUE_WIN) {
 		// 詰み
 		Move move;
 		if (pos->inCheck())
@@ -760,13 +763,13 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 			return move;
 	}
 	// 詰みでも最後まで投了しないようにするためコメントアウト
-	/*else if (uct_node[current_root].value_win == VALUE_LOSE) {
+	/*else if (uct_node[current_root].value_win.load(std::memory_order_relaxed) == VALUE_LOSE) {
 		// 自玉の詰み
 		return Move::moveNone();
 	}*/
 
 	// 前回から持ち込んだ探索回数を記録
-	const int pre_simulated = current_root->move_count;
+	const int pre_simulated = current_root->move_count.load(std::memory_order_relaxed);
 
 	// 探索時間とプレイアウト回数の予定値を出力
 	if (debug_message)
@@ -787,14 +790,14 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	// 時間延長を行う設定になっていて,
 	// 探索時間延長をすべきときは
 	// 探索回数を2倍に増やす
-	if (!uct_search_stop &&
+	if (!uct_search_stop.load(std::memory_order_relaxed) &&
 		pos->gamePly() > 20 &&
 		extend_time &&
 		remaining_time[pos->turn()] > time_limit * 2 &&
 		ExtendTime()) {
 		time_limit *= 2;
-		init_search_begin_time = false;
-		interruption = false;
+		init_search_begin_time.store(false, std::memory_order_relaxed);
+		interruption.store(false, std::memory_order_relaxed);
 		// 探索スレッド開始
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Run();
@@ -895,19 +898,20 @@ InterruptionCheck(void)
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max_searched) {
+		const int move_count = uct_child[i].move_count.load(std::memory_order_relaxed);
+		if (move_count > max_searched) {
 			second = max_searched;
-			max_searched = uct_child[i].move_count;
+			max_searched = move_count;
 		}
-		else if (uct_child[i].move_count > second) {
-			second = uct_child[i].move_count;
+		else if (move_count > second) {
+			second = move_count;
 		}
 	}
 
 
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
-	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
+	const int rest_po = (int)((long long)po_info.count.load(std::memory_order_relaxed) * ((long long)time_limit - (long long)spend_time) / spend_time);
 	if (max_searched - second > rest_po) {
 		//cout << "info string interrupt_no_movechange" << endl;
 		return true;
@@ -932,14 +936,17 @@ ExtendTime(void)
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max) {
+		const int move_count = uct_child[i].move_count.load(std::memory_order_relaxed);
+		const float win = uct_child[i].win.load(std::memory_order_relaxed);
+		if (move_count > max) {
 			second = max;
-			max = uct_child[i].move_count;
-			max_eval = uct_child[i].win / uct_child[i].move_count;
+			second_eval = max_eval;
+			max = move_count;
+			max_eval = win / move_count;
 		}
-		else if (uct_child[i].move_count > second) {
-			second = uct_child[i].move_count;
-			second_eval = uct_child[i].win / uct_child[i].move_count;
+		else if (move_count > second) {
+			second = move_count;
+			second_eval = win / move_count;
 		}
 	}
 
@@ -965,7 +972,7 @@ UCTSearcher::ParallelUctSearch()
 	uct_node_t* current_root = tree->GetCurrentHead();
 	// ルートノードを評価
 	LOCK_EXPAND;
-	if (!current_root->evaled) {
+	if (!current_root->evaled.load(std::memory_order_relaxed)) {
 		current_policy_value_batch_index = 0;
 		QueuingNode(pos_root, current_root);
 		EvalNode();
@@ -974,7 +981,7 @@ UCTSearcher::ParallelUctSearch()
 
 	// いずれか一つのスレッドが時間を監視する
 	bool monitoring_thread = false;
-	if (!init_search_begin_time.exchange(true)) {
+	if (!init_search_begin_time.exchange(true, std::memory_order_relaxed)) {
 		search_begin_time.restart();
 		last_pv_print = 0;
 		monitoring_thread = true;
@@ -1003,7 +1010,7 @@ UCTSearcher::ParallelUctSearch()
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
-				atomic_fetch_add(&po_info.count, 1);
+				po_info.count.fetch_add(1, std::memory_order_relaxed);
 			}
 			else {
 				// 破棄した探索経路を保存
@@ -1040,7 +1047,7 @@ UCTSearcher::ParallelUctSearch()
 				child_node_t* uct_child = current->child.get();
 				if ((size_t)i == trajectories.size() - 1) {
 					const uct_node_t* child_node = uct_child[next_index].node.get();
-					const float value_win = child_node->value_win;
+					const float value_win = child_node->value_win.load(std::memory_order_relaxed);
 					// 他スレッドの詰みの伝播によりvalue_winがVALUE_WINまたはVALUE_LOSEに上書きされる場合があるためチェックする
 					if (value_win == VALUE_WIN)
 						result = 0.0f;
@@ -1069,7 +1076,7 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// stop
-		if (uct_search_stop)
+		if (uct_search_stop.load(std::memory_order_relaxed))
 			break;
 		// 探索の強制終了
 		// 計算時間が予定の値を超えている
@@ -1079,22 +1086,22 @@ UCTSearcher::ParallelUctSearch()
 			break;
 		}
 		// po_info.halt を超えたら打ち切る
-		if (!pondering && po_info.halt > 0 && po_info.count > po_info.halt) {
+		if (!pondering && po_info.halt > 0 && po_info.count.load(std::memory_order_relaxed) > po_info.halt) {
 			/*if (monitoring_thread)
 				cout << "info string interrupt_node_limit" << endl;*/
 			break;
 		}
 		// ハッシュフル
-		if ((unsigned int)current_root->move_count >= uct_node_limit) {
+		if ((unsigned int)current_root->move_count.load(std::memory_order_relaxed) >= uct_node_limit) {
 			/*if (monitoring_thread)
 				cout << "info string interrupt_no_hash" << endl;*/
 			break;
 		}
 		// 探索を打ち切るか確認
 		if (!pondering && po_info.halt == 0 && monitoring_thread)
-			interruption = InterruptionCheck();
+			interruption.store(InterruptionCheck(), std::memory_order_relaxed);
 		// 探索打ち切り
-		if (interruption) {
+		if (interruption.load(std::memory_order_relaxed)) {
 			break;
 		}
 	} while (true);
@@ -1111,21 +1118,22 @@ float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories)
 {
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->evaled)
+	if (!current->evaled.load(std::memory_order_relaxed))
 		return DISCARDED;
 
 	if (current != tree->GetCurrentHead()) {
-		if (current->value_win == VALUE_WIN) {
+		const auto value_win = current->value_win.load(std::memory_order_relaxed);
+		if (value_win == VALUE_WIN) {
 			// 詰み、もしくはRepetitionWinかRepetitionSuperior
 			return 0.0f;  // 反転して値を返すため0を返す
 		}
-		else if (current->value_win == VALUE_LOSE) {
+		else if (value_win == VALUE_LOSE) {
 			// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
 			return 1.0f; // 反転して値を返すため1を返す
 		}
 
 		// 千日手チェック
-		if (current->value_win == VALUE_DRAW) {
+		if (value_win == VALUE_DRAW) {
 			if (pos->turn() == Black) {
 				// 白が選んだ手なので、白の引き分けの価値を返す
 				return draw_value_white;
@@ -1182,15 +1190,15 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
 		if (isDraw != 0) {
 			if (isDraw == 1) {
-				child_node->value_win = VALUE_WIN;
+				child_node->value_win.store(VALUE_WIN, std::memory_order_relaxed);
 				result = 0.0f;
 			}
 			else if (isDraw == -1) {
-				child_node->value_win = VALUE_LOSE;
+				child_node->value_win.store(VALUE_LOSE, std::memory_order_relaxed);
 				result = 1.0f;
 			}
 			else {
-				child_node->value_win = VALUE_DRAW;
+				child_node->value_win.store(VALUE_DRAW, std::memory_order_relaxed);
 				if (pos->turn() == Black) {
 					// 白が選んだ手なので、白の引き分けの価値を使う
 					result = draw_value_white;
@@ -1226,13 +1234,13 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 
 			// 詰みの場合、ValueNetの値を上書き
 			if (isMate == 1) {
-				child_node->value_win = VALUE_WIN;
+				child_node->value_win.store(VALUE_WIN, std::memory_order_relaxed);
 				result = 0.0f;
 			}
 			/*else if (isMate == -1) {
-				uct_node[child_index].value_win = VALUE_LOSE;
+				uct_node[child_index].value_win.store(VALUE_LOSE, std::memory_order_relaxed);
 				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-				current->value_win = VALUE_WIN;
+				current->value_win.store(VALUE_WIN, std::memory_order_relaxed);
 				result = 1.0f;
 			}*/
 			else {
@@ -1240,7 +1248,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				child_node->ExpandNode(pos);
 				if (child_node->child_num == 0) {
 					// 詰み
-					child_node->value_win = VALUE_LOSE;
+					child_node->value_win.store(VALUE_LOSE, std::memory_order_relaxed);
 					result = 1.0f;
 				}
 				else
@@ -1251,7 +1259,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				}
 			}
 		}
-		child_node->evaled = true;
+		child_node->evaled.store(true, std::memory_order_relaxed);
 	}
 	else {
 		// 現在見ているノードのロックを解除
@@ -1287,19 +1295,20 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	const child_node_t *uct_child = current->child.get();
 	const int child_num = current->child_num;
 	int max_child = 0;
-	const int sum = current->move_count;
+	const float sum_win = current->win.load(std::memory_order_relaxed);
+	const int sum_count = current->move_count.load(std::memory_order_relaxed);
 	float q, u, max_value;
 	int child_win_count = 0;
 
 	max_value = -FLT_MAX;
 
-	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
+	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate.load(std::memory_order_relaxed));
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].node) {
 			const uct_node_t* child_node = uct_child[i].node.get();
-			const float child_value_win = child_node->value_win;
+			const float child_value_win = child_node->value_win.load(std::memory_order_relaxed);
 			if (child_value_win == VALUE_WIN) {
 				child_win_count++;
 				// 負けが確定しているノードは選択しない
@@ -1307,30 +1316,30 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			}
 			else if (child_value_win == VALUE_LOSE) {
 				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-				current->value_win = VALUE_WIN;
+				current->value_win.store(VALUE_WIN, std::memory_order_relaxed);
 			}
 		}
-		const float win = uct_child[i].win;
-		const int move_count = uct_child[i].move_count;
+		const float win = uct_child[i].win.load(std::memory_order_relaxed);
+		const int move_count = uct_child[i].move_count.load(std::memory_order_relaxed);
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
-			if (current->win > 0)
-				q = std::max(0.0f, current->win / current->move_count - fpu_reduction);
+			if (sum_win > 0)
+				q = std::max(0.0f, sum_win / sum_count - fpu_reduction);
 			else
 				q = 0.0f;
-			u = sum == 0 ? 1.0f : sqrtf(sum);
+			u = sum_count == 0 ? 1.0f : sqrtf(sum_count);
 		}
 		else {
 			q = win / move_count;
-			u = sqrtf(sum) / (1 + move_count);
+			u = sqrtf(sum_count) / (1 + move_count);
 		}
 
 		const float rate = uct_child[i].nnrate;
 
 		const float c = depth > 0 ?
-			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
-			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
+			FastLog((sum_count + c_base + 1.0f) / c_base) + c_init :
+			FastLog((sum_count + c_base_root + 1.0f) / c_base_root) + c_init_root;
 		const float ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
@@ -1341,7 +1350,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
-		current->value_win = VALUE_LOSE;
+		current->value_win.store(VALUE_LOSE, std::memory_order_relaxed);
 	}
 
 	// for FPU reduction
@@ -1404,9 +1413,9 @@ void UCTSearcher::EvalNode() {
 		}
 
 #ifdef FP16
-		node->value_win = __half2float(*value);
+		node->value_win.store(__half2float(*value), std::memory_order_relaxed);
 #else
-		node->value_win = *value;
+		node->value_win.store(*value, std::memory_order_relaxed);
 #endif
 
 #ifdef MAKE_BOOK
@@ -1432,6 +1441,6 @@ void UCTSearcher::EvalNode() {
 			}
 		}
 #endif
-		node->evaled = true;
+		node->evaled.store(true, std::memory_order_relaxed);
 	}
 }

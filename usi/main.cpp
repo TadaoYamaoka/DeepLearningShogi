@@ -318,7 +318,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 				mate = dfpn.dfpn(pos_copy);
 				if (mate)
 					StopUctSearch();
-				dfpn_done = true;
+				dfpn_done.store(true, std::memory_order_relaxed);
 			}
 		}));
 	}
@@ -334,7 +334,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
 		// 最小詰み探索時間の間待つ
 		const int time_limit = GetTimeLimit();
-		while (!dfpn_done) {
+		while (!dfpn_done.load(std::memory_order_relaxed)) {
 			const auto elapse = limits.startTime.elapsed();
 			if (elapse >= time_limit ||
 				elapse >= dfpn_min_search_millisecs)

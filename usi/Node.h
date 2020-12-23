@@ -17,9 +17,9 @@ struct child_node_t {
 	// ƒ€[ƒu‘ã“ü‰‰Zq
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
-		move_count = (int)o.move_count;
-		win = (float)o.win;
-		nnrate = (float)o.nnrate;
+		move_count.store(o.move_count.load(std::memory_order_relaxed));
+		win.store(o.win.load(std::memory_order_relaxed));
+		nnrate = o.nnrate;
 		node = std::move(o.node);
 		return *this;
 	}

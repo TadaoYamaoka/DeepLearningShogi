@@ -17,7 +17,7 @@ const constexpr size_t MaxCheckMoves = 73;
 
 void DfPn::dfpn_stop(const bool stop)
 {
-	this->stop = stop;
+	this->stop.store(stop, std::memory_order_relaxed);
 }
 
 // 詰将棋エンジン用のMovePicker
@@ -549,7 +549,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		transposition_table.GetChildFirstEntry<or_node>(n, move, ttkey.entries, ttkey.hash_high, ttkey.hand);
 	}
 
-	while (searchedNode < maxSearchNode && !stop) {
+	while (searchedNode < maxSearchNode && !stop.load(std::memory_order_relaxed)) {
 		++entry.num_searched;
 
 		Move best_move;
