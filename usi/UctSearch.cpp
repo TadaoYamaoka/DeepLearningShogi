@@ -934,6 +934,7 @@ ExtendTime(void)
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max) {
 			second = max;
+			second_eval = max_eval;
 			max = uct_child[i].move_count;
 			max_eval = uct_child[i].win / uct_child[i].move_count;
 		}
