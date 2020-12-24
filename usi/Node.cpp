@@ -63,7 +63,7 @@ NodeGarbageCollector gNodeGc;
 // uct_node_t
 /////////////////////////////////////////////////////////////////////////
 
-child_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
+uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
     // 一つを残して削除する
     bool found = false;
@@ -89,13 +89,13 @@ child_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
     if (found) {
         // 子ノードを一つにする
         child_num = 1;
-        return &child[0];
+        return child[0].node.get();
     }
     else {
         // 子ノードが見つからなかった場合、新しいノードを作成する
         CreateSingleChildNode(move);
         child[0].node = std::make_unique<uct_node_t>();
-        return &child[0];
+        return child[0].node.get();
     }
 }
 
@@ -112,21 +112,20 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     }
 
     if (!gamebegin_node_) {
-        gamebegin_node_ = std::make_unique<child_node_t>();
-        gamebegin_node_->node = std::make_unique<uct_node_t>();
+        gamebegin_node_ = std::make_unique<uct_node_t>();
         current_head_ = gamebegin_node_.get();
     }
 
     history_starting_pos_key_ = starting_pos_key;
 
-    child_node_t* old_head = current_head_;
-    child_node_t* prev_head = nullptr;
+    uct_node_t* old_head = current_head_;
+    uct_node_t* prev_head = nullptr;
     current_head_ = gamebegin_node_.get();
     bool seen_old_head = (gamebegin_node_.get() == old_head);
     for (const auto& move : moves) {
         prev_head = current_head_;
         // current_head_に着手を追加する
-        current_head_ = current_head_->node->ReleaseChildrenExceptOne(move);
+        current_head_ = current_head_->ReleaseChildrenExceptOne(move);
         if (old_head == current_head_) seen_old_head = true;
     }
 
@@ -136,11 +135,11 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     // その場合、current_head_をリセットする必要がある
     if (!seen_old_head && current_head_ != old_head) {
         if (prev_head) {
-            assert(prev_head->node->child_num == 1);
-            child_node_t* prev_uct_child = &prev_head->node->child[0];
-            gNodeGc.AddToGcQueue(std::move(prev_uct_child->node));
-            prev_uct_child->node = std::make_unique<uct_node_t>();
-            current_head_ = prev_uct_child;
+            assert(prev_head->child_num == 1);
+            auto& prev_uct_child = prev_head->child[0];
+            gNodeGc.AddToGcQueue(std::move(prev_uct_child.node));
+            prev_uct_child.node = std::make_unique<uct_node_t>();
+            current_head_ = prev_uct_child.node.get();
         }
         else {
             // 開始局面に戻った場合
@@ -152,8 +151,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 
 void NodeTree::DeallocateTree() {
     // gamebegin_node_.reset（）と同じだが、実際の割り当て解除はGCスレッドで行われる
-    gNodeGc.AddToGcQueue(std::move(gamebegin_node_->node));
-    gamebegin_node_ = std::make_unique<child_node_t>();
-    gamebegin_node_->node = std::make_unique<uct_node_t>();
+    gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
+    gamebegin_node_ = std::make_unique<uct_node_t>();
     current_head_ = gamebegin_node_.get();
 }

@@ -33,6 +33,9 @@
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="hcpe_to_psv.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="hcp_uniq.py" />
     <Compile Include="kif_to_pgn.py">
       <SubType>Code</SubType>

@@ -74,6 +74,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		}
 		else if (token == "gameover") {
 			StopUctSearch();
+			if (th.joinable())
+				th.join();
 			GameOver();
 		}
 		else if (token == "stop") {
@@ -172,7 +174,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			SetLimits(limits);
 			Move ponder;
-			UctSearchGenmove(&pos_tmp, pos.getKey(), {}, ponder);
+			UctSearchGenmove(&pos_tmp, pos_tmp.getKey(), {}, ponder);
 
 			// 固定プレイアウトモード
 			SetConstPlayout(options["Const_Playout"]);

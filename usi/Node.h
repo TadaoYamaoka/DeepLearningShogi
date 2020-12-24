@@ -39,7 +39,7 @@ struct child_node_t {
 
 struct uct_node_t {
 	uct_node_t()
-		: evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
+		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
@@ -59,7 +59,7 @@ struct uct_node_t {
 	// 1つを除くすべての子を削除する
 	// 1つも見つからない場合、新しいノードを作成する
 	// 残したノードを返す
-	child_node_t* ReleaseChildrenExceptOne(const Move move);
+	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
 	void Lock() {
 		mtx.lock();
@@ -68,6 +68,8 @@ struct uct_node_t {
 		mtx.unlock();
 	}
 
+	std::atomic<int> move_count;
+	std::atomic<float> win;
 	std::atomic<bool> evaled;      // 評価済か
 	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
@@ -84,14 +86,14 @@ public:
 	// 新しい位置が古い位置と同じゲームであるかどうかを返す（いくつかの着手動が追加されている）
 	// 位置が完全に異なる場合、または以前よりも短い場合は、falseを返す
 	bool ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves);
-	child_node_t* GetCurrentHead() const { return current_head_; }
+	uct_node_t* GetCurrentHead() const { return current_head_; }
 
 private:
 	void DeallocateTree();
 	// 探索を開始するノード
-	child_node_t* current_head_ = nullptr;
+	uct_node_t* current_head_ = nullptr;
 	// ゲーム木のルートノード
-	std::unique_ptr<child_node_t> gamebegin_node_;
+	std::unique_ptr<uct_node_t> gamebegin_node_;
 	// 以前の局面
 	Key history_starting_pos_key_;
 };

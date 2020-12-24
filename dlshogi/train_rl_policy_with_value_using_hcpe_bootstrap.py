@@ -77,7 +77,7 @@ if args.initmodel:
     serializers.load_npz(args.initmodel, model)
 if args.resume:
     print('Load optimizer state from', args.resume)
-    checkpoint = torch.load(args.resume)
+    checkpoint = torch.load(args.resume, map_location=device)
     epoch = checkpoint['epoch']
     t = checkpoint['t']
     base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
