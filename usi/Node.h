@@ -1,10 +1,10 @@
 #pragma once
 
-#include <atomic>
 #include <vector>
 #include <memory>
 
 #include "cppshogi.h"
+#include "relaxed_atomic.h"
 
 struct uct_node_t;
 struct child_node_t {
@@ -17,8 +17,8 @@ struct child_node_t {
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
-		move_count.store(o.move_count.load(std::memory_order_relaxed));
-		win.store(o.win.load(std::memory_order_relaxed));
+		move_count = o.move_count.load();
+		win = o.win.load();
 		nnrate = o.nnrate;
 		node = std::move(o.node);
 		return *this;
@@ -30,10 +30,10 @@ struct child_node_t {
 		return node.get();
 	}
 
-	Move move;                   // 着手する座標
-	std::atomic<int> move_count; // 探索回数
-	std::atomic<float> win;      // 勝った回数
-	float nnrate;                // ニューラルネットワークでのレート
+	Move move;                     // 着手する座標
+	RelaxedAtomic<int> move_count; // 探索回数
+	RelaxedAtomic<float> win;      // 勝った回数
+	float nnrate;                  // ニューラルネットワークでのレート
 	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
 
@@ -68,11 +68,11 @@ struct uct_node_t {
 		mtx.unlock();
 	}
 
-	std::atomic<int> move_count;
-	std::atomic<float> win;
-	std::atomic<bool> evaled;      // 評価済か
-	std::atomic<float> value_win;
-	std::atomic<float> visited_nnrate;
+	RelaxedAtomic<int> move_count;
+	RelaxedAtomic<float> win;
+	RelaxedAtomic<bool> evaled; // 評価済か
+	RelaxedAtomic<float> value_win;
+	RelaxedAtomic<float> visited_nnrate;
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
 

@@ -274,6 +274,7 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClInclude Include="nn_wideresnet15.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="npz.h" />
+    <ClInclude Include="relaxed_atomic.h" />
     <ClInclude Include="UctSearch.h" />
   </ItemGroup>
   <ItemGroup>
