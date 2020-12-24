@@ -255,6 +255,33 @@ int main() {
 }
 #endif
 
+#if 1
+#include "mate.h"
+// 詰み探索計測
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	string sfen = "lnG3Gnl/4k2b1/pppp2ppp/2N1GGN2/9/9/PPPP1PPPP/1B5R1/L1S1K1S1L b 3Pr2s 1";
+	vector<string> moves{ "P*5c", "5b5a" };
+
+	pos.set(sfen);
+	pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+	for (auto token : moves) {
+		const Move move = usiToMove(pos, token);
+		pos.searcher()->states->push_back(StateInfo());
+		pos.doMove(move, pos.searcher()->states->back());
+	}
+
+	bool ret = mateMoveInOddPly(pos, 5);
+
+	std::cout << ret << std::endl;
+
+	return 0;
+}
+#endif
+
 #if 0
 // cuDNN推論テスト
 #include "nn_wideresnet10.h"
