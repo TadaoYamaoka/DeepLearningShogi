@@ -13,34 +13,30 @@ struct child_node_t {
 		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f), node(std::move(o.node)) {}
+		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
 		move_count = (int)o.move_count;
 		win = (float)o.win;
 		nnrate = (float)o.nnrate;
-		node = std::move(o.node);
 		return *this;
-	}
-
-	// 子ノード作成
-	uct_node_t* CreateChildNode() {
-		node = std::make_unique<uct_node_t>();
-		return node.get();
 	}
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
 	std::atomic<float> win;      // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
-	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
 
 struct uct_node_t {
 	uct_node_t()
 		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
 
+	// 子ノード作成
+	uct_node_t* CreateChildNode(int i) {
+		return (child_nodes[i] = std::make_unique<uct_node_t>()).get();
+	}
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
 		child_num = 1;
@@ -54,6 +50,10 @@ struct uct_node_t {
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+	}
+	// 子ノードへのポインタ配列の初期化
+	void InitChildNodes() {
+		child_nodes = std::make_unique<std::unique_ptr<uct_node_t>[]>(child_num);
 	}
 
 	// 1つを除くすべての子を削除する
@@ -75,6 +75,7 @@ struct uct_node_t {
 	std::atomic<float> visited_nnrate;
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
+	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // 子ノードへのポインタ配列
 
 	std::mutex mtx;
 };
