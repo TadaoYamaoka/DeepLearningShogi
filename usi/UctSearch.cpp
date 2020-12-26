@@ -48,6 +48,12 @@ using namespace std;
 
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
+constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
+std::mutex mutexes[MUTEX_NUM];
+inline std::mutex& GetPositionMutex(const Position* pos)
+{
+	return mutexes[pos->getKey() & (MUTEX_NUM - 1)];
+}
 
 
 ////////////////
@@ -1150,7 +1156,8 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	child_node_t *uct_child = current->child.get();
 
 	// 現在見ているノードをロック
-	current->Lock();
+	auto& mutex = GetPositionMutex(pos);
+	mutex.lock();
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
 	if (!current->child_nodes) current->InitChildNodes();
 	// UCB値最大の手を求める
@@ -1168,7 +1175,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 現在見ているノードのロックを解除
-		current->UnLock();
+		mutex.unlock();
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -1261,7 +1268,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 	}
 	else {
 		// 現在見ているノードのロックを解除
-		current->UnLock();
+		mutex.unlock();
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
