@@ -65,14 +65,14 @@ NodeGarbageCollector gNodeGc;
 
 uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
-    if (child_num > 0) {
-        // 子ノードへのポインタ配列が未初期化の場合、初期化する
-        if (!child_nodes) InitChildNodes();
+    if (child_num > 0 && child_nodes) {
         // 一つを残して削除する
+        bool found = false;
         for (int i = 0; i < child_num; ++i) {
             auto& uct_child = child[i];
             auto& child_node = child_nodes[i];
             if (uct_child.move == move) {
+                found = true;
                 if (!child_node) {
                     // 新しいノードを作成する
                     child_node = std::make_unique<uct_node_t>();
@@ -90,12 +90,21 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
             }
         }
 
-        // 子ノードを一つにする
-        child_num = 1;
-        return child_nodes[0].get();
+        if (found) {
+            // 子ノードを一つにする
+            child_num = 1;
+            return child_nodes[0].get();
+        }
+        else {
+            // 合法手に不成を生成してないしないため、ノードが存在しても見つからない場合がある
+            // 子ノードが見つからなかった場合、新しいノードを作成する
+            CreateSingleChildNode(move);
+            InitChildNodes();
+            return (child_nodes[0] = std::make_unique<uct_node_t>()).get();
+        }
     }
     else {
-        // 子ノードが見つからなかった場合、新しいノードを作成する
+        // 子ノード未展開、または子ノードへのポインタ配列が未初期化の場合
         CreateSingleChildNode(move);
         // 子ノードへのポインタ配列を初期化する
         InitChildNodes();
