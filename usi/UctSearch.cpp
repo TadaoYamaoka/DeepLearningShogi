@@ -1294,6 +1294,10 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	max_value = -FLT_MAX;
 
+	const float sqrt_sum = sqrt(sum);
+	const float c = depth > 0 ?
+		FastLog((sum + c_base + 1.0f) / c_base) + c_init :
+		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
 
 	// UCB値最大の手を求める
@@ -1320,18 +1324,15 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 				q = std::max(0.0f, current->win / current->move_count - fpu_reduction);
 			else
 				q = 0.0f;
-			u = sum == 0 ? 1.0f : sqrtf(sum);
+			u = sum == 0 ? 1.0f : sqrt_sum;
 		}
 		else {
 			q = win / move_count;
-			u = sqrtf(sum) / (1 + move_count);
+			u = sqrt_sum / (1 + move_count);
 		}
 
 		const float rate = uct_child[i].nnrate;
 
-		const float c = depth > 0 ?
-			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
-			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 		const float ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {
