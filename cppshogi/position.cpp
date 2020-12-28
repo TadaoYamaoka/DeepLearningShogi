@@ -3183,7 +3183,7 @@ RepetitionType Position::isDraw(const int checkMaxPly) const {
                     return RepetitionLose;
                 else if (i <= st_->continuousCheck[oppositeColor(turn())])
                     return RepetitionWin;
-#if defined BAN_Black_REPETITION
+#if defined BAN_BLACK_REPETITION
                 return (turn() == Black ? RepetitionLose : RepetitionWin);
 #elif defined BAN_WHITE_REPETITION
                 return (turn() == White ? RepetitionLose : RepetitionWin);
