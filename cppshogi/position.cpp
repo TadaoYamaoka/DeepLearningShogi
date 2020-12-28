@@ -668,6 +668,612 @@ inline void Position::xorBBs(const PieceType pt, const Square sq, const Color c)
     byColorBB_[c].xorBit(sq);
 }
 
+// sgn関数
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
+enum PieceTypeCheck
+{
+    PIECE_TYPE_CHECK_Pawn_WITH_NO_PRO, // 不成りのまま王手になるところ(成れる場合は含まず)
+    PIECE_TYPE_CHECK_Pawn_WITH_PRO, // 成りで王手になるところ
+    PIECE_TYPE_CHECK_Lance,
+    PIECE_TYPE_CHECK_Knight,
+    PIECE_TYPE_CHECK_Silver,
+    PIECE_TYPE_CHECK_Gold,
+    PIECE_TYPE_CHECK_Bishop,
+    PIECE_TYPE_CHECK_Rook,
+    PIECE_TYPE_CHECK_PRO_Bishop,
+    PIECE_TYPE_CHECK_PRO_Rook,
+    PIECE_TYPE_CHECK_NON_SLIDER, // 王手になる非遠方駒の移動元
+
+    PIECE_TYPE_CHECK_NB,
+    PIECE_TYPE_CHECK_ZERO = 0,
+};
+OverloadEnumOperators(PieceTypeCheck);
+
+// 王手になる候補の駒の位置を示すBitboard
+Bitboard CHECK_CAND_BB[SquareNum + 1][PIECE_TYPE_CHECK_NB][ColorNum];
+
+// 玉周辺の利きを求めるときに使う、玉周辺に利きをつける候補の駒を表すBB
+// COLORのところは王手する側の駒
+Bitboard CHECK_AROUND_BB[SquareNum + 1][Promoted][ColorNum];
+
+// 移動により王手になるbitboardを返す。
+// us側が王手する。sq_king = 敵玉の升。pc = 駒
+inline Bitboard check_cand_bb(Color us, PieceTypeCheck pc, Square sq_king) {
+    return CHECK_CAND_BB[sq_king][pc][us];
+}
+
+// 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
+// pt = Pawn～HDK
+inline Bitboard check_around_bb(Color us, PieceType pt, Square sq_king) {
+    return CHECK_AROUND_BB[sq_king][pt - 1][us];
+}
+
+// sq1に対してsq2の升の延長上にある次の升を得る。
+// 隣接していないか、盤外になるときはSQUARE_NB
+// テーブルサイズを小さくしておきたいのでu8にしておく。
+/*Square*/ u8 NextSquare[SquareNum + 1][SquareNum + 1];
+inline Square nextSquare(Square sq1, Square sq2) { return (Square)NextSquare[sq1][sq2]; }
+
+// CHECK_CAND_BB、CHECK_AROUND_BBの初期化
+void initMate1Ply() {
+    for (PieceTypeCheck p = PIECE_TYPE_CHECK_ZERO; p < PIECE_TYPE_CHECK_NB; ++p)
+        for (Square sq = SQ11; sq < SquareNum; ++sq)
+            for (Color c = Black; c < ColorNum; ++c) {
+                Bitboard bb = allZeroBB(), tmp = allZeroBB();
+                Square to;
+
+                // 敵陣
+                Bitboard enemyBB = enemyField(c);
+
+                switch ((int)p) {
+                case PIECE_TYPE_CHECK_Pawn_WITH_NO_PRO:
+                    // 歩が不成りで王手になるところだけ。
+
+                    bb = pawnAttack(~c, sq) & ~enemyBB;
+                    if (!bb)
+                        break;
+                    to = bb.firstOneFromSQ11();
+                    bb = pawnAttack(~c, to);
+                    break;
+
+                case PIECE_TYPE_CHECK_Pawn_WITH_PRO:
+
+                    bb = goldAttack(~c, sq) & enemyBB;
+                    bb = pawnAttack(~c, bb);
+                    break;
+
+                case PIECE_TYPE_CHECK_Lance:
+
+                    // 成りによるものもあるからな..候補だけ列挙しておくか。
+                    bb = lanceAttackToEdge(~c, sq);
+                    if (enemyBB ^ setMaskBB(sq)) {
+                        // 敵陣なので成りで王手できるから、sqより下段の香も足さないと。
+                        if (makeFile(sq) != File1)
+                            bb |= lanceAttackToEdge(~c, sq + DeltaE);
+                        if (makeFile(sq) != File9)
+                            bb |= lanceAttackToEdge(~c, sq + DeltaW);
+                    }
+
+                    break;
+
+                case PIECE_TYPE_CHECK_Knight:
+
+                    // 敵玉から桂の桂にある駒
+                    tmp = knightAttack(~c, sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= knightAttack(~c, to);
+                    }
+                    // 成って王手(金)になる移動元
+                    tmp = goldAttack(~c, sq) & enemyBB;
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= knightAttack(~c, to);
+                    }
+                    break;
+
+                case PIECE_TYPE_CHECK_Silver:
+
+                    // 敵玉から銀の銀にある駒。
+                    tmp = silverAttack(~c, sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= silverAttack(~c, to);
+                    }
+                    // 成って王手の場合、敵玉から金の銀にある駒
+                    tmp = goldAttack(~c, sq) & enemyBB;
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= silverAttack(~c, to);
+                    }
+                    // あと4段目の玉に3段目から成っての王手。玉のひとつ下の升とその斜めおよび、
+                    // 玉のひとつ下の升の2つとなりの升
+                    {
+                        Rank r = (c == Black ? Rank4 : Rank6);
+                        if (r == makeRank(sq)) {
+                            r = (c == Black ? Rank3 : Rank7);
+                            to = makeSquare(makeFile(sq), r);
+                            bb |= setMaskBB(to);
+                            bb |= bishopStepAttacks(to);
+
+                            // 2升隣。
+                            if (makeFile(to) >= File3)
+                                bb |= setMaskBB(to + DeltaE * 2);
+                            if (makeFile(to) <= File7)
+                                bb |= setMaskBB(to + DeltaW * 2);
+                        }
+
+                        // 5段目の玉に成りでのバックアタック的な..
+                        if (makeRank(sq) == Rank5)
+                            bb |= knightAttack(c, sq);
+                    }
+                    break;
+
+                case PIECE_TYPE_CHECK_Gold:
+                    // 敵玉から金の金にある駒
+                    tmp = goldAttack(~c, sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= goldAttack(~c, to);
+                    }
+                    break;
+
+                    // この4枚、どうせいないときもあるわけで、効果に乏しいので要らないのでは…。
+                case PIECE_TYPE_CHECK_Bishop:
+                case PIECE_TYPE_CHECK_PRO_Bishop:
+                case PIECE_TYPE_CHECK_Rook:
+                case PIECE_TYPE_CHECK_PRO_Rook:
+                    // 王の8近傍の8近傍(24近傍)か、王の3列、3行か。結構の範囲なのでこれ無駄になるな…。
+                    break;
+
+                    // 非遠方駒の合体bitboard。ちょっとぐらい速くなるんだろう…。
+                case PIECE_TYPE_CHECK_NON_SLIDER:
+                    bb = CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_Gold][c]
+                        | CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_Knight][c]
+                        | CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_Silver][c]
+                        | CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_Pawn_WITH_NO_PRO][c]
+                        | CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_Pawn_WITH_PRO][c];
+                    break;
+                }
+                bb &= ~setMaskBB(sq); // sqの地点邪魔なので消しておく。
+                CHECK_CAND_BB[sq][p][c] = bb;
+            }
+
+
+    for (PieceType p = Pawn; p <= King; ++p)
+        for (Square sq = SQ11; sq < SquareNum; ++sq)
+            for (Color c = Black; c < ColorNum; ++c) {
+                Bitboard bb = allZeroBB(), tmp = allZeroBB();
+                Square to;
+
+                switch (p) {
+                case Pawn:
+                    // これ用意するほどでもないんだな
+                    // 一応、用意するコード書いておくか..
+                    bb = pawnAttack(c, bb);
+                    // →　このシフトでp[0]の63bit目に来るとまずいので..
+                    bb &= allOneBB(); // allOneBB()でand取っておく。
+                    break;
+
+                case Lance:
+                    // 香で玉8近傍の利きに関与するのは…。玉と同じ段より攻撃側の陣にある香だけか..
+                    bb = lanceAttackToEdge(~c, sq);
+                    if (makeFile(sq) != File1)
+                        bb |= lanceAttackToEdge(~c, sq + DeltaE) | setMaskBB(sq + DeltaE);
+                    if (makeFile(sq) != File9)
+                        bb |= lanceAttackToEdge(~c, sq + DeltaW) | setMaskBB(sq + DeltaW);
+                    break;
+
+                case Knight:
+                    // 桂は玉8近傍の逆桂か。
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= knightAttack(~c, to);
+                    }
+                    break;
+
+                case Silver:
+                    // 同じく
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= silverAttack(~c, to);
+                    }
+                    break;
+
+                case Gold:
+                    // 同じく
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= goldAttack(~c, to);
+                    }
+                    break;
+
+                case Bishop:
+                    // 同じく
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= bishopAttackToEdge(to);
+                    }
+                    break;
+
+                case Rook:
+                    // 同じく
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= rookAttackToEdge(to);
+                    }
+                    break;
+
+                    // HDK相当
+                case King:
+                    // 同じく
+                    tmp = kingAttack(sq);
+                    while (tmp) {
+                        to = tmp.firstOneFromSQ11();
+                        bb |= kingAttack(to);
+                    }
+                    break;
+
+                default:
+                    UNREACHABLE;
+                }
+
+                bb &= ~setMaskBB(sq); // sqの地点邪魔なので消しておく。
+                // CHECK_CAND_BBとは並び順を変えたので注意。
+                CHECK_AROUND_BB[sq][p - 1][c] = bb;
+            }
+
+    // NextSquareの初期化
+    // Square NextSquare[SQUARE_NB][SQUARE_NB];
+    // sq1に対してsq2の升の延長上にある次の升を得る。
+    // 隣接していないか、盤外になるときはSQUARE_NB
+
+    for (Square s1 = SQ11; s1 < SquareNum; ++s1)
+        for (Square s2 = SQ11; s2 < SquareNum; ++s2) {
+            Square next_sq = SquareNum;
+
+            // 隣接していなくてもok。縦横斜かどうかだけ判定すべし。
+            if ((rookAttackToEdge(s1) | bishopAttackToEdge(s1)) & setMaskBB(s2)) {
+                File vf = File(sgn(makeFile(s2) - makeFile(s1)));
+                Rank vr = Rank(sgn(makeRank(s2) - makeRank(s1)));
+
+                File s3f = makeFile(s2) + vf;
+                Rank s3r = makeRank(s2) + vr;
+                // 盤面の範囲外に出ていないかのテスト
+                if (isInFile(s3f) && isInRank(s3r))
+                    next_sq = makeSquare(s3f, s3r);
+            }
+            NextSquare[s1][s2] = next_sq;
+        }
+
+}
+
+// 桂馬が次に成れる移動元の表現のために必要となるので用意。
+static Bitboard RANK3_5BB = rankMask<Rank3>() | rankMask<Rank4>() | rankMask<Rank5>();
+static Bitboard RANK5_7BB = rankMask<Rank5>() | rankMask<Rank6>() | rankMask<Rank7>();
+
+// usのSliderの利きを列挙する。
+// avoid升にいる駒の利きは除外される。
+template <Color US>
+Bitboard Position::attacksSlider(const Bitboard& slide) const {
+    Bitboard bb, sum = allZeroBB();
+    Square from;
+
+    bb = bbOf(Lance, US);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= lanceAttack(US, from, slide);
+    }
+    bb = bbOf(Bishop, Horse, US);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= bishopAttack(from, slide);
+    }
+    bb = bbOf(Rook, Dragon, US);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= rookAttack(from, slide);
+    }
+    return sum;
+}
+
+// usのSliderの利きを列挙する
+// avoid升にいる駒の利きは除外される。
+template <Color US>
+Bitboard Position::attacksSlider(Square avoid_from, const Bitboard& occ) const {
+    Bitboard bb, sum = allZeroBB();
+    Bitboard avoid_bb = ~setMaskBB(avoid_from);
+    Square from;
+
+    bb = bbOf(Lance, US) & avoid_bb;
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= lanceAttack(US, from, occ);
+    }
+    bb = bbOf(Bishop, Horse, US) & avoid_bb;
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= bishopAttack(from, occ);
+    }
+    bb = bbOf(Rook, Dragon, US) & avoid_bb;
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= rookAttack(from, occ);
+    }
+    return sum;
+}
+
+// NonSliderの利きのみ列挙
+template <Color US>
+Bitboard Position::attacksAroundKingNonSlider() const {
+    const Square sq_king = kingSquare(US);
+    const Color Them = ~US;
+    Square from;
+    Bitboard bb;
+
+    // 歩は普通でいい
+    Bitboard sum = pawnAttack<Them>(bbOf(Pawn, Them));
+
+    // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
+    bb = bbOf(Knight, Them) & check_around_bb(Them, Knight, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= knightAttack(Them, from);
+    }
+    bb = bbOf(Silver, Them) & check_around_bb(Them, Silver, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= silverAttack(Them, from);
+    }
+    bb = goldsBB(Them) & check_around_bb(Them, Gold, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= goldAttack(Them, from);
+    }
+    bb = bbOf(Horse, Dragon, King, Them) & check_around_bb(Them, King, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= kingAttack(from);
+    }
+    return sum;
+}
+
+// Sliderの利きのみ列挙
+template <Color US>
+Bitboard Position::attacksAroundKingSlider() const {
+    Square sq_king = kingSquare(US);
+    Color Them = ~US;
+    Square from;
+    Bitboard bb;
+    Bitboard sum = allZeroBB();
+
+    bb = bbOf(Lance, Them) & check_around_bb(Them, Lance, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= lanceAttack(Them, from, occupiedBB());
+    }
+    bb = bbOf(Bishop, Horse, Them) & check_around_bb(Them, Bishop, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= bishopAttack(from, occupiedBB());
+    }
+    bb = bbOf(Rook, Dragon, Them) & check_around_bb(Them, Rook, sq_king);
+    while (bb) {
+        from = bb.firstOneFromSQ11();
+        sum |= rookAttack(from, occupiedBB());
+    }
+    return sum;
+}
+
+template <Color US>
+Bitboard Position::attacksAroundKingNonSliderInAvoiding(Square avoid_from) const
+{
+    const Square sq_king = kingSquare(US);
+    const Color Them = ~US;
+    Bitboard bb;
+    const Bitboard avoid_bb = ~setMaskBB(avoid_from);
+    Square from;
+
+    // 歩は普通でいい
+    Bitboard sum = pawnAttack<Them>(bbOf(Pawn, Them));
+
+    // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
+    bb = bbOf(Knight, Them) & check_around_bb(Them, Knight, sq_king) & avoid_bb;
+    while (bb)
+    {
+        from = bb.firstOneFromSQ11();
+        sum |= knightAttack(Them, from);
+    }
+    bb = bbOf(Silver, Them) & check_around_bb(Them, Silver, sq_king) & avoid_bb;
+    while (bb)
+    {
+        from = bb.firstOneFromSQ11();
+        sum |= silverAttack(Them, from);
+    }
+    bb = goldsBB(Them) & check_around_bb(Them, Gold, sq_king) & avoid_bb;
+    while (bb)
+    {
+        from = bb.firstOneFromSQ11();
+        sum |= goldAttack(Them, from);
+    }
+    bb = bbOf(Horse, Dragon, King, Them) & check_around_bb(Them, King, sq_king) & avoid_bb;
+    while (bb)
+    {
+        from = bb.firstOneFromSQ11();
+        sum |= kingAttack(from);
+    }
+    return sum;
+}
+
+template <Color US>
+Bitboard Position::pinnedPieces(Square from, Square to) const {
+    Bitboard b, pinners, result = allZeroBB();
+    const Square ksq = kingSquare(US);
+
+    // avoidを除外して考える。
+    Bitboard avoid_bb = ~setMaskBB(from);
+
+    pinners = (
+        (bbOf(Rook, Dragon) & rookAttackToEdge(ksq))
+        | (bbOf(Bishop, Horse) & bishopAttackToEdge(ksq))
+        | (bbOf(Lance) & lanceAttackToEdge(US, ksq))
+        ) & avoid_bb & bbOf(~US);
+
+    // fromからは消えて、toの地点に駒が現れているものとして
+    Bitboard new_pieces = (occupiedBB() & avoid_bb) | setMaskBB(to);
+    while (pinners)
+    {
+        b = betweenBB(ksq, pinners.firstOneFromSQ11()) & new_pieces;
+        if (b.popCount<false>() <= 1)
+            result |= b & bbOf(US);
+    }
+    return result;
+}
+
+namespace {
+
+    // kingがtoとbb_avoid以外の升に逃げられるか
+    // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
+    bool can_king_escape(const Position& pos, Color us, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
+        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
+        // captureの場合、もともとtoには駒があるわけで、ここをxorで処理するわけにはいかない。
+        Bitboard slide = slide_ | setMaskBB(to);
+
+        Square sq_king = pos.kingSquare(us);
+        /*
+        // kingもいないものとして考える必要がある。
+        slide ^= sq_king;
+        // これは呼び出し側でbb_avoidを計算するときに保証するものとする。
+        */
+
+        // bbとtoと自駒のないところから移動先を探す
+        Bitboard bb = kingAttack(sq_king) & ~(bb_avoid | setMaskBB(to) | pos.bbOf(us));
+
+        while (bb) {
+            Square escape = bb.firstOneFromSQ11();
+
+            if (!pos.attackersTo(~us, escape, slide))
+                return true;
+            // 何も破壊していないので即座に返って良い。
+
+        }
+        return false;
+    }
+
+    // kingがtoとbb_avoid以外の升に逃げられるか
+    // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
+    // またfromからは駒が除去されているものとして考える。
+    bool can_king_escape(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
+        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
+        Bitboard slide = slide_ | setMaskBB(to);
+
+        Square sq_king = pos.kingSquare(us);
+        // kingもいないものとして考える必要がある。
+        slide ^= setMaskBB(sq_king);
+        // これは呼び出し側でbb_avoidを計算するときに保証するものとする。
+        // →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
+
+        // bb_avoidとtoと自駒のないところから移動先を探す
+        Bitboard bb = kingAttack(sq_king) & ~(bb_avoid | setMaskBB(to) | pos.bbOf(us));
+
+        while (bb) {
+            Square escape = bb.firstOneFromSQ11();
+
+            if (!(pos.attackersTo(~us, escape, slide) & ~setMaskBB(from)))
+                // fromにある攻撃駒は移動済なのでこれは対象外。
+                return true;
+            // 何も破壊していないので即座に返って良い。
+
+        }
+        return false;
+    }
+
+    // kingがbb_avoid以外の升に逃げられるか
+    // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
+    // またfromからは駒が除去されているものとして考える。
+    // ただしtoには行けるものとする。
+    bool can_king_escape_cangoto(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
+        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
+        Bitboard slide = slide_ | setMaskBB(to);
+
+        const Square sq_king = pos.kingSquare(us);
+        // kingもいないものとして考える必要がある。
+        slide ^= setMaskBB(sq_king);
+        // これは呼び出し側でbb_avoidを計算するときに保証するものとする。
+        // →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
+
+        // bb_avoid/*とto*/と自駒のないところから移動先を探す
+        Bitboard bb = kingAttack(sq_king) & ~((bb_avoid /*| to*/ | pos.bbOf(us)) & ~setMaskBB(to));
+
+        // toには移動できるのだよ。pos.pieces(us)には玉側の駒がtoにあることがあって、これは取られるものとして
+        // 考える必要があるから、toを除外するコードが必要なのだよ。
+
+        while (bb) {
+            Square escape = bb.firstOneFromSQ11();
+
+            if (!(pos.attackersTo(~us, escape, slide) & ~setMaskBB(from)))
+                // fromにある攻撃駒は移動済なのでこれは対象外。
+                return true;
+            // 何も破壊していないので即座に返って良い。
+
+        }
+        return false;
+    }
+
+    // 玉以外の駒でtoの駒が取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
+    bool can_piece_capture(const Position& pos, Color us, Square to, const Bitboard& pinned, const Bitboard& slide) {
+        const Square sq_king = pos.kingSquare(us);
+
+        // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
+        Bitboard sum = pos.attackersTo(us, to, slide) & ~pos.bbOf(King);
+        while (sum) {
+            Square from = sum.firstOneFromSQ11();
+
+            // fromからtoに移動させて素抜きに合わないならばこれをもって良し。
+            if (!pinned
+                || !(pinned & setMaskBB(from))
+                || isAligned<true>(from, to, sq_king)
+                )
+                return true;
+        }
+
+        return false;
+    }
+
+    // toにある駒が捕獲できるのか
+    // ただしavoid升の駒でのcaptureは除外する。
+    bool can_piece_capture(const Position& pos, Color us, Square to, Square avoid, const Bitboard& pinned, const Bitboard& slide)
+    {
+        assert(isInSquare(to));
+
+        Square sq_king = pos.kingSquare(us);
+
+        // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
+        Bitboard sum = pos.attackersTo(us, to, slide) & ~(pos.bbOf(King) | setMaskBB(avoid));
+        while (sum) {
+            Square from = sum.firstOneFromSQ11();
+
+            // fromからtoに移動させて素抜きに合わないならばこれをもって良し。
+            if (!pinned
+                || !(pinned & setMaskBB(from))
+                || isAligned<true>(from, to, sq_king)
+                )
+                return true;
+        }
+
+        return false;
+    }
+
+}
+
 // 相手玉が1手詰みかどうかを判定。
 // 1手詰みなら、詰みに至る指し手の一部の情報(from, to のみとか)を返す。
 // 1手詰みでないなら、Move::moveNone() を返す。
@@ -1039,6 +1645,348 @@ silver_drop_end:
     }
 
     {
+        // 香車による移動
+        Bitboard fromBB = bbOf(Lance, US) & lanceCheckTable(US, ksq);
+        if (fromBB) {
+            // Txxx は先手、後手の情報を吸収した変数。数字は先手に合わせている。
+            const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
+            const Rank TRank2 = (US == Black ? Rank2 : Rank8);
+            const Bitboard chkBB_promo = attacksFrom<Gold>(Them, ksq) & TRank123BB;
+            // 玉の前方1マスのみ。
+            // 玉が 1 段目にいるときは、成のみで良いので省く。
+            const Bitboard chkBB = attacksFrom<Pawn>(Them, ksq) & inFrontMask<Them, TRank2>();
+
+            do {
+                const Square from = fromBB.firstOneFromSQ11();
+                Bitboard toBB = moveTarget & attacksFrom<Lance>(US, from);
+                Bitboard toBB_promo = toBB & chkBB_promo;
+
+                toBB &= chkBB;
+
+                if ((toBB_promo | toBB)) {
+                    xorBBs(Lance, from, US);
+                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
+                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+                    // to の位置の Bitboard は canKingEscape の中で更新する。
+
+                    while (toBB_promo) {
+                        const Square to = toBB_promo.firstOneFromSQ11();
+                        if (unDropCheckIsSupported(US, to)) {
+                            // 成り
+                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
+                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
+                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
+                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            {
+                                xorBBs(Lance, from, US);
+                                return makeCapturePromoteMove(Lance, from, to, *this);
+                            }
+                        }
+                    }
+
+                    if (toBB) {
+                        assert(toBB.isOneBit());
+                        // 不成で王手出来るのは、一つの場所だけなので、ループにする必要が無い。
+                        const Square to = ksq + TDeltaS;
+                        if (unDropCheckIsSupported(US, to)) {
+                            // 不成
+                            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to))
+                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
+                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
+                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            {
+                                xorBBs(Lance, from, US);
+                                return makeCaptureMove(Lance, from, to, *this);
+                            }
+                        }
+                    }
+                    xorBBs(Lance, from, US);
+                }
+            } while (fromBB);
+        }
+    }
+
+    // 以下は、Aperyにはなかった処理
+    // やねうら王の実装を参考にした
+    // https://github.com/yaneurao/YaneuraOu/blob/013f924d58891b5830bb8f6fe27b78e414141aaa/source/mate/mate1ply_without_effect.cpp#L1105
+
+    // 離し角・飛車等で詰むかどうか。
+    // 離し角・離し飛車、移動飛車・龍での合い効かずで詰むかも知れん。
+    // Bonanzaにはないが、これを入れておかないと普通の1手詰め判定と判定される集合が違って気持ち悪い。
+
+    // 飛車持ちかつ、相手は歩だけ(歩は二歩で合い効かず)かつ
+    // 移動可能箇所が3箇所以内
+    // という判定条件で残り2箇所が利きがあり移動不可であることがわかれば…みたいな条件にしとくか。
+    // てか、これ利き真面目に考慮してはいかんのか？
+    // うーむ..
+
+    // 合い駒なしである可能性が高い
+
+    // 敵は歩以外を持っていないか。
+    // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
+
+    const Hand themHand = hand(Them);
+    if (themHand.numOf(HPawn) == themHand.value()) {
+        // 玉の8近傍の移動可能箇所の列挙
+        Bitboard bb_king_movable = ~bbOf(Them) & kingAttack(ksq);
+
+        // 玉周辺の利きを列挙。(これ、せっかく求めたならできればあとで使いまわしたいが…)
+        // これ王手のかかっていない局面で呼び出すことを想定しているので貫通でなくてもいいか。
+        Bitboard aakns = attacksAroundKingNonSlider<~US>(); // これはあとで使いまわす
+        Bitboard aaks = attacksAroundKingSlider<~US>();
+        Bitboard aak = aakns | aaks;
+
+        Bitboard escape_bb = bb_king_movable & ~aak; // 利きがない場所が退路の候補
+
+        int esc_count = escape_bb.popCount();
+        if (esc_count >= 4)
+            goto NEXT1; // 残念ながら退路がありすぎて話にならんかった。詰む可能性低いので調べなくていいや。
+                        // 退路3個はまだ許せる…。としよう。
+
+                        // 退路がなかろうが、あろうが、玉8近傍の駒のない升に対して順番に探そう。
+                        // 退路が3以下である以上、そんなに空いてはないはずだ。
+        Bitboard bb2 = nOccupiedBB() & kingAttack(ksq);
+
+        while (bb2) {
+            // 退路
+            Square one = bb2.firstOneFromSQ11();
+
+            // このあと
+            // 1. ksqのone側のもうひとつ先の升toにksqに利く駒が打てて
+            // 2. その升に敵の利きがなくて、
+            // 3. oneの升に歩が立たないなら
+            // これにて詰み
+
+            // 駒が打つ場所と間の升が空いている
+            // →　これは前提条件から自動的に満たす
+            // if (!pos.empty(one)) continue; // もう駄目
+
+            // toの地点が盤外
+            // このチェックが惜しいのなら最初玉の8近傍ではなく、toが盤外にならない8近傍を列挙すべきだが。
+            Square to = nextSquare(ksq, one);
+            if (to == SquareNum) continue; // もう駄目
+
+            // toが自駒だとここに移動できないし..
+            if (piece(to) != Empty && pieceToColor(piece(to)) == US) continue;
+
+            // oneが二歩で打てないことを確認しよう。
+            if (canPawnDrop<~US>(one)) continue; // もう駄目
+
+            // toの地点にあるのが歩だと、このtoの地点とoneが同じ筋だと
+            // このtoの歩を取ってoneに打てるようになってしまう。
+            if (pieceToPieceType(piece(to)) == Pawn && makeFile(to) == makeFile(one) && themHand.numOf(HPawn) >= 1) continue;
+
+            auto dr = Effect8::directions_of(ksq, one);
+            PieceType pt;
+            bool canLanceAttack = false;
+            if (dr & Effect8::DIRECTIONS_DIAG) {
+                pt = Bishop;
+
+                // 斜めなら角を持ってなきゃ
+                if (ourHand.numOf(HBishop) == 0)
+                    goto NEXT2;
+            }
+            else {
+                pt = Rook;
+
+                // 十字なら飛車を持ってなきゃ
+                // 上からなら香でもいいのか。
+                canLanceAttack = (US == Black ? dr == Effect8::DIRECTIONS_D : dr == Effect8::DIRECTIONS_U);
+                if (canLanceAttack && ourHand.numOf(HLance) >= 1) {
+                    pt = Lance;
+                }
+                else if (ourHand.numOf(HRook) == 0)
+                    goto NEXT2;
+            }
+
+            if (piece(to)) goto NEXT2;
+            // このケースはtoの駒を取ればいけるかも知れん。盤上の駒ptを移動できないか調べろ
+
+            // oneに駒の移動合いができない
+            if (can_piece_capture(*this, Them, one, dcBB_betweenIsThem, occupiedBB())) goto NEXT2;
+
+            // toに打つ駒が取れない
+            if (can_piece_capture(*this, Them, to, dcBB_betweenIsThem, occupiedBB())) goto NEXT2;
+
+            // 退路が1個以下であればこれで詰みなのだが、もともと利きがあって塞がれていたほうの退路だとそうでもないから
+            // 最終的に次のような処理が必要なのだ…。
+
+            // 退路が2個以上ある場合は、これで詰むとは限らない。
+            // escape_bbが打った駒の利きによって遮断されているかを調べる。
+            // あ、しまった。toを打ったことによってescape_bbのどこかがまた状態が変わるのか…。
+            escape_bb = bb_king_movable & ~(aakns | attacksSlider<US>(occupiedBB() | setMaskBB(to)));
+
+            if (dr & Effect8::DIRECTIONS_DIAG) { // pt == Bishop
+                if (!(~bishopAttackToEdge(to) & escape_bb))
+                    return makeDropMove(pt, to);
+            }
+            else { // if (pt == Rook || pt==Lance)
+                // Lanceの場合もtoの地点からの横の利きでは玉の8近傍に到達しないので同列に扱って良い。
+                if (!(~rookAttackToEdge(to) & escape_bb))
+                    return makeDropMove(pt, to);
+            }
+
+            //    STEP2_DROP:;
+            // toに打ったからsliderが遮断されたんでねーの？1升だけ延長する。
+            if (esc_count <= 2) {
+                Square nextTo = nextSquare(one, to);
+                if (nextTo == SquareNum) goto NEXT2;
+                if (piece(nextTo)) goto NEXT2;
+                if (canPawnDrop<~US>(to)) goto NEXT2;
+                if (can_piece_capture(*this, Them, nextTo, dcBB_betweenIsThem, occupiedBB())) goto NEXT2;
+
+                escape_bb = bb_king_movable & ~(aakns | attacksSlider<US>(occupiedBB() | setMaskBB(nextTo)));
+
+                if (dr & Effect8::DIRECTIONS_DIAG) { // pt == Bishop
+                    if (!(~bishopAttackToEdge(nextTo) & escape_bb))
+                        return makeDropMove(pt, nextTo);
+                }
+                else { // if (pt == Rook || pt==Lance)
+                    if (!(~rookAttackToEdge(nextTo) & escape_bb))
+                        return makeDropMove(pt, nextTo);
+                }
+            }
+
+        NEXT2:
+            // この場合、toの地点に遠方駒を移動させてcapれば、高い確率で詰みなのだが。
+
+            if (!(dr & Effect8::DIRECTIONS_DIAG)) { // (pt == Rook || pt == Lance)
+                // どこかtoの近くに飛車は落ちてないかね..
+                // 飛車を移動させた結果、oneに敵の利きが生じるかも知らんけど。
+                bool is_rook = rookAttackToEdge(to).andIsAny(bbOf(Rook, Dragon, US));
+                bool is_dragon = kingAttack(to).andIsAny(bbOf(Dragon, US));
+                bool is_lance = (canLanceAttack) ? (lanceAttackToEdge(Them, to).andIsAny(bbOf(Lance, US))) : false;
+
+                if (is_rook || is_dragon || is_lance) {
+                    // 落ちてるっぽい。移動可能かどうか調べる。
+                    Bitboard bb = allZeroBB();
+                    if (is_rook)
+                        bb = rookAttack(to, occupiedBB()) & bbOf(Rook, Dragon, US);
+                    if (is_dragon)
+                        bb |= kingAttack(to) & bbOf(Dragon, US);
+                    if (is_lance)
+                        bb |= lanceAttack(Them, to, occupiedBB()) & bbOf(Lance, US);
+
+                    while (bb) {
+                        Square from = bb.firstOneFromSQ11();
+                        // fromからtoに移動させてこれで詰むかどうかテスト
+
+                        // この指し手が合法でないといかん。
+                        if (isPinnedIllegal(from, to, kingSquare(US), pinned)) continue;
+
+                        Bitboard slide = occupiedBB() ^ setMaskBB(from);
+
+                        // toに移動させた駒が取れない
+                        if (can_piece_capture(*this, Them, to, dcBB_betweenIsThem, slide)) continue;
+                        // oneも移動合い等ができない。
+                        // toへの移動でさらにpinされることはあっても、pinが解除されることはない。
+                        // (将棋にはQUEENがないので)
+                        // ゆえに古いpinで考えておけばいいや。
+                        if (can_piece_capture(*this, Them, one, to, dcBB_betweenIsThem, slide)) continue;
+
+                        // 攻撃範囲計算用
+                        Bitboard bb_attacks;
+
+                        if (pieceToPieceType(piece(from)) == Lance) {
+                            bb_attacks = rookAttackToEdge(to);
+                            // 貫通で考えておこう。裏の退路もいけないので。
+                            // 1升以上離れているので王手にするには不成りでいくしかなく、これは飛車利きに等しい
+                        }
+                        else if (canPromote(US, from, to) || pieceToPieceType(piece(from)) == Dragon) {
+                            bb_attacks = rookAttackToEdge(to) | bishopAttackToEdge(to);
+                        }
+                        else
+                            bb_attacks = rookAttackToEdge(to);
+                        // 貫通で考えておこう。裏の退路もいけないので。
+
+                        Bitboard new_slide = (occupiedBB() ^ setMaskBB(from)) | setMaskBB(to);
+
+                        // aakns、小駒だから関係ないと思いきや、馬を動かすと関係あるんだな
+                        // aakns使わない実装にしよう..
+
+                        if (!(kingAttack(ksq)
+                            & ~(bbOf(Them) | attacksAroundKingInAvoiding<~US>(from, new_slide) | bb_attacks))) {
+                            // これで詰みが確定した
+                            PieceType pt = pieceToPieceType(piece(from));
+                            // 香は不成りでの王手
+                            if (pt != Lance && canPromote(US, from, to) && !(pt & PTPromote))
+                                return makePromoteMove<Capture>(pt, from, to, *this);
+                            else
+                                return makeCaptureMove(pt, from, to, *this);
+                        }
+                    }
+                }
+            }
+            else {
+                // 同じく角
+
+                bool is_bishop = bishopAttackToEdge(to).andIsAny(bbOf(Bishop, Horse, US));
+                bool is_horse = kingAttack(to).andIsAny(bbOf(Horse, US));
+                if (is_bishop || is_horse) {
+                    // 落ちてるっぽい。移動可能かどうか調べる。
+                    Bitboard bb = allZeroBB();
+                    if (is_bishop)
+                        bb = bishopAttack(to, occupiedBB()) & bbOf(Bishop, Horse, US);
+                    if (is_horse)
+                        bb |= kingAttack(to) & bbOf(Horse, US);
+
+                    while (bb) {
+                        Square from = bb.firstOneFromSQ11();
+                        // fromからtoに移動させてこれで詰むかどうかテスト
+
+                        // この指し手が合法でないといかん。
+                        if (isPinnedIllegal(from, to, kingSquare(US), pinned)) continue;
+
+                        Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                        // oneに駒の移動合いができない
+                        // このときtoの駒はcapられている可能性があるのでこの駒による移動合いは除外する。
+                        if (can_piece_capture(*this, Them, one, to, dcBB_betweenIsThem, slide)) continue;
+
+                        // toに打つ駒が取れない
+                        if (can_piece_capture(*this, Them, to, dcBB_betweenIsThem, slide)) continue;
+
+                        // fromから飛車がいなくなったことにより、利きがどうなるかを調べる必要がある。
+                        // 王手になることは保証されているから、
+                        // 玉周辺の退路(自駒のない場所)のうち、攻撃側の利きがないone以外の場所を探すが、それがないということだから..
+                        // fromの駒を消して玉周辺の利きを調べる必要がある。少し重いがこれを呼ぶか..
+                        // 馬の場合でも、one以外に玉の8近傍には利いていないので龍のときのような処理は不要。
+
+                        //cout << kingAttack(ksq) << bbOf(Them) << aakns
+                        //  << pos.AttacksAroundKingSlider(them, from, to) << pos.StepAttacksQueen(to);
+
+                        Bitboard new_slide = (occupiedBB() ^ setMaskBB(from)) | setMaskBB(to);
+
+                        if (!(kingAttack(ksq)
+                            & ~(bbOf(Them) | attacksAroundKingInAvoiding<~US>(from, new_slide) | rookAttackToEdge(to) | bishopAttackToEdge(to)
+                                ))) {
+                            // 貫通で考えておく
+                            // これで詰みが確定した
+                            PieceType pt = pieceToPieceType(piece(from));
+                            if (canPromote(US, from, to) && !(pt & PTPromote))
+                                return makePromoteMove<Capture>(pt, from, to, *this);
+                            else
+                                return makeCaptureMove(pt, from, to, *this);
+                        }
+                    }
+                }
+            }
+            // toへ移動させる指し手終わり。
+
+        }
+    }
+NEXT1:
+
+    // 以下、金、銀、桂、歩。ひとまとめにして判定できるが…これらのひとまとめにしたbitboardがないしな…。
+    // まあ、一応、やるだけやるか…。
+
+    {
+        Bitboard bb = check_cand_bb(US, PIECE_TYPE_CHECK_NON_SLIDER, ksq)
+            & ((goldsBB() | bbOf(Silver, Knight, Pawn)) & bbOf(US));
+        if (!bb)
+            goto DC_CHECK;
+    }
+
+    {
         // 金、成り金による移動
         Bitboard fromBB = goldsBB(US) & goldCheckTable(US, ksq);
         while (fromBB) {
@@ -1220,116 +2168,54 @@ silver_drop_end:
     }
 
     {
-        // 桂による移動
-        Bitboard fromBB = bbOf(Knight, US) & knightCheckTable(US, ksq);
-        if (fromBB) {
-            const Bitboard chkBB_promo = attacksFrom<Gold>(Them, ksq) & TRank123BB;
-            const Bitboard chkBB = attacksFrom<Knight>(Them, ksq);
+    // 桂による移動
+    Bitboard fromBB = bbOf(Knight, US) & knightCheckTable(US, ksq);
+    if (fromBB) {
+        const Bitboard chkBB_promo = attacksFrom<Gold>(Them, ksq) & TRank123BB;
+        const Bitboard chkBB = attacksFrom<Knight>(Them, ksq);
 
-            do {
-                const Square from = fromBB.firstOneFromSQ11();
-                Bitboard toBB = bbOf(US).notThisAnd(attacksFrom<Knight>(US, from));
-                Bitboard toBB_promo = toBB & chkBB_promo;
-                toBB &= chkBB;
-                if ((toBB_promo | toBB)) {
-                    xorBBs(Knight, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
-                    // to の位置の Bitboard は canKingEscape の中で更新する。
-                    while (toBB_promo) {
-                        const Square to = toBB_promo.firstOneFromSQ11();
-                        if (unDropCheckIsSupported(US, to)) {
-                            // 成り
-                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                && (isDiscoveredCheck<true>(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal<true>(from, to, kingSquare(US), pinned))
-                            {
-                                xorBBs(Knight, from, US);
-                                return makeCapturePromoteMove(Knight, from, to, *this);
-                            }
-                        }
-                    }
-
-                    while (toBB) {
-                        const Square to = toBB.firstOneFromSQ11();
-                        // 桂馬は紐が付いてなくて良いので、紐が付いているかは調べない。
-                        // 不成
-                        if (!canKingEscape(*this, US, to, allZeroBB())
+        do {
+            const Square from = fromBB.firstOneFromSQ11();
+            Bitboard toBB = bbOf(US).notThisAnd(attacksFrom<Knight>(US, from));
+            Bitboard toBB_promo = toBB & chkBB_promo;
+            toBB &= chkBB;
+            if ((toBB_promo | toBB)) {
+                xorBBs(Knight, from, US);
+                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
+                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+                // to の位置の Bitboard は canKingEscape の中で更新する。
+                while (toBB_promo) {
+                    const Square to = toBB_promo.firstOneFromSQ11();
+                    if (unDropCheckIsSupported(US, to)) {
+                        // 成り
+                        if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
                             && (isDiscoveredCheck<true>(from, to, ksq, dcBB_betweenIsUs)
                                 || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
                             && !isPinnedIllegal<true>(from, to, kingSquare(US), pinned))
                         {
                             xorBBs(Knight, from, US);
-                            return makeCaptureMove(Knight, from, to, *this);
+                            return makeCapturePromoteMove(Knight, from, to, *this);
                         }
                     }
-                    xorBBs(Knight, from, US);
                 }
-            } while (fromBB);
-        }
+
+                while (toBB) {
+                    const Square to = toBB.firstOneFromSQ11();
+                    // 桂馬は紐が付いてなくて良いので、紐が付いているかは調べない。
+                    // 不成
+                    if (!canKingEscape(*this, US, to, allZeroBB())
+                        && (isDiscoveredCheck<true>(from, to, ksq, dcBB_betweenIsUs)
+                            || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
+                        && !isPinnedIllegal<true>(from, to, kingSquare(US), pinned))
+                    {
+                        xorBBs(Knight, from, US);
+                        return makeCaptureMove(Knight, from, to, *this);
+                    }
+                }
+                xorBBs(Knight, from, US);
+            }
+        } while (fromBB);
     }
-
-    {
-        // 香車による移動
-        Bitboard fromBB = bbOf(Lance, US) & lanceCheckTable(US, ksq);
-        if (fromBB) {
-            // Txxx は先手、後手の情報を吸収した変数。数字は先手に合わせている。
-            const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
-            const Rank TRank2 = (US == Black ? Rank2 : Rank8);
-            const Bitboard chkBB_promo = attacksFrom<Gold>(Them, ksq) & TRank123BB;
-            // 玉の前方1マスのみ。
-            // 玉が 1 段目にいるときは、成のみで良いので省く。
-            const Bitboard chkBB = attacksFrom<Pawn>(Them, ksq) & inFrontMask<Them, TRank2>();
-
-            do {
-                const Square from = fromBB.firstOneFromSQ11();
-                Bitboard toBB = moveTarget & attacksFrom<Lance>(US, from);
-                Bitboard toBB_promo = toBB & chkBB_promo;
-
-                toBB &= chkBB;
-
-                if ((toBB_promo | toBB)) {
-                    xorBBs(Lance, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
-                    // to の位置の Bitboard は canKingEscape の中で更新する。
-
-                    while (toBB_promo) {
-                        const Square to = toBB_promo.firstOneFromSQ11();
-                        if (unDropCheckIsSupported(US, to)) {
-                            // 成り
-                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
-                            {
-                                xorBBs(Lance, from, US);
-                                return makeCapturePromoteMove(Lance, from, to, *this);
-                            }
-                        }
-                    }
-
-                    if (toBB) {
-                        assert(toBB.isOneBit());
-                        // 不成で王手出来るのは、一つの場所だけなので、ループにする必要が無い。
-                        const Square to = ksq + TDeltaS;
-                        if (unDropCheckIsSupported(US, to)) {
-                            // 不成
-                            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
-                            {
-                                xorBBs(Lance, from, US);
-                                return makeCaptureMove(Lance, from, to, *this);
-                            }
-                        }
-                    }
-                    xorBBs(Lance, from, US);
-                }
-            } while (fromBB);
-        }
     }
 
     {
@@ -1400,721 +2286,240 @@ silver_drop_end:
         }
     }
 
-    // 以下は、Aperyにはなかった処理
-    // やねうら王の実装を参考にした
-    // https://github.com/yaneurao/YaneuraOu/blob/013f924d58891b5830bb8f6fe27b78e414141aaa/source/mate/mate1ply_without_effect.cpp#L1105
+DC_CHECK:
+    Bitboard bb_move = ~bbOf(US);
 
-    // 離し角・飛車等で詰むかどうか。
-    // 離し角・離し飛車、移動飛車・龍での合い効かずで詰むかも知れん。
-    // Bonanzaにはないが、これを入れておかないと普通の1手詰め判定と判定される集合が違って気持ち悪い。
-
-    // 飛車持ちかつ、相手は歩だけ(歩は二歩で合い効かず)かつ
-    // 移動可能箇所が3箇所以内
-    // という判定条件で残り2箇所が利きがあり移動不可であることがわかれば…みたいな条件にしとくか。
-    // てか、これ利き真面目に考慮してはいかんのか？
-    // うーむ..
-
-    // 合い駒なしである可能性が高い
-
-    // 敵は歩以外を持っていないか。
-    // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
-
-    const Hand themHand = hand(Them);
-    if (themHand.numOf(HPawn) == themHand.value())
-    {
-        // 玉の8近傍の移動可能箇所の列挙
-        Bitboard bb_king_movable = ~bbOf(Them) & attacksFrom<King>(Them, ksq);
-
-        // 玉周辺の利きを列挙。(これ、せっかく求めたならできればあとで使いまわしたいが…)
-        // これ王手のかかっていない局面で呼び出すことを想定しているので貫通でなくてもいいか。
-        Bitboard aakns = AttacksAroundKingNonSlider<~Us>(pos); // これはあとで使いまわす
-        Bitboard aaks = AttacksAroundKingSlider<~Us>(pos);
-        Bitboard aak = aakns | aaks;
-
-        Bitboard escape_bb = bb_king_movable & ~aak; // 利きがない場所が退路の候補
-
-                                                     // 利きが正しく生成できているかのテスト
-                                                     //    sync_cout << aak << sync_endl;
-
-        int esc_count = escape_bb.pop_count();
-        if (esc_count >= 4)
-            goto NEXT1; // 残念ながら退路がありすぎて話にならんかった。詰む可能性低いので調べなくていいや。
-                        // 退路3個はまだ許せる…。としよう。
-
-                        // 退路がなかろうが、あろうが、玉8近傍の駒のない升に対して順番に探そう。
-                        // 退路が3以下である以上、そんなに空いてはないはずだ。
-        Bitboard bb2 = ~pos.pieces() & kingEffect(ksq);
-
-        //    bool esc_align = (esc_count == 1);
-        // 退路が1個、もしくは
-        // 退路が2個でそれらが直線上に並んでいるときはtoの場所を延長して良いと思う。
-        if (esc_count == 2)
-        {
-            // countが2なので2回のpop()は保証される。
-            bb = escape_bb;
-            from = bb.pop();
-            to = bb.pop();
-            //      esc_align = aligned(from, to, ksq);
-        }
-
-        while (bb2)
-        {
-            // 退路
-            Square one = bb2.pop();
-
-            // このあと
-            // 1. ksqのone側のもうひとつ先の升toにksqに利く駒が打てて
-            // 2. その升に敵の利きがなくて、
-            // 3. oneの升に歩が立たないなら
-            // これにて詰み
-
-            // 駒が打つ場所と間の升が空いている
-            // →　これは前提条件から自動的に満たす
-            // if (!pos.empty(one)) continue; // もう駄目
-
-            // toの地点が盤外
-            // このチェックが惜しいのなら最初玉の8近傍ではなく、toが盤外にならない8近傍を列挙すべきだが。
-            to = nextSquare(ksq, one);
-            if (to == SQ_NB) continue; // もう駄目
-
-            // toが自駒だとここに移動できないし..
-            if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) == Us) continue;
-
-            // oneが二歩で打てないことを確認しよう。
-            if (can_pawn_drop<~Us>(pos, one)) continue; // もう駄目
-
-            // toの地点にあるのが歩だと、このtoの地点とoneが同じ筋だと
-            // このtoの歩を取ってoneに打てるようになってしまう。
-            if (type_of(pos.piece_on(to)) == PAWN && file_of(to) == file_of(one) && hand_count(themHand, PAWN) >= 1) continue;
-
-            auto dr = directions_of(ksq, one);
-            PieceType pt;
-            bool canLanceAttack = false;
-            if (dr & DIRECTIONS_DIAG)
-            {
-                pt = BISHOP;
-
-                // 斜めなら角を持ってなきゃ
-                if (hand_count(ourHand, BISHOP) == 0)
-                    goto NEXT2;
-            }
-            else {
-                pt = ROOK;
-
-                // 十字なら飛車を持ってなきゃ
-                // 上からなら香でもいいのか。
-                canLanceAttack = (Us == BLACK ? dr == DIRECTIONS_D : dr == DIRECTIONS_U);
-                if (canLanceAttack && hand_count(ourHand, LANCE) >= 1)
-                {
-                    pt = LANCE;
-                }
-                else if (hand_count(ourHand, ROOK) == 0)
-                    goto NEXT2;
-            }
-
-            if (pos.piece_on(to)) goto NEXT2;
-            // このケースはtoの駒を取ればいけるかも知れん。盤上の駒ptを移動できないか調べろ
-
-            // oneに駒の移動合いができない
-            if (can_piece_capture(pos, them, one, pinned, pos.pieces())) goto NEXT2;
-
-            // toに打つ駒が取れない
-            if (can_piece_capture(pos, them, to, pinned, pos.pieces())) goto NEXT2;
-
-            // 退路が1個以下であればこれで詰みなのだが、もともと利きがあって塞がれていたほうの退路だとそうでもないから
-            // 最終的に次のような処理が必要なのだ…。
-
-            // 退路が2個以上ある場合は、これで詰むとは限らない。
-            // escape_bbが打った駒の利きによって遮断されているかを調べる。
-            // あ、しまった。toを打ったことによってescape_bbのどこかがまた状態が変わるのか…。
-            escape_bb = bb_king_movable & ~(aakns | AttacksSlider<Us>(pos, pos.pieces() | to));
-
-            if (dr & DIRECTIONS_DIAG) // pt == BISHOP
-            {
-                if (!(~bishopStepEffect(to) & escape_bb))
-                    return make_move_drop(pt, to, Us);
-            }
-            else // if (pt == ROOK || pt==LANCE)
-            {
-                // LANCEの場合もtoの地点からの横の利きでは玉の8近傍に到達しないので同列に扱って良い。
-                if (!(~rookStepEffect(to) & escape_bb))
-                    return make_move_drop(pt, to, Us);
-            }
-
-            //    STEP2_DROP:;
-            // toに打ったからsliderが遮断されたんでねーの？1升だけ延長する。
-            if (esc_count <= 2)
-            {
-                Square nextTo = nextSquare(one, to);
-                if (nextTo == SQ_NB) goto NEXT2;
-                if (pos.piece_on(nextTo)) goto NEXT2;
-                if (can_pawn_drop<~Us>(pos, to)) goto NEXT2;
-                if (can_piece_capture(pos, them, nextTo, pinned, pos.pieces())) goto NEXT2;
-
-                escape_bb = bb_king_movable & ~(aakns | AttacksSlider<Us>(pos, pos.pieces() | nextTo));
-
-                if (dr & DIRECTIONS_DIAG) // pt == BISHOP
-                {
-                    if (!(~bishopStepEffect(nextTo) & escape_bb))
-                        return make_move_drop(pt, nextTo, Us);
-                }
-                else // if (pt == ROOK || pt==LANCE)
-                {
-                    if (!(~rookStepEffect(nextTo) & escape_bb))
-                        return make_move_drop(pt, nextTo, Us);
-                }
-            }
-
-        NEXT2:;
-            // この場合、toの地点に遠方駒を移動させてcapれば、高い確率で詰みなのだが。
-
-            if (!(dr & DIRECTIONS_DIAG)) // (pt == ROOK || pt == LANCE)
-            {
-                // どこかtoの近くに飛車は落ちてないかね..
-                // 飛車を移動させた結果、oneに敵の利きが生じるかも知らんけど。
-                bool is_rook = rookStepEffect(to) & pos.pieces(Us, ROOK_DRAGON);
-                bool is_dragon = kingEffect(to) & pos.pieces(Us, DRAGON);
-                bool is_lance = (canLanceAttack) ? (lanceStepEffect(them, to) & pos.pieces(Us, LANCE)) : false;
-
-                if (is_rook || is_dragon || is_lance)
-                {
-                    // 落ちてるっぽい。移動可能かどうか調べる。
-                    bb = ZERO_BB;
-                    if (is_rook)
-                        bb = rookEffect(to, pos.pieces()) & pos.pieces(Us, ROOK_DRAGON);
-                    if (is_dragon)
-                        bb |= kingEffect(to) & pos.pieces(Us, DRAGON);
-                    if (is_lance)
-                        bb |= lanceEffect(them, to, pos.pieces()) & pos.pieces(Us, LANCE);
-
-                    while (bb)
-                    {
-                        from = bb.pop();
-                        // fromからtoに移動させてこれで詰むかどうかテスト
-
-                        // この指し手が合法でないといかん。
-                        if (pos.discovered(from, to, our_king, our_pinned)) continue;
-
-                        Bitboard slide = pos.pieces() ^ from;
-
-                        // toに移動させた駒が取れない
-                        if (can_piece_capture(pos, them, to, pinned, slide)) continue;
-                        // oneも移動合い等ができない。
-                        // toへの移動でさらにpinされることはあっても、pinが解除されることはない。
-                        // (将棋にはQUEENがないので)
-                        // ゆえに古いpinで考えておけばいいや。
-                        if (can_piece_capture(pos, them, one, to, pinned, slide)) continue;
-
-                        if (type_of(pos.piece_on(from)) == LANCE)
-                        {
-                            bb_attacks = rookStepEffect(to);
-                            // 貫通で考えておこう。裏の退路もいけないので。
-                            // 1升以上離れているので王手にするには不成りでいくしかなく、これは飛車利きに等しい
-                        }
-                        else if (canPromote(Us, from, to) || type_of(pos.piece_on(from)) == DRAGON)
-                        {
-                            bb_attacks = queenStepEffect(to);
-                        }
-                        else
-                            bb_attacks = rookStepEffect(to);
-                        // 貫通で考えておこう。裏の退路もいけないので。
-
-                        Bitboard new_slide = (pos.pieces() ^ from) | to;
-
-                        // aakns、小駒だから関係ないと思いきや、馬を動かすと関係あるんだな
-                        // aakns使わない実装にしよう..
-
-                        if (!(kingEffect(ksq)
-                            & ~(pos.pieces(them) | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide) | bb_attacks)))
-                        {
-                            // これで詰みが確定した
-                            PieceType pt = type_of(pos.piece_on(from));
-                            // 香は不成りでの王手
-                            if (pt != LANCE && canPromote(Us, from, to) && !(pt & PIECE_PROMOTE))
-                                return make_move_promote(from, to, Us, pt);
-                            else
-                                return make_move(from, to, Us, pt);
-                        }
-                    }
-                }
-            }
-            else {
-                // 同じく角
-
-                bool is_bishop = bishopStepEffect(to) & pos.pieces(Us, BISHOP_HORSE);
-                bool is_horse = kingEffect(to) & pos.pieces(Us, HORSE);
-                if (is_bishop || is_horse)
-                {
-                    // 落ちてるっぽい。移動可能かどうか調べる。
-                    bb = ZERO_BB;
-                    if (is_bishop)
-                        bb = bishopEffect(to, pos.pieces()) & pos.pieces(Us, BISHOP_HORSE);
-                    if (is_horse)
-                        bb |= kingEffect(to) & pos.pieces(Us, HORSE);
-
-                    while (bb)
-                    {
-                        from = bb.pop();
-                        // fromからtoに移動させてこれで詰むかどうかテスト
-
-                        // この指し手が合法でないといかん。
-                        if (pos.discovered(from, to, our_king, our_pinned)) continue;
-
-                        Bitboard slide = pos.pieces() ^ from;
-                        // oneに駒の移動合いができない
-                        // このときtoの駒はcapられている可能性があるのでこの駒による移動合いは除外する。
-                        if (can_piece_capture(pos, them, one, to, pinned, slide)) continue;
-
-                        // toに打つ駒が取れない
-                        if (can_piece_capture(pos, them, to, pinned, slide)) continue;
-
-                        // fromから飛車がいなくなったことにより、利きがどうなるかを調べる必要がある。
-                        // 王手になることは保証されているから、
-                        // 玉周辺の退路(自駒のない場所)のうち、攻撃側の利きがないone以外の場所を探すが、それがないということだから..
-                        // fromの駒を消して玉周辺の利きを調べる必要がある。少し重いがこれを呼ぶか..
-                        // 馬の場合でも、one以外に玉の8近傍には利いていないので龍のときのような処理は不要。
-
-                        //cout << kingEffect(ksq) << pos.pieces(them) << aakns
-                        //  << pos.AttacksAroundKingSlider(them, from, to) << pos.StepAttacksQueen(to);
-
-                        Bitboard new_slide = (pos.pieces() ^ from) | to;
-
-                        if (!(kingEffect(ksq)
-                            & ~(pos.pieces(them) | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide) | queenStepEffect(to)
-                                )))
-                            // 貫通で考えておく
-                        {
-                            // これで詰みが確定した
-                            Piece pc = pos.piece_on(from);
-                            if (canPromote(Us, from, to) && !(pc & PIECE_PROMOTE))
-                                return make_move_promote(from, to, pc);
-                            else
-                                return make_move(from, to, pc);
-                        }
-                    }
-                }
-            }
-            // toへ移動させる指し手終わり。
-
-        }
-    }
-NEXT1:;
-
-    // 以下、金、銀、桂、歩。ひとまとめにして判定できるが…これらのひとまとめにしたbitboardがないしな…。
-    // まあ、一応、やるだけやるか…。
-
-    bb = check_cand_bb(Us, PIECE_TYPE_CHECK_NON_SLIDER, ksq)
-        & (pos.pieces(Us, GOLDS, SILVER, KNIGHT, PAWN));
-    if (!bb)
-        goto DC_CHECK;
-
-    // 金
-    bb = check_cand_bb(Us, PIECE_TYPE_CHECK_GOLD, ksq) & pos.pieces(Us, GOLDS);
-    while (bb)
-    {
-        from = bb.pop();
-        bb_check = goldEffect(Us, from) & bb_move & goldEffect(them, ksq);
-        // 金は成りがないのでこれで100%王手。
-
-        if (!bb_check) { continue; }
-
-        Bitboard slide = pos.pieces() ^ from;
-        Bitboard new_pin = pos.pinned_pieces(them, from);
-
-        while (bb_check)
-        {
-            to = bb_check.pop();
-            if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
-            if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-            bb_attacks = goldEffect(Us, to);
-            if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-            if ((dcCandidates & from) && !aligned(from, to, ksq))
-                ;
-            else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-            return make_move(from, to, pos.piece_on(from) /* 金相当の駒が何かは不明。 */);
-        }
-    }
-
-
-    // 銀は成りと不成が選択できるので少し嫌らしい
-    bb = check_cand_bb(Us, PIECE_TYPE_CHECK_SILVER, ksq) & pos.pieces(Us, SILVER);
-    while (bb)
-    {
-        from = bb.pop();
-        bb_check = silverEffect(Us, from) & bb_move & kingEffect(ksq);
-        // 敵玉8近傍を移動先の候補とする。金+銀の王手なので…。
-        if (!bb_check) { continue; }
-
-        Bitboard slide = pos.pieces() ^ from;
-        Bitboard new_pin = pos.pinned_pieces(them, from);
-
-        while (bb_check)
-        {
-            to = bb_check.pop();
-            bb_attacks = silverEffect(Us, to);
-            // これで王手になってないと駄目
-            if (!(bb_attacks & ksq)) { goto PRO_SILVER; }
-            if (!(pos.attackers_to(Us, to, slide) ^ from)) { goto PRO_SILVER; }
-            if (pos.discovered(from, to, our_king, our_pinned)) { goto PRO_SILVER; }
-            if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { goto PRO_SILVER; }
-            if ((dcCandidates & from) && !aligned(from, to, ksq))
-                ;
-            else
-                if (can_piece_capture(pos, them, to, new_pin, slide)) { goto PRO_SILVER; }
-            // fromから移動したことにより、この背後にあった駒によって新たなpinが発生している可能性がある。
-            // fromとtoと玉が直線上にない場合はpinの更新が必要。
-            // これは面倒なのですべての場合で事前に新しいpinを求めることにする。
-
-            return make_move(from, to, Us, SILVER);
-
-        PRO_SILVER:;
-            // 銀成りでの王手
-
-            // 敵陣へ/から の移動であれば成りを選択できるので..
-            if (!(canPromote(Us, from, to)))
-                continue;
-
-            bb_attacks = goldEffect(Us, to);
-            if (!(bb_attacks & ksq)) { continue; }
-            if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
-            if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-            if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-            if ((dcCandidates & from) && !aligned(from, to, ksq))
-                ;
-            else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-            return make_move_promote(from, to, Us, SILVER);
-        }
-    }
-
-    // 桂も成りと不成が選択できるので少し嫌らしい
-    bb = check_cand_bb(Us, PIECE_TYPE_CHECK_KNIGHT, ksq) & pos.pieces(Us, KNIGHT);
-    while (bb)
-    {
-        from = bb.pop();
-        bb_check = knightEffect(Us, from) & bb_move;
-        if (!bb_check) { continue; }
-
-        Bitboard slide = pos.pieces() ^ from;
-        Bitboard new_pin = pos.pinned_pieces(them, from);
-
-        while (bb_check)
-        {
-            to = bb_check.pop();
-            bb_attacks = knightEffect(Us, to);
-            // 敵陣1,2段目からのStepAttackはZERO_BB相当なのでここへの不成りが生成されることはない
-            if (!(bb_attacks & ksq)) { goto PRO_KNIGHT; }
-            // 桂馬の特性上、成りと不成の二通りの王手の両方が同時に可能になることはないので以下ではcontinueで良い。
-            //if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
-            // →　この駒は取られないならそれで良い。ここへの味方の利きは不要。
-
-            if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-            if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-            // 桂馬はpinされているなら移動で必ず両王手になっているはずである。
-            if (dcCandidates & from)
-                ;
-            else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-            return make_move(from, to, Us, KNIGHT);
-
-        PRO_KNIGHT:;
-            // 桂成りでの王手
-
-            if (!(canPromote(Us, from, to))) { continue; }
-            bb_attacks = goldEffect(Us, to);
-            if (!(bb_attacks & ksq)) { continue; }
-            if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
-            if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-            if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-            // 桂馬はpinされているなら移動で必ず両王手になっているはずである。
-            if (dcCandidates & from)
-                ;
-            else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-            return make_move_promote(from, to, Us, KNIGHT);
-        }
-    }
-
-    // 歩の移動による詰み
-    if (check_cand_bb(Us, PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, ksq) & pos.pieces(Us, PAWN))
-    {
-        // 先手の歩による敵玉の王手だとすると、敵玉の一升下(SQ_D)が歩の移動先。
-        to = ksq + (Us == BLACK ? SQ_D : SQ_U);
-        if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { goto SKIP_PAWN; }
-        from = to + (Us == BLACK ? SQ_D : SQ_U);
-
-        // 敵陣であれば成りによる詰みチェックで引っかかるだろう。
-        if (canPromote(Us, to)) { goto SKIP_PAWN; }
-
-        Bitboard slide = pos.pieces() ^ from;
-        if (!(pos.attackers_to(Us, to, slide) ^ from)) { goto SKIP_PAWN; }
-        if (pos.discovered(from, to, our_king, our_pinned)) { goto SKIP_PAWN; }
-        if (can_king_escape(pos, them, from, to, ZERO_BB, slide)) { goto SKIP_PAWN; }
-        // 移動王手となるpinされている歩などはないので両王手は考慮しなくて良い。
-        if (can_piece_capture(pos, them, to, pinned, slide)) { goto SKIP_PAWN; }
-        return make_move(from, to, Us, PAWN);
-    }
-SKIP_PAWN:;
-
-    // 歩の成りによる詰み
-    bb = check_cand_bb(Us, PIECE_TYPE_CHECK_PAWN_WITH_PRO, ksq) & pos.pieces(Us, PAWN);
-    while (bb)
-    {
-        from = bb.pop();
-        to = from + (Us == BLACK ? SQ_U : SQ_D);
-        if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { continue; }
-        bb_attacks = goldEffect(Us, to);
-
-        if (!(bb_attacks & ksq)) { continue; }
-
-        Bitboard slide = pos.pieces() ^ from;
-        if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
-        if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-        if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-        if (can_piece_capture(pos, them, to, pinned, slide)) { continue; }
-        return make_move_promote(from, to, Us, PAWN);
-    }
-
-DC_CHECK:;
     // 両王手による詰み
-    if (dcCandidates)
-    {
+    if (dcBB_betweenIsUs) {
         // せっかくdcCandidatesが使えるのだから両王手も検出しよう。
         // 開き王手になる候補の駒があること自体レアなのでここは全駒列挙でいいだろう。
 
         // 敵陣
-        Bitboard enemyBB = enemy_field(Us);
+        Bitboard enemyBB = enemyField(US);
 
-        bb = dcCandidates;
+        Bitboard bb = dcBB_betweenIsUs;
 
-        while (bb)
-        {
-            from = bb.pop();
-            PieceType pt = type_of(pos.piece_on(from));
-            switch (pt)
-            {
+        while (bb) {
+            Square from = bb.firstOneFromSQ11();
+            PieceType pt = pieceToPieceType(piece(from));
+            switch (pt) {
                 // 背後にいる駒は角が普通で、pinされているのは歩で成りとか、飛車で両王手とか、そんなのが
                 // よくあるパターンではないかいな。
 
-            case PAWN:
-            {
+            case Pawn: {
                 // 同じ筋だとpin方向と違う方向の移動にならない。
-                if (file_of(from) == file_of(ksq)) { continue; }
+                if (makeFile(from) == makeFile(ksq)) { continue; }
 
                 // 移動性の保証
-                to = from + (Us == BLACK ? SQ_U : SQ_D);
-                if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { continue; }
+                Square to = from + (US == Black ? DeltaN : DeltaS);
+                if (piece(to) != Empty && pieceToColor(piece(to)) != ~US) { continue; }
 
                 // toの地点で成れないと駄目
-                if (!canPromote(Us, to)) continue;
+                if (!canPromote(US, to)) continue;
 
                 // toの地点に敵の利きがあるか、もしくは自分の利きがないなら、
                 // この変化で1手詰めにならないことはすでに調べているので除外すべきだが、除外するコストも馬鹿にならないので
                 // このまま調べてしまう。
 
                 // これが王手になってないと話にならない。
-                bb_attacks = goldEffect(Us, to);
-                if (!(bb_attacks & ksq)) continue;
+                Bitboard bb_attacks = goldAttack(US, to);
+                if (!(bb_attacks & setMaskBB(ksq))) continue;
 
                 // 移動が合法手であること。
-                if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
+                if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
 
                 // 駒がfromからtoに移動したときに退路があるか。ただしbb_attackはいけないものとする。
-                Bitboard slide = pos.pieces() ^ from;
-                if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
+                Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                if (can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) { continue; }
 
                 // すべての条件が成立したのでこれにて詰み
-                return make_move_promote(from, to, Us, PAWN);
+                return makePromoteMove<Capture>(Pawn, from, to, *this);
             }
-            ASSERT_LV3(false); // こっちくんな
-            // FALLTHROUGH
-            case LANCE:
+            case Lance:
                 continue; // 香による両王手はない。
 
-            case KNIGHT:
-                if (!(check_around_bb(Us, KNIGHT, ksq) & from)) continue;
+            case Knight: {
+                if (!(check_around_bb(US, Knight, ksq) & setMaskBB(from))) continue;
 
-                bb = knightEffect(Us, from) & knightEffect(them, ksq) & bb_move;
-                while (bb)
-                {
-                    to = bb.pop();
-                    if (aligned(from, to, ksq)) { continue; }
-                    bb_attacks = knightEffect(Us, to);
-                    if (bb_attacks & ksq) { continue; }
-                    if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-                    Bitboard slide = pos.pieces() ^ from;
-                    if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-                    return make_move(from, to, Us, KNIGHT);
+                bb = knightAttack(US, from) & knightAttack(Them, ksq) & bb_move;
+                while (bb) {
+                    Square to = bb.firstOneFromSQ11();
+                    if (isAligned<true>(from, to, ksq)) { continue; }
+                    Bitboard bb_attacks = knightAttack(US, to);
+                    if (bb_attacks & setMaskBB(ksq)) { continue; }
+                    if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
+                    Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                    if (can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) { continue; }
+                    return makeCaptureMove(Knight, from, to, *this);
                 }
 
-                bb = knightEffect(Us, from) & goldEffect(them, ksq);
-                while (bb)
-                {
-                    to = bb.pop();
-                    if (aligned(from, to, ksq)) { continue; }
-                    if (!(canPromote(Us, from, to))) { continue; }
-                    bb_attacks = goldEffect(Us, to);
-                    if (bb_attacks & ksq) { continue; }
-                    if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-                    Bitboard slide = pos.pieces() ^ from;
-                    if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-                    return make_move_promote(from, to, Us, KNIGHT);
+                bb = knightAttack(US, from) & goldAttack(Them, ksq);
+                while (bb) {
+                    Square to = bb.firstOneFromSQ11();
+                    if (isAligned<true>(from, to, ksq)) { continue; }
+                    if (!(canPromote(US, from, to))) { continue; }
+                    Bitboard bb_attacks = goldAttack(US, to);
+                    if (bb_attacks & setMaskBB(ksq)) { continue; }
+                    if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
+                    Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                    if (can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) { continue; }
+                    return makePromoteMove<Capture>(Knight, from, to, *this);
                 }
 
                 continue; // 気をつけろ！下に落ちたら死ぬぞ！
+            }
 
-            case SILVER:
+            case Silver: {
                 // 王手になる見込みがない
-                if (!(check_around_bb(Us, SILVER, ksq) & from)) continue;
+                if (!(check_around_bb(US, Silver, ksq) & setMaskBB(from))) continue;
                 // これで王手にはなる。成りも選択したいのでここコピペで書くか..それともlambdaで書くか..コピペでいいか。
 
-                bb = silverEffect(Us, from) & silverEffect(them, ksq) & bb_move;;
-                while (bb)
-                {
-                    to = bb.pop();
-                    if (aligned(from, to, ksq)) { continue; }
-                    bb_attacks = silverEffect(Us, to);
-                    if (bb_attacks & ksq) { continue; }
-                    if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-                    Bitboard slide = pos.pieces() ^ from;
-                    if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-                    return make_move(from, to, Us, SILVER);
+                bb = silverAttack(US, from) & silverAttack(Them, ksq) & bb_move;;
+                while (bb) {
+                    Square to = bb.firstOneFromSQ11();
+                    if (isAligned<true>(from, to, ksq)) { continue; }
+                    Bitboard bb_attacks = silverAttack(US, to);
+                    if (bb_attacks & setMaskBB(ksq)) { continue; }
+                    if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
+                    Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                    if (can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) { continue; }
+                    return makeCaptureMove(Silver, from, to, *this);
                 }
 
-                bb = silverEffect(Us, from) & goldEffect(them, ksq) & bb_move;;
-                while (bb)
-                {
-                    to = bb.pop();
-                    if (aligned(from, to, ksq)) { continue; }
-                    if (!(canPromote(Us, from, to))) { continue; }
-                    bb_attacks = goldEffect(Us, to);
-                    if (bb_attacks & ksq) { continue; }
-                    if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-                    Bitboard slide = pos.pieces() ^ from;
-                    if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-                    return make_move_promote(from, to, Us, SILVER);
+                bb = silverAttack(US, from) & goldAttack(Them, ksq) & bb_move;;
+                while (bb) {
+                    Square to = bb.firstOneFromSQ11();
+                    if (isAligned<true>(from, to, ksq)) { continue; }
+                    if (!(canPromote(US, from, to))) { continue; }
+                    Bitboard bb_attacks = goldAttack(US, to);
+                    if (bb_attacks & setMaskBB(ksq)) { continue; }
+                    if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
+                    Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                    if (can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) { continue; }
+                    return makePromoteMove<Capture>(Silver, from, to, *this);
                 }
                 continue;
+            }
 
-            case PRO_PAWN:
-            case PRO_LANCE:
-            case PRO_KNIGHT:
-            case PRO_SILVER:
-                pt = GOLD; // 以下の処理でややこしいのでGOLD扱いにしてしまう。
+            case ProPawn:
+            case ProLance:
+            case ProKnight:
+            case ProSilver:
+                pt = Gold; // 以下の処理でややこしいのでGold扱いにしてしまう。
                 // FALLTHROUGH
-            case GOLD:
+            case Gold:
                 // 王手になる見込みがない
-                if (!(check_around_bb(Us, GOLD, ksq) & from)) continue;
+                if (!(check_around_bb(US, Gold, ksq) & setMaskBB(from))) continue;
 
                 // 王手生成ルーチンみたいな処理が必要なんだな..
-                bb = goldEffect(Us, from) & goldEffect(them, ksq);
+                bb = goldAttack(US, from) & goldAttack(Them, ksq);
                 // この移動先であれば王手になる。
                 break;
 
-            case BISHOP:
+            case Bishop:
 
-                bb = bishopEffect(ksq, pos.pieces()) |
-                    (kingEffect(ksq) & (canPromote(Us, from) ? ALL_BB : enemyBB));
+                bb = bishopAttack(ksq, occupiedBB()) |
+                    (kingAttack(ksq) & (canPromote(US, from) ? allOneBB() : enemyBB));
                 // 敵陣8近傍、王からの角の利き、fromが敵陣であれば、敵陣にかぎらず玉8近傍も。
                 // ここが角が移動してくれば王手になる升
                 // これと角の利きとの交差をとって、そこを移動の候補とする。
-                bb &= bishopEffect(from, pos.pieces());
+                bb &= bishopAttack(from, occupiedBB());
 
-                //        bb = pos.AttackBishop(from, pos.pieces()) & around24_bb(ksq);
-
-                break;
-
-            case HORSE:
-                bb = horseEffect(from, pos.pieces()) & horseEffect(ksq, pos.pieces());
-
-                //        bb = pos.AttackHorse(from, pos.pieces()) & around24_bb(ksq);
+                //        bb = pos.AttackBishop(from, occupiedBB()) & around24_bb(ksq);
 
                 break;
 
-            case ROOK:
+            case Horse:
+                bb = horseAttack(from, occupiedBB()) & horseAttack(ksq, occupiedBB());
+
+                //        bb = pos.AttackHorse(from, occupiedBB()) & around24_bb(ksq);
+
+                break;
+
+            case Rook:
                 // 角のときと同様
-                bb = rookEffect(ksq, pos.pieces()) |
-                    (kingEffect(ksq) & (canPromote(Us, from) ? ALL_BB : enemyBB));
-                bb &= rookEffect(from, pos.pieces());
+                bb = rookAttack(ksq, occupiedBB()) |
+                    (kingAttack(ksq) & (canPromote(US, from) ? allOneBB() : enemyBB));
+                bb &= rookAttack(from, occupiedBB());
 
                 // いやー。龍がpinされているということは背後にいるのはたぶん角であって、
                 // 玉の24近傍への移動で高い確率で詰むような..
 
-                //        bb = pos.AttackRook(from, pos.pieces()) & around24_bb(ksq);
+                //        bb = pos.AttackRook(from, occupiedBB()) & around24_bb(ksq);
                 // ここ、両王手専用につき、合駒見てないのよね。だから、この条件をここに入れるわけにはいかんのよ…。
 
                 break;
 
-            case DRAGON:
+            case Dragon:
 
-                bb = dragonEffect(from, pos.pieces()) & dragonEffect(ksq, pos.pieces());
+                bb = dragonAttack(from, occupiedBB()) & dragonAttack(ksq, occupiedBB());
 
-                //        bb = pos.AttackDragon(from, pos.pieces()) & around24_bb(ksq);
+                //        bb = pos.AttackDragon(from, occupiedBB()) & around24_bb(ksq);
 
                 break;
 
             default:
-                ASSERT_LV3(pt == KING);
+                assert(pt == King);
                 continue;
             }
 
             bb &= bb_move;
 
-            bool is_enemy_from = canPromote(Us, from);
+            bool is_enemy_from = canPromote(US, from);
 
             // 候補はほとんどないはずだが。
-            while (bb)
-            {
-                to = bb.pop();
-                bool promo = is_enemy_from || canPromote(Us, to);
+            while (bb) {
+                Square to = bb.firstOneFromSQ11();
+                bool promo = is_enemy_from || canPromote(US, to);
 
                 // これ、開き王手になってないと駄目
-                if (aligned(from, to, ksq)) { continue; }
+                if (isAligned<true>(from, to, ksq)) { continue; }
 
-                if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
+                if (isPinnedIllegal(from, to, kingSquare(US), pinned)) { continue; }
 
                 // この地点でのこの駒の利きは..
-                //bb_attacks = pos.attacks_from(make_piece(Us, pt), to, pos.pieces() ^ ksq); // ksqが除去されて貫通である必要がある。
+                //bb_attacks = pos.attacks_from(make_piece(Us, pt), to, occupiedBB() ^ ksq); // ksqが除去されて貫通である必要がある。
                 // この処理気持ち悪いか..王手できることは確定しているのだから駒種別にやってしまうべきか。
 
-                Bitboard slide = pos.pieces() ^ from;
-                switch (pt)
-                {
-                case SILVER:
-                    if (!promo) goto DC_SILVER_NO_PRO;
-                    bb_attacks = goldEffect(Us, to); break;
-                case GOLD: bb_attacks = goldEffect(Us, to); break;
-                case BISHOP:
-                    bb_attacks = bishopStepEffect(to);
+                Bitboard slide = occupiedBB() ^ setMaskBB(from);
+                // 攻撃範囲計算用
+                Bitboard bb_attacks;
+                switch (pt) {
+                case Silver:
+                    if (!promo) goto DC_Silver_NO_PRO;
+                    bb_attacks = goldAttack(US, to); break;
+                case Gold: bb_attacks = goldAttack(US, to); break;
+                case Bishop:
+                    bb_attacks = bishopAttackToEdge(to);
                     if (promo)
-                        bb_attacks |= kingEffect(to);
+                        bb_attacks |= kingAttack(to);
                     break;
-                case HORSE: bb_attacks = bishopStepEffect(to) | kingEffect(to); break;
-                case ROOK:
-                    bb_attacks = rookStepEffect(to);
+                case Horse: bb_attacks = bishopAttackToEdge(to) | kingAttack(to); break;
+                case Rook:
+                    bb_attacks = rookAttackToEdge(to);
                     if (promo)
-                        bb_attacks |= kingEffect(to);
+                        bb_attacks |= kingAttack(to);
                     break;
-                case DRAGON: bb_attacks = rookStepEffect(to) | kingEffect(to); break;
+                case Dragon: bb_attacks = rookAttackToEdge(to) | kingAttack(to); break;
                 default:
-                    ASSERT_LV3(false);
-                    bb_attacks = ZERO_BB;
+                    assert(false);
+                    bb_attacks = allZeroBB();
                 }
 
-                if (!can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide))
-                {
-                    if (promo && !(pt & PIECE_PROMOTE) && pt != GOLD)
-                        return make_move_promote(from, to, Us, pt);
-                    return make_move(from, to, Us, pt);
+                if (!can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) {
+                    if (promo && !(pt & PTPromote) && pt != Gold)
+                        return makePromoteMove<Capture>(pt, from, to, *this);
+                    return makeCaptureMove(pt, from, to, *this);
                 }
 
-            DC_SILVER_NO_PRO:
-                if (pt == SILVER)
-                {
+            DC_Silver_NO_PRO:
+                if (pt == Silver) {
                     // 銀のときだけ銀成り/不成りの判定が必要だわさ..
                     // 上では成りを判定済なので不成りでの王手を判定
 
-                    bb_attacks = silverEffect(Us, to);
-                    if (!can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide))
-                    {
-                        return make_move(from, to, Us, SILVER);
+                    bb_attacks = silverAttack(US, to);
+                    if (!can_king_escape_cangoto(*this, Them, from, to, bb_attacks, slide)) {
+                        return makeCaptureMove(Silver, from, to, *this);
                     }
                 }
             }
@@ -2127,28 +2532,25 @@ DC_CHECK:;
     // 歩以外を持っていないか。
     // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
 
-    if (dcCandidates && hand_count(themHand, PAWN) == (int)themHand)
-    {
+    if (dcBB_betweenIsUs && themHand.numOf(HPawn) == themHand.value()) {
         // 玉の8近傍にある開き王手可能駒について
-        //    bb = dcCandidates & kingEffect(ksq);
+        //    bb = dcCandidates & kingAttack(ksq);
         // 24近傍まで拡張していいだろう。
 
-        bb = dcCandidates & around24_bb(ksq);
+        Bitboard bb = dcBB_betweenIsUs & neighbor5x5Table(ksq);
 
-        while (bb)
-        {
-            from = bb.pop();
+        while (bb) {
+            Square from = bb.firstOneFromSQ11();
 
-            // if (can_piece_capture(pos, them, from, pinned, pos.pieces()))
+            // if (can_piece_capture(pos, them, from, pinned, occupiedBB()))
             //  continue;
             // この駒が取られるというなら、その取られる駒のいる升への移動ぐらい調べれば良さそうだが。
             // 遠方からの利きなら、その利きを遮断できるならその方向に移動させるだとか、いろいろありそうだが…。
             // まあいいか…。判定が難しいしな。
 
-            Bitboard atk = pos.attackers_to(them, from) & ~Bitboard(ksq);
-            if (atk)
-            {
-                if (atk.pop_count() >= 2)
+            Bitboard atk = attackersTo(Them, from) & ~setMaskBB(ksq);
+            if (atk) {
+                if (atk.popCount() >= 2)
                     continue; // 2つ以上利きがあるなら消せないわ
 
                               // 1つしかないので、その場所への移動を中心に考えよう。そこは敵駒なのでbb_moveを見るまでもなく
@@ -2156,167 +2558,165 @@ DC_CHECK:;
             }
             else {
                 // 24近傍(ただし、馬・龍は16近傍)
-                atk = around24_bb(ksq) & bb_move; // 別にどこでも良いものとする
+                atk = neighbor5x5Table(ksq) & bb_move; // 別にどこでも良いものとする
             }
 
-            PieceType pt = type_of(pos.piece_on(from));
-            switch ((int)pt) // intにcastしとかないとhandleしてない値に対して警告がでる。
-            {
-            case PAWN:
-            case LANCE:
+            PieceType pt = pieceToPieceType(piece(from));
+            // 攻撃範囲計算用
+            Bitboard bb_attacks;
+            switch ((int)pt) { // intにcastしとかないとhandleしてない値に対して警告がでる。
+            case Pawn:
+            case Lance:
                 // 歩が玉の24近傍から成って開き王手で詰むパターンはめったに出てこないのでこれはいいや
                 continue;
 
-            case KNIGHT:
+            case Knight:
                 // 成って詰みはあるか..それだけ見るか..
-                if (!((Us == BLACK ? RANK3_5BB : RANK5_7BB) & from))
+                if (!((US == Black ? RANK3_5BB : RANK5_7BB) & setMaskBB(from)))
                     continue;
 
-                bb_attacks = knightEffect(Us, from) & ~goldEffect(them, ksq);
+                bb_attacks = knightAttack(US, from) & ~goldAttack(Them, ksq);
                 break;
 
-            case SILVER:
-                bb_attacks = silverEffect(Us, from);
+            case Silver:
+                bb_attacks = silverAttack(US, from);
                 // 王手にならない升のみ列挙したいが銀は成り/不成りが選択できるので、まあこれはいいや..
                 break;
 
-            case PRO_PAWN:
-            case PRO_LANCE:
-            case PRO_KNIGHT:
-            case PRO_SILVER:
-            case GOLD:
+            case ProPawn:
+            case ProLance:
+            case ProKnight:
+            case ProSilver:
+            case Gold:
 
-                bb_attacks = goldEffect(Us, from) & ~goldEffect(them, ksq);
-                pt = GOLD;
+                bb_attacks = goldAttack(US, from) & ~goldAttack(Them, ksq);
+                pt = Gold;
                 break;
 
-            case BISHOP:
-                bb_attacks = bishopEffect(from, pos.pieces());
+            case Bishop:
+                bb_attacks = bishopAttack(from, occupiedBB());
                 break;
 
-            case HORSE:
-                bb_attacks = horseEffect(from, pos.pieces()) & ~kingEffect(ksq);
+            case Horse:
+                bb_attacks = horseAttack(from, occupiedBB()) & ~kingAttack(ksq);
                 // 16近傍に(王手になってしまうので)
                 break;
 
-            case ROOK:
-                bb_attacks = rookEffect(from, pos.pieces());
+            case Rook:
+                bb_attacks = rookAttack(from, occupiedBB());
                 break;
 
-            case DRAGON:
-                bb_attacks = dragonEffect(from, pos.pieces()) & ~kingEffect(ksq);
+            case Dragon:
+                bb_attacks = dragonAttack(from, occupiedBB()) & ~kingAttack(ksq);
                 break;
 
                 // 玉が敵玉24近傍にいたということを意味している。
                 // この移動による詰みはめったに出てこないから無視していいや。
-            case KING:
+            case King:
                 continue;
             }
 
             // この駒を玉の16近傍へ移動させる指し手を考える。
             // この処理ループの一回目だけでいいのだが…しかしループはたぶん1回で終了であることがほとんどだから
             // これはこれでいいか..
-            // Bitboard target = around24_bb(ksq) & ~kingEffect(ksq);
+            // Bitboard target = around24_bb(ksq) & ~kingAttack(ksq);
 
             // 移動先
             Bitboard bb2 = bb_attacks & atk;
 
-            Bitboard slide = pos.pieces() ^ from;
-            while (bb2)
-            {
-                to = bb2.pop();
+            Bitboard slide = occupiedBB() ^ setMaskBB(from);
+            while (bb2) {
+                Square to = bb2.firstOneFromSQ11();
 
                 // 開き王手になっていない。
-                if (aligned(from, to, ksq))
+                if (isAligned<true>(from, to, ksq))
                     continue;
 
                 // 合法手か？
-                if (pos.discovered(from, to, our_king, our_pinned))
+                if (isPinnedIllegal(from, to, kingSquare(US), pinned))
                     continue;
 
                 // fromに歩が打てない
-                if (can_pawn_drop<~Us>(pos, from))
+                if (canPawnDrop<~US>(from))
                     continue;
 
                 // ただし、toが歩のcaptureだとfromに歩が打ててしまう可能性があるのでskip。
                 // 盤面最上段だとアレだが、まあ除外していいだろう。
-                bool capPawn = type_of(pos.piece_on(to)) == PAWN;
-                if (capPawn && file_of(from) == file_of(to))
+                bool capPawn = pieceToPieceType(piece(to)) == Pawn;
+                if (capPawn && makeFile(from) == makeFile(to))
                     continue;
 
-                Bitboard new_slide = slide | to;
+                Bitboard new_slide = slide | setMaskBB(to);
 
-                Bitboard new_pinned = pos.pinned_pieces(them, from, to);
+                Bitboard new_pinned = pinnedPieces<Them>(from, to);
 
                 // fromの地点に駒が利いていないか。
                 // fromからtoに移動したときに、toの影になってfromの地点に利いていない場合を考慮しこう書く。
                 // toの地点に駒がいくのでpinnedが変わるのか…。うわ、なんだこれ..
-                if (can_piece_capture(pos, them, from, to, new_pinned, new_slide))
+                if (can_piece_capture(*this, Them, from, to, new_pinned, new_slide))
                     continue;
 
                 // 玉の8近傍だとcapられる可能性がある。
-                if (kingEffect(ksq) & to)
-                {
+                if (kingAttack(ksq) & setMaskBB(to)) {
                     // from以外の駒が利いてない == capられる!!
-                    if (!(pos.attackers_to(Us, to) ^ from))
+                    if (!(attackersTo(US, to) ^ setMaskBB(from)))
                         continue;
                 }
 
                 // ここでの利きを考える。
-                switch (pt)
-                {
+                switch (pt) {
 
-                case SILVER:
+                case Silver:
                     // 成り不成りがある。成りは、ここで調べ、不成りはあとで調べる。
 
                     // 成れないならば不成りの判定へ
-                    if (!canPromote(Us, from, to))
-                        goto DISCOVER_ATTACK_CONTINUE_SILVER;
-                    bb_attacks = goldEffect(Us, to);
+                    if (!canPromote(US, from, to))
+                        goto DISCOVER_ATTACK_CONTINUE_Silver;
+                    bb_attacks = goldAttack(US, to);
                     break;
 
-                case KNIGHT:
+                case Knight:
                     // 桂は成れるときのみ列挙しているので、移動先では金という扱いで良い。
-                case GOLD:
-                    bb_attacks = goldEffect(Us, to);
+                case Gold:
+                    bb_attacks = goldAttack(US, to);
                     break;
 
-                case BISHOP:
-                    if (canPromote(Us, from, to))
-                        bb_attacks = horseEffect(to, new_slide);
+                case Bishop:
+                    if (canPromote(US, from, to))
+                        bb_attacks = horseAttack(to, new_slide);
                     else
-                        bb_attacks = bishopEffect(to, new_slide);
+                        bb_attacks = bishopAttack(to, new_slide);
                     break;
 
-                case HORSE:
-                    bb_attacks = horseEffect(to, new_slide);
+                case Horse:
+                    bb_attacks = horseAttack(to, new_slide);
                     break;
 
-                case ROOK:
-                    if (canPromote(Us, from, to))
-                        bb_attacks = dragonEffect(to, new_slide);
+                case Rook:
+                    if (canPromote(US, from, to))
+                        bb_attacks = dragonAttack(to, new_slide);
                     else
-                        bb_attacks = rookEffect(to, new_slide);
+                        bb_attacks = rookAttack(to, new_slide);
                     break;
 
-                case DRAGON:
-                    bb_attacks = dragonEffect(to, new_slide);
+                case Dragon:
+                    bb_attacks = dragonAttack(to, new_slide);
                     break;
 
                 default:
-                    ASSERT_LV3(false);
+                    assert(false);
                     continue;
                 }
 
                 // これが王手になっているということは両王手であり、両王手ルーチンで調べたはずだから除外
-                if (bb_attacks & ksq)
-                    goto DISCOVER_ATTACK_CONTINUE_SILVER;
+                if (bb_attacks & setMaskBB(ksq))
+                    goto DISCOVER_ATTACK_CONTINUE_Silver;
 
                 // 逃げ場所があるのか？
                 // 王手がかかっている局面において逃げ場所を見るときに裏側からのpinnerによる攻撃を考慮して、玉はいないものとして考える必要がある。
-                if (kingEffect(ksq)
-                    & ~(bb_attacks | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide ^ ksq) | pos.pieces(them)))
-                    goto DISCOVER_ATTACK_CONTINUE_SILVER;
+                if (kingAttack(ksq)
+                    & ~(bb_attacks | attacksAroundKingInAvoiding<~US>(from, new_slide ^ setMaskBB(ksq)) | bbOf(Them)))
+                    goto DISCOVER_ATTACK_CONTINUE_Silver;
 
                 // ここでは開き王手であることは保証されている。
                 // ksqの隣の升からpinnerとの間に利きがなければこれにて詰みが確定する。
@@ -2331,67 +2731,64 @@ DC_CHECK:;
                 {
                     Square s1 = ksq;
                     Square s2 = s1 + (nextSquare(s1, from) - from);
-                    do
-                    {
+                    do {
                         // s2の地点に玉以外の駒が利いていたらアウト
 
                         // 駒はfromからtoに移動しているものとする。ゆえにtoの地点に元いた駒の利きは除外して考える必要がある。
                         // それからfromから駒が除去されて遮断が変わったことによる影響はnew_slideによって与えられているものとする。
-                        if (can_piece_capture(pos, them, s2, to, new_pinned, new_slide))
-                            goto DISCOVER_ATTACK_CONTINUE_SILVER;
+                        if (can_piece_capture(*this, Them, s2, to, new_pinned, new_slide))
+                            goto DISCOVER_ATTACK_CONTINUE_Silver;
 
                         // s2の地点がfromはなく、かつpinnerであれば、終了
                         // ただしpinnerが取られる可能性があるので、上のcaptureの判定が先にある
-                        if (s2 != from && pos.piece_on(s2)) // 自駒に違いない
+                        if (s2 != from && piece(s2)) // 自駒に違いない
                             break;
 
                         // s2に合駒ができない。
-                        if (can_pawn_drop<~Us>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
-                            goto DISCOVER_ATTACK_CONTINUE_SILVER;
+                        if (canPawnDrop<~US>(s2) || (capPawn && makeFile(s2) == makeFile(to)))
+                            goto DISCOVER_ATTACK_CONTINUE_Silver;
 
                         Square s3 = nextSquare(s1, s2);
                         s1 = s2;
                         s2 = s3;
-                    } while (s2 != SQ_NB);
+                    } while (s2 != SquareNum);
 
                     // これで詰みが確定した
                     // 桂→成りしか調べてないので成れるなら成りで。
                     // 銀→不成と成りと選択できる。
-                    if (canPromote(Us, from, to) && !(pos.piece_on(from) & PIECE_PROMOTE) && pt != GOLD)
-                        return make_move_promote(from, to, Us, pt);
+                    if (canPromote(US, from, to) && !(piece(from) & PTPromote) && pt != Gold)
+                        return makePromoteMove<Capture>(pt, from, to, *this);
                     else
-                        return make_move(from, to, Us, pt);
+                        return makeCaptureMove(pt, from, to, *this);
                 }
 
-            DISCOVER_ATTACK_CONTINUE_SILVER:;
+            DISCOVER_ATTACK_CONTINUE_Silver:
 
-                if (pt == SILVER)
-                {
+                if (pt == Silver) {
                     // 銀不成も考慮しないと..(成りは上で処理されているものとする)
                     // 以下、同様の処理
-                    bb_attacks = silverEffect(Us, to);
-                    if (bb_attacks & ksq)
+                    bb_attacks = silverAttack(US, to);
+                    if (bb_attacks & setMaskBB(ksq))
                         goto DISCOVER_ATTACK_CONTINUE;
 
-                    if (kingEffect(ksq)
-                        & ~(bb_attacks | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide ^ ksq) | pos.pieces(them)))
+                    if (kingAttack(ksq)
+                        & ~(bb_attacks | attacksAroundKingInAvoiding<~US>(from, new_slide ^ setMaskBB(ksq)) | bbOf(Them)))
                         goto DISCOVER_ATTACK_CONTINUE;
 
                     Square s1 = ksq;
                     Square s2 = s1 + (nextSquare(s1, from) - from);
-                    do
-                    {
-                        if (can_piece_capture(pos, them, s2, to, new_pinned, new_slide))
+                    do {
+                        if (can_piece_capture(*this, Them, s2, to, new_pinned, new_slide))
                             goto DISCOVER_ATTACK_CONTINUE;
-                        if (s2 != from && pos.piece_on(s2))
+                        if (s2 != from && piece(s2))
                             break;
-                        if (can_pawn_drop<~Us>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
+                        if (canPawnDrop<~US>(s2) || (capPawn && makeFile(s2) == makeFile(to)))
                             goto DISCOVER_ATTACK_CONTINUE;
                         Square s3 = nextSquare(s1, s2);
                         s1 = s2;
                         s2 = s3;
-                    } while (s2 != SQ_NB);
-                    return make_move(from, to, Us, SILVER);
+                    } while (s2 != SquareNum);
+                    return makeCaptureMove(Silver, from, to, *this);
                 }
 
             DISCOVER_ATTACK_CONTINUE:;
@@ -2785,7 +3182,7 @@ RepetitionType Position::isDraw(const int checkMaxPly) const {
                     return RepetitionLose;
                 else if (i <= st_->continuousCheck[oppositeColor(turn())])
                     return RepetitionWin;
-#if defined BAN_BLACK_REPETITION
+#if defined BAN_Black_REPETITION
                 return (turn() == Black ? RepetitionLose : RepetitionWin);
 #elif defined BAN_WHITE_REPETITION
                 return (turn() == White ? RepetitionLose : RepetitionWin);

@@ -201,6 +201,21 @@ namespace {
                     SquareRelation[sq1][sq2] = DirecDiagNWSE;
             }
         }
+
+        // やねうら王から移植
+        // SquareWithWallテーブルの初期化。
+        for (Square sq = SQ11; sq < SquareNum; ++sq)
+            sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)makeFile(sq) * SQWW_L + (int32_t)makeRank(sq) * SQWW_D);
+
+
+        // direct_tableの初期化
+        for (Square sq1 = SQ11; sq1 < SquareNum; ++sq1)
+            for (auto dir = Effect8::DIRECT_ZERO; dir < Effect8::DIRECT_NB; ++dir) {
+                // dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
+                auto delta = Effect8::DirectToDeltaWW(dir);
+                for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
+                    Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
+            }
     }
 
     // 障害物が無いときの利きの Bitboard
@@ -429,6 +444,7 @@ void initTable() {
     initCheckTable();
     initNeighbor5x5();
     initSquareDistance();
+    initMate1Ply();
 
     Book::init();
 }

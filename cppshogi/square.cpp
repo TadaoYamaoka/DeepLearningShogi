@@ -25,3 +25,10 @@ Direction SquareRelation[SquareNum][SquareNum];
 
 // 何かの駒で一手で行ける位置関係についての距離のテーブル。桂馬の位置は距離1とする。
 int SquareDistance[SquareNum][SquareNum];
+
+// SquareからSquareWithWallへの変換テーブル
+SquareWithWall sqww_table[SquareNum + 1];
+
+namespace Effect8 {
+	Directions direc_table[SquareNum + 1][SquareNum + 1];
+}
