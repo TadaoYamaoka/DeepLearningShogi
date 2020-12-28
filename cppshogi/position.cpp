@@ -2297,10 +2297,11 @@ DC_CHECK:
         // 敵陣
         Bitboard enemyBB = enemyField(US);
 
-        Bitboard bb = dcBB_betweenIsUs;
+        Bitboard dcBB = dcBB_betweenIsUs;
+        Bitboard bb;
 
-        while (bb) {
-            Square from = bb.firstOneFromSQ11();
+        while (dcBB) {
+            Square from = dcBB.firstOneFromSQ11();
             PieceType pt = pieceToPieceType(piece(from));
             switch (pt) {
                 // 背後にいる駒は角が普通で、pinされているのは歩で成りとか、飛車で両王手とか、そんなのが
