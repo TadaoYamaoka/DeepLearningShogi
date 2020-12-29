@@ -208,10 +208,6 @@ bool mateMoveInOddPly(Position& pos)
 	return false;
 }
 
-// 3手詰めの特殊化
-template <> bool mateMoveInOddPly<3, false>(Position& pos) { return mateMoveIn3Ply<false>(pos); }
-template <> bool mateMoveInOddPly<3, true>(Position& pos) { return mateMoveIn3Ply<true>(pos); }
-
 // 偶数手詰めチェック
 // 手番側が王手されていること
 template <int depth>
