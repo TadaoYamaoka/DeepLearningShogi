@@ -235,7 +235,7 @@ private:
 	DType* y2;
 
 	// 詰み探索
-	ns_dfpn::DfPn dfpn;
+	DfPn dfpn;
 	MateSearchEntry* mate_search_slot = nullptr;
 	int* mate_search_limit_nodes = nullptr;
 	deque<int> mate_search_queue;
@@ -1622,7 +1622,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+	DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);

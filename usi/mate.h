@@ -4,51 +4,53 @@
 #include "move.hpp"
 #include "generateMoves.hpp"
 
-const constexpr size_t MaxCheckMoves = 73;
-
 template <int depth> bool mateMoveInEvenPly(Position& pos);
 
 // 詰み探索用のMovePicker
-template <bool or_node, bool INCHECK>
-class MovePicker {
-public:
-	explicit MovePicker(const Position& pos) {
-		if (or_node) {
-			last_ = generateMoves<Check>(moveList_, pos);
-			if (INCHECK) {
-				// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
+namespace ns_mate {
+	const constexpr size_t MaxCheckMoves = 73;
+
+	template <bool or_node, bool INCHECK>
+	class MovePicker {
+	public:
+		explicit MovePicker(const Position& pos) {
+			if (or_node) {
+				last_ = generateMoves<Check>(moveList_, pos);
+				if (INCHECK) {
+					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
+					ExtMove* curr = moveList_;
+					while (curr != last_) {
+						if (!pos.moveIsPseudoLegal<false>(curr->move))
+							curr->move = (--last_)->move;
+						else
+							++curr;
+					}
+				}
+			}
+			else {
+				last_ = generateMoves<Evasion>(moveList_, pos);
+				// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
 				ExtMove* curr = moveList_;
+				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
-					if (!pos.moveIsPseudoLegal<false>(curr->move))
+					if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
 						curr->move = (--last_)->move;
 					else
 						++curr;
 				}
 			}
+			assert(size() <= MaxCheckMoves);
 		}
-		else {
-			last_ = generateMoves<Evasion>(moveList_, pos);
-			// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
-			ExtMove* curr = moveList_;
-			const Bitboard pinned = pos.pinnedBB();
-			while (curr != last_) {
-				if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
-					curr->move = (--last_)->move;
-				else
-					++curr;
-			}
-		}
-		assert(size() <= MaxCheckMoves);
-	}
-	size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-	ExtMove* begin() { return &moveList_[0]; }
-	ExtMove* end() { return last_; }
-	bool empty() const { return size() == 0; }
+		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
+		ExtMove* begin() { return &moveList_[0]; }
+		ExtMove* end() { return last_; }
+		bool empty() const { return size() == 0; }
 
-private:
-	ExtMove moveList_[MaxCheckMoves];
-	ExtMove* last_;
-};
+	private:
+		ExtMove moveList_[MaxCheckMoves];
+		ExtMove* last_;
+	};
+}
 
 // 3手詰めチェック
 // 手番側が王手でないこと
@@ -61,7 +63,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 	StateInfo si2;
 
 	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<true, INCHECK>(pos))
+	for (const auto& ml : ns_mate::MovePicker<true, INCHECK>(pos))
 	{
 		const Move& m = ml.move;
 
@@ -75,7 +77,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 		}
 
 		// この局面ですべてのevasionを試す
-		MovePicker<false, false> move_picker2(pos);
+		ns_mate::MovePicker<false, false> move_picker2(pos);
 
 		if (move_picker2.size() == 0) {
 			// 1手で詰んだ
@@ -121,7 +123,7 @@ Move mateMoveInOddPlyReturnMove(Position& pos) {
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<true, INCHECK>(pos)) {
+	for (const auto& ml : ns_mate::MovePicker<true, INCHECK>(pos)) {
 		// 1手動かす
 		StateInfo state;
 		pos.doMove(ml.move, state, ci, true);
@@ -167,7 +169,7 @@ bool mateMoveInOddPly(Position& pos)
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<true, INCHECK>(pos)) {
+	for (const auto& ml : ns_mate::MovePicker<true, INCHECK>(pos)) {
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		// 1手動かす
 		StateInfo state;
@@ -219,7 +221,7 @@ bool mateMoveInEvenPly(Position& pos)
 
 	// すべてのEvasionについて
 	const CheckInfo ci(pos);
-	for (const auto& ml : MovePicker<false, false>(pos)) {
+	for (const auto& ml : ns_mate::MovePicker<false, false>(pos)) {
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		const bool givesCheck = pos.moveGivesCheck(ml.move, ci);
 

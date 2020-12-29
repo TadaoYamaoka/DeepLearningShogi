@@ -416,7 +416,6 @@ int main() {
 
 #if 0
 #include "dfpn.h"
-using namespace ns_dfpn;
 // DfPnテスト
 int main()
 {

@@ -11,7 +11,6 @@ using namespace ns_dfpn;
 int64_t DfPn::HASH_SIZE_MB = 2048;
 uint32_t DfPn::kMaxDepth = 30;
 const constexpr uint32_t REPEAT = UINT_MAX;
-const constexpr size_t MaxCheckMoves = 73;
 
 // --- 詰み将棋探索
 
@@ -21,46 +20,50 @@ void DfPn::dfpn_stop(const bool stop)
 }
 
 // 詰将棋エンジン用のMovePicker
-template <bool or_node>
-class MovePicker {
-public:
-	explicit MovePicker(const Position& pos) {
-		if (or_node) {
-			last_ = generateMoves<Check>(moveList_, pos);
-			if (pos.inCheck()) {
-				// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
+namespace ns_dfpn {
+	const constexpr size_t MaxCheckMoves = 73;
+
+	template <bool or_node>
+	class MovePicker {
+	public:
+		explicit MovePicker(const Position& pos) {
+			if (or_node) {
+				last_ = generateMoves<Check>(moveList_, pos);
+				if (pos.inCheck()) {
+					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
+					ExtMove* curr = moveList_;
+					while (curr != last_) {
+						if (!pos.moveIsPseudoLegal<false>(curr->move))
+							curr->move = (--last_)->move;
+						else
+							++curr;
+					}
+				}
+			}
+			else {
+				last_ = generateMoves<Evasion>(moveList_, pos);
+				// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
 				ExtMove* curr = moveList_;
+				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
-					if (!pos.moveIsPseudoLegal<false>(curr->move))
+					if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
 						curr->move = (--last_)->move;
 					else
 						++curr;
 				}
 			}
+			assert(size() <= MaxCheckMoves);
 		}
-		else {
-			last_ = generateMoves<Evasion>(moveList_, pos);
-			// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
-			ExtMove* curr = moveList_;
-			const Bitboard pinned = pos.pinnedBB();
-			while (curr != last_) {
-				if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
-					curr->move = (--last_)->move;
-				else
-					++curr;
-			}
-		}
-		assert(size() <= MaxCheckMoves);
-	}
-	size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-	ExtMove* begin() { return &moveList_[0]; }
-	ExtMove* end() { return last_; }
-	bool empty() const { return size() == 0; }
+		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
+		ExtMove* begin() { return &moveList_[0]; }
+		ExtMove* end() { return last_; }
+		bool empty() const { return size() == 0; }
 
-private:
-	ExtMove moveList_[MaxCheckMoves];
-	ExtMove* last_;
-};
+	private:
+		ExtMove moveList_[MaxCheckMoves];
+		ExtMove* last_;
+	};
+}
 
 // 置換表
 TranspositionTable::~TranspositionTable() {
