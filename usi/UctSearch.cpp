@@ -366,8 +366,6 @@ private:
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
 	float UctSearch(Position* pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories);
-	// ノードの展開
-	unsigned int ExpandNode(Position* pos, const int depth);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
 	// ノードをキューに追加
