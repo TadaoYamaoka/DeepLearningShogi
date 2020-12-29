@@ -137,7 +137,6 @@ float draw_value_white = 0.5f;
 // 引き分けとする手数（0以外の場合、この手数に達した場合引き分けとする）
 int draw_ply = 0;
 
-
 ////////////
 //  関数  //
 ////////////
@@ -750,9 +749,9 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		// 詰み
 		Move move;
 		if (pos->inCheck())
-			move = mateMoveInOddPlyReturnMove<true>(*pos, MATE_SEARCH_DEPTH);
+			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, true>(*pos);
 		else
-			move = mateMoveInOddPlyReturnMove<false>(*pos, MATE_SEARCH_DEPTH);
+			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, false>(*pos);
 		// 伝播したVALUE_WINの場合、詰みが見つからない場合がある
 		if (move != Move::moveNone())
 			return move;
@@ -1204,7 +1203,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 			// 詰みチェック
 			int isMate = 0;
 			if (!pos->inCheck()) {
-				if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
 					isMate = 1;
 				}
 				// 入玉勝ちかどうかを判定
@@ -1213,7 +1212,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				}
 			}
 			else {
-				if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
 					isMate = 1;
 				}
 				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない

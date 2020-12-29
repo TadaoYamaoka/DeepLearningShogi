@@ -57,9 +57,6 @@
     <ClCompile Include="self_play.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\mate.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>

@@ -225,7 +225,6 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
-    <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn_senet10.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
     <ClCompile Include="..\usi\nn_wideresnet10.cpp" />

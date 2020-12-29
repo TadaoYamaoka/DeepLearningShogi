@@ -86,28 +86,28 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_69_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_69_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -233,7 +233,6 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
-    <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn_fused_wideresnet10.cpp" />
     <ClCompile Include="..\usi\nn_senet10.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />

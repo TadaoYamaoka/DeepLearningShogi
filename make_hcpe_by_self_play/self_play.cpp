@@ -664,7 +664,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				// 詰みチェック(ValueNet計算中にチェック)
 				int isMate = 0;
 				if (!pos->inCheck()) {
-					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
 						isMate = 1;
 					}
 					// 入玉勝ちかどうかを判定
@@ -673,7 +673,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					}
 				}
 				else {
-					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
 						isMate = 1;
 					}
 					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない

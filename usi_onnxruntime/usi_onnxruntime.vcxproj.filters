@@ -24,9 +24,6 @@
     <ClCompile Include="..\usi\main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\mate.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\Message.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

@@ -237,7 +237,7 @@ int main() {
 	for (string sfen : sfens) {
 		pos.set(sfen);
 		auto start = std::chrono::system_clock::now();
-		bool ret = mateMoveInOddPly(pos, 7);
+		bool ret = mateMoveInOddPly<7>(pos);
 		auto end = std::chrono::system_clock::now();
 
 		auto time = end - start;
@@ -274,7 +274,7 @@ int main() {
 		pos.doMove(move, pos.searcher()->states->back());
 	}
 
-	bool ret = mateMoveInOddPly(pos, 5);
+	bool ret = mateMoveInOddPly<5>(pos);
 
 	std::cout << ret << std::endl;
 
@@ -582,7 +582,7 @@ int main() {
 	string sfen = "6sn1/2+P3g1l/p1+P1r3p/2bpk2p1/6s1N/3PK1pPP/P1N2P3/2S1G1SR1/L4G1NL b B5Pglp 1";
 
 	pos.set(sfen);
-	bool ret = mateMoveInEvenPly(pos, 4);
+	bool ret = mateMoveInEvenPly<4>(pos);
 
 	return 0;
 }
@@ -666,7 +666,7 @@ int main() {
 
 	for (string sfen : sfens) {
 		pos.set(sfen);
-		bool ret = mateMoveInOddPly(pos, 5);
+		bool ret = mateMoveInOddPly<5>(pos);
 		cout << ret << endl;
 	}
 
