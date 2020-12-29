@@ -96,7 +96,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
             return child_nodes[0].get();
         }
         else {
-            // 合法手に不成を生成してないしないため、ノードが存在しても見つからない場合がある
+            // 合法手に不成を生成していないため、ノードが存在しても見つからない場合がある
             // 子ノードが見つからなかった場合、新しいノードを作成する
             CreateSingleChildNode(move);
             InitChildNodes();
