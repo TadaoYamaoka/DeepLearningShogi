@@ -4,6 +4,8 @@
 #include "move.hpp"
 #include "generateMoves.hpp"
 
+template <int depth> FORCE_INLINE bool mateMoveInEvenPly(Position& pos);
+
 // 詰み探索用のMovePicker
 namespace ns_mate {
 	const constexpr size_t MaxCheckMoves = 73;
