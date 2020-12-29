@@ -206,6 +206,10 @@ bool mateMoveInOddPly(Position& pos)
 	return false;
 }
 
+// 3手詰めの特殊化
+template <> bool mateMoveInOddPly<3, false>(Position& pos) { return mateMoveIn3Ply<false>(pos); }
+template <> bool mateMoveInOddPly<3, true>(Position& pos) { return mateMoveIn3Ply<true>(pos); }
+
 // 偶数手詰めチェック
 // 手番側が王手されていること
 template <int depth>
@@ -243,23 +247,12 @@ bool mateMoveInEvenPly(Position& pos)
 		default: UNREACHABLE;
 		}
 
-		if (depth == 4) {
-			// 3手詰めかどうか
-			if (givesCheck ? !mateMoveIn3Ply<true>(pos) : !mateMoveIn3Ply<false>(pos)) {
-				// 3手詰めでない場合
-				// 詰みが見つからなかった時点で終了
-				pos.undoMove(ml.move);
-				return false;
-			}
-		}
-		else {
-			// 奇数手詰めかどうか
-			if (givesCheck ? !mateMoveInOddPly<true, depth - 1>(pos) : !mateMoveInOddPly<false, depth - 1>(pos)) {
-				// 偶数手詰めでない場合
-				// 詰みが見つからなかった時点で終了
-				pos.undoMove(ml.move);
-				return false;
-			}
+		// 奇数手詰めかどうか
+		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos) : !mateMoveInOddPly<depth - 1, false>(pos)) {
+			// 偶数手詰めでない場合
+			// 詰みが見つからなかった時点で終了
+			pos.undoMove(ml.move);
+			return false;
 		}
 
 		pos.undoMove(ml.move);
