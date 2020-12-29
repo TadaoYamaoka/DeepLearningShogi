@@ -4,8 +4,6 @@
 #include "move.hpp"
 #include "generateMoves.hpp"
 
-template <int depth> bool mateMoveInEvenPly(Position& pos);
-
 // 詰み探索用のMovePicker
 namespace ns_mate {
 	const constexpr size_t MaxCheckMoves = 73;
@@ -118,7 +116,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 // 奇数手詰めチェック
 // 詰ます手を返すバージョン
 template <int depth, bool INCHECK>
-Move mateMoveInOddPlyReturnMove(Position& pos) {
+FORCE_INLINE Move mateMoveInOddPlyReturnMove(Position& pos) {
 	// OR節点
 
 	// すべての合法手について
@@ -163,7 +161,7 @@ Move mateMoveInOddPlyReturnMove(Position& pos) {
 
 // 奇数手詰めチェック
 template <int depth, bool INCHECK = false>
-bool mateMoveInOddPly(Position& pos)
+FORCE_INLINE bool mateMoveInOddPly(Position& pos)
 {
 	// OR節点
 
@@ -208,10 +206,14 @@ bool mateMoveInOddPly(Position& pos)
 	return false;
 }
 
+// 3手詰めの特殊化
+template <> FORCE_INLINE bool mateMoveInOddPly<3, false>(Position& pos) { return mateMoveIn3Ply<false>(pos); }
+template <> FORCE_INLINE bool mateMoveInOddPly<3, true>(Position& pos) { return mateMoveIn3Ply<true>(pos); }
+
 // 偶数手詰めチェック
 // 手番側が王手されていること
 template <int depth>
-bool mateMoveInEvenPly(Position& pos)
+FORCE_INLINE bool mateMoveInEvenPly(Position& pos)
 {
 	// AND節点
 
@@ -247,55 +249,6 @@ bool mateMoveInEvenPly(Position& pos)
 
 		// 奇数手詰めかどうか
 		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos) : !mateMoveInOddPly<depth - 1, false>(pos)) {
-			// 偶数手詰めでない場合
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move);
-			return false;
-		}
-
-		pos.undoMove(ml.move);
-	}
-	return true;
-}
-
-// 4手詰めの特殊化
-template <>
-bool mateMoveInEvenPly<4>(Position& pos)
-{
-	// AND節点
-
-	// すべてのEvasionについて
-	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::MovePicker<false, false>(pos)) {
-		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
-		const bool givesCheck = pos.moveGivesCheck(ml.move, ci);
-
-		// 1手動かす
-		StateInfo state;
-		pos.doMove(ml.move, state, ci, givesCheck);
-
-		// 千日手チェック
-		switch (pos.isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionWin: // 自分が勝ち
-		{
-			pos.undoMove(ml.move);
-			continue;
-		}
-		case RepetitionDraw:
-		case RepetitionLose: // 自分が負け
-		case RepetitionInferior: // 自分が駒損
-		{
-			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move);
-			return false;
-		}
-		case RepetitionSuperior: break; // 自分が駒得
-		default: UNREACHABLE;
-		}
-
-		// 奇数手詰めかどうか
-		if (givesCheck ? !mateMoveIn3Ply<true>(pos) : !mateMoveIn3Ply<false>(pos)) {
 			// 偶数手詰めでない場合
 			// 詰みが見つからなかった時点で終了
 			pos.undoMove(ml.move);
