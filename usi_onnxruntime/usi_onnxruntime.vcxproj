@@ -102,7 +102,6 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\main.cpp" />
-    <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\Message.cpp" />
     <ClCompile Include="..\usi\Node.cpp" />
     <ClCompile Include="..\usi\UctSearch.cpp" />

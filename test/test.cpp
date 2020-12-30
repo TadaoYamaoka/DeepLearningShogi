@@ -180,56 +180,57 @@ int main() {
 
 	vector<string> sfens = {
 		// 詰み
-		"lnsgk1snl/1r4g2/p1pppp1pp/6pP1/1p7/2P6/PPGPPPP1P/6SR1/LN+b1KG1NL w bs 11",
-		"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/3s2Ps1/2P2p+b1P/PP2K4/7R1/LN1g4L w GNPg2n3p 5",
-		"l1r2k1nl/1+S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P2N1P2/P3P1N1P/2G1G1SR1/+b1K5L w bsl5p 7",
-		"l1r2k1nl/3+S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 9",
-		"l1r2k1nl/6gs1/3p1g1pp/3Sp1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
-		"7+P1/3pksg1l/4pp1pp/3G1gn2/1+R4pR1/4PPn1K/2P+l2P1P/1P7/L+b4+b1L w 2SN4Pgsnp 8",
-		"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
-		"l1r2k1nl/3+S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
-		"lk6+P/9/2s2L3/6gP1/1p1p5/p1P1P+s3/1P1Pg1P1N/1gS2P3/LNBKG1S1L w N7P2rbn 11",
-		"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1G2/1PN4P+l/3S+p1P2/5GK2 b B2SN2Psn2l5p 9",
-		"l1r2k1nl/6gs1/3p1g1pp/1+S2p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
-		"lk6+P/9/2s2L3/6gP1/1p1p5/p1P1P+s3/1P1Pg1P1N/1gS2P3/LNBKG1S1L w N7P2rbn 12",
-		"l1r2k1nl/3+S1ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 11",
-		"l1r2k1nl/3+S1ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 12",
-		"l1r2k1nl/1+S3ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 12",
-		"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1G2/1PN2+p1P+l/3SSpP2/5GK2 b B2SN2Pn2l4p 12",
-		"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1Gn1/1PN2+p1P+l/3SS1P2/5GK2 b B2SN2P2l5p 12",
-		"l1r2k1nl/1+S3g1s1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl6p 13",
-		"ln2k4/2sg2+P1l/p3p2+R1/2Pp4p/1bGP2S2/2p2Pp2/P+r2P3P/2+p1G4/L3K2NL b BGSNPsn3p 16",
-		"ln2k4/2sg2+P1l/p3p2+R1/2Pp4p/2GP2S2/2p2Pp2/P+r2P3P/2+p1G1s2/L3K2NL b BGSNPbn3p 16",
-		"lnkg2+R1l/3g5/1s1p4p/2p1N1pP1/Pp7/n1PPPPP2/1P1SS3P/2G3+r2/K7L w BGS4Pbnl 19",
-		"1n1g1k3/5s2+B/1p1p1LnPp/5ppp1/2ps4P/1K1PrPP2/1P2+b1N2/2G3S2/+lN5RL w GL2Pgs3p 20",
-		"1n1g3B1/5k2l/1p1p2nPp/5ppp1/2ps1N2P/1K1PrPP2/1P2+b4/2G3S2/+lN5RL w GS2Pgsl3p 21",
-		"1n1g5/5k2l/1p1p2nPp/1l3ppp1/2p+B4P/3PrPP2/1PK1+b1N2/2G3S2/+lN5RL w G2S2Pgs3p 21",
-		"1n3g1nl/5ksb1/1p2pr1pp/2sPP1P2/5N3/1P2G2P1/1K2+nS2P/7R1/2S5L w G8Pbg2l 18",
+		//"lnsgk1snl/1r4g2/p1pppp1pp/6pP1/1p7/2P6/PPGPPPP1P/6SR1/LN+b1KG1NL w bs 11",
+		//"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/3s2Ps1/2P2p+b1P/PP2K4/7R1/LN1g4L w GNPg2n3p 5",
+		//"l1r2k1nl/1+S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P2N1P2/P3P1N1P/2G1G1SR1/+b1K5L w bsl5p 7",
+		//"l1r2k1nl/3+S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 9",
+		//"l1r2k1nl/6gs1/3p1g1pp/3Sp1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
+		//"7+P1/3pksg1l/4pp1pp/3G1gn2/1+R4pR1/4PPn1K/2P+l2P1P/1P7/L+b4+b1L w 2SN4Pgsnp 8",
+		//"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
+		//"l1r2k1nl/3+S2gs1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
+		//"lk6+P/9/2s2L3/6gP1/1p1p5/p1P1P+s3/1P1Pg1P1N/1gS2P3/LNBKG1S1L w N7P2rbn 11",
+		//"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1G2/1PN4P+l/3S+p1P2/5GK2 b B2SN2Psn2l5p 9",
+		//"l1r2k1nl/6gs1/3p1g1pp/1+S2p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w Pbsl5p 10",
+		//"lk6+P/9/2s2L3/6gP1/1p1p5/p1P1P+s3/1P1Pg1P1N/1gS2P3/LNBKG1S1L w N7P2rbn 12",
+		//"l1r2k1nl/3+S1ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 11",
+		//"l1r2k1nl/3+S1ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 12",
+		//"l1r2k1nl/1+S3ggs1/3p3pp/4pPp2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl5p 12",
+		//"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1G2/1PN2+p1P+l/3SSpP2/5GK2 b B2SN2Pn2l4p 12",
+		//"l3rg3/b3p1k2/p5np1/6+R2/1p1P5/P1P1g1Gn1/1PN2+p1P+l/3SS1P2/5GK2 b B2SN2P2l5p 12",
+		//"l1r2k1nl/1+S3g1s1/3p1g1pp/4p1p2/p2N+bN1P1/1P2N1P2/P3P3P/2G1G1SR1/2K5L w bsl6p 13",
+		//"ln2k4/2sg2+P1l/p3p2+R1/2Pp4p/1bGP2S2/2p2Pp2/P+r2P3P/2+p1G4/L3K2NL b BGSNPsn3p 16",
+		//"ln2k4/2sg2+P1l/p3p2+R1/2Pp4p/2GP2S2/2p2Pp2/P+r2P3P/2+p1G1s2/L3K2NL b BGSNPbn3p 16",
+		//"lnkg2+R1l/3g5/1s1p4p/2p1N1pP1/Pp7/n1PPPPP2/1P1SS3P/2G3+r2/K7L w BGS4Pbnl 19",
+		//"1n1g1k3/5s2+B/1p1p1LnPp/5ppp1/2ps4P/1K1PrPP2/1P2+b1N2/2G3S2/+lN5RL w GL2Pgs3p 20",
+		//"1n1g3B1/5k2l/1p1p2nPp/5ppp1/2ps1N2P/1K1PrPP2/1P2+b4/2G3S2/+lN5RL w GS2Pgsl3p 21",
+		//"1n1g5/5k2l/1p1p2nPp/1l3ppp1/2p+B4P/3PrPP2/1PK1+b1N2/2G3S2/+lN5RL w G2S2Pgs3p 21",
+		//"1n3g1nl/5ksb1/1p2pr1pp/2sPP1P2/5N3/1P2G2P1/1K2+nS2P/7R1/2S5L w G8Pbg2l 18",
+		"ln3kp1+R/3grp3/3p1sGSp/p1N1p1bp1/9/PP2L2K1/1s+pS1P2P/3b1+n3/L+p5NL w 2g5p 112", // 5手
 		// 不詰み
-		"1+B5n1/5g1k1/4pp1p1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pgn2p 2",
-		"1+B5n1/5g1+N1/4ppkp1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pg2p 2",
-		"1+B5n1/5g1k1/4pp1p1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pgn2p 3",
-		"1+B5n1/5g1+N1/4ppkp1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pg2p 3",
-		"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 3",
-		"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 4",
-		"1+B4g1R/3r1sknS/p4+b2l/1p1p2ppp/2pP1N3/4G1P1P/PP2S2P1/L2+n1+s1K1/8L w 2P2gnl3p 3",
-		"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 4",
-		"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 5",
-		"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 5",
-		"l2R3n1/5sgkl/2n+P1g1p1/p2P2p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w 2S6Prg 2",
-		"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 6",
-		"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 6",
-		"l2R3n1/3S1sgkl/2n+P1g1p1/p5p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w S7Prg 2",
-		"1+B4g1R/3r1sknS/p7l/1p1p1+bppp/2pP1NP2/4GS2P/PP2p2P1/L2+n1+s1K1/8L w 2gnl4p 5",
-		"l2R3n1/4Psgkl/2n+P1g1p1/p5p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w 2S6Prg 2",
-		"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/5+bPs1/2Ps1p2P/PP7/7R1/LN1K4L w 2GNPg2n3p 9",
-		"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/5+bPs1/2Ps1p2P/PP7/7R1/LN1K4L w 2GNPg2n3p 10",
-		"1+R5+P1/3pksg1l/4pp1pp/3G1gn2/6pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 7",
-		"7+P1/3pksg1l/4pp1pp/3G1gn2/1+R4pR1/4PPn2/2P+l2PKP/1P7/L+bN3+b1L w 2S4Pgsnp 8",
-		"1+R5+P1/3pksg1l/4pp1pp/3G1gn2/6pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 8",
-		"7+P1/3pksg1l/4pp1pp/3G1gn2/3+R2pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 8",
-		"lns4n1/2r1k1s2/ppggpp1pl/2pp2p1p/5P+bP1/P2SP4/1PPP1GN1P/1B3S3/LN1GK4 w rlp 8",
-		"7+P1/4ksg1l/3ppp1pp/3G1gn2/1+R1N2pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w S4Pg2snp 10",
+		//"1+B5n1/5g1k1/4pp1p1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pgn2p 2",
+		//"1+B5n1/5g1+N1/4ppkp1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pg2p 2",
+		//"1+B5n1/5g1k1/4pp1p1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pgn2p 3",
+		//"1+B5n1/5g1+N1/4ppkp1/l5p2/2PR1P2P/1P1pP1P2/1S2s2PL/1K1+b5/g6N1 b RG2SN2L4Pg2p 3",
+		//"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 3",
+		//"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 4",
+		//"1+B4g1R/3r1sknS/p4+b2l/1p1p2ppp/2pP1N3/4G1P1P/PP2S2P1/L2+n1+s1K1/8L w 2P2gnl3p 3",
+		//"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 4",
+		//"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 5",
+		//"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 5",
+		//"l2R3n1/5sgkl/2n+P1g1p1/p2P2p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w 2S6Prg 2",
+		//"l1r2k1nl/3S2gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 6",
+		//"l1r2k1nl/1S4gs1/3p1g1pp/4p1p2/p2N1p1P1/1P1bN1P2/P3P1N1P/2G1G1SR1/L1K5L w bs5p 6",
+		//"l2R3n1/3S1sgkl/2n+P1g1p1/p5p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w S7Prg 2",
+		//"1+B4g1R/3r1sknS/p7l/1p1p1+bppp/2pP1NP2/4GS2P/PP2p2P1/L2+n1+s1K1/8L w 2gnl4p 5",
+		//"l2R3n1/4Psgkl/2n+P1g1p1/p5p2/2P1bPPNP/PP5P1/5S1K1/5G3/LN1+b4L w 2S6Prg 2",
+		//"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/5+bPs1/2Ps1p2P/PP7/7R1/LN1K4L w 2GNPg2n3p 9",
+		//"l3S1kpl/3r1gs2/1p2p2P1/p1p2P1+Bp/5+bPs1/2Ps1p2P/PP7/7R1/LN1K4L w 2GNPg2n3p 10",
+		//"1+R5+P1/3pksg1l/4pp1pp/3G1gn2/6pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 7",
+		//"7+P1/3pksg1l/4pp1pp/3G1gn2/1+R4pR1/4PPn2/2P+l2PKP/1P7/L+bN3+b1L w 2S4Pgsnp 8",
+		//"1+R5+P1/3pksg1l/4pp1pp/3G1gn2/6pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 8",
+		//"7+P1/3pksg1l/4pp1pp/3G1gn2/3+R2pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w 2SN4Pgsnp 8",
+		//"lns4n1/2r1k1s2/ppggpp1pl/2pp2p1p/5P+bP1/P2SP4/1PPP1GN1P/1B3S3/LN1GK4 w rlp 8",
+		//"7+P1/4ksg1l/3ppp1pp/3G1gn2/1+R1N2pR1/4PPn2/2P+l2PKP/1P7/L+b4+b1L w S4Pg2snp 10",
 	};
 
 	auto start0 = std::chrono::system_clock::now();
@@ -237,7 +238,7 @@ int main() {
 	for (string sfen : sfens) {
 		pos.set(sfen);
 		auto start = std::chrono::system_clock::now();
-		bool ret = mateMoveInOddPly(pos, 7);
+		bool ret = mateMoveInOddPly<7>(pos);
 		auto end = std::chrono::system_clock::now();
 
 		auto time = end - start;
@@ -255,7 +256,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索計測(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {
@@ -265,22 +266,51 @@ int main(int argc, char* argv[]) {
 
 	std::ifstream ifs(argv[1]);
 
-	std::chrono::high_resolution_clock::duration total{};
+	auto start0 = std::chrono::system_clock::now();
+	auto total = start0 - start0;
 	string sfen;
 	while (ifs) {
 		std::getline(ifs, sfen);
 		if (sfen.size() == 0) break;
 		pos.set(sfen);
+		auto start = std::chrono::system_clock::now();
+		bool ret = mateMoveInOddPly<5>(pos);
+		auto end = std::chrono::system_clock::now();
 
-		auto start = std::chrono::high_resolution_clock::now();
+		auto time = end - start;
+		total += time;
 
-		auto ret = mateMoveInOddPly(pos, 5);
+		auto time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
 
-		total += std::chrono::high_resolution_clock::now() - start;
-
-		cout << (bool)ret << "\t" << sfen << std::endl;
+		cout << ret << "\t";
+		cout << time_ns / 1000000.0 << "\t";
+		cout << sfen << endl;
 	}
-	cout << std::chrono::duration_cast<std::chrono::nanoseconds>(total).count() / 1000000.0 << endl;
+	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
+	cout << total_ns / 1000000.0 << endl;
+
+	return 0;
+}
+#endif
+
+#if 1
+#include "mate.h"
+// 詰み探索
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<string> sfens = {
+		//"ln3kp1+R/3grp3/3p1sGSp/p1N1p1bp1/7g1/PP2L2K1/1s+pS1P2P/3b1+n3/L+p5NL b g5p 2", // 4手詰め判定エラー
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // 5手詰め判定エラー(飛車の不成を生成していないため打ち歩詰めになる)
+	};
+
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		bool ret = mateMoveInOddPly<5>(pos);
+		cout << ret << std::endl;
+	}
 
 	return 0;
 }
@@ -288,7 +318,114 @@ int main(int argc, char* argv[]) {
 
 #if 0
 #include "mate.h"
-// 奇数手詰めの判定間違い
+// 詰み探索
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<string> sfens = {
+		"ln3kp1+R/3grp3/3p1sGSp/p1N1p1bp1/7g1/PP2L4/1s+pS1P1KP/3b1+ng2/L+p5NL w 5p 0", // 1手詰め判定エラー
+	};
+
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		auto ret = (bool)pos.mateMoveIn1Ply();
+		cout << ret << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 1手詰み
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<string> sfens = {
+		//"lnG4nl/5k3/p1p+R1g1p1/1p1p3sp/5N3/2P3p2/PP1G+p3P/1SG4+b1/LN3K2L w SPrbs5p 64", // 1
+		//"ln1+P1G1nl/s4+B3/p1p1p2pp/3P2p1k/5p3/Pp3PPP1/1P1SP3P/2R6/1N1GKG1NL b BLrg2sp 71", // 2
+		//"ln1Skg3/2+B2s3/p1p1pp1pp/3p5/6p2/2P2PPP1/P3S+n2P/2G3+l2/+p3K3L b RBGSNL2Prgnp 77", // 3
+		//"ln1k1g3/5s3/p1pSpp1pp/3p5/6p2/2P2PPP1/P3S+n2P/2G3+l2/+p3K3L b RBGSNL2Prbgnp 77", // 4
+		//"ln1k1g3/5s3/p1pGpp1pp/3p5/6p2/2P2PPP1/P3S+n2P/2G3+l2/+p3K3L b RB2SNL2Prbgnp 77", // 5
+		//"1nk1G1R1l/7R1/p1sp1pg2/1p2+B1p1p/2P6/P1pL5/1PNsPPP1P/4g1S2/Lb3GKNL b SN4P 103", // 6
+		//"ln1g2bG1/2lk2+Sp1/3ppPn1p/p6R1/1Ks6/PPp3P1P/1+r1PPS3/2PG5/L3+b3L w S2NPg3p 110", // 7
+		//"l4Bsnl/1+PR2Sg2/3ppP1gk/p2r2pp1/5K2p/PP1bP1PN1/2P3N1P/4G1+p2/LN4s1L w Sg3p 98", // 8
+		//"lnS2R2l/9/p2G2ppp/2pnp1k2/2PK1P3/1p2Sp1P1/P2GP3P/4+b2+b1/LNS6 b RGSN3Pglp 119", // 9
+		//"l2S3nl/1r1g2kg1/p3Ns1pp/2Ppp2n1/1p4PP1/4P3P/PP2r4/5K1+b1/L6gL w GS3Pbsn2p 122", // 10
+		//"ln1gg1bnl/2sk3pb/2ppp4/p5pRK/9/P6r1/2PP2s1P/5+n3/L7L w S2P2gsn6p 106", // 11
+		//"ln1gk1snl/3s2g2/p1+rppp1pp/3s2P2/K4P2P/P+s2P2P1/3P2N2/1P7/g2b4L w RBGL2Pn2p 70", // 12
+		//"ln1g4+P/9/+Srpp1p3/K1s2k2p/2n4g1/1P1P2P1P/1bP1PPN2/1+lg1G4/4S1+r1L w BSL6Pn 112", // 13
+		//"ln3S3/r5+NBk/3ppS2n/2PP1G2L/pP1G2p1S/3KP+b3/P2S5/5G3/LN+r6 b GL3P6p 139", // 14
+		//"3g3n1/4k4/1s1ppp3/2s3N2/+Rpp5L/4P1Psl/PP1P1PN1P/L3+r2GK/2L3+s2 w 2BG6Pgn 126", // 15
+		//"l2g5/2s2sk2/p4pl2/4p1Lpg/1PP3P2/3G2n2/P2PP1N2/3S1+bS2/LrNK1G1R1 w 2Pbn6p 80", // 16
+		//"l2g3Sl/5+N+PS1/p+B3p1pG/n2pp1s2/2K2N1kp/2GP5/P3P3P/2Ps5/L5R1L b RBGN5Pp 111", // 17
+		//// 18 toに角を打ったからsliderが遮断されて1升だけ延長する（実現できるケースがない）
+		//"ln4+B2/1+S1k5/5p3/1p2R1p1p/1g7/p4BPP1/1PPP1P2P/1rSS5/LNSK1G1N1 b 2GN2L6P 119", // 19
+		//"l1b1gk1gl/3ps4/2+N2S+N2/p3ppp1p/2s3P2/Pn1bP3P/N1+pP1S1+p1/2G1G4/L3K1RrL w 5p 114", // 20
+		//"ln4gnl/9/2+Bs2s+R1/p3pkp2/1GNp4p/6P2/PP+bPP1N1P/2P2+s1P1/L1K1G+r3 w 4Pgslp 106", // 21
+		//"l1G1b+P1+Rl/1PGg5/pk2pBp2/5P2p/6P2/1NNp4P/P1PPP1N2/1G1SK1S2/LN6L b R2S4P 129", // 22
+		//"ln3n1+Rl/1r7/3GSk3/pp+B4Gp/4sn2b/4p1P2/PPGPn3P/2KSG4/L3S3L b 8Pp 105", // 23
+		//"ln1g1kbnl/1r4g2/p4p1+Pp/3ps4/5NP1P/PPP2PGR1/3+b5/4G+p3/LNSK4L w 2S5Pp 76", // 24
+		//"ln+PRs3l/5kg2/2p2pNp1/2P1pPp1p/1p2g4/P4nPPP/1PNpP4/5G3/LbsK4L w G2SPrb 98", // 25
+		//"4+R4/6s1k/p1pg+B3l/6pSp/1p3n1N1/P1P1LP2P/1PNPP1P2/1SG1G1Sp1/L3K3L b RN4Pbg 99", // 26
+		//"ln1g2lg1/1r1k1+B3/3p1+N1p1/pppsp4/2n3pP1/1PP+s1P3/Pb2+n2s1/1G7/+rLKS3+p1 w Pgl4p 96", // 27
+		//"l2g4p/2s2+SSbk/p1np5/4g2pP/P3p1N2/1PpSPPPP1/1pP2G3/2G3KR1/LNB4NL b 3Prl 101", // 28
+		//"l+S3k1n1/1+N1nr2gl/p1Bp1G+Pp1/1S1sg4/KP3p2p/2+rP1P3/PG7/2+b1+p4/L7L w S4Pn3p 138", // 29
+		//"ln5kl/9/4+N1PS1/p1Pp3G1/7Pp/PP4n1P/1G1SG4/5S3/L+p2K3L b RN5Pr2bgs3p 97", // 30
+		//"+P3r3p/2B1g1+L2/4k1+N2/1ppPlpsp1/1sBpp1pg1/LNP2P3/1+s2PGS2/3R1K2+p/1N7 b LPgn3p 115", // 31
+		//// 32 レアケース
+		//// 33 レアケース
+		//// 34 レアケース
+		//// 35 レアケース
+		//"l3gnSsl/4kn3/2GpppP2/2p4pp/5N1b1/p2n1P2r/LPPPPrp1P/1BGS5/3K2G1L w 2Psp 102", // 36
+		//"l1k5l/2n6/p3+R2p1/N1pppB1Pp/1p7/2P1P1P1P/PP1PSSG2/2G6/Ls1K1G2L b BG3Prs2n 113", // 37
+		//// 38 レアケース
+		//"lkB+R5/4S4/1psp2gpp/p1n1pp3/1LS3pP1/PP2P3P/1GpK1PP2/1B3g1R1/LN3+n1NL b GS2P 111", // 39
+		//"ln2g3l/2sP1g3/p1pp1k1p1/1PN1p3b/5Sn1K/P1P4Pp/1+r4Bsn/5L3/5GgsL w r7p 114", // 40
+		//"ln1g4l/2s3l2/4+N1p2/p2G3+Rp/4+b2S1/2p1N2k1/3PPPP1P/2BS2S2/+rPG1KG1NL b 8P 87", // 41
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/2K2PGSP/1Sp1+r4/LN5NL w BSP5p 5", // 判定エラー
+	};
+
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		auto ret = pos.mateMoveIn1Ply();
+		cout << (bool)ret << "\t" << ret.toUSI() << "\t" << sfen << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 詰み探索計測(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	std::ifstream ifs(argv[1]);
+
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+		auto ret = pos.mateMoveIn1Ply();
+		cout << (bool)ret << "\t" << ret.toUSI() << "\t" << sfen << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+
+#if 0
+#include "mate.h"
+// 詰み探索
 int main() {
 	initTable();
 	Position::initZobrist();
@@ -305,7 +442,7 @@ int main() {
 		pos.doMove(move, pos.searcher()->states->back());
 	}
 
-	bool ret = mateMoveInOddPly(pos, 5);
+	bool ret = mateMoveInOddPly<5>(pos);
 
 	std::cout << ret << std::endl;
 
@@ -416,7 +553,6 @@ int main() {
 
 #if 0
 #include "dfpn.h"
-using namespace ns_dfpn;
 // DfPnテスト
 int main()
 {
@@ -613,7 +749,7 @@ int main() {
 	string sfen = "6sn1/2+P3g1l/p1+P1r3p/2bpk2p1/6s1N/3PK1pPP/P1N2P3/2S1G1SR1/L4G1NL b B5Pglp 1";
 
 	pos.set(sfen);
-	bool ret = mateMoveInEvenPly(pos, 4);
+	bool ret = mateMoveInEvenPly<4>(pos);
 
 	return 0;
 }
@@ -697,7 +833,7 @@ int main() {
 
 	for (string sfen : sfens) {
 		pos.set(sfen);
-		bool ret = mateMoveInOddPly(pos, 5);
+		bool ret = mateMoveInOddPly<5>(pos);
 		cout << ret << endl;
 	}
 

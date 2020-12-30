@@ -66,9 +66,6 @@
     <ClCompile Include="..\cppshogi\book.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="mate.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="npz.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

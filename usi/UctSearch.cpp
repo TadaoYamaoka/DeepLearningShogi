@@ -184,9 +184,9 @@ SubVirtualLoss(child_node_t* child, uct_node_t* current)
 inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
-	atomic_fetch_add(&current->win, result);
+	atomic_fetch_add(&current->win, (WinType)result);
 	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
-	atomic_fetch_add(&child->win, result);
+	atomic_fetch_add(&child->win, (WinType)result);
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
@@ -757,9 +757,9 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		// 詰み
 		Move move;
 		if (pos->inCheck())
-			move = mateMoveInOddPlyReturnMove<true>(*pos, MATE_SEARCH_DEPTH);
+			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, true>(*pos);
 		else
-			move = mateMoveInOddPlyReturnMove<false>(*pos, MATE_SEARCH_DEPTH);
+			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, false>(*pos);
 		// 伝播したVALUE_WINの場合、詰みが見つからない場合がある
 		if (move != Move::moveNone())
 			return move;
@@ -1216,7 +1216,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 			// 詰みチェック
 			int isMate = 0;
 			if (!pos->inCheck()) {
-				if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
 					isMate = 1;
 				}
 				// 入玉勝ちかどうかを判定
@@ -1225,7 +1225,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				}
 			}
 			else {
-				if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
 					isMate = 1;
 				}
 				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
@@ -1300,18 +1300,18 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	const int child_num = current->child_num;
 	int max_child = 0;
 	const int sum = current->move_count;
-	const float sum_win = current->win;
+	const WinType sum_win = current->win;
 	float q, u, max_value;
 	int child_win_count = 0;
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrt(sum);
+	const float sqrt_sum = sqrtf(sum);
 	const float c = depth > 0 ?
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init :
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
-	const float parent_q = sum_win > 0 ? std::max(0.0f, sum_win / sum - fpu_reduction) : 0.0f;
+	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 	// UCB値最大の手を求める
@@ -1329,7 +1329,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 				current->value_win = VALUE_WIN;
 			}
 		}
-		const float win = uct_child[i].win;
+		const WinType win = uct_child[i].win;
 		const int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
@@ -1338,7 +1338,7 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 			u = init_u;
 		}
 		else {
-			q = win / move_count;
+			q = (float)(win / move_count);
 			u = sqrt_sum / (1 + move_count);
 		}
 
