@@ -24,7 +24,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 void make_book(std::istringstream& ssCmd, OptionsMap& options);
 #endif
 
-ns_dfpn::DfPn dfpn;
+DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
 
 volatile sig_atomic_t stopflg = false;
@@ -134,7 +134,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				SetThread(new_thread, new_policy_value_batch_maxsize);
 
 				if (options["Mate_Root_Search"] > 0) {
-					ns_dfpn::DfPn::set_hashsize(options["DfPn_Hash"]);
+					DfPn::set_hashsize(options["DfPn_Hash"]);
 					dfpn.init();
 				}
 			}
@@ -145,7 +145,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			// 詰み探索用
 			if (options["Mate_Root_Search"] > 0) {
-				ns_dfpn::DfPn::set_maxdepth(options["Mate_Root_Search"]);
+				DfPn::set_maxdepth(options["Mate_Root_Search"]);
 			}
 
 			// オプション設定
