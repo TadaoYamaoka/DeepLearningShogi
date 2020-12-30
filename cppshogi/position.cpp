@@ -2805,11 +2805,18 @@ DC_CHECK:
 
     return Move::moveNone();
 }
+
+template <bool Additional> Move Position::mateMoveIn1Ply() {
+    return (turn() == Black ? mateMoveIn1Ply<Black, Additional>() : mateMoveIn1Ply<White, Additional>());
+}
+
 // 明示的インスタンス化
 template Move Position::mateMoveIn1Ply<Black, false>();
 template Move Position::mateMoveIn1Ply<White, false>();
 template Move Position::mateMoveIn1Ply<Black, true>();
 template Move Position::mateMoveIn1Ply<White, true>();
+template Move Position::mateMoveIn1Ply<false>();
+template Move Position::mateMoveIn1Ply<true>();
 
 void Position::initZobrist() {
     // zobTurn_ は 1 であり、その他は 1桁目を使わない。
