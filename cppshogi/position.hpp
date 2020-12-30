@@ -339,8 +339,10 @@ public:
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
     void undoMove(const Move move);
 
-    template <Color US> Move mateMoveIn1Ply();
-    Move mateMoveIn1Ply();
+    template <Color US, bool Additional> Move mateMoveIn1Ply();
+    template <bool Additional = true> Move mateMoveIn1Ply() {
+        return turn() == Black ? mateMoveIn1Ply<Black, Additional>() : mateMoveIn1Ply<White, Additional>();
+    }
 
     Ply gamePly() const         { return gamePly_; }
 
