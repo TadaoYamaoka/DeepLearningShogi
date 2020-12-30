@@ -372,8 +372,6 @@ private:
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
 	float UctSearch(Position* pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories);
-	// ノードの展開
-	unsigned int ExpandNode(Position* pos, const int depth);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
 	// ノードをキューに追加
@@ -1302,12 +1300,19 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 	const int child_num = current->child_num;
 	int max_child = 0;
 	const int sum = current->move_count;
+	const float sum_win = current->win;
 	float q, u, max_value;
 	int child_win_count = 0;
 
 	max_value = -FLT_MAX;
 
+	const float sqrt_sum = sqrt(sum);
+	const float c = depth > 0 ?
+		FastLog((sum + c_base + 1.0f) / c_base) + c_init :
+		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
+	const float parent_q = sum_win > 0 ? std::max(0.0f, sum_win / sum - fpu_reduction) : 0.0f;
+	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1329,22 +1334,16 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 		if (move_count == 0) {
 			// 未探索のノードの価値に、親ノードの価値を使用する
-			if (current->win > 0)
-				q = std::max(0.0f, current->win / current->move_count - fpu_reduction);
-			else
-				q = 0.0f;
-			u = sum == 0 ? 1.0f : sqrtf(sum);
+			q = parent_q;
+			u = init_u;
 		}
 		else {
 			q = win / move_count;
-			u = sqrtf(sum) / (1 + move_count);
+			u = sqrt_sum / (1 + move_count);
 		}
 
 		const float rate = uct_child[i].nnrate;
 
-		const float c = depth > 0 ?
-			FastLog((sum + c_base + 1.0f) / c_base) + c_init :
-			FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
 		const float ucb_value = q + c * u * rate;
 
 		if (ucb_value > max_value) {

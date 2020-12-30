@@ -257,7 +257,38 @@ int main() {
 
 #if 1
 #include "mate.h"
-// 詰み探索計測
+// 詰み探索計測(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	std::ifstream ifs(argv[1]);
+
+	std::chrono::high_resolution_clock::duration total{};
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		auto ret = mateMoveInOddPly(pos, 5);
+
+		total += std::chrono::high_resolution_clock::now() - start;
+
+		cout << (bool)ret << "\t" << sfen << std::endl;
+	}
+	cout << std::chrono::duration_cast<std::chrono::nanoseconds>(total).count() / 1000000.0 << endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+#include "mate.h"
+// 奇数手詰めの判定間違い
 int main() {
 	initTable();
 	Position::initZobrist();
