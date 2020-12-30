@@ -238,7 +238,7 @@ int main() {
 	for (string sfen : sfens) {
 		pos.set(sfen);
 		auto start = std::chrono::system_clock::now();
-		bool ret = mateMoveInOddPly(pos, 5);
+		bool ret = mateMoveInOddPly<7>(pos);
 		auto end = std::chrono::system_clock::now();
 
 		auto time = end - start;
@@ -265,7 +265,6 @@ int main(int argc, char* argv[]) {
 	Position pos;
 
 	std::ifstream ifs(argv[1]);
-	int mate_ply = std::stoi(argv[2]);
 
 	auto start0 = std::chrono::system_clock::now();
 	auto total = start0 - start0;
@@ -275,7 +274,7 @@ int main(int argc, char* argv[]) {
 		if (sfen.size() == 0) break;
 		pos.set(sfen);
 		auto start = std::chrono::system_clock::now();
-		bool ret = mateMoveInOddPly(pos, mate_ply);
+		bool ret = mateMoveInOddPly<5>(pos);
 		auto end = std::chrono::system_clock::now();
 
 		auto time = end - start;
@@ -309,7 +308,7 @@ int main() {
 
 	for (string sfen : sfens) {
 		pos.set(sfen);
-		bool ret = mateMoveInOddPly(pos, 5);
+		bool ret = mateMoveInOddPly<5>(pos);
 		cout << ret << std::endl;
 	}
 
@@ -443,7 +442,7 @@ int main() {
 		pos.doMove(move, pos.searcher()->states->back());
 	}
 
-	bool ret = mateMoveInOddPly(pos, 5);
+	bool ret = mateMoveInOddPly<5>(pos);
 
 	std::cout << ret << std::endl;
 
@@ -554,7 +553,6 @@ int main() {
 
 #if 0
 #include "dfpn.h"
-using namespace ns_dfpn;
 // DfPnテスト
 int main()
 {
@@ -751,7 +749,7 @@ int main() {
 	string sfen = "6sn1/2+P3g1l/p1+P1r3p/2bpk2p1/6s1N/3PK1pPP/P1N2P3/2S1G1SR1/L4G1NL b B5Pglp 1";
 
 	pos.set(sfen);
-	bool ret = mateMoveInEvenPly(pos, 4);
+	bool ret = mateMoveInEvenPly<4>(pos);
 
 	return 0;
 }
@@ -835,7 +833,7 @@ int main() {
 
 	for (string sfen : sfens) {
 		pos.set(sfen);
-		bool ret = mateMoveInOddPly(pos, 5);
+		bool ret = mateMoveInOddPly<5>(pos);
 		cout << ret << endl;
 	}
 
