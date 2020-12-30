@@ -657,7 +657,7 @@ namespace {
 			const Bitboard y = pos.discoveredCheckBB();
 			const Bitboard target = ~pos.bbOf(US); // 自駒がない場所が移動対象升
 
-												   // yのみ。ただしxかつyである可能性もある。
+			// yのみ。ただしxかつyである可能性もある。
 			auto src = y;
 			while (src)
 			{

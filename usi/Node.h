@@ -6,6 +6,12 @@
 
 #include "cppshogi.h"
 
+#ifdef WIN_TYPE_DOUBLE
+typedef double WinType;
+#else
+typedef float WinType;
+#endif
+
 struct uct_node_t;
 struct child_node_t {
 	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
@@ -32,7 +38,7 @@ struct child_node_t {
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
-	std::atomic<float> win;      // 勝った回数
+	std::atomic<WinType> win;    // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
 	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
@@ -69,7 +75,7 @@ struct uct_node_t {
 	}
 
 	std::atomic<int> move_count;
-	std::atomic<float> win;
+	std::atomic<WinType> win;
 	std::atomic<bool> evaled;      // 評価済か
 	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
