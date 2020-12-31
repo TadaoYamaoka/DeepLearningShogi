@@ -920,8 +920,7 @@ Bitboard Position::attacksAroundKingSlider() const {
 }
 
 template <Color US>
-Bitboard Position::attacksAroundKingNonSliderInAvoiding(Square avoid_from) const
-{
+Bitboard Position::attacksAroundKingNonSliderInAvoiding(Square avoid_from) const {
     const Square sq_king = kingSquare(US);
     const Color Them = ~US;
     Bitboard bb;
@@ -933,26 +932,22 @@ Bitboard Position::attacksAroundKingNonSliderInAvoiding(Square avoid_from) const
 
     // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
     bb = bbOf(Knight, Them) & check_around_bb(Them, Knight, sq_king) & avoid_bb;
-    while (bb)
-    {
+    while (bb) {
         from = bb.firstOneFromSQ11();
         sum |= knightAttack(Them, from);
     }
     bb = bbOf(Silver, Them) & check_around_bb(Them, Silver, sq_king) & avoid_bb;
-    while (bb)
-    {
+    while (bb) {
         from = bb.firstOneFromSQ11();
         sum |= silverAttack(Them, from);
     }
     bb = goldsBB(Them) & check_around_bb(Them, Gold, sq_king) & avoid_bb;
-    while (bb)
-    {
+    while (bb) {
         from = bb.firstOneFromSQ11();
         sum |= goldAttack(Them, from);
     }
     bb = bbOf(Horse, Dragon, King, Them) & check_around_bb(Them, King, sq_king) & avoid_bb;
-    while (bb)
-    {
+    while (bb) {
         from = bb.firstOneFromSQ11();
         sum |= kingAttack(from);
     }
@@ -974,8 +969,7 @@ Bitboard Position::pinnedPieces(const Color us, const Square from, const Square 
 
     // fromからは消えて、toの地点に駒が現れているものとして
     const Bitboard new_pieces = (occupiedBB() & avoid_bb) | setMaskBB(to);
-    while (pinners)
-    {
+    while (pinners) {
         b = betweenBB(ksq, pinners.firstOneFromSQ11()) & new_pieces;
         if (b.popCount<false>() <= 1)
             result |= b & bbOf(us);
@@ -1095,8 +1089,7 @@ namespace {
 
     // toにある駒が捕獲できるのか
     // ただしavoid升の駒でのcaptureは除外する。
-    bool can_piece_capture(const Position& pos, const Color us, const Square to, const Square avoid, const Bitboard& pinned, const Bitboard& slide)
-    {
+    bool can_piece_capture(const Position& pos, const Color us, const Square to, const Square avoid, const Bitboard& pinned, const Bitboard& slide) {
         assert(isInSquare(to));
 
         const Square sq_king = pos.kingSquare(us);
@@ -1974,7 +1967,7 @@ silver_drop_end:
                 //    STEP2_DROP:;
                 // toに打ったからsliderが遮断されたんでねーの？1升だけ延長する。
                 if (esc_count <= 2) {
-                    Square nextTo = nextSquare(one, to);
+                    const Square nextTo = nextSquare(one, to);
                     if (nextTo == SquareNum) goto NEXT2;
                     if (piece(nextTo)) goto NEXT2;
                     if (canPawnDrop<~US>(to)) goto NEXT2;
@@ -2582,7 +2575,7 @@ silver_drop_end:
                             if (canPawnDrop<~US>(s2) || (capPawn && makeFile(s2) == makeFile(to)))
                                 goto DISCOVER_ATTACK_CONTINUE_Silver;
 
-                            Square s3 = nextSquare(s1, s2);
+                            const Square s3 = nextSquare(s1, s2);
                             s1 = s2;
                             s2 = s3;
                         } while (s2 != SquareNum);
