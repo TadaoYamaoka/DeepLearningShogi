@@ -1295,8 +1295,8 @@ UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const i
 
 	const float sqrt_sum = sqrtf(sum);
 	const float c = depth > 0 ?
-		FastLog((sum + c_base + 1.0f) / c_base) + c_init :
-		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root;
+		FastLog((1 + sum + c_base) / c_base) + c_init :
+		FastLog((1 + sum + c_base_root) / c_base_root) + c_init_root;
 	const float fpu_reduction = (depth > 0 ? c_fpu_reduction : c_fpu_reduction_root) * sqrtf(current->visited_nnrate);
 	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
