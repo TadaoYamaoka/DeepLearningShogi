@@ -987,7 +987,7 @@ namespace {
 
     // kingがtoとbb_avoid以外の升に逃げられるか
     // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
-    bool can_king_escape(const Position& pos, Color us, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
+    bool can_king_escape(const Position& pos, const Color us, const Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
         // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
         // captureの場合、もともとtoには駒があるわけで、ここをxorで処理するわけにはいかない。
         const Bitboard slide = slide_ | setMaskBB(to);
@@ -1016,13 +1016,13 @@ namespace {
     // kingがtoとbb_avoid以外の升に逃げられるか
     // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
     // またfromからは駒が除去されているものとして考える。
-    bool can_king_escape(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
-        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
-        Bitboard slide = slide_ | setMaskBB(to);
-
+    bool can_king_escape(const Position& pos, const Color us, const Square from, const Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
         const Square sq_king = pos.kingSquare(us);
+
+        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
         // kingもいないものとして考える必要がある。
-        slide ^= setMaskBB(sq_king);
+        const Bitboard slide = (slide_ | setMaskBB(to)) ^ setMaskBB(sq_king);
+
         // これは呼び出し側でbb_avoidを計算するときに保証するものとする。
         // →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
@@ -1045,13 +1045,13 @@ namespace {
     // toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
     // またfromからは駒が除去されているものとして考える。
     // ただしtoには行けるものとする。
-    bool can_king_escape_cangoto(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
-        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
-        Bitboard slide = slide_ | setMaskBB(to);
-
+    bool can_king_escape_cangoto(const Position& pos, const Color us, const Square from, const Square to, const Bitboard& bb_avoid, const Bitboard& slide_) {
         const Square sq_king = pos.kingSquare(us);
+
+        // toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
         // kingもいないものとして考える必要がある。
-        slide ^= setMaskBB(sq_king);
+        const Bitboard slide = (slide_ | setMaskBB(to)) ^ setMaskBB(sq_king);
+
         // これは呼び出し側でbb_avoidを計算するときに保証するものとする。
         // →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
@@ -1074,7 +1074,7 @@ namespace {
     }
 
     // 玉以外の駒でtoの駒が取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-    bool can_piece_capture(const Position& pos, Color us, Square to, const Bitboard& pinned, const Bitboard& slide) {
+    bool can_piece_capture(const Position& pos, const Color us, const Square to, const Bitboard& pinned, const Bitboard& slide) {
         const Square sq_king = pos.kingSquare(us);
 
         // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
@@ -1095,7 +1095,7 @@ namespace {
 
     // toにある駒が捕獲できるのか
     // ただしavoid升の駒でのcaptureは除外する。
-    bool can_piece_capture(const Position& pos, Color us, Square to, Square avoid, const Bitboard& pinned, const Bitboard& slide)
+    bool can_piece_capture(const Position& pos, const Color us, const Square to, const Square avoid, const Bitboard& pinned, const Bitboard& slide)
     {
         assert(isInSquare(to));
 
