@@ -805,8 +805,8 @@ void initMate1Ply() {
 }
 
 // 桂馬が次に成れる移動元の表現のために必要となるので用意。
-static Bitboard RANK3_5BB = rankMask<Rank3>() | rankMask<Rank4>() | rankMask<Rank5>();
-static Bitboard RANK5_7BB = rankMask<Rank5>() | rankMask<Rank6>() | rankMask<Rank7>();
+static const Bitboard RANK3_5BB = rankMask<Rank3>() | rankMask<Rank4>() | rankMask<Rank5>();
+static const Bitboard RANK5_7BB = rankMask<Rank5>() | rankMask<Rank6>() | rankMask<Rank7>();
 
 // usのSliderの利きを列挙する。
 // avoid升にいる駒の利きは除外される。
