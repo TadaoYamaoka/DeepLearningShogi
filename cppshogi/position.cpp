@@ -1869,10 +1869,9 @@ silver_drop_end:
         // 合い駒なしである可能性が高い
 
         // 敵は歩以外を持っていないか。
-        // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
 
         const Hand themHand = hand(Them);
-        if (themHand.numOf(HPawn) == themHand.value()) {
+        if (!themHand.exceptPawnExists()) {
             // 玉の8近傍の移動可能箇所の列挙
             const Bitboard bb_king_movable = ~bbOf(Them) & kingAttack(ksq);
 
@@ -2366,9 +2365,8 @@ silver_drop_end:
         // 合い駒なしである可能性が高い場合についてのみ。
 
         // 歩以外を持っていないか。
-        // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
 
-        if (dcBB_betweenIsUs && themHand.numOf(HPawn) == themHand.value()) {
+        if (dcBB_betweenIsUs && !themHand.exceptPawnExists()) {
             // 玉の8近傍にある開き王手可能駒について
             //    bb = dcCandidates & kingAttack(ksq);
             // 24近傍まで拡張していいだろう。
