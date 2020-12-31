@@ -296,8 +296,8 @@ public:
     }
     Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq) const { return attacksFrom(pt, c, sq, occupiedBB()); }
     static Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied);
-    template <Color US> Bitboard attacksSlider(const Bitboard& slide) const;
-    template <Color US> Bitboard attacksSlider(Square avoid_from, const Bitboard& occ) const;
+    Bitboard attacksSlider(const Color us, const Bitboard& slide) const;
+    Bitboard attacksSlider(const Color us, const Square avoid_from, const Bitboard& occ) const;
     template <Color US> Bitboard attacksAroundKingNonSlider() const;
     template <Color US> Bitboard attacksAroundKingSlider() const;
     template <Color US> Bitboard attacksAroundKingNonSliderInAvoiding(Square avoid_from) const;
@@ -306,17 +306,17 @@ public:
     // 王手がかかっている局面において逃げ場所を見るときに裏側からのpinnerによる攻撃を考慮して、玉はいないものとして
     // 考える必要があることに注意せよ。(slide = pos.slide() ^ from ^ king | to) みたいなコードが必要
     // avoidの駒の利きだけは無視して玉周辺の利きを考えるバージョン。
-    template <Color US> Bitboard attacksAroundKingInAvoiding(Square from, const Bitboard& occ) const
+    template <Color US> Bitboard attacksAroundKingInAvoiding(const Square from, const Bitboard& occ) const
     {
-        return attacksAroundKingNonSliderInAvoiding<US>(from) | attacksSlider<~US>(from, occ);
+        return attacksAroundKingNonSliderInAvoiding<US>(from) | attacksSlider(~US, from, occ);
     }
     // 歩が打てるかの判定用。
     // 歩を持っているかの判定も含む。
-    template<Color US> bool canPawnDrop(Square sq) const {
+    template<Color US> bool canPawnDrop(const Square sq) const {
         // 歩を持っていて、二歩ではない。
-        return hand(US).numOf(HPawn) > 0 && !(bbOf(Pawn, US) & fileMask(makeFile(sq)));
+        return hand(US).exists<HPawn>() > 0 && !(bbOf(Pawn, US) & fileMask(makeFile(sq)));
     }
-    template <Color US> Bitboard pinnedPieces(Square from, Square to) const;
+    Bitboard pinnedPieces(const Color us, const Square from, const Square to) const;
 
     // 次の手番
     Color turn() const { return turn_; }

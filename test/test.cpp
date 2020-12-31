@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索
 int main() {
@@ -400,7 +400,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 // 詰み探索計測(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {
 	initTable();
