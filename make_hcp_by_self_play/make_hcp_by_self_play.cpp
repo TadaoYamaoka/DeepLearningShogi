@@ -14,7 +14,7 @@ const Move select_move(const Position pos, float *logits) {
 	for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
 		const Move move = ml.move();
 
-		const int move_label = make_move_label((u16)move.proFromAndTo(), pos);
+		const int move_label = make_move_label((u16)move.proFromAndTo(), pos.turn());
 
 		legal_moves.emplace_back(move);
 		legal_move_probabilities.emplace_back(logits[move_label]);
