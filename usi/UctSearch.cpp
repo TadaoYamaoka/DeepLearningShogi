@@ -972,7 +972,7 @@ UCTSearcher::ParallelUctSearch()
 	uct_node_t* current_root = tree->GetCurrentHead();
 	// ルートノードを評価
 	LOCK_EXPAND;
-	if (!current_root->evaled) {
+	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
 		QueuingNode(pos_root, current_root);
 		EvalNode();
@@ -1119,7 +1119,7 @@ float
 UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories)
 {
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->evaled)
+	if (!current->IsEvaled())
 		return DISCARDED;
 
 	if (current != tree->GetCurrentHead()) {
@@ -1262,7 +1262,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vect
 				}
 			}
 		}
-		child_node->evaled = true;
+		child_node->SetEvaled();
 	}
 	else {
 		// 現在見ているノードのロックを解除
@@ -1445,6 +1445,6 @@ void UCTSearcher::EvalNode() {
 			}
 		}
 #endif
-		node->evaled = true;
+		node->SetEvaled();
 	}
 }
