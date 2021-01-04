@@ -760,7 +760,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 		// PV表示
 		std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(best_root_uct_child);
-		cout << "info nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull << " score cp " << cp << " depth " << depth << " pv " << pv << endl;
+		std::cout << "info nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull << " score cp " << cp << " depth " << depth << " pv " << pv << std::endl;
 	}
 	else {
 		// 部分ソート
@@ -787,7 +787,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 			const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
 
 			std::tie(pv, cp, depth, move_tmp, best_wp_tmp, ponderMove_tmp) = get_pv(best_root_uct_child);
-			cout << "info multipv " << i + 1 << info_string << cp << " depth " << depth << " pv " << pv << endl;
+			std::cout << "info multipv " << i + 1 << info_string << cp << " depth " << depth << " pv " << pv << "\n";
 
 			if (i == 0) {
 				move = move_tmp;
@@ -795,6 +795,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 				ponderMove = ponderMove_tmp;
 			}
 		}
+		std::cout << std::flush;
 	}
 
 	return std::make_tuple(move, best_wp, ponderMove);
