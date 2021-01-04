@@ -89,7 +89,7 @@ int minimum_time = 0;
 
 int last_pv_print; // 最後にpvが表示された時刻
 int pv_interval = 500; // pvを表示する周期(ms)
-int multi_pv = 1; // multipvで出力する手の数
+int multi_pv = 1; // MultiPvの数
 
 // ハッシュの再利用
 bool reuse_subtree = true;
@@ -529,7 +529,7 @@ void SetPvInterval(const int interval)
 	pv_interval = interval;
 }
 
-// multipv設定
+// MultiPv設定
 void SetMultiPV(const int multipv)
 {
 	multi_pv = multipv;
@@ -674,7 +674,7 @@ bool reverse_compare_child_node_ptr(const child_node_t* lhs, const child_node_t*
 			// 子ノードに一つでも負けがあれば、勝ちなので選択する
 			if (rhs->node && rhs->node->value_win == VALUE_LOSE) {
 				// すべて勝ちの場合は、探索回数が最大の手を選択する
-				return lhs->move_count < rhs->move_count;
+				return lhs->move_count > rhs->move_count;
 			}
 			return true;
 		}
