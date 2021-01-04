@@ -81,6 +81,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Stochastic_Ponder"]           = USIOption(true);
     (*this)["Byoyomi_Margin"]              = USIOption(0, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
+    (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves - 1);
     (*this)["Draw_Ply"]                    = USIOption(0, 0, INT_MAX);
     (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
     (*this)["UCT_Threads"]                 = USIOption(2, 0, 256);
