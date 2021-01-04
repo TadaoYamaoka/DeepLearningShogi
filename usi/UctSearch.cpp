@@ -530,7 +530,7 @@ void SetPvInterval(const int interval)
 }
 
 // MultiPv設定
-void SetMultiPV(const int multipv)
+void SetMultiPv(const int multipv)
 {
 	multi_pv = multipv;
 }
@@ -657,7 +657,7 @@ inline const child_node_t* select_max_child_node(const uct_node_t* uct_node)
 	return &uct_child[select_index];
 }
 
-bool reverse_compare_child_node_ptr(const child_node_t* lhs, const child_node_t* rhs)
+bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
 {
 	if (lhs->node) {
 		const uct_node_t* lhs_child_node = lhs->node.get();
@@ -771,7 +771,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		sorted_root_uct_childs.reserve(child_num);
 		for (int i = 0; i < child_num; i++)
 			sorted_root_uct_childs.emplace_back(&root_uct_child[i]);
-		std::partial_sort(sorted_root_uct_childs.begin(), sorted_root_uct_childs.begin() + multipv_num, sorted_root_uct_childs.end(), reverse_compare_child_node_ptr);
+		std::partial_sort(sorted_root_uct_childs.begin(), sorted_root_uct_childs.begin() + multipv_num, sorted_root_uct_childs.end(), compare_child_node_ptr_descending);
 
 		// info文字列の共通部分
 		std::stringstream info_ss;

@@ -81,7 +81,7 @@ void SetReuseSubtree(bool flag);
 void SetPvInterval(const int interval);
 
 // MultiPv設定
-void SetMultiPV(const int multipv);
+void SetMultiPv(const int multipv);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
