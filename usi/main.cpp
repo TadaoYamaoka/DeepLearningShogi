@@ -162,7 +162,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			c_fpu_reduction_root = options["C_fpu_reduction_root"] / 100.0f;
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);
-			SetMultiPv(options["MultiPV"]);
+			SetMultiPV(options["MultiPV"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);

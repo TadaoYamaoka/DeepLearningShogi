@@ -529,8 +529,8 @@ void SetPvInterval(const int interval)
 	pv_interval = interval;
 }
 
-// MultiPv設定
-void SetMultiPv(const int multipv)
+// MultiPV設定
+void SetMultiPV(const int multipv)
 {
 	multi_pv = multipv;
 }
