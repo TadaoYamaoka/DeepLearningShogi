@@ -117,6 +117,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>LEARN;SELF_PLAY;_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -137,6 +138,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,6 +161,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -181,6 +184,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -200,6 +204,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>SPDLOG_DEBUG_ON;LEARN;SELF_PLAY;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -225,7 +230,6 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
-    <ClCompile Include="..\usi\mate.cpp" />
     <ClCompile Include="..\usi\nn_senet10.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
     <ClCompile Include="..\usi\nn_wideresnet10.cpp" />

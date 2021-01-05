@@ -235,7 +235,7 @@ private:
 	DType* y2;
 
 	// 詰み探索
-	ns_dfpn::DfPn dfpn;
+	DfPn dfpn;
 	MateSearchEntry* mate_search_slot = nullptr;
 	int* mate_search_limit_nodes = nullptr;
 	deque<int> mate_search_queue;
@@ -664,7 +664,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 				// 詰みチェック(ValueNet計算中にチェック)
 				int isMate = 0;
 				if (!pos->inCheck()) {
-					if (mateMoveInOddPly<false>(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
 						isMate = 1;
 					}
 					// 入玉勝ちかどうかを判定
@@ -673,7 +673,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 					}
 				}
 				else {
-					if (mateMoveInOddPly<true>(*pos, MATE_SEARCH_DEPTH)) {
+					if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
 						isMate = 1;
 					}
 					// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
@@ -1622,7 +1622,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	ns_dfpn::DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+	DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);

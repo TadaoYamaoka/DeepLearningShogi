@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str, default='model', help='model file name')
 parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10'], help='network type')
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
@@ -27,6 +27,10 @@ if args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
 elif args.network == 'senet10':
     from dlshogi.policy_value_network_senet10 import *
+elif args.network == 'resnet10_swish':
+    from dlshogi.policy_value_network_resnet10_swish import *
+elif args.network == 'resnet20_swish':
+    from dlshogi.policy_value_network_resnet20_swish import *
 else:
     from dlshogi.policy_value_network import *
 

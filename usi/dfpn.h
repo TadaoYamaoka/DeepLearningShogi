@@ -47,36 +47,36 @@ namespace ns_dfpn {
 		int64_t clusters_mask = 0;
 		uint16_t generation = 0;
 	};
-
-	class DfPn
-	{
-	public:
-		void init();
-		bool dfpn(Position& r);
-		bool dfpn_andnode(Position& r);
-		void dfpn_stop(const bool stop);
-		Move dfpn_move(Position& pos);
-
-		static void set_hashsize(uint64_t size) {
-			HASH_SIZE_MB = size;
-		}
-		static void set_maxdepth(uint32_t depth) {
-			kMaxDepth = depth;
-		}
-		void set_max_search_node(int64_t max_search_node) {
-			maxSearchNode = max_search_node;
-		}
-
-		int64_t searchedNode = 0;
-	private:
-		template <bool or_node>
-		void dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode);
-
-		TranspositionTable transposition_table;
-		std::atomic<bool> stop;
-		int64_t maxSearchNode = 2097152;
-
-		static uint32_t kMaxDepth;
-		static int64_t HASH_SIZE_MB;
-	};
 }
+
+class DfPn
+{
+public:
+	void init();
+	bool dfpn(Position& r);
+	bool dfpn_andnode(Position& r);
+	void dfpn_stop(const bool stop);
+	Move dfpn_move(Position& pos);
+
+	static void set_hashsize(uint64_t size) {
+		HASH_SIZE_MB = size;
+	}
+	static void set_maxdepth(uint32_t depth) {
+		kMaxDepth = depth;
+	}
+	void set_max_search_node(int64_t max_search_node) {
+		maxSearchNode = max_search_node;
+	}
+
+	int64_t searchedNode = 0;
+private:
+	template <bool or_node>
+	void dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode);
+
+	ns_dfpn::TranspositionTable transposition_table;
+	std::atomic<bool> stop;
+	int64_t maxSearchNode = 2097152;
+
+	static uint32_t kMaxDepth;
+	static int64_t HASH_SIZE_MB;
+};

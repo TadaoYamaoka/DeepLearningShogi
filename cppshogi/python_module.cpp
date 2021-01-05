@@ -75,7 +75,7 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 		make_input_features(position, features1, features2);
 
 		// move
-		*move = make_move_label(hcpe->bestMove16, position);
+		*move = make_move_label(hcpe->bestMove16, position.turn());
 	}
 }
 
@@ -99,7 +99,7 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 		make_input_features(position, features1, features2);
 
 		// move
-		*move = make_move_label(hcpe->bestMove16, position);
+		*move = make_move_label(hcpe->bestMove16, position.turn());
 
 		// game result
 		*result = make_result(hcpe->gameResult, position);
@@ -127,7 +127,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 		make_input_features(position, features1, features2);
 
 		// move
-		*move = make_move_label(hcpe->bestMove16, position);
+		*move = make_move_label(hcpe->bestMove16, position.turn());
 
 		// game result
 		*result = make_result(hcpe->gameResult, position);

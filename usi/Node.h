@@ -6,6 +6,12 @@
 
 #include "cppshogi.h"
 
+#ifdef WIN_TYPE_DOUBLE
+typedef double WinType;
+#else
+typedef float WinType;
+#endif
+
 // 詰み探索で詰みの場合の定数
 //  値に意味はないがDebugMessage表示で勝ちの場合にnnrateが正の値になっている方がよいため、子ノードの勝ちを負の値とする
 constexpr float VALUE_WIN = -FLT_MAX;
@@ -40,7 +46,7 @@ struct child_node_t {
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
-	std::atomic<float> win;      // 勝った回数
+	std::atomic<WinType> win;    // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
 };
 
@@ -80,7 +86,7 @@ struct uct_node_t {
 	void SetEvaled() { win = 0.0f; }
 
 	std::atomic<int> move_count;
-	std::atomic<float> win;
+	std::atomic<WinType> win;
 	std::atomic<float> visited_nnrate;
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
