@@ -13,11 +13,10 @@ typedef float WinType;
 #endif
 
 // 詰み探索で詰みの場合の定数
-//  値に意味はないがDebugMessage表示で勝ちの場合にnnrateが正の値になっている方がよいため、子ノードの勝ちを負の値とする
-constexpr float VALUE_WIN = -FLT_MAX;
-constexpr float VALUE_LOSE = FLT_MAX;
+constexpr u32 VALUE_WIN = 0x1000000;
+constexpr u32 VALUE_LOSE = 0x2000000;
 // 千日手の場合のvalue_winの定数
-constexpr float VALUE_DRAW = FLT_MAX / 2;
+constexpr u32 VALUE_DRAW = 0x4000000;
 
 struct uct_node_t;
 struct child_node_t {
@@ -36,13 +35,13 @@ struct child_node_t {
 		return *this;
 	}
 
-	// メモリ節約のため、nnrateでWin/Lose/Drawの状態を表す
-	bool IsWin() const { return nnrate == VALUE_WIN; }
-	void SetWin() { nnrate = VALUE_WIN; }
-	bool IsLose() const { return nnrate == VALUE_LOSE; }
-	void SetLose() { nnrate = VALUE_LOSE; }
-	bool IsDraw() const { return nnrate == VALUE_DRAW; }
-	void SetDraw() { nnrate = VALUE_DRAW; }
+	// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
+	bool IsWin() const { return move.value() & VALUE_WIN; }
+	void SetWin() { move |= Move(VALUE_WIN); }
+	bool IsLose() const { return move.value() & VALUE_LOSE; }
+	void SetLose() { move |= Move(VALUE_LOSE); }
+	bool IsDraw() const { return move.value() & VALUE_DRAW; }
+	void SetDraw() { move |= Move(VALUE_DRAW); }
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
