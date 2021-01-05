@@ -614,7 +614,7 @@ StopUctSearch(void)
 	uct_search_stop = true;
 }
 
-inline const unsigned int select_max_child_node(const uct_node_t* uct_node)
+inline unsigned int select_max_child_node(const uct_node_t* uct_node)
 {
 	const child_node_t* uct_child = uct_node->child.get();
 
