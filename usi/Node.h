@@ -6,6 +6,13 @@
 
 #include "cppshogi.h"
 
+// 詰み探索で詰みの場合の定数
+//  値に意味はないがDebugMessage表示で勝ちの場合にnnrateが正の値になっている方がよいため、子ノードの勝ちを負の値とする
+constexpr float VALUE_WIN = -FLT_MAX;
+constexpr float VALUE_LOSE = FLT_MAX;
+// 千日手の場合のvalue_winの定数
+constexpr float VALUE_DRAW = FLT_MAX / 2;
+
 struct uct_node_t;
 struct child_node_t {
 	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
@@ -23,6 +30,14 @@ struct child_node_t {
 		return *this;
 	}
 
+	// メモリ節約のため、nnrateでWin/Lose/Drawの状態を表す
+	bool IsWin() const { return nnrate == VALUE_WIN; }
+	void SetWin() { nnrate = VALUE_WIN; }
+	bool IsLose() const { return nnrate == VALUE_LOSE; }
+	void SetLose() { nnrate = VALUE_LOSE; }
+	bool IsDraw() const { return nnrate == VALUE_DRAW; }
+	void SetDraw() { nnrate = VALUE_DRAW; }
+
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
 	std::atomic<float> win;      // 勝った回数
@@ -31,7 +46,7 @@ struct child_node_t {
 
 struct uct_node_t {
 	uct_node_t()
-		: move_count(0), win(std::numeric_limits<float>::quiet_NaN()), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
+		: move_count(0), win(std::numeric_limits<float>::quiet_NaN()), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード作成
 	uct_node_t* CreateChildNode(int i) {
@@ -61,16 +76,11 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	bool IsEvaled() {
-		return !std::isnan((float)win);
-	}
-	void SetEvaled() {
-		win = 0.0f;
-	}
+	bool IsEvaled() const { return !std::isnan((float)win); }
+	void SetEvaled() { win = 0.0f; }
 
 	std::atomic<int> move_count;
 	std::atomic<float> win;
-	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
 	int child_num;                         // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
