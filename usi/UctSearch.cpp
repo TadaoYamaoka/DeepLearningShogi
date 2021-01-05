@@ -1355,7 +1355,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrt(sum);
+	const float sqrt_sum = sqrtf(sum);
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
