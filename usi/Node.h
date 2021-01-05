@@ -67,7 +67,7 @@ struct uct_node_t {
 	// 候補手の展開
 	void ExpandNode(const Position* pos) {
 		MoveList<Legal> ml(*pos);
-		child_num = ml.size();
+		child_num = (short)ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
@@ -88,7 +88,7 @@ struct uct_node_t {
 	std::atomic<int> move_count;
 	std::atomic<WinType> win;
 	std::atomic<float> visited_nnrate;
-	int child_num;                         // 子ノードの数
+	short child_num;                       // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
 	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // 子ノードへのポインタ配列
 };
