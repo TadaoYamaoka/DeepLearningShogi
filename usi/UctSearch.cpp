@@ -1169,38 +1169,6 @@ UCTSearcher::ParallelUctSearch()
 float
 UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current, vector<pair<uct_node_t*, unsigned int>>& trajectories)
 {
-	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
-	if (!current->IsEvaled())
-		return DISCARDED;
-
-	if (current != tree->GetCurrentHead()) {
-		if (parent->IsWin()) {
-			// 詰み、もしくはRepetitionWinかRepetitionSuperior
-			return 0.0f;  // 反転して値を返すため0を返す
-		}
-		else if (parent->IsLose()) {
-			// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-
-		// 千日手チェック
-		if (parent->IsDraw()) {
-			if (pos->turn() == Black) {
-				// 白が選んだ手なので、白の引き分けの価値を返す
-				return draw_value_white;
-			}
-			else {
-				// 黒が選んだ手なので、黒の引き分けの価値を返す
-				return draw_value_black;
-			}
-		}
-
-		// 詰みのチェック
-		if (current->child_num == 0) {
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-	}
-
 	float result;
 	child_node_t *uct_child = current->child.get();
 
@@ -1322,8 +1290,39 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, &uct_child[next_index], current->child_nodes[next_index].get(), trajectories);
+		uct_node_t* next_node = current->child_nodes[next_index].get();
+
+		// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+		if (!next_node->IsEvaled())
+			return DISCARDED;
+
+		if (uct_child[next_index].IsWin()) {
+			// 詰み、もしくはRepetitionWinかRepetitionSuperior
+			result = 0.0f;  // 反転して値を返すため0を返す
+		}
+		else if (uct_child[next_index].IsLose()) {
+			// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
+			result = 1.0f; // 反転して値を返すため1を返す
+		}
+		// 千日手チェック
+		else if (uct_child[next_index].IsDraw()) {
+			if (pos->turn() == Black) {
+				// 白が選んだ手なので、白の引き分けの価値を返す
+				result = draw_value_white;
+			}
+			else {
+				// 黒が選んだ手なので、黒の引き分けの価値を返す
+				result = draw_value_black;
+			}
+		}
+		// 詰みのチェック
+		else if (next_node->child_num == 0) {
+			result = 1.0f; // 反転して値を返すため1を返す
+		}
+		else {
+			// 手番を入れ替えて1手深く読む
+			result = UctSearch(pos, &uct_child[next_index], next_node, trajectories);
+		}
 	}
 
 	if (result == QUEUING)
