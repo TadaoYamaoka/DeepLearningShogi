@@ -52,7 +52,7 @@ struct child_node_t {
 
 struct uct_node_t {
 	uct_node_t()
-		: move_count(0), win(std::numeric_limits<float>::quiet_NaN()), visited_nnrate(0.0f), child_num(0) {}
+		: move_count(-1), win(0), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード作成
 	uct_node_t* CreateChildNode(int i) {
@@ -82,8 +82,8 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	bool IsEvaled() const { return !std::isnan((float)win); }
-	void SetEvaled() { win = 0.0f; }
+	bool IsEvaled() const { return move_count != -1; }
+	void SetEvaled() { move_count = 0; }
 
 	std::atomic<int> move_count;
 	std::atomic<WinType> win;
