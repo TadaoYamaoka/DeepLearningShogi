@@ -185,12 +185,16 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
+struct visitor_t {
+	vector<pair<uct_node_t*, unsigned int>> trajectories;
+	float value_win;
+};
 
 // バッチの要素
 struct batch_element_t {
 	uct_node_t* node;
 	Color color;
-	float value_win;
+	float* value_win;
 };
 
 class UCTSearcher;
@@ -367,11 +371,11 @@ private:
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
-	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, vector<pair<uct_node_t*, unsigned int>>& trajectories);
+	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
-	void QueuingNode(const Position* pos, uct_node_t* node);
+	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
 	// ノードを評価
 	void EvalNode();
 
@@ -919,7 +923,7 @@ ExpandRoot(const Position *pos)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node)
+UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
@@ -932,7 +936,7 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node)
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn() };
+	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
@@ -1032,7 +1036,8 @@ UCTSearcher::ParallelUctSearch()
 	LOCK_EXPAND;
 	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
-		QueuingNode(pos_root, current_root);
+		float value_win;
+		QueuingNode(pos_root, current_root, &value_win);
 		EvalNode();
 	}
 	UNLOCK_EXPAND;
@@ -1046,14 +1051,14 @@ UCTSearcher::ParallelUctSearch()
 	}
 
 	// 探索経路のバッチ
-	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch;
+	vector<visitor_t> visitor_batch;
 	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch_discarded;
-	trajectories_batch.reserve(policy_value_batch_maxsize);
+	visitor_batch.reserve(policy_value_batch_maxsize);
 	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
-		trajectories_batch.clear();
+		visitor_batch.clear();
 		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
 
@@ -1063,8 +1068,8 @@ UCTSearcher::ParallelUctSearch()
 			Position pos(*pos_root);
 			
 			// 1回プレイアウトする
-			trajectories_batch.emplace_back();
-			const float result = UctSearch(&pos, nullptr, current_root, trajectories_batch.back());
+			visitor_batch.emplace_back();
+			const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
@@ -1072,12 +1077,12 @@ UCTSearcher::ParallelUctSearch()
 			}
 			else {
 				// 破棄した探索経路を保存
-				trajectories_batch_discarded.emplace_back(std::move(trajectories_batch.back()));
+				trajectories_batch_discarded.emplace_back(std::move(visitor_batch.back().trajectories));
 			}
 
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
-				trajectories_batch.pop_back();
+				visitor_batch.pop_back();
 			}
 		}
 
@@ -1097,8 +1102,8 @@ UCTSearcher::ParallelUctSearch()
 
 		// バックアップ
 		float result = 0.0f;
-		for (int batch_idx = 0; batch_idx < trajectories_batch.size(); batch_idx++) {
-			auto& trajectories = trajectories_batch[batch_idx];
+		for (auto& visitor : visitor_batch) {
+			auto& trajectories = visitor.trajectories;
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
 				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
@@ -1106,7 +1111,7 @@ UCTSearcher::ParallelUctSearch()
 				child_node_t* uct_child = current->child.get();
 				const auto* uct_child_nodes = current->child_nodes.get();
 				if ((size_t)i == trajectories.size() - 1) {
-					result = 1.0f - policy_value_batch[batch_idx].value_win;
+					result = 1.0f - visitor.value_win;
 				}
 				UpdateResult(&uct_child[next_index], result, current);
 				result = 1.0f - result;
@@ -1167,10 +1172,11 @@ UCTSearcher::ParallelUctSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current, vector<pair<uct_node_t*, unsigned int>>& trajectories)
+UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor)
 {
 	float result;
 	child_node_t *uct_child = current->child.get();
+	auto& trajectories = visitor.trajectories;
 
 	// 現在見ているノードをロック
 	auto& mutex = GetPositionMutex(pos);
@@ -1276,7 +1282,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 				else
 				{
 					// ノードをキューに追加
-					QueuingNode(pos, child_node);
+					QueuingNode(pos, child_node, &visitor.value_win);
 					return QUEUING;
 				}
 			}
@@ -1321,7 +1327,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		else {
 			// 手番を入れ替えて1手深く読む
-			result = UctSearch(pos, &uct_child[next_index], next_node, trajectories);
+			result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
 		}
 	}
 
@@ -1466,9 +1472,9 @@ void UCTSearcher::EvalNode() {
 		}
 
 #ifdef FP16
-		policy_value_batch[i].value_win = __half2float(*value);
+		*policy_value_batch[i].value_win = __half2float(*value);
 #else
-		policy_value_batch[i].value_win = *value;
+		*policy_value_batch[i].value_win = *value;
 #endif
 
 #ifdef MAKE_BOOK
