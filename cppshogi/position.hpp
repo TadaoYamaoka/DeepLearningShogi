@@ -323,7 +323,6 @@ public:
     Key getKey() const          { return st_->key(); }
 	Key getKeyAfter(const Move m) const;
 	Key getBoardKeyAfter(const Move m) const;
-	Key getExclusionKey() const { return st_->key() ^ zobExclusion_; }
     Key getKeyExcludeTurn() const {
         static_assert(zobTurn_ == 1, "");
         return getKey() >> 1;
@@ -334,8 +333,6 @@ public:
 
     HuffmanCodedPos toHuffmanCodedPos() const;
 
-    s64 nodesSearched() const          { return nodes_; }
-    void setNodesSearched(const s64 n) { nodes_ = n; }
     RepetitionType isDraw(const int checkMaxPly = std::numeric_limits<int>::max()) const;
 
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
@@ -374,8 +371,6 @@ private:
     // 手番側の玉へ check している駒を全て探して checkersBB_ にセットする。
     // 最後の手が何か覚えておけば、attackersTo() を使用しなくても良いはずで、処理が軽くなる。
     void findCheckers() { st_->checkersBB = attackersToExceptKing(oppositeColor(turn()), kingSquare(turn())); }
-
-    Score computeMaterial() const;
 
     void xorBBs(const PieceType pt, const Square sq, const Color c);
     // turn() 側が
@@ -441,14 +436,12 @@ private:
     StateInfo* st_;
     // 時間管理に使用する。
     Ply gamePly_;
-    s64 nodes_;
 
     Searcher* searcher_;
 
     static Key zobrist_[PieceTypeNum][SquareNum][ColorNum];
     static const Key zobTurn_ = 1;
     static Key zobHand_[HandPieceNum][ColorNum];
-    static Key zobExclusion_; // todo: これが必要か、要検討
 };
 
 template <> inline Bitboard Position::attacksFrom<Lance >(const Color c, const Square sq, const Bitboard& occupied) { return  lanceAttack(c, sq, occupied); }

@@ -27,7 +27,6 @@
 
 Key Position::zobrist_[PieceTypeNum][SquareNum][ColorNum];
 Key Position::zobHand_[HandPieceNum][ColorNum];
-Key Position::zobExclusion_;
 
 const HuffmanCode HuffmanCodedPos::boardCodeTable[PieceNone] = {
     {Binary<         0>::value, 1}, // Empty
@@ -1421,7 +1420,6 @@ void Position::initZobrist() {
         zobHand_[hp][Black] = g_mt64bit.random() & ~UINT64_C(1);
         zobHand_[hp][White] = g_mt64bit.random() & ~UINT64_C(1);
     }
-    zobExclusion_ = g_mt64bit.random() & ~UINT64_C(1);
 }
 
 // ある指し手を指した後のhash keyを返す。
@@ -1645,7 +1643,6 @@ bool Position::isOK() const {
     const bool debugKey          = debugAll || false;
     const bool debugStateHand    = debugAll || false;
     const bool debugPiece        = debugAll || false;
-    const bool debugMaterial     = debugAll || false;
 
     int failedStep = 0;
     if (debugBitboards) {
@@ -1828,7 +1825,6 @@ Position& Position::operator = (const Position& pos) {
     memcpy(this, &pos, sizeof(Position));
     startState_ = *st_;
     st_ = &startState_;
-    nodes_ = 0;
 
     assert(isOK());
     return *this;
