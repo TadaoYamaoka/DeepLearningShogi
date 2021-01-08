@@ -579,7 +579,11 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 		return;
 	}
 	const int color = pos->turn();
-	const int divisor = 14 + std::max(0, 30 - pos->gamePly());
+	int divisor = 14 + std::max(0, 30 - pos->gamePly());
+	if (draw_ply > 0) {
+		// 引き分けとする手数までに時間を使い切る
+		divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
+	}
 	remaining_time[color] = limits.time[color];
 	time_limit = remaining_time[color] / divisor + limits.inc[color];
 	minimum_time = limits.moveTime;
@@ -1208,16 +1212,22 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, traj
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		// 千日手チェック
 		int isDraw = 0;
-		switch (pos->isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionDraw: isDraw = 2; break; // Draw
-		case RepetitionWin: isDraw = 1; break;
-		case RepetitionLose: isDraw = -1; break;
-		case RepetitionSuperior: isDraw = 1; break;
-		case RepetitionInferior: isDraw = -1; break;
-		default: UNREACHABLE;
+		// 最大手数を超えていたら千日手扱いとする
+		if (draw_ply > 0 && pos->gamePly() > draw_ply) {
+			isDraw = 2; // Draw
+		}
+		else {
+			// 千日手チェック
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: isDraw = 2; break; // Draw
+			case RepetitionWin: isDraw = 1; break;
+			case RepetitionLose: isDraw = -1; break;
+			case RepetitionSuperior: isDraw = 1; break;
+			case RepetitionInferior: isDraw = -1; break;
+			default: UNREACHABLE;
+			}
 		}
 
 		// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）

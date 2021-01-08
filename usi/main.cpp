@@ -312,8 +312,12 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	dfpn.dfpn_stop(false);
 	std::atomic<bool> dfpn_done(false);
 	bool mate = false;
+	const uint32_t mate_depth = pos.searcher()->options["Mate_Root_Search"];
 	Position pos_copy(pos);
-	if (!limits.ponder && pos.searcher()->options["Mate_Root_Search"] > 0) {
+	if (!limits.ponder && mate_depth > 0) {
+		const uint32_t draw_ply = pos.searcher()->options["Draw_Ply"];
+		if (draw_ply > 0)
+			DfPn::set_maxdepth(std::min(mate_depth, draw_ply - pos.gamePly()));
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
 			if (!pos_copy.inCheck()) {
 				mate = dfpn.dfpn(pos_copy);
@@ -332,7 +336,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		return;
 
 	// 詰み探索待ち
-	if (pos.searcher()->options["Mate_Root_Search"] > 0) {
+	if (mate_depth > 0) {
 		// 最小詰み探索時間の間待つ
 		const int time_limit = GetTimeLimit();
 		while (!dfpn_done) {
