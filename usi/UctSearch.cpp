@@ -1416,9 +1416,8 @@ UCTSearcher::SelectMaxUcbChild(uct_node_t* current, const int depth)
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		current->value_win = VALUE_LOSE;
 	}
-
-	// for FPU reduction
-	if (uct_child[max_child].node) {
+	else {
+		// for FPU reduction
 		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 	}
 
