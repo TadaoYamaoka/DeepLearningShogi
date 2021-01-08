@@ -185,6 +185,8 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
+typedef pair<uct_node_t*, unsigned int> trajectory_t;
+typedef vector<trajectory_t> trajectories_t;
 
 // バッチの要素
 struct batch_element_t {
@@ -366,7 +368,7 @@ private:
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
-	float UctSearch(Position* pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories);
+	float UctSearch(Position* pos, uct_node_t* current, const int depth, trajectories_t& trajectories);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
 	// ノードをキューに追加
@@ -1068,8 +1070,8 @@ UCTSearcher::ParallelUctSearch()
 	}
 
 	// 探索経路のバッチ
-	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch;
-	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch_discarded;
+	vector<trajectories_t> trajectories_batch;
+	vector<trajectories_t> trajectories_batch_discarded;
 	trajectories_batch.reserve(policy_value_batch_maxsize);
 	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
@@ -1195,7 +1197,7 @@ UCTSearcher::ParallelUctSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, vector<pair<uct_node_t*, unsigned int>>& trajectories)
+UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, trajectories_t& trajectories)
 {
 	// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
 	if (!current->evaled)
