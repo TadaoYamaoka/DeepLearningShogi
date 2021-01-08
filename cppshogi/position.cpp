@@ -505,6 +505,8 @@ void Position::undoMove(const Move move) {
     // previous のポインタを st_ に代入するだけで良い。
     st_ = st_->previous;
 
+    gamePly_--;
+
     assert(isOK());
 }
 
