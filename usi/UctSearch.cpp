@@ -370,7 +370,7 @@ private:
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
 	float UctSearch(Position* pos, uct_node_t* current, const int depth, trajectories_t& trajectories);
 	// UCB値が最大の子ノードを返す
-	int SelectMaxUcbChild(const Position* pos, uct_node_t* current, const int depth);
+	int SelectMaxUcbChild(uct_node_t* current, const int depth);
 	// ノードをキューに追加
 	void QueuingNode(const Position* pos, uct_node_t* node);
 	// ノードを評価
@@ -1189,7 +1189,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, traj
 	// 現在見ているノードをロック
 	current->Lock();
 	// UCB値最大の手を求める
-	const unsigned int next_index = SelectMaxUcbChild(pos, current, depth);
+	const unsigned int next_index = SelectMaxUcbChild(current, depth);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
@@ -1354,7 +1354,7 @@ UCTSearcher::UctSearch(Position *pos, uct_node_t* current, const int depth, traj
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 int
-UCTSearcher::SelectMaxUcbChild(const Position *pos, uct_node_t* current, const int depth)
+UCTSearcher::SelectMaxUcbChild(uct_node_t* current, const int depth)
 {
 	const child_node_t *uct_child = current->child.get();
 	const int child_num = current->child_num;
