@@ -346,6 +346,8 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     newSt.previous = st_;
     st_ = &newSt;
 
+    gamePly_++;
+
     const Color us = turn();
     const Square to = move.to();
     const PieceType ptCaptured = move.cap();

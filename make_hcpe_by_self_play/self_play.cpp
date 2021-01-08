@@ -277,7 +277,7 @@ private:
 	float UctSearch(Position* pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued);
 	int SelectMaxUcbChild(const Position* pos, unsigned int current, const int depth);
 	unsigned int ExpandRoot(const Position* pos);
-	unsigned int ExpandNode(Position* pos, const int depth);
+	unsigned int ExpandNode(Position* pos);
 	bool InterruptionCheck(const unsigned int current_root, const int playout_count, const int extension_times);
 	void NextPly(const Move move);
 	void NextGame();
@@ -608,7 +608,7 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 	// ノードの展開の確認
 	if (uct_child[next_index].index == NOT_EXPANDED) {
 		// ノードの展開
-		unsigned int child_index = ExpandNode(pos, depth + 1);
+		unsigned int child_index = ExpandNode(pos);
 		uct_child[next_index].index = child_index;
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
@@ -879,9 +879,9 @@ UCTSearcher::ExpandRoot(const Position *pos)
 //  ノードの展開  //
 ///////////////////
 unsigned int
-UCTSearcher::ExpandNode(Position *pos, const int depth)
+UCTSearcher::ExpandNode(Position *pos)
 {
-	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly() + depth, id);
+	unsigned int index = uct_hash.FindSameHashIndex(pos->getKey(), pos->gamePly(), id);
 	child_node_t *uct_child;
 
 	// 合流先が検知できれば, それを返す
@@ -890,7 +890,7 @@ UCTSearcher::ExpandNode(Position *pos, const int depth)
 	}
 
 	// 空のインデックスを探す
-	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly() + depth, id);
+	index = uct_hash.SearchEmptyIndex(pos->getKey(), pos->turn(), pos->gamePly(), id);
 
 	assert(index != uct_hash_size);
 
