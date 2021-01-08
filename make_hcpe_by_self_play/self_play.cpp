@@ -564,34 +564,6 @@ void UCTSearcherGroup::MateSearch()
 float
 UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vector<TrajectorEntry>& trajectories, bool& queued)
 {
-	if (current != current_root) {
-		// 詰みのチェック
-		if (uct_node[current].child_num == 0) {
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-		else if (uct_node[current].value_win == VALUE_WIN) {
-			// 詰み
-			return 0.0f;  // 反転して値を返すため0を返す
-		}
-		else if (uct_node[current].value_win == VALUE_LOSE) {
-			// 自玉の詰み
-			return 1.0f; // 反転して値を返すため1を返す
-		}
-
-		// 千日手チェック
-		if (uct_node[current].draw) {
-			switch (pos->isDraw(16)) {
-			case NotRepetition: break;
-			case RepetitionDraw: return 0.5f;
-			case RepetitionWin: return 0.0f;
-			case RepetitionLose: return 1.0f;
-			case RepetitionSuperior: return 0.0f;
-			case RepetitionInferior: return 1.0f;
-			default: UNREACHABLE;
-			}
-		}
-	}
-
 	float result;
 	unsigned int next_index;
 	child_node_t *uct_child = uct_node[current].child;
@@ -705,8 +677,37 @@ UCTSearcher::UctSearch(Position *pos, unsigned int current, const int depth, vec
 		}
 	}
 	else {
-		// 手番を入れ替えて1手深く読む
-		result = UctSearch(pos, uct_child[next_index].index, depth + 1, trajectories, queued);
+		const unsigned int child_index = uct_child[next_index].index;
+		const uct_node_t& next_node = uct_node[child_index];
+
+		// 詰みのチェック
+		if (next_node.child_num == 0) {
+			result = 1.0f; // 反転して値を返すため1を返す
+		}
+		else if (next_node.value_win == VALUE_WIN) {
+			// 詰み
+			result = 0.0f;  // 反転して値を返すため0を返す
+		}
+		else if (next_node.value_win == VALUE_LOSE) {
+			// 自玉の詰み
+			result = 1.0f; // 反転して値を返すため1を返す
+		}
+		// 千日手チェック
+		else if (RepetitionType repetitionType;
+			next_node.draw && (repetitionType = pos->isDraw(16)) != NotRepetition) {
+			switch (repetitionType) {
+			case RepetitionDraw: result = 0.5f; break;
+			case RepetitionWin: result = 0.0f; break;
+			case RepetitionLose: result = 1.0f; break;
+			case RepetitionSuperior: result = 0.0f; break;
+			case RepetitionInferior: result = 1.0f; break;
+			default: UNREACHABLE;
+			}
+		}
+		else {
+			// 手番を入れ替えて1手深く読む
+			result = UctSearch(pos, child_index, depth + 1, trajectories, queued);
+		}
 	}
 
 	if (result == QUEUING)
