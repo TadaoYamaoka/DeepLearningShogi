@@ -836,22 +836,6 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	if (child_num == 0) {
 		return Move::moveNone();
 	}
-	if (current_root->value_win == VALUE_WIN) {
-		// 詰み
-		Move move;
-		if (pos->inCheck())
-			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, true>(*pos);
-		else
-			move = mateMoveInOddPlyReturnMove<MATE_SEARCH_DEPTH, false>(*pos);
-		// 伝播したVALUE_WINの場合、詰みが見つからない場合がある
-		if (move != Move::moveNone())
-			return move;
-	}
-	// 詰みでも最後まで投了しないようにするためコメントアウト
-	/*else if (uct_node[current_root].value_win == VALUE_LOSE) {
-		// 自玉の詰み
-		return Move::moveNone();
-	}*/
 
 	// 前回から持ち込んだ探索回数を記録
 	const int pre_simulated = current_root->move_count;
