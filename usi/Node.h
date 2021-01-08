@@ -18,6 +18,9 @@ constexpr u32 VALUE_LOSE = 0x2000000;
 // 千日手の場合のvalue_winの定数
 constexpr u32 VALUE_DRAW = 0x4000000;
 
+// ノード未展開を表す定数
+constexpr int NOT_EXPANDED = -1;
+
 struct uct_node_t;
 struct child_node_t {
 	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
@@ -51,7 +54,7 @@ struct child_node_t {
 
 struct uct_node_t {
 	uct_node_t()
-		: move_count(-1), win(0), visited_nnrate(0.0f), child_num(0) {}
+		: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード作成
 	uct_node_t* CreateChildNode(int i) {
@@ -81,7 +84,7 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	bool IsEvaled() const { return move_count != -1; }
+	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
 	void SetEvaled() { move_count = 0; }
 
 	std::atomic<int> move_count;

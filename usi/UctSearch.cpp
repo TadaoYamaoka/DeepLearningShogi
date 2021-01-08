@@ -185,8 +185,11 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
+typedef pair<uct_node_t*, unsigned int> trajectory_t;
+typedef vector<trajectory_t> trajectories_t;
+
 struct visitor_t {
-	vector<pair<uct_node_t*, unsigned int>> trajectories;
+	trajectories_t trajectories;
 	float value_win;
 };
 
@@ -1052,7 +1055,7 @@ UCTSearcher::ParallelUctSearch()
 
 	// 探索経路のバッチ
 	vector<visitor_t> visitor_batch;
-	vector<vector<pair<uct_node_t*, unsigned int>>> trajectories_batch_discarded;
+	vector<trajectories_t> trajectories_batch_discarded;
 	visitor_batch.reserve(policy_value_batch_maxsize);
 	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
