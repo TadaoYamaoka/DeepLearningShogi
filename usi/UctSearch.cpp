@@ -1366,7 +1366,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
 	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(current->visited_nnrate);
-	const float parent_q = sum_win > 0 ? std::max(0.0f, sum_win / sum - fpu_reduction) : 0.0f;
+	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 	// UCB値最大の手を求める

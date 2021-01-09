@@ -5,6 +5,7 @@ INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda-10.2/lib64
 
 target = bin/usi
+target_make_book = bin/make_book
 sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
@@ -26,3 +27,10 @@ all: $(target)
 
 clean:
 	rm -f $(objects) $(cppshogi_objects) $(target)
+
+$(target_make_book): $(objects) $(cppshogi_objects)
+	@[ -d bin ] || mkdir -p bin
+	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
+
+make_book: CFLAGS += -DMAKE_BOOK -DWIN_TYPE_DOUBLE
+make_book: $(target_make_book)
