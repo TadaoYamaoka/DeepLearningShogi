@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cppshogi.h"
-#include "cudnn_wrapper.h"
+#include "error_util.h"
 #include "NvInfer.h"
 
 class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2

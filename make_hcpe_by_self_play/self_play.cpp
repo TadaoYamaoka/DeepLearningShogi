@@ -19,9 +19,6 @@
 #include "ZobristHash.h"
 #include "LruCache.h"
 #include "mate.h"
-#include "nn_wideresnet10.h"
-#include "nn_wideresnet15.h"
-#include "nn_senet10.h"
 #include "nn_tensorrt.h"
 #include "dfpn.h"
 #include "USIEngine.h"
@@ -342,17 +339,7 @@ public:
 	void InitGPU() {
 		mutex_all_gpu.lock();
 		if (nn == nullptr) {
-			if (model_path.find("onnx") != string::npos)
-				nn = (NN*)new NNTensorRT(model_path.c_str(), gpu_id, policy_value_batch_maxsize);
-			else if (model_path.find("wideresnet15") != string::npos) {
-				nn = (NN*)new NNWideResnet15(model_path.c_str(), policy_value_batch_maxsize);
-			}
-			else if (model_path.find("senet10") != string::npos) {
-				nn = (NN*)new NNSENet10(model_path.c_str(), policy_value_batch_maxsize);
-			}
-			else {
-				nn = (NN*)new NNWideResnet10(model_path.c_str(), policy_value_batch_maxsize);
-			}
+			nn = (NN*)new NNTensorRT(model_path.c_str(), gpu_id, policy_value_batch_maxsize);
 		}
 		mutex_all_gpu.unlock();
 	}
@@ -407,8 +394,8 @@ UCTSearcherGroup::Initialize()
 	}
 
 	// キューを動的に確保する
-	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_hash_index = new unsigned int[policy_value_batch_maxsize];
 
 	// UCTSearcher
@@ -418,8 +405,8 @@ UCTSearcherGroup::Initialize()
 		searchers.emplace_back(this, uct_hash, uct_node, nn_cache, i, entryNum);
 	}
 
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 
 	// 詰み探索
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
@@ -926,8 +913,8 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, unsigned int index)
 {
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_hash_index[current_policy_value_batch_index] = index;
@@ -1000,11 +987,7 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-#ifdef FP16
-			const float logit = __half2float((*logits)[move_label]);
-#else
 			const float logit = (*logits)[move_label];
-#endif
 			legal_move_probabilities.emplace_back(logit);
 		}
 
@@ -1016,11 +999,7 @@ void UCTSearcherGroup::EvalNode() {
 			req->nnrate[j] = legal_move_probabilities[j];
 		}
 
-#ifdef FP16
-		const float value_win = __half2float(*value);
-#else
 		const float value_win = *value;
-#endif
 
 		req->value_win = value_win;
 		nn_cache.Insert(uct_node[index].key, std::move(req));

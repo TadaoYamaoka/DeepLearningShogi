@@ -247,37 +247,23 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
-    <ClCompile Include="cudnn_dtype.cpp" />
     <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Message.cpp" />
-    <ClCompile Include="nn_fused_wideresnet10.cpp" />
-    <ClCompile Include="nn_senet10.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
-    <ClCompile Include="nn_wideresnet10.cpp" />
-    <ClCompile Include="nn_wideresnet15.cpp" />
     <ClCompile Include="Node.cpp" />
-    <ClCompile Include="npz.cpp" />
     <ClCompile Include="UctSearch.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cudnn_dtype.h" />
-    <ClInclude Include="cudnn_wrapper.h" />
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="fastmath.h" />
-    <ClInclude Include="layers.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="nn.h" />
-    <ClInclude Include="nn_fused_wideresnet10.h" />
     <ClInclude Include="int8_calibrator.h" />
-    <ClInclude Include="nn_senet10.h" />
     <ClInclude Include="nn_tensorrt.h" />
-    <ClInclude Include="nn_wideresnet10.h" />
-    <ClInclude Include="nn_wideresnet15.h" />
     <ClInclude Include="Node.h" />
-    <ClInclude Include="npz.h" />
     <ClInclude Include="UctSearch.h" />
   </ItemGroup>
   <ItemGroup>

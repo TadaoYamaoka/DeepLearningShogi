@@ -13,8 +13,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cppshogi", "cppshogi\cppsho
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj", "{A246A881-CCDA-4FC5-B8EA-DEFD779B2724}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "make_hcp_by_self_play", "make_hcp_by_self_play\make_hcp_by_self_play.vcxproj", "{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "make_hcpe_by_self_play", "make_hcpe_by_self_play\make_hcpe_by_self_play.vcxproj", "{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usi_onnxruntime", "usi_onnxruntime\usi_onnxruntime.vcxproj", "{A14AB8E7-348F-45B0-BBA3-BA1721FFE242}"
@@ -62,14 +60,6 @@ Global
 		{A246A881-CCDA-4FC5-B8EA-DEFD779B2724}.MakeBook|x64.ActiveCfg = MakeBook|x64
 		{A246A881-CCDA-4FC5-B8EA-DEFD779B2724}.Release_NoOpt|x64.ActiveCfg = Release_NoOpt|x64
 		{A246A881-CCDA-4FC5-B8EA-DEFD779B2724}.Release|x64.ActiveCfg = Release|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Debug|x64.ActiveCfg = Debug|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Debug|x64.Build.0 = Debug|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.MakeBook_NoOpt|x64.ActiveCfg = MakeBook_NoOpt|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.MakeBook|x64.ActiveCfg = MakeBook|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Release_NoOpt|x64.ActiveCfg = Release_NoOpt|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Release_NoOpt|x64.Build.0 = Release_NoOpt|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Release|x64.ActiveCfg = Release|x64
-		{CC7D9CC6-5D53-4E73-87E9-A20C24523A0F}.Release|x64.Build.0 = Release|x64
 		{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}.Debug|x64.ActiveCfg = Debug|x64
 		{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}.Debug|x64.Build.0 = Debug|x64
 		{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}.MakeBook_NoOpt|x64.ActiveCfg = MakeBook_NoOpt|x64

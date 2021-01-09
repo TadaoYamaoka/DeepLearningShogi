@@ -66,28 +66,10 @@
     <ClCompile Include="..\cppshogi\book.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\npz.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
     <ClCompile Include="gpubenchmark.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\cudnn_dtype.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\nn_wideresnet10.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\nn_fused_wideresnet10.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\nn_wideresnet15.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\dfpn.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\nn_senet10.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
     <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp">

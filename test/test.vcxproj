@@ -236,14 +236,8 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp" />
-    <ClCompile Include="..\usi\cudnn_dtype.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
-    <ClCompile Include="..\usi\nn_fused_wideresnet10.cpp" />
-    <ClCompile Include="..\usi\nn_senet10.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
-    <ClCompile Include="..\usi\nn_wideresnet10.cpp" />
-    <ClCompile Include="..\usi\nn_wideresnet15.cpp" />
-    <ClCompile Include="..\usi\npz.cpp" />
     <ClCompile Include="gpubenchmark.cpp" />
     <ClCompile Include="tensorrt_benchmark.cpp" />
     <ClCompile Include="test.cpp" />

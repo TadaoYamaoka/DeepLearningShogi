@@ -25,10 +25,6 @@
 #ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
 #else
-#include "nn_wideresnet10.h"
-#include "nn_fused_wideresnet10.h"
-#include "nn_wideresnet15.h"
-#include "nn_senet10.h"
 #include "nn_tensorrt.h"
 #endif
 
@@ -215,16 +211,7 @@ public:
 #ifdef ONNXRUNTIME
 			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 #else
-			if (model_path[gpu_id].find("onnx") != string::npos)
-				nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
-			else if (model_path[gpu_id].find("wideresnet15") != string::npos)
-				nn = (NN*)new NNWideResnet15(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
-			else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
-				nn = (NN*)new NNFusedWideResnet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
-			else if (model_path[gpu_id].find("senet10") != string::npos)
-				nn = (NN*)new NNSENet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
-			else
-				nn = (NN*)new NNWideResnet10(model_path[gpu_id].c_str(), policy_value_batch_maxsize);
+			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 #endif
 		}
 		mutex_gpu.unlock();
@@ -277,10 +264,10 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc(&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
@@ -939,8 +926,8 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
@@ -1469,11 +1456,7 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-#ifdef FP16
-			const float logit = __half2float((*logits)[move_label]);
-#else
 			const float logit = (*logits)[move_label];
-#endif
 			legal_move_probabilities.emplace_back(logit);
 		}
 
@@ -1484,11 +1467,7 @@ void UCTSearcher::EvalNode() {
 			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
 
-#ifdef FP16
-		*policy_value_batch[i].value_win = __half2float(*value);
-#else
 		*policy_value_batch[i].value_win = *value;
-#endif
 
 #ifdef MAKE_BOOK
 		// 定跡作成時は、事前確率に定跡の遷移確率も使用する

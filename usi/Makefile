@@ -5,7 +5,7 @@ INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda-10.2/lib64
 
 target = bin/usi
-sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_fused_wideresnet10.cpp nn_senet10.cpp nn_wideresnet10.cpp nn_wideresnet15.cpp nn_tensorrt.cpp npz.cpp cudnn_dtype.cpp
+sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 cppshogi_objects = $(addprefix obj/, $(cppshogi_sources:.cpp=.o))
