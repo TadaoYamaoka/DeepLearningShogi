@@ -12,6 +12,15 @@ typedef double WinType;
 typedef float WinType;
 #endif
 
+// 詰み探索で詰みの場合の定数
+constexpr u32 VALUE_WIN = 0x1000000;
+constexpr u32 VALUE_LOSE = 0x2000000;
+// 千日手の場合のvalue_winの定数
+constexpr u32 VALUE_DRAW = 0x4000000;
+
+// ノード未展開を表す定数
+constexpr int NOT_EXPANDED = -1;
+
 struct uct_node_t;
 struct child_node_t {
 	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
@@ -19,34 +28,38 @@ struct child_node_t {
 		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f), node(std::move(o.node)) {}
+		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
 		move_count = (int)o.move_count;
 		win = (float)o.win;
 		nnrate = (float)o.nnrate;
-		node = std::move(o.node);
 		return *this;
 	}
 
-	// 子ノード作成
-	uct_node_t* CreateChildNode() {
-		node = std::make_unique<uct_node_t>();
-		return node.get();
-	}
+	// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
+	bool IsWin() const { return move.value() & VALUE_WIN; }
+	void SetWin() { move |= Move(VALUE_WIN); }
+	bool IsLose() const { return move.value() & VALUE_LOSE; }
+	void SetLose() { move |= Move(VALUE_LOSE); }
+	bool IsDraw() const { return move.value() & VALUE_DRAW; }
+	void SetDraw() { move |= Move(VALUE_DRAW); }
 
 	Move move;                   // 着手する座標
 	std::atomic<int> move_count; // 探索回数
 	std::atomic<WinType> win;    // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
-	std::unique_ptr<uct_node_t> node; // 子ノードへのポインタ
 };
 
 struct uct_node_t {
 	uct_node_t()
-		: move_count(0), win(0.0f), evaled(false), value_win(0.0f), visited_nnrate(0.0f), child_num(0) {}
+		: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f), child_num(0) {}
 
+	// 子ノード作成
+	uct_node_t* CreateChildNode(int i) {
+		return (child_nodes[i] = std::make_unique<uct_node_t>()).get();
+	}
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
 		child_num = 1;
@@ -56,10 +69,14 @@ struct uct_node_t {
 	// 候補手の展開
 	void ExpandNode(const Position* pos) {
 		MoveList<Legal> ml(*pos);
-		child_num = ml.size();
+		child_num = (short)ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+	}
+	// 子ノードへのポインタ配列の初期化
+	void InitChildNodes() {
+		child_nodes = std::make_unique<std::unique_ptr<uct_node_t>[]>(child_num);
 	}
 
 	// 1つを除くすべての子を削除する
@@ -67,22 +84,15 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	void Lock() {
-		mtx.lock();
-	}
-	void UnLock() {
-		mtx.unlock();
-	}
+	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
+	void SetEvaled() { move_count = 0; }
 
 	std::atomic<int> move_count;
 	std::atomic<WinType> win;
-	std::atomic<bool> evaled;      // 評価済か
-	std::atomic<float> value_win;
 	std::atomic<float> visited_nnrate;
-	int child_num;                         // 子ノードの数
+	short child_num;                       // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
-
-	std::mutex mtx;
+	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // 子ノードへのポインタ配列
 };
 
 class NodeTree {

@@ -65,37 +65,50 @@ NodeGarbageCollector gNodeGc;
 
 uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
-    // 一つを残して削除する
-    bool found = false;
-    for (int i = 0; i < child_num; ++i) {
-        auto& uct_child = child[i];
-        if (uct_child.move == move) {
-            found = true;
-            if (!uct_child.node) {
-                // 新しいノードを作成する
-                uct_child.node = std::make_unique<uct_node_t>();
+    if (child_num > 0 && child_nodes) {
+        // 一つを残して削除する
+        bool found = false;
+        for (int i = 0; i < child_num; ++i) {
+            auto& uct_child = child[i];
+            auto& child_node = child_nodes[i];
+            if (uct_child.move == move) {
+                found = true;
+                if (!child_node) {
+                    // 新しいノードを作成する
+                    child_node = std::make_unique<uct_node_t>();
+                }
+                // 0番目の要素に移動する
+                if (i != 0) {
+                    child[0] = std::move(uct_child);
+                    child_nodes[0] = std::move(child_node);
+                }
             }
-            // 0番目の要素に移動する
-            if (i != 0)
-                child[0] = std::move(uct_child);
+            else {
+                // 子ノードを削除（ガベージコレクタに追加）
+                if (child_node)
+                    gNodeGc.AddToGcQueue(std::move(child_node));
+            }
+        }
+
+        if (found) {
+            // 子ノードを一つにする
+            child_num = 1;
+            return child_nodes[0].get();
         }
         else {
-            // 子ノードを削除（ガベージコレクタに追加）
-            if (uct_child.node)
-                gNodeGc.AddToGcQueue(std::move(uct_child.node));
+            // 合法手に不成を生成していないため、ノードが存在しても見つからない場合がある
+            // 子ノードが見つからなかった場合、新しいノードを作成する
+            CreateSingleChildNode(move);
+            InitChildNodes();
+            return (child_nodes[0] = std::make_unique<uct_node_t>()).get();
         }
     }
-
-    if (found) {
-        // 子ノードを一つにする
-        child_num = 1;
-        return child[0].node.get();
-    }
     else {
-        // 子ノードが見つからなかった場合、新しいノードを作成する
+        // 子ノード未展開、または子ノードへのポインタ配列が未初期化の場合
         CreateSingleChildNode(move);
-        child[0].node = std::make_unique<uct_node_t>();
-        return child[0].node.get();
+        // 子ノードへのポインタ配列を初期化する
+        InitChildNodes();
+        return (child_nodes[0] = std::make_unique<uct_node_t>()).get();
     }
 }
 
@@ -136,10 +149,10 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     if (!seen_old_head && current_head_ != old_head) {
         if (prev_head) {
             assert(prev_head->child_num == 1);
-            auto& prev_uct_child = prev_head->child[0];
-            gNodeGc.AddToGcQueue(std::move(prev_uct_child.node));
-            prev_uct_child.node = std::make_unique<uct_node_t>();
-            current_head_ = prev_uct_child.node.get();
+            auto& prev_uct_child_node = prev_head->child_nodes[0];
+            gNodeGc.AddToGcQueue(std::move(prev_uct_child_node));
+            prev_uct_child_node = std::make_unique<uct_node_t>();
+            current_head_ = prev_uct_child_node.get();
         }
         else {
             // 開始局面に戻った場合
