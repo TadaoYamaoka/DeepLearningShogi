@@ -55,9 +55,13 @@ namespace ns_mate {
 // 3手詰めチェック
 // 手番側が王手でないこと
 template <bool INCHECK>
-FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
+FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 {
 	// OR節点
+
+	// 最大手数チェック
+	if (pos.gamePly() + 1 > draw_ply)
+		return false;
 
 	StateInfo si;
 	StateInfo si2;
@@ -83,6 +87,12 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 			// 1手で詰んだ
 			pos.undoMove(m);
 			return true;
+		}
+
+		// 最大手数チェック
+		if (pos.gamePly() + 2 > draw_ply) {
+			pos.undoMove(m);
+			continue;
 		}
 
 		const CheckInfo ci2(pos);
@@ -118,8 +128,12 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos)
 // 奇数手詰めチェック
 // 詰ます手を返すバージョン
 template <int depth, bool INCHECK>
-Move mateMoveInOddPlyReturnMove(Position& pos) {
+Move mateMoveInOddPlyReturnMove(Position& pos, const int draw_ply = INT_MAX) {
 	// OR節点
+
+	// 最大手数チェック
+	if (pos.gamePly() + 1 > draw_ply)
+		return Move::moveNone();
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
@@ -150,7 +164,7 @@ Move mateMoveInOddPlyReturnMove(Position& pos) {
 
 		//std::cout << ml.move().toUSI() << std::endl;
 		// 偶数手詰めチェック
-		if (mateMoveInEvenPly<depth - 1>(pos)) {
+		if (mateMoveInEvenPly<depth - 1>(pos, draw_ply)) {
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
 			return ml.move;
@@ -163,9 +177,13 @@ Move mateMoveInOddPlyReturnMove(Position& pos) {
 
 // 奇数手詰めチェック
 template <int depth, bool INCHECK = false>
-bool mateMoveInOddPly(Position& pos)
+bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 {
 	// OR節点
+
+	// 最大手数チェック
+	if (pos.gamePly() + 1 > draw_ply)
+		return false;
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
@@ -197,7 +215,7 @@ bool mateMoveInOddPly(Position& pos)
 
 		// 王手の場合
 		// 偶数手詰めチェック
-		if (mateMoveInEvenPly<depth - 1>(pos)) {
+		if (mateMoveInEvenPly<depth - 1>(pos, draw_ply)) {
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
 			return true;
@@ -209,13 +227,13 @@ bool mateMoveInOddPly(Position& pos)
 }
 
 // 3手詰めの特殊化
-template <> FORCE_INLINE bool mateMoveInOddPly<3, false>(Position& pos) { return mateMoveIn3Ply<false>(pos); }
-template <> FORCE_INLINE bool mateMoveInOddPly<3, true>(Position& pos) { return mateMoveIn3Ply<true>(pos); }
+template <> FORCE_INLINE bool mateMoveInOddPly<3, false>(Position& pos, const int draw_ply) { return mateMoveIn3Ply<false>(pos, draw_ply); }
+template <> FORCE_INLINE bool mateMoveInOddPly<3, true>(Position& pos, const int draw_ply) { return mateMoveIn3Ply<true>(pos, draw_ply); }
 
 // 偶数手詰めチェック
 // 手番側が王手されていること
 template <int depth>
-bool mateMoveInEvenPly(Position& pos)
+bool mateMoveInEvenPly(Position& pos, const int draw_ply = INT_MAX)
 {
 	// AND節点
 
@@ -250,7 +268,7 @@ bool mateMoveInEvenPly(Position& pos)
 		}
 
 		// 奇数手詰めかどうか
-		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos) : !mateMoveInOddPly<depth - 1, false>(pos)) {
+		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos, draw_ply) : !mateMoveInOddPly<depth - 1, false>(pos, draw_ply)) {
 			// 偶数手詰めでない場合
 			// 詰みが見つからなかった時点で終了
 			pos.undoMove(ml.move);

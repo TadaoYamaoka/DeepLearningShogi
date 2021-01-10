@@ -281,10 +281,12 @@ template <bool or_node>
 void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode) {
 	auto& entry = transposition_table.LookUp<or_node>(n, depth);
 
-	if (depth > kMaxDepth) {
-		entry.pn = kInfinitePnDn;
-		entry.dn = 0;
-		return;
+	if (or_node) {
+		if (depth + 1 > kMaxDepth) {
+			entry.pn = kInfinitePnDn;
+			entry.dn = 0;
+			return;
+		}
 	}
 
 	// if (n is a terminal node) { handle n and return; }
@@ -363,6 +365,15 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 							entry.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 
 						return;
+					}
+
+					if (depth + 3 > kMaxDepth) {
+						n.undoMove(m);
+
+						entry2.pn = kInfinitePnDn;
+						entry2.dn = 0;
+
+						continue;
 					}
 
 					const CheckInfo ci2(n);

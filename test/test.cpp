@@ -255,7 +255,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "mate.h"
 // 詰み探索計測(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {
@@ -308,6 +308,33 @@ int main() {
 	bool ret = mateMoveInOddPly<5>(pos);
 
 	std::cout << ret << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+#include "mate.h"
+// 最大手数チェック
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<pair<string, int>> sfens = {
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 263 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 263 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 263 }, // 262手目で詰み → 詰み
+	};
+
+	for (auto& sfen_draw : sfens) {
+		pos.set(sfen_draw.first);
+		bool ret = mateMoveInOddPly<5>(pos, sfen_draw.second);
+		cout << ret << endl;
+	}
 
 	return 0;
 }
@@ -492,6 +519,37 @@ int main()
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+}
+#endif
+
+#if 1
+#include "dfpn.h"
+// 最大手数チェック
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	DfPn dfpn;
+	dfpn.init();
+
+	vector<pair<string, int>> sfens = {
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 263 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 263 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 262 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 263 }, // 262手目で詰み → 詰み
+	};
+
+	for (auto& sfen_draw : sfens) {
+		pos.set(sfen_draw.first);
+		dfpn.set_maxdepth(sfen_draw.second - pos.gamePly());
+		bool ret = dfpn.dfpn(pos);
+		cout << ret << endl;
+	}
+
+	return 0;
 }
 #endif
 
