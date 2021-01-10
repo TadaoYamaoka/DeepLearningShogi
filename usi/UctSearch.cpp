@@ -15,6 +15,7 @@
 #include <thread>
 #include <random>
 #include <queue>
+#include <forward_list>
 
 #include "fastmath.h"
 #include "Message.h"
@@ -46,9 +47,9 @@ using namespace std;
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex mutexes[MUTEX_NUM];
-inline std::mutex& GetPositionMutex(const Position* pos)
+inline std::mutex& GetPositionMutex(const Position& pos)
 {
-	return mutexes[pos->getKey() & (MUTEX_NUM - 1)];
+	return mutexes[pos.getKey() & (MUTEX_NUM - 1)];
 }
 
 
@@ -140,7 +141,7 @@ int draw_ply = INT_MAX;
 ////////////
 
 // ルートの展開
-static void ExpandRoot(const Position *pos);
+static void ExpandRoot(const Position& pos);
 
 // 思考時間を延長する処理
 static bool ExtendTime(void);
@@ -186,7 +187,19 @@ typedef vector<trajectory_t> trajectories_t;
 
 struct visitor_t {
 	trajectories_t trajectories;
+	Position& pos;
+	forward_list<StateInfo>& states;
+	forward_list<StateInfo>::iterator states_itr;
 	float value_win;
+
+	visitor_t(Position& pos, forward_list<StateInfo>& states) : pos(pos), states(states), states_itr(states.before_begin()) {}
+	StateInfo& next_state() {
+		if (std::next(states_itr) == states.end()) {
+			states.emplace_after(states_itr);
+		}
+		++states_itr;
+		return *states_itr;
+	}
 };
 
 // バッチの要素
@@ -361,11 +374,11 @@ private:
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
-	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor);
+	float UctSearch(visitor_t& visitor, child_node_t* parent, uct_node_t* current);
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
-	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
+	void QueuingNode(const Position& pos, uct_node_t* node, float* value_win);
 	// ノードを評価
 	void EvalNode();
 
@@ -818,7 +831,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	po_info.count = 0;
 
 	// UCTの初期化
-	ExpandRoot(pos);
+	ExpandRoot(*pos);
 
 	// 詰みのチェック
 	const int child_num = current_root->child_num;
@@ -901,7 +914,7 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 //  ルートノードの展開  //
 /////////////////////////
 static void
-ExpandRoot(const Position *pos)
+ExpandRoot(const Position& pos)
 {
 	uct_node_t* current_head = tree->GetCurrentHead();
 	if (current_head->child_num == 0) {
@@ -915,7 +928,7 @@ ExpandRoot(const Position *pos)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
+UCTSearcher::QueuingNode(const Position& pos, uct_node_t* node, float* value_win)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
@@ -927,8 +940,8 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
+	make_input_features(pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	policy_value_batch[current_policy_value_batch_index] = { node, pos.turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
@@ -1029,7 +1042,7 @@ UCTSearcher::ParallelUctSearch()
 	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
 		float value_win;
-		QueuingNode(pos_root, current_root, &value_win);
+		QueuingNode(*pos_root, current_root, &value_win);
 		EvalNode();
 	}
 	UNLOCK_EXPAND;
@@ -1041,6 +1054,10 @@ UCTSearcher::ParallelUctSearch()
 		last_pv_print = 0;
 		monitoring_thread = true;
 	}
+
+	// ヒープアクセスを減らすため事前にPositionとStateInfoを確保する
+	vector<Position> pos_pool(policy_value_batch_maxsize);
+	vector<forward_list<StateInfo>> states_pool(policy_value_batch_maxsize);
 
 	// 探索経路のバッチ
 	vector<visitor_t> visitor_batch;
@@ -1056,12 +1073,14 @@ UCTSearcher::ParallelUctSearch()
 
 		// バッチサイズ分探索を繰り返す
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
+			// 事前に確保したPositionとStateInfoから割り当てる
+			visitor_t& visitor = visitor_batch.emplace_back(pos_pool[i], states_pool[i]);
+
 			// 盤面のコピー
-			Position pos(*pos_root);
+			visitor.pos = *pos_root;
 			
 			// 1回プレイアウトする
-			visitor_batch.emplace_back();
-			const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
+			const float result = UctSearch(visitor, nullptr, current_root);
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
@@ -1096,6 +1115,36 @@ UCTSearcher::ParallelUctSearch()
 		for (auto& visitor : visitor_batch) {
 			auto& trajectories = visitor.trajectories;
 			float result = 1.0f - visitor.value_win;
+
+			// 詰みチェック
+			Position& pos = visitor.pos;
+			bool isMate = false;
+			if (!pos.inCheck()) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(pos)) {
+					isMate = true;
+				}
+				// 入玉勝ちかどうかを判定
+				else if (nyugyoku<false>(pos)) {
+					isMate = true;
+				}
+			}
+			else {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(pos)) {
+					isMate = true;
+				}
+				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
+			}
+
+			// 詰みの場合、ValueNetの値を上書き
+			if (isMate) {
+				auto& current_next = trajectories.back();
+				const uct_node_t* current = current_next.first;
+				const unsigned int next_index = current_next.second;
+				child_node_t* uct_child = current->child.get();
+				uct_child[next_index].SetWin();
+				result = 0.0f;
+			}
+
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
@@ -1160,8 +1209,9 @@ UCTSearcher::ParallelUctSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor)
+UCTSearcher::UctSearch(visitor_t& visitor, child_node_t* parent, uct_node_t* current)
 {
+	Position& pos = visitor.pos;
 	float result;
 	child_node_t *uct_child = current->child.get();
 	auto& trajectories = visitor.trajectories;
@@ -1174,8 +1224,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	// UCB値最大の手を求める
 	const unsigned int next_index = SelectMaxUcbChild(parent, current);
 	// 選んだ手を着手
-	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
+	pos.doMove(uct_child[next_index].move, visitor.next_state());
 
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
@@ -1193,12 +1242,12 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 
 		int isDraw = 0;
 		// 最大手数を超えていたら千日手扱いとする
-		if (pos->gamePly() > draw_ply) {
+		if (pos.gamePly() > draw_ply) {
 			isDraw = 2; // Draw
 		}
 		else {
 			// 千日手チェック
-			switch (pos->isDraw(16)) {
+			switch (pos.isDraw(16)) {
 			case NotRepetition: break;
 			case RepetitionDraw: isDraw = 2; break; // Draw
 			case RepetitionWin: isDraw = 1; break;
@@ -1221,7 +1270,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 			}
 			else {
 				uct_child[next_index].SetDraw();
-				if (pos->turn() == Black) {
+				if (pos.turn() == Black) {
 					// 白が選んだ手なので、白の引き分けの価値を使う
 					result = draw_value_white;
 				}
@@ -1232,53 +1281,18 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 			}
 		}
 		else {
-			// 詰みチェック
-			int isMate = 0;
-			if (!pos->inCheck()) {
-				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
-					isMate = 1;
-				}
-				// 入玉勝ちかどうかを判定
-				else if (nyugyoku<false>(*pos)) {
-					isMate = 1;
-				}
-			}
-			else {
-				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
-					isMate = 1;
-				}
-				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
-				/*else if (mateMoveInEvenPly(*pos, MATE_SEARCH_DEPTH - 1)) {
-					isMate = -1;
-				}*/
-			}
-
-
-			// 詰みの場合、ValueNetの値を上書き
-			if (isMate == 1) {
-				uct_child[next_index].SetWin();
-				result = 0.0f;
-			}
-			/*else if (isMate == -1) {
-				uct_node[child_index].value_win = VALUE_LOSE;
-				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-				current->value_win = VALUE_WIN;
+			// 候補手を展開する（千日手や詰みの場合は候補手の展開が不要なため、タイミングを遅らせる）
+			child_node->ExpandNode(pos);
+			if (child_node->child_num == 0) {
+				// 詰み
+				uct_child[next_index].SetLose();
 				result = 1.0f;
-			}*/
-			else {
-				// 候補手を展開する（千日手や詰みの場合は候補手の展開が不要なため、タイミングを遅らせる）
-				child_node->ExpandNode(pos);
-				if (child_node->child_num == 0) {
-					// 詰み
-					uct_child[next_index].SetLose();
-					result = 1.0f;
-				}
-				else
-				{
-					// ノードをキューに追加
-					QueuingNode(pos, child_node, &visitor.value_win);
-					return QUEUING;
-				}
+			}
+			else
+			{
+				// ノードをキューに追加
+				QueuingNode(pos, child_node, &visitor.value_win);
+				return QUEUING;
 			}
 		}
 		child_node->SetEvaled();
@@ -1306,7 +1320,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		// 千日手チェック
 		else if (uct_child[next_index].IsDraw()) {
-			if (pos->turn() == Black) {
+			if (pos.turn() == Black) {
 				// 白が選んだ手なので、白の引き分けの価値を返す
 				result = draw_value_white;
 			}
@@ -1321,7 +1335,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		else {
 			// 手番を入れ替えて1手深く読む
-			result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
+			result = UctSearch(visitor, &uct_child[next_index], next_node);
 		}
 	}
 

@@ -67,8 +67,8 @@ struct uct_node_t {
 		child[0].move = move;
 	}
 	// Œó•âŽè‚Ì“WŠJ
-	void ExpandNode(const Position* pos) {
-		MoveList<Legal> ml(*pos);
+	void ExpandNode(const Position& pos) {
+		MoveList<Legal> ml(pos);
 		child_num = (short)ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
