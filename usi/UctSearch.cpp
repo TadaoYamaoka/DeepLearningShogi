@@ -131,8 +131,8 @@ constexpr float DISCARDED = -FLT_MAX;
 float draw_value_black = 0.5f;
 float draw_value_white = 0.5f;
 
-// 引き分けとする手数（0以外の場合、この手数に達した場合引き分けとする）
-int draw_ply = 0;
+// 引き分けとする手数（この手数に達した場合引き分けとする）
+int draw_ply = INT_MAX;
 
 
 ////////////
@@ -450,7 +450,7 @@ int GetTimeLimit()
 // 引き分けとする手数の設定
 void SetDrawPly(const int ply)
 {
-	draw_ply = ply;
+	draw_ply = ply > 0 ? ply : INT_MAX;
 }
 
 void
@@ -573,10 +573,8 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	}
 	const int color = pos->turn();
 	int divisor = 14 + std::max(0, 30 - pos->gamePly());
-	if (draw_ply > 0) {
-		// 引き分けとする手数までに時間を使い切る
-		divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
-	}
+	// 引き分けとする手数までに時間を使い切る
+	divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
 	remaining_time[color] = limits.time[color];
 	time_limit = remaining_time[color] / divisor + limits.inc[color];
 	minimum_time = limits.moveTime;
@@ -1199,7 +1197,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 
 		int isDraw = 0;
 		// 最大手数を超えていたら千日手扱いとする
-		if (draw_ply > 0 && pos->gamePly() > draw_ply) {
+		if (pos->gamePly() > draw_ply) {
 			isDraw = 2; // Draw
 		}
 		else {
