@@ -1084,7 +1084,7 @@ UCTSearcher::ParallelUctSearch()
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto& trajectories : trajectories_batch_discarded) {
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
-				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
+				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				child_node_t* uct_child = current->child.get();
 				const unsigned int next_index = current_next.second;
@@ -1093,18 +1093,14 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// バックアップ
-		float result = 0.0f;
 		for (auto& visitor : visitor_batch) {
 			auto& trajectories = visitor.trajectories;
+			float result = 1.0f - visitor.value_win;
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
-				pair<uct_node_t*, unsigned int>& current_next = trajectories[i];
+				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				const unsigned int next_index = current_next.second;
 				child_node_t* uct_child = current->child.get();
-				const auto* uct_child_nodes = current->child_nodes.get();
-				if ((size_t)i == trajectories.size() - 1) {
-					result = 1.0f - visitor.value_win;
-				}
 				UpdateResult(&uct_child[next_index], result, current);
 				result = 1.0f - result;
 			}
