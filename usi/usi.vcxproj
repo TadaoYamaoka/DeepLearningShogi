@@ -177,8 +177,8 @@
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreLinkEvent>
-      <Command>mkdir "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)"
-copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release\zlibstatic.lib" "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)\"</Command>
+      <Command>
+      </Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
@@ -204,8 +204,8 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreLinkEvent>
-      <Command>mkdir "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)"
-copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release\zlibstatic.lib" "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)\"</Command>
+      <Command>
+      </Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
@@ -229,8 +229,8 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cuda.lib;cudnn.lib;cudart.lib;cublas.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreLinkEvent>
-      <Command>mkdir "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)"
-copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release\zlibstatic.lib" "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\$(Configuration)\"</Command>
+      <Command>
+      </Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -269,17 +269,6 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
   <ItemGroup>
     <Text Include="Makefile" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
-  </Target>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

@@ -77,9 +77,6 @@
     <Text Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="ZobristHash.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
