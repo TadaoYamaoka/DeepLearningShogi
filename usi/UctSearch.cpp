@@ -1235,7 +1235,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 			// 詰みチェック
 			int isMate = 0;
 			if (!pos->inCheck()) {
-				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos, draw_ply)) {
 					isMate = 1;
 				}
 				// 入玉勝ちかどうかを判定
@@ -1244,7 +1244,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 				}
 			}
 			else {
-				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos)) {
+				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, true>(*pos, draw_ply)) {
 					isMate = 1;
 				}
 				// 偶数手詰めは親のノードの奇数手詰めでチェックされているためチェックしない
