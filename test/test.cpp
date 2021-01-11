@@ -522,7 +522,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // 最大手数チェック
 int main() {
@@ -760,4 +760,74 @@ int main() {
 
 	return 0;
 }
+#endif
+
+#if 1
+// 有効な移動ラベル
+#include <fstream>
+int main(int argc, char* argv[]) {
+	initTable();
+	HuffmanCodedPos::init();
+
+	// hcpe読み込み
+	std::ifstream ifs(argv[1], std::ifstream::in | std::ifstream::binary | std::ios::ate);
+	if (!ifs) {
+		exit(EXIT_FAILURE);
+	}
+	const s64 entryNum = ifs.tellg() / sizeof(HuffmanCodedPosAndEval);
+	std::cout << entryNum << std::endl;
+
+	// 全て読む
+	ifs.seekg(std::ios_base::beg);
+	HuffmanCodedPosAndEval* hcpevec = new HuffmanCodedPosAndEval[entryNum];
+	ifs.read(reinterpret_cast<char*>(hcpevec), sizeof(HuffmanCodedPosAndEval) * entryNum);
+	ifs.close();
+
+	signed char dirmap[MAX_MOVE_LABEL_NUM][SquareNum] = {};
+
+	for (size_t i = 0; i < entryNum; i++) {
+		HuffmanCodedPosAndEval& hcpe = hcpevec[i];
+		const Color turn = (Color)(hcpe.hcp.data[0] & 0x1);
+		const int move_label = make_move_label(hcpe.bestMove16, turn);
+
+		const int dir = move_label / 81;
+		const int sq = move_label % 81;
+		assert(dir < MAX_MOVE_LABEL_NUM);
+
+		if (dirmap[dir][sq] == 0)
+			dirmap[dir][sq] = 1;
+	}
+
+	for (int dir = 0; dir < MAX_MOVE_LABEL_NUM; dir++) {
+		std::cout << dir << std::endl;
+		for (int rank = 0; rank < 9; rank++) {
+			for (int file = 8; file >= 0; file--) {
+				std::cout << (int)dirmap[dir][file * 9 + rank] << (file == 0 ? "\n" : "\t");
+			}
+		}
+	}
+
+	// 有効なラベル一覧
+	std::cout << "(";
+	for (int dir = 0; dir < MAX_MOVE_LABEL_NUM; dir++) {
+		for (Square sq = SQ11; sq < SquareNum; sq++) {
+			if (dirmap[dir][sq] > 0)
+				std::cout << dir * SquareNum + sq << ",";
+		}
+	}
+	std::cout << ")\n";
+
+	// 変換表
+	// dir,sq → ラベル
+	int current_label = 0;
+	std::cout << "int move_label_map[][SquareNum] = {\n";
+	for (int dir = 0; dir < MAX_MOVE_LABEL_NUM; dir++) {
+		std::cout << "{";
+		for (Square sq = SQ11; sq < SquareNum; sq++) {
+			int label = dirmap[dir][sq] > 0 ? current_label++ : -1;
+			std::cout << label << (sq == SQ99 ? "},\n" : ",");
+		}
+	}
+	std::cout << "};" << std::endl;
+};
 #endif

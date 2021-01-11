@@ -34,7 +34,7 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 	// Create host and device buffers
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
 	checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * max_batch_size));
-	checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
+	checkCudaErrors(cudaMalloc((void**)&y1_dev, (size_t)MAX_SLIM_MOVE_LABEL_NUM * max_batch_size * sizeof(DType)));
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
 
 	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
@@ -196,6 +196,6 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice));
 	const bool status = context->executeV2(inputBindings.data());
 	assert(status);
-	checkCudaErrors(cudaMemcpy(y1, y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(y1, y1_dev, (size_t)MAX_SLIM_MOVE_LABEL_NUM * batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
 	checkCudaErrors(cudaMemcpy(y2, y2_dev, batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
 }

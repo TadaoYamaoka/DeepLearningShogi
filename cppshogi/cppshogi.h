@@ -47,12 +47,14 @@ const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
 
 // 指し手を表すラベルの数
 constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
+constexpr int MAX_SLIM_MOVE_LABEL_NUM = 1496;
 
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
 void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
 int make_move_label(const u16 move16, const Color color);
+int make_slim_move_label(const u16 move16, const Color color);
 void softmax_temperature(std::vector<float> &log_probabilities);
 void softmax_temperature_with_normalize(std::vector<float> &log_probabilities);
 void set_softmax_temperature(const float temperature);
