@@ -228,16 +228,12 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 
 		starting_pos_key = pos.getKey();
 
-		Ply currentPly = pos.gamePly();
 		while (ssPosCmd >> token) {
 			const Move move = usiToMove(pos, token);
 			if (!move) break;
-			pos.searcher()->states->push_back(StateInfo());
-			pos.doMove(move, pos.searcher()->states->back());
-			++currentPly;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
 			moves.emplace_back(move);
 		}
-		pos.setStartPosPly(currentPly);
 	}
 
 	if (ponderhit) {
