@@ -397,15 +397,12 @@ void setPosition(Position& pos, std::istringstream& ssCmd) {
     pos.set(sfen);
     pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
 
-    Ply currentPly = pos.gamePly();
     while (ssCmd >> token) {
         const Move move = usiToMove(pos, token);
         if (!move) break;
         pos.searcher()->states->push_back(StateInfo());
         pos.doMove(move, pos.searcher()->states->back());
-        ++currentPly;
     }
-    pos.setStartPosPly(currentPly);
 }
 
 bool setPosition(Position& pos, const HuffmanCodedPos& hcp) {

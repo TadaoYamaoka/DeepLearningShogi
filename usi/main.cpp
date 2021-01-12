@@ -288,7 +288,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 			if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
 				StateInfo st;
 				pos.doMove(move, st);
-				pos.setStartPosPly(pos.gamePly() + 1);
 
 				moves.emplace_back(move);
 				UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
@@ -368,7 +367,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		// 相手局面から探索を継続する
 		StateInfo st;
 		pos.doMove(move, st);
-		pos.setStartPosPly(pos.gamePly() + 1);
 
 		moves.emplace_back(move);
 		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
@@ -460,7 +458,6 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 
 // 定跡作成(再帰処理)
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, std::vector<Move> &moves) {
-	pos.setStartPosPly(depth + 1);
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 

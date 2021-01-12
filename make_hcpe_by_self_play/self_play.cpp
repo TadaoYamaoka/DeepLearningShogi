@@ -1313,7 +1313,6 @@ void UCTSearcher::NextPly(const Move move)
 
 	// 着手
 	pos_root->doMove(move, states[ply]);
-	pos_root->setStartPosPly(ply + 1);
 
 	// 千日手の場合
 	switch (pos_root->isDraw(16)) {
