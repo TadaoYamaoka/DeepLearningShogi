@@ -285,6 +285,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		if (depth + 1 > kMaxDepth) {
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
+			entry.num_searched = REPEAT;
 			return;
 		}
 	}
@@ -372,6 +373,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 
 						entry2.pn = kInfinitePnDn;
 						entry2.dn = 0;
+						entry2.num_searched = REPEAT;
 
 						continue;
 					}
