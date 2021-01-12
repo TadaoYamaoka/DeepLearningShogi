@@ -886,7 +886,8 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
 			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
-				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0) << endl;
+				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0)
+				<< (child.IsLose() ? " win" : "") << (child.IsWin() ? " lose" : "") << endl;
 		}
 
 		// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
@@ -948,6 +949,7 @@ InterruptionCheck(void)
 		return false;
 	}
 
+	int max_index = 0;
 	int max_searched = 0, second = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const int child_num = current_root->child_num;
@@ -958,12 +960,16 @@ InterruptionCheck(void)
 		if (uct_child[i].move_count > max_searched) {
 			second = max_searched;
 			max_searched = uct_child[i].move_count;
+			max_index = i;
 		}
 		else if (uct_child[i].move_count > second) {
 			second = uct_child[i].move_count;
 		}
 	}
 
+	// 詰みが見つかった場合は探索を打ち切る
+	if (uct_child[max_index].IsLose())
+		return true;
 
 	// 残りの探索を全て次善手に費やしても
 	// 最善手を超えられない場合は探索を打ち切る
