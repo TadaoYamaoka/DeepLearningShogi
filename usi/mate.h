@@ -60,7 +60,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 	// OR節点
 
 	// 最大手数チェック
-	if (pos.gamePly() + 1 > draw_ply)
+	if (pos.gamePly() + 2 > draw_ply)
 		return false;
 
 	StateInfo si;
@@ -90,7 +90,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		}
 
 		// 最大手数チェック
-		if (pos.gamePly() + 2 > draw_ply) {
+		if (pos.gamePly() + 3 > draw_ply) {
 			pos.undoMove(m);
 			continue;
 		}
@@ -132,7 +132,7 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int draw_ply = INT_MAX) {
 	// OR節点
 
 	// 最大手数チェック
-	if (pos.gamePly() + 1 > draw_ply)
+	if (pos.gamePly() + 2 > draw_ply)
 		return Move::moveNone();
 
 	// すべての合法手について
@@ -182,7 +182,7 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 	// OR節点
 
 	// 最大手数チェック
-	if (pos.gamePly() + 1 > draw_ply)
+	if (pos.gamePly() + 2 > draw_ply)
 		return false;
 
 	// すべての合法手について
