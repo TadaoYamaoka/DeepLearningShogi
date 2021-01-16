@@ -4,6 +4,7 @@ import numpy as np
 import os
 import glob
 import lzma
+import math
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -24,6 +25,7 @@ for filepath in csa_file_list:
     p = 0
     if filepath.endswith('.xz'):
         file = lzma.open(filepath, 'rt')
+        filepath = filepath[:-3]
     else:
         file = filepath
     for kif in CSA.Parser.parse_file(file):
@@ -34,7 +36,11 @@ for filepath in csa_file_list:
         # 30手までで最善手以外が指された手番を見つける
         start = -1
         for i, (move, comment) in enumerate(zip(kif.moves, kif.comments)):
-            candidates = comment.decode('ascii').split(',')
+            comments = comment.decode('ascii').split(',')
+            if comments[0].startswith('v='):
+                candidates = comments[1:]
+            else:
+                candidates = comments
             if board.move_from_csa(candidates[1]) != move:
                 start = i
             if i >= 29:
