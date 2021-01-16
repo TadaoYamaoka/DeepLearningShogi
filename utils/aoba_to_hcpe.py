@@ -3,6 +3,7 @@ from cshogi import CSA
 import numpy as np
 import os
 import glob
+import lzma
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -10,7 +11,8 @@ parser.add_argument('csa_dir')
 parser.add_argument('out_dir')
 args = parser.parse_args()
 
-csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
+csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa*'), recursive=True)
+os.makedirs(args.out_dir, exist_ok=True)
 
 hcpes = np.zeros(10000*512, HuffmanCodedPosAndEval)
 
@@ -20,7 +22,11 @@ position_num = 0
 for filepath in csa_file_list:
     print(filepath)
     p = 0
-    for kif in CSA.Parser.parse_file(filepath):
+    if filepath.endswith('.xz'):
+        file = lzma.open(filepath, 'rt')
+    else:
+        file = filepath
+    for kif in CSA.Parser.parse_file(file):
         if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN') or len(kif.moves) <= 30:
             continue
         kif_num += 1
