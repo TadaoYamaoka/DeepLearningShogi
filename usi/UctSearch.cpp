@@ -1147,12 +1147,9 @@ UCTSearcher::ParallelUctSearch()
 			const auto elapsed_time = search_begin_time.elapsed();
 			// いずれかのスレッドが1回だけ表示する
 			if (elapsed_time > last_pv_print + pv_interval) {
-				const auto prev_last_pv_print = last_pv_print;
 				last_pv_print = elapsed_time;
-				if (elapsed_time > prev_last_pv_print + pv_interval) {
-					// PV表示
-					get_and_print_pv();
-				}
+				// PV表示
+				get_and_print_pv();
 			}
 		}
 	} while (true);
