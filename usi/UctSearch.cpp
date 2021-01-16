@@ -1081,6 +1081,9 @@ UCTSearcher::ParallelUctSearch()
 			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
 				visitor_batch.pop_back();
+				// 衝突がバッチサイズの半分を超えた場合、すぐに評価する
+				if (result == DISCARDED && trajectories_batch_discarded.size() > policy_value_batch_maxsize / 2)
+					break;
 			}
 		}
 
