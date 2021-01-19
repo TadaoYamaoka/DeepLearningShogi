@@ -200,5 +200,5 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
-	py::def("hcpe2_decode_with_value", hcpe_decode_with_value);
+	py::def("hcpe2_decode_with_value", hcpe2_decode_with_value);
 }
