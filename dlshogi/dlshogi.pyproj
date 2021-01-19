@@ -44,6 +44,7 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train_rl_policy_with_value_using_hcpe2_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">

@@ -8,7 +8,8 @@ namespace py = boost::python;
 namespace np = boost::python::numpy;
 
 // make result
-inline float make_result(const GameResult gameResult, const Position& position) {
+inline float make_result(const int8_t result, const Position& position) {
+	const GameResult gameResult = (GameResult)(result & 0x3);
 	if (gameResult == Draw)
 		return 0.5f;
 
@@ -19,6 +20,15 @@ inline float make_result(const GameResult gameResult, const Position& position) 
 	else {
 		return 0.0f;
 	}
+}
+inline float is_sennichite(const int8_t result) {
+	return result & 0x4 ? 1.0f : 0.0f;
+}
+inline float is_nyugyoku(const int8_t result) {
+	return result & 0x8 ? 1.0f : 0.0f;
+}
+inline float is_jishogi(const int8_t result) {
+	return result & 0x16 ? 1.0f : 0.0f;
 }
 
 /*
@@ -137,6 +147,47 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
+void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndaux, np::ndarray ndvalue) {
+	const int len = (int)ndhcpe2.shape(0);
+	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
+	int* move = reinterpret_cast<int*>(ndmove.get_data());
+	float* result = reinterpret_cast<float*>(ndresult.get_data());
+	auto aux = reinterpret_cast<float(*)[3]>(ndaux.get_data());
+	float* value = reinterpret_cast<float*>(ndvalue.get_data());
+
+	// set all zero
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
+
+	Position position;
+	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
+		position.set(hcpe->hcp);
+
+		// input features
+		make_input_features(position, features1, features2);
+
+		// move
+		*move = make_move_label(hcpe->bestMove16, position.turn());
+
+		// game result
+		*result = make_result(hcpe->result, position);
+
+		// sennichite
+		(*aux)[0] = is_sennichite(hcpe->result);
+
+		// nyugyoku
+		(*aux)[1] = is_nyugyoku(hcpe->result);
+
+		// jisyogi
+		(*aux)[2] = is_jishogi(hcpe->result);
+
+		// eval
+		*value = score_to_value((Score)hcpe->eval);
+	}
+}
+
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
 	np::initialize();
@@ -149,4 +200,5 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
+	py::def("hcpe2_decode_with_value", hcpe_decode_with_value);
 }

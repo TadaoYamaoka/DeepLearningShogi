@@ -62,3 +62,11 @@ void set_softmax_temperature(const float temperature);
 inline float score_to_value(const Score score) {
 	return 1.0f / (1.0f + expf(-(float)score * 0.0013226f));
 }
+
+struct HuffmanCodedPosAndEval2 {
+	HuffmanCodedPos hcp;
+	s16 eval;
+	u16 bestMove16;
+	int8_t result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 持将棋、xx1xxxxx : 最大手数
+};
+static_assert(sizeof(HuffmanCodedPosAndEval2) == 38, "");
