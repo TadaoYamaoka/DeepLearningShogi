@@ -112,7 +112,6 @@ logging.info('test position num = {}'.format(len(test_data)))
 pos_weight = torch.tensor([
     len(train_data) / (train_data['result'] // 4 & 1).sum(), # sennichite
     len(train_data) / (train_data['result'] // 8 & 1).sum(), # nyugyoku
-    len(train_data) / (train_data['result'] // 16 & 1).sum(), # jishogi
     ], dtype=torch.float32, device=device)
 logging.info('pos_weight = {}'.format(pos_weight))
 bce_with_logits_loss_aux = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -123,7 +122,7 @@ def mini_batch(hcpevec):
     features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
     move = np.empty((len(hcpevec)), dtype=np.int32)
     result = np.empty((len(hcpevec), 1), dtype=np.float32)
-    aux = np.empty((len(hcpevec), 3), dtype=np.float32)
+    aux = np.empty((len(hcpevec), 2), dtype=np.float32)
     value = np.empty((len(hcpevec), 1), dtype=np.float32)
 
     cppshogi.hcpe2_decode_with_value(hcpevec, features1, features2, move, result, aux, value)
@@ -223,7 +222,7 @@ for e in range(args.epoch):
                 loss1 = (cross_entropy_loss(y1, t1) * z).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss4 = bce_with_logits_loss(y3, t3)
+                loss4 = bce_with_logits_loss_aux(y3, t3)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + args.aux_ratio * loss4
 
                 logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
@@ -270,7 +269,7 @@ for e in range(args.epoch):
             loss1 = (cross_entropy_loss(y1, t1) * z).mean()
             loss2 = bce_with_logits_loss(y2, t2)
             loss3 = bce_with_logits_loss(y2, value)
-            loss4 = bce_with_logits_loss(y3, t3)
+            loss4 = bce_with_logits_loss_aux(y3, t3)
             loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + args.aux_ratio * loss4
             sum_test_loss1 += loss1.item()
             sum_test_loss2 += loss2.item()
