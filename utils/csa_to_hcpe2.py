@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('out_train')
 parser.add_argument('out_test')
-parser.add_argument('--filter_moves', type=int, default=80)
+parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3000)
 parser.add_argument('--start_moves', type=int, default=30)
 parser.add_argument('--test_ratio', type=float, default=0.1)
@@ -44,7 +44,7 @@ def make_hcpe2(csa_file_list, out):
     for filepath in csa_file_list:
         kif = CSA.Parser.parse_file(filepath)[0]
         endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI') or len(kif.moves) < args.filter_moves:
+        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI') and len(kif.moves) < 256 or len(kif.moves) < args.filter_moves:
             continue
         if args.filter_rating > 0 and (kif.ratings[0] < args.filter_rating and kif.ratings[1] < args.filter_rating):
             continue
@@ -75,6 +75,8 @@ def make_hcpe2(csa_file_list, out):
             hcpes[start_p:p]['result'] += 4
         elif endgame == '%KACHI':
             hcpes[start_p:p]['result'] += 8
+        elif len(kif.moves) == 256:
+            hcpes[start_p:p]['result'] += 16
 
     hcpes[:p].tofile(out)
 
