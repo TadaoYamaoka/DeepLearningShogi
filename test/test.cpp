@@ -523,7 +523,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // 最大手数チェック
 int main() {
