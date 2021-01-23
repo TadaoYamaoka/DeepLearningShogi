@@ -57,6 +57,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="plot_log_policy_value.py" />
+    <Compile Include="print_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="psv_to_hcp.py" />
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="stat_csa_position_in_dir.py">

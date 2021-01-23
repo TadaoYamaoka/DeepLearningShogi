@@ -1,4 +1,4 @@
-#if 0
+#if 1
 // TensorRTベンチマーク
 #include <iostream>
 #include <chrono>
@@ -9,7 +9,7 @@
 #include "NvOnnxParser.h"
 
 #include "cppshogi.h"
-#include "cudnn_wrapper.h"
+#include "error_util.h"
 #include "int8_calibrator.h"
 
 using namespace std;
@@ -265,16 +265,16 @@ int main(int argc, char* argv[]) {
 	// Create host and device buffers
 	features1_t* features1;
 	features2_t* features2;
-	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * batchsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * batchsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * batchsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * batchsize, cudaHostAllocPortable));
 	features1_t* x1_dev;
 	features2_t* x2_dev;
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * batchsize));
 	checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * batchsize));
 	DType* y1;
 	DType* y2;
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batchsize * sizeof(DType), cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&y2, batchsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batchsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y2, batchsize * sizeof(DType), cudaHostAllocPortable));
 	DType* y1_dev;
 	DType* y2_dev;
 	checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batchsize * sizeof(DType)));
@@ -321,8 +321,8 @@ int main(int argc, char* argv[]) {
 
 	for (int n = 0; n < num / batchsize; n++) {
 		// set all zero
-		std::fill_n((DType*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, _zero);
-		std::fill_n((DType*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, _zero);
+		std::fill_n((DType*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0);
+		std::fill_n((DType*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0);
 
 		// hcpeをデコードして入力特徴作成
 		for (int i = 0; i < batchsize; i++) {
