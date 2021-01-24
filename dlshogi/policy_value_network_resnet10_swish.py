@@ -54,7 +54,7 @@ class PolicyValueNetwork(nn.Module):
         self.l23_v = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.l24_v = nn.Linear(fcl, 1)
         # sennichite, nyugyoku, jishogi
-        self.l24_aux = nn.Linear(fcl, 3)
+        self.l24_aux = nn.Linear(fcl, 2)
 
         self.norm1 = nn.BatchNorm2d(k)
         self.norm2 = nn.BatchNorm2d(k)

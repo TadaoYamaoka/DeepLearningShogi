@@ -38,7 +38,7 @@ for filepath in csa_file_list:
     else:
         file = filepath
     for kif in CSA.Parser.parse_file(file):
-        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN') or len(kif.moves) <= 30:
+        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI') or len(kif.moves) <= 30:
             continue
         kif_num += 1
         board.set_sfen(kif.sfen)
@@ -82,8 +82,6 @@ for filepath in csa_file_list:
             hcpes[start_p:p]['result'] += 4
         elif endgame == '%KACHI':
             hcpes[start_p:p]['result'] += 8
-        elif endgame == '%HIKIWAKE' or endgame == '%CHUDAN':
-            hcpes[start_p:p]['result'] += 16
 
     hcpes[:p].tofile(os.path.join(args.out_dir, os.path.splitext(os.path.basename(filepath))[0] + '.hcpe2'))
     position_num += p

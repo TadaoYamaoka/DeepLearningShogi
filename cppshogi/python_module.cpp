@@ -27,9 +27,6 @@ inline float is_sennichite(const int8_t result) {
 inline float is_nyugyoku(const int8_t result) {
 	return result & 0x8 ? 1.0f : 0.0f;
 }
-inline float is_jishogi(const int8_t result) {
-	return result & 0x16 ? 1.0f : 0.0f;
-}
 
 /*
 HuffmanCodedPosAndEvalの配列からpolicy networkの入力ミニバッチに変換する。
@@ -154,7 +151,7 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int* move = reinterpret_cast<int*>(ndmove.get_data());
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
-	auto aux = reinterpret_cast<float(*)[3]>(ndaux.get_data());
+	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
 
 	// set all zero
@@ -179,9 +176,6 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 
 		// nyugyoku
 		(*aux)[1] = is_nyugyoku(hcpe->result);
-
-		// jisyogi
-		(*aux)[2] = is_jishogi(hcpe->result);
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
