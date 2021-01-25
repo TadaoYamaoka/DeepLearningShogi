@@ -82,8 +82,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			// 無視されるがbestmoveを返す
-			std::cout << "bestmove resign" << std::endl;
+			if (pos.searcher()->limits.ponder) {
+				// 無視されるがbestmoveを返す
+				std::cout << "bestmove resign" << std::endl;
+			}
 		}
 		else if (token == "ponderhit" || token == "go") {
 			// ponderの探索を停止
