@@ -495,3 +495,28 @@ int main() {
 	return 0;
 }
 #endif
+
+#if 1
+// 合法手生成
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<string> sfens = {
+		"l5p1K/p8/2nrpp1g1/LLppk1L2/9/9/9/9/9 b r2b3g4s3n12p 1", // 2段目への香の不成(3d3b,8d8b,9d9b)
+		"9/9/9/9/9/2l1KPPll/1G1PPRN2/8P/k1P5L w R2B3G4S3N12P 1" // 2段目への香の不成(1f1h,2f2h,7f7h)
+	};
+
+	for (string sfen : sfens) {
+		std::cout << sfen << "\n";
+		pos.set(sfen);
+		for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+			std::cout << ml.move().toUSI() << "\n";
+		}
+		std::cout << std::endl;
+	}
+
+	return 0;
+}
+#endif
