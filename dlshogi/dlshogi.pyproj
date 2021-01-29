@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
+    <StartupFile>test_abn.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 100 -b 64 --swa_freq 100</CommandLineArguments>
+    <CommandLineArguments>H:\home\2021\01_21\shogi\abn\model_att f:\selfplay\floodgate.hcpe --network resnet10_swish -i 776908</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -33,6 +33,7 @@
     <Compile Include="convert_model_to_onnx.py" />
     <Compile Include="policy_value_network.py" />
     <Compile Include="policy_value_network_resnet10_swish.py" />
+    <Compile Include="policy_value_network_resnet10_swish_att.py" />
     <Compile Include="policy_value_network_resnet20_swish.py" />
     <Compile Include="policy_value_network_senet10.py" />
     <Compile Include="serializers.py">
@@ -41,9 +42,11 @@
     <Compile Include="swa.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="test_abn.py" />
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train_rl_policy_with_value_att_using_hcpe_bootstrap.py" />
     <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">

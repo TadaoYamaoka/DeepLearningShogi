@@ -8,7 +8,8 @@ namespace py = boost::python;
 namespace np = boost::python::numpy;
 
 // make result
-inline float make_result(const GameResult gameResult, const Position& position) {
+inline float make_result(const int8_t result, const Position& position) {
+	const GameResult gameResult = (GameResult)(result & 0x3);
 	if (gameResult == Draw)
 		return 0.5f;
 
@@ -137,6 +138,10 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
+int move_to_label(int move, int color) {
+	return make_move_label((u16)move, (Color)color);
+}
+
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
 	np::initialize();
@@ -149,4 +154,5 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
 	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
 	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
+	py::def("move_to_label", move_to_label);
 }
