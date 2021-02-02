@@ -1,6 +1,7 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 
 from dlshogi.common import *
 from dlshogi import serializers
@@ -31,6 +32,10 @@ parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weig
 parser.add_argument('--beta', type=float, default=0.001, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--aux_ratio', type=float, default=0.1, help='auxiliary targets loss ratio')
+parser.add_argument('--importance_sampling', action='store_true')
+parser.add_argument('--clip_rho', type=float, default=1)
+parser.add_argument('--ppo', action='store_true')
+parser.add_argument('--eps_clip', type=float, default=0.2)
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
 parser.add_argument('--swa_freq', type=int, default=250)
@@ -104,7 +109,7 @@ def load_teacher(files):
 train_data = load_teacher(args.train_data)
 logging.debug('read test data')
 logging.debug(args.test_data)
-test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
+test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval2)
 
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
@@ -124,10 +129,12 @@ def mini_batch(hcpevec):
     result = np.empty((len(hcpevec), 1), dtype=np.float32)
     aux = np.empty((len(hcpevec), 2), dtype=np.float32)
     value = np.empty((len(hcpevec), 1), dtype=np.float32)
+    probability = np.empty(len(hcpevec), dtype=np.float32)
 
-    cppshogi.hcpe2_decode_with_value(hcpevec, features1, features2, move, result, aux, value)
+    cppshogi.hcpe2_decode_with_value(hcpevec, features1, features2, move, result, aux, value, probability)
 
-    z = result.astype(np.float32) - value + 0.5
+    #z = result.astype(np.float32) - value + 0.5
+    z = result.astype(np.float32)
 
     return (torch.tensor(features1).to(device),
             torch.tensor(features2).to(device),
@@ -135,13 +142,14 @@ def mini_batch(hcpevec):
             torch.tensor(result).to(device),
             torch.tensor(aux).to(device),
             torch.tensor(z).to(device),
-            torch.tensor(value).to(device)
+            torch.tensor(value).to(device),
+            torch.tensor(probability).to(device)
             )
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
     for i in range(0, len(data) - batchsize + 1, batchsize):
-        x1, x2, t1, t2, t3, z, value = mini_batch(data[i:i+batchsize])
+        x1, x2, t1, t2, t3, z, value, probability = mini_batch(data[i:i+batchsize])
         yield x1, x2
 
 def accuracy(y, t):
@@ -176,11 +184,26 @@ for e in range(args.epoch):
 
         model.train()
 
-        x1, x2, t1, t2, t3, z, value = mini_batch(train_data[i:i+args.batchsize])
+        x1, x2, t1, t2, t3, z, value, probability = mini_batch(train_data[i:i+args.batchsize])
         y1, y2, y3 = model(x1, x2)
 
         model.zero_grad()
-        loss1 = (cross_entropy_loss(y1, t1) * z).mean()
+        if args.importance_sampling:
+            #advantage = z - torch.sigmoid(value).detach() + 0.5 #_3
+            advantage = z + 0.5 #_4
+            rho = F.softmax(y1.detach(), dim=1).gather(1, t1.unsqueeze(1)) / probability
+            loss1 = (torch.clamp(rho, max=args.clip_rho) * cross_entropy_loss(y1, t1) * advantage).mean()
+        elif args.ppo:
+            #advantage = z - torch.sigmoid(value).detach() + 0.5 #_3
+            advantage = z + 0.5 #_4
+            ratio = F.softmax(y1, dim=1).gather(1, t1.unsqueeze(1)) / probability
+            surr1 = ratio * advantage
+            surr2 = torch.clamp(ratio, 1 - args.eps_clip, 1 + args.eps_clip) * advantage
+            loss1 = -torch.min(surr1, surr2).mean()
+        else:
+            #advantage = z - torch.sigmoid(value).detach() + 0.5 #_3
+            advantage = z + 0.5 #_4
+            loss1 = (cross_entropy_loss(y1, t1) * advantage).mean()
         if args.beta > 0:
             loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
         loss2 = bce_with_logits_loss(y2, t2)
@@ -215,7 +238,7 @@ for e in range(args.epoch):
         if t % eval_interval == 0:
             model.eval()
 
-            x1, x2, t1, t2, t3, z, value = mini_batch(np.random.choice(test_data, args.testbatchsize))
+            x1, x2, t1, t2, t3, z, value, _ = mini_batch(np.random.choice(test_data, args.testbatchsize))
             with torch.no_grad():
                 y1, y2, y3 = model(x1, x2)
 
@@ -262,7 +285,7 @@ for e in range(args.epoch):
     model.eval()
     with torch.no_grad():
         for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
-            x1, x2, t1, t2, t3, z, value = mini_batch(test_data[i:i+args.testbatchsize])
+            x1, x2, t1, t2, t3, z, value, _ = mini_batch(test_data[i:i+args.testbatchsize])
             y1, y2, y3 = model(x1, x2)
 
             itr_test += 1

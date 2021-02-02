@@ -68,5 +68,6 @@ struct HuffmanCodedPosAndEval2 {
 	s16 eval;
 	u16 bestMove16;
 	int8_t result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 持将棋、xx1xxxxx : 最大手数
+	u16 probability; // 遷移確率(固定小数点 指数2^-15)
 };
-static_assert(sizeof(HuffmanCodedPosAndEval2) == 38, "");
+static_assert(sizeof(HuffmanCodedPosAndEval2) == 40, "");

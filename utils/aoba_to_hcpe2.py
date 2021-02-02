@@ -12,6 +12,7 @@ HuffmanCodedPosAndEval2 = np.dtype([
     ('eval', dtypeEval),
     ('bestMove16', dtypeMove16),
     ('result', np.uint8),
+    ('probability', np.uint16), # 遷移確率(固定小数点 指数2^-15)
     ('dummy', np.uint8),
     ])
 
@@ -46,10 +47,7 @@ for filepath in csa_file_list:
         start = -1
         for i, (move, comment) in enumerate(zip(kif.moves, kif.comments)):
             comments = comment.decode('ascii').split(',')
-            if comments[0].startswith('v='):
-                candidates = comments[1:]
-            else:
-                candidates = comments
+            candidates = comments[1:] if comments[0].startswith('v=') else comments
             if board.move_from_csa(candidates[1]) != move:
                 start = i
             if i >= 29:
@@ -60,7 +58,7 @@ for filepath in csa_file_list:
         board.set_sfen(kif.sfen)
         endgame = kif.endgame
         start_p = p
-        for i, move in enumerate(kif.moves):
+        for i, (move, comment) in enumerate(zip(kif.moves, kif.comments)):
             if i <= start:
                 board.push(move)
                 continue
@@ -71,10 +69,13 @@ for filepath in csa_file_list:
                     hcpes[start_p:p]['result'] = board.turn + 1
                     endgame = '%TORYO'
                 break
+            comments = comment.decode('ascii').split(',')
+            candidates = comments[1:] if comments[0].startswith('v=') else comments
             hcpe = hcpes[p]
             board.to_hcp(hcpe['hcp'])
             hcpe['bestMove16'] = move16(move)
             hcpe['result'] = kif.win
+            hcpe['probability'] = int(int(candidates[2]) / int(candidates[0]) * 32768)
             p += 1
             board.push(move)
 

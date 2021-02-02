@@ -39,5 +39,6 @@ HuffmanCodedPosAndEval2 = np.dtype([
     ('eval', np.int16),
     ('bestMove16', np.uint16),
     ('result', np.uint8),
+    ('probability', np.uint16), # 遷移確率(固定小数点 指数2^-15)
     ('dummy', np.uint8),
     ])

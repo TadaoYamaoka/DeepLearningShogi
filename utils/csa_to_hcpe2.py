@@ -12,6 +12,7 @@ HuffmanCodedPosAndEval2 = np.dtype([
     ('eval', dtypeEval),
     ('bestMove16', dtypeMove16),
     ('result', np.uint8),
+    ('probability', np.uint16), # 遷移確率(固定小数点 指数2^-15)
     ('dummy', np.uint8),
     ])
 
@@ -21,9 +22,10 @@ parser.add_argument('csa_dir')
 parser.add_argument('out_train')
 parser.add_argument('out_test')
 parser.add_argument('--filter_moves', type=int, default=50)
-parser.add_argument('--filter_rating', type=int, default=3000)
+parser.add_argument('--filter_rating', type=int, default=3500)
 parser.add_argument('--start_moves', type=int, default=30)
 parser.add_argument('--test_ratio', type=float, default=0.1)
+parser.add_argument('--test_only', action='store_true')
 args = parser.parse_args()
 
 start_moves = args.start_moves
@@ -83,5 +85,6 @@ def make_hcpe2(csa_file_list, out):
     print('kif_num', kif_num)
     print('position_num', p)
 
-make_hcpe2(csa_file_list_train, args.out_train)
+if not args.test_only:
+    make_hcpe2(csa_file_list_train, args.out_train)
 make_hcpe2(csa_file_list_test, args.out_test)

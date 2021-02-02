@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
+    <StartupFile>train_rl_policy_with_value_using_hcpe2_bootstrap.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-239_org3 F:\selfplay\floodgate.hcpe --model R:\model --state R:\state --lr 0.001 --eval_interval 100 -b 64 --swa_freq 100</CommandLineArguments>
+    <CommandLineArguments>F:\aobazero\hcpe2\arch000015000000.hcpe2 F:\floodgate\floodgate_test.hcpe2 --network resnet10_swish --model R:\model --state R:\state --lr 0.01 --use_amp --eval_interval 100 --importance_sampling</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
