@@ -25,6 +25,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="aoba_to_hcpe3.py" />
     <Compile Include="csa_to_hcpe2.py" />
     <Compile Include="aoba_to_hcpe2.py" />
     <Compile Include="aoba_to_hcpe.py">

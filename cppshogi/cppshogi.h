@@ -67,6 +67,6 @@ struct HuffmanCodedPosAndEval2 {
 	HuffmanCodedPos hcp;
 	s16 eval;
 	u16 bestMove16;
-	int8_t result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 持将棋、xx1xxxxx : 最大手数
+	uint8_t result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 持将棋、xx1xxxxx : 最大手数
 };
 static_assert(sizeof(HuffmanCodedPosAndEval2) == 38, "");
