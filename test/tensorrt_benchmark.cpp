@@ -1,4 +1,4 @@
-#if 1
+#if 0
 // TensorRTベンチマーク
 #include <iostream>
 #include <chrono>
