@@ -28,6 +28,7 @@ parser.add_argument('--resume', '-r', default='', help='Resume the optimization 
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
+parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
 parser.add_argument('--beta', type=float, default=0.001, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--aux_ratio', type=float, default=0.1, help='auxiliary targets loss ratio')
@@ -191,10 +192,15 @@ for e in range(args.epoch):
         if args.use_amp:
             amp_context.__exit__()
             scaler.scale(loss).backward()
+            if args.clip_grad_max_norm:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
+            if args.clip_grad_max_norm:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             optimizer.step()
 
         t += 1
