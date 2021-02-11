@@ -278,7 +278,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -289,7 +289,7 @@ int main()
 	DfPn dfpn;
 	dfpn.init();
 	//dfpn.set_max_search_node(1000000);
-	dfpn.set_maxdepth(29);
+	dfpn.set_maxdepth(31);
 
 	Position pos;
 
@@ -521,7 +521,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 自己対局で異常終了した詰み探索局面の調査
 #include <fstream>
 #include <regex>

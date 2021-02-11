@@ -109,7 +109,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
     (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
-    (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
+    (*this)["Mate_Root_Search"]            = USIOption(31, 0, 37);
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
