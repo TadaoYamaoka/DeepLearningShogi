@@ -1,6 +1,7 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 
 from dlshogi.common import *
 from dlshogi import serializers
@@ -20,7 +21,7 @@ parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish', 'nfresnet10',], help='network type')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
@@ -41,14 +42,22 @@ args = parser.parse_args()
 
 if args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
+    model = PolicyValueNetwork()
 elif args.network == 'senet10':
     from dlshogi.policy_value_network_senet10 import *
+    model = PolicyValueNetwork()
 elif args.network == 'resnet10_swish':
     from dlshogi.policy_value_network_resnet10_swish import *
+    model = PolicyValueNetwork()
 elif args.network == 'resnet20_swish':
     from dlshogi.policy_value_network_resnet20_swish import *
+    model = PolicyValueNetwork()
+elif args.network == 'nfresnet10':
+    from dlshogi.policy_value_network_nfresnet import *
+    model = PolicyValueNetwork(num_blocks=10, num_filters=192, num_units=256)
 else:
     from dlshogi.policy_value_network import *
+    model = PolicyValueNetwork()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))
@@ -63,7 +72,6 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
@@ -142,6 +150,39 @@ def binary_accuracy(y, t):
     truth = t >= 0.5
     return pred.eq(truth).sum().item() / len(t)
 
+def unitwise_norm(x: torch.Tensor):
+    if x.ndim <= 1:
+        dim = 0
+        keepdim = False
+    elif x.ndim in [2, 3]:
+        dim = 0
+        keepdim = True
+    elif x.ndim == 4:
+        dim = [1, 2, 3]
+        keepdim = True
+    else:
+        raise ValueError('Wrong input dimensions')
+
+    return torch.norm(x.detach(), 2.0, dim=dim, keepdim=keepdim)
+
+def adaptive_grad_clip_(parameters, clip=1e-2, eps=1e-3):
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    parameters = [p for p in parameters if p.grad is not None]
+    if len(parameters) == 0:
+        return torch.tensor(0.)
+    for p in parameters:
+        g_norm = unitwise_norm(p.grad)
+        p_norm = unitwise_norm(p)
+        # Maximum allowable norm
+        max_norm = torch.max(p_norm, torch.tensor(eps).to(p_norm.device)) * clip
+        # If grad norm > clipping * param_norm, rescale
+        trigger = g_norm > max_norm
+        # This little max(., 1e-6) is distinct from the normal eps and just prevents
+        # division by zero. It technically should be impossible to engage.
+        clipped_grad = p.grad * (max_norm / torch.max(g_norm, torch.tensor(1e-6).to(g_norm.device)))
+        p.grad.detach().data.copy_(torch.where(trigger, clipped_grad, p.grad))
+
 # train
 itr = 0
 sum_loss1 = 0
@@ -178,14 +219,18 @@ for e in range(args.epoch):
         if args.use_amp:
             amp_context.__exit__()
             scaler.scale(loss).backward()
-            if args.clip_grad_max_norm:
+            if 'nf' in args.network:
+                adaptive_grad_clip_(model.parameters())
+            elif args.clip_grad_max_norm:
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
-            if args.clip_grad_max_norm:
+            if 'nf' in args.network:
+                adaptive_grad_clip_(model.parameters())
+            elif args.clip_grad_max_norm:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             optimizer.step()
 
@@ -231,7 +276,8 @@ for e in range(args.epoch):
         amp_context = torch.cuda.amp.autocast()
         amp_context.__enter__()
 
-    optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+    if 'nf' not in args.network:
+        optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     if args.use_amp:
         amp_context.__exit__()
