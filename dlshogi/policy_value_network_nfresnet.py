@@ -86,10 +86,11 @@ class PolicyValueNetwork(nn.Module):
         u1_1_1 = self.conv1_1_1(x1)
         u1_1_2 = self.conv1_1_2(x1)
         u1_2 = self.conv1_2(x2)
-        x = self.activation(u1_1_1 + u1_1_2 + u1_2)
+        x = u1_1_1 + u1_1_2 + u1_2
 
         # residual blocks
         x = self.blocks(x)
+        x = self.activation(x)
 
         # policy network
         h_p = self.policy_conv1(x)
