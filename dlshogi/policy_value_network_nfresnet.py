@@ -13,7 +13,7 @@ class WSConv2d(nn.Conv2d):
         # Use fan-in scaled init, but WS is largely insensitive to this choice.
         nn.init.kaiming_normal_(self.weight, mode='fan_in', nonlinearity='relu')
         self.gain = nn.Parameter(torch.ones(out_channels))
-        self.fan_in = torch.prod(torch.tensor(self.weight.shape[1:]))
+        self.fan_in = torch.prod(torch.tensor(self.weight.shape[1:])).item()
 
     def standardize_weight(self, eps=1e-4):
         var, mean = torch.var_mean(self.weight, dim=(1, 2, 3), keepdims=True)
@@ -37,7 +37,7 @@ class NFResBlock(nn.Module):
 
         self.conv1 = WSConv2d(in_channels=num_filters, out_channels=num_filters, kernel_size=3, padding=1)
         self.conv2 = WSConv2d(in_channels=num_filters, out_channels=num_filters, kernel_size=3, padding=1)
-        self.skip_gain = nn.Parameter(torch.zeros(1))
+        self.skip_gain = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
         out = self.activation(x) * self.beta

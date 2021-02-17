@@ -21,7 +21,7 @@ parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish', 'nfresnet10',], help='network type')
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish', 'nfresnet10', 'nfresnet10_post'], help='network type')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
@@ -34,6 +34,7 @@ parser.add_argument('--beta', type=float, default=0.001, help='entropy regulariz
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
+parser.add_argument('--use_swa', action='store_true')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
 parser.add_argument('--swa_lr', type=float)
@@ -55,6 +56,9 @@ elif args.network == 'resnet20_swish':
 elif args.network == 'nfresnet10':
     from dlshogi.policy_value_network_nfresnet import *
     model = PolicyValueNetwork(num_blocks=10, num_filters=192, num_units=256)
+elif args.network == 'nfresnet10_post':
+    from dlshogi.policy_value_network_nfresnet_post import *
+    model = PolicyValueNetwork(num_blocks=10, num_filters=192, num_units=256)
 else:
     from dlshogi.policy_value_network import *
     model = PolicyValueNetwork()
@@ -75,7 +79,10 @@ else:
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+if args.use_swa:
+    optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+else:
+    optimizer = base_optimizer
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
@@ -220,7 +227,13 @@ for e in range(args.epoch):
             amp_context.__exit__()
             scaler.scale(loss).backward()
             if 'nf' in args.network:
-                adaptive_grad_clip_(model.parameters())
+                scaler.unscale_(optimizer)
+                parameters = []
+                parameters.extend(model.conv1_1_1.parameters())
+                parameters.extend(model.conv1_1_2.parameters())
+                parameters.extend(model.conv1_2.parameters())
+                parameters.extend(model.blocks.parameters())
+                adaptive_grad_clip_(parameters)
             elif args.clip_grad_max_norm:
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
@@ -229,6 +242,11 @@ for e in range(args.epoch):
         else:
             loss.backward()
             if 'nf' in args.network:
+                parameters = []
+                parameters.extend(model.conv1_1_1.parameters())
+                parameters.extend(model.conv1_1_2.parameters())
+                parameters.extend(model.conv1_2.parameters())
+                parameters.extend(model.blocks.parameters())
                 adaptive_grad_clip_(model.parameters())
             elif args.clip_grad_max_norm:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
@@ -270,13 +288,14 @@ for e in range(args.epoch):
             sum_loss3 = 0
             sum_loss = 0
 
-    optimizer.swap_swa_sgd()
+    if args.use_swa:
+        optimizer.swap_swa_sgd()
 
     if args.use_amp:
         amp_context = torch.cuda.amp.autocast()
         amp_context.__enter__()
 
-    if 'nf' not in args.network:
+    if 'nf' not in args.network and args.use_swa:
         optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     if args.use_amp:
@@ -328,8 +347,9 @@ for e in range(args.epoch):
 
     epoch += 1
 
-    if e != args.epoch - 1:
-        optimizer.swap_swa_sgd()
+    if args.use_swa:
+        if e != args.epoch - 1:
+            optimizer.swap_swa_sgd()
 
 print('save the model')
 serializers.save_npz(args.model, model)
