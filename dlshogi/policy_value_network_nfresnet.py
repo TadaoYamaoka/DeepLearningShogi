@@ -18,7 +18,7 @@ class WSConv2d(nn.Conv2d):
     def standardize_weight(self, eps=1e-4):
         var, mean = torch.var_mean(self.weight, dim=(1, 2, 3), keepdims=True)
         # Manually fused normalization, eq. to (w - mean) * gain / sqrt(N * var)
-        scale = torch.rsqrt(torch.max(var * self.fan_in, torch.ones_like(var) * eps)) * self.gain.view_as(var)
+        scale = torch.rsqrt(torch.max(var * self.fan_in, eps)) * self.gain.view_as(var)
         shift = mean * scale
         return self.weight * scale - shift
 
@@ -41,6 +41,7 @@ class NFResBlock(nn.Module):
 
     def forward(self, x):
         out = self.activation(x) * self.beta
+        shortcut = x
 
         out = self.conv1(x)
         out = self.activation(out)
@@ -50,13 +51,14 @@ class NFResBlock(nn.Module):
         # SkipInit Gain
         out = out * self.skip_gain
 
-        out = out * self.alpha + x
+        out = out * self.alpha + shortcut
         return out
 
 class PolicyValueNetwork(nn.Module):
     def __init__(self, num_blocks=10, num_filters=192, num_units=256):
         super(PolicyValueNetwork, self).__init__()
         self.activation = nn.ReLU()
+        #self.activation = nn.SiLU()
 
         self.conv1_1_1 = WSConv2d(in_channels=FEATURES1_NUM, out_channels=num_filters, kernel_size=3, padding=1)
         self.conv1_1_2 = WSConv2d(in_channels=FEATURES1_NUM, out_channels=num_filters, kernel_size=1, padding=0)
