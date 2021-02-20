@@ -56,7 +56,7 @@ class NFResBlock(nn.Module):
 
         self.conv1 = WSConv2d(in_channels=num_filters, out_channels=num_filters, kernel_size=3, padding=1, gamma=gamma)
         self.conv2 = WSConv2d(in_channels=num_filters, out_channels=num_filters, kernel_size=3, padding=1, gamma=gamma)
-        #self.skip_gain = nn.Parameter(torch.zeros(1))
+        self.skip_gain = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
         out = self.activation(x) * self.beta
@@ -68,7 +68,7 @@ class NFResBlock(nn.Module):
         out = self.conv2(x)
 
         # SkipInit Gain
-        #out.mul_(self.skip_gain)
+        out.mul_(self.skip_gain)
 
         out = out * self.alpha + shortcut
         return out
