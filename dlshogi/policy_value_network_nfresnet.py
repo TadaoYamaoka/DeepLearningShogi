@@ -36,7 +36,7 @@ class WSConv2d(nn.Conv2d):
         if bias:
             nn.init.zeros_(self.bias)
 
-    def standardize_weight(self, eps=1e-5):
+    def standardize_weight(self, eps=1e-4):
         std, mean = torch.std_mean(self.weight, dim=(1, 2, 3), keepdims=True, unbiased=False)
         weight = self.scale * (self.weight - mean) / (std + eps)
         return self.gain * weight
@@ -129,18 +129,7 @@ class PolicyValueNetwork(nn.Module):
 
     def agc_targets(self):
         targets = []
-        targets.append(self.conv1_1_1.weight)
-        targets.append(self.conv1_1_1.bias)
-        targets.append(self.conv1_1_2.weight)
-        targets.append(self.conv1_1_2.bias)
-        targets.append(self.conv1_2.weight)
-        targets.append(self.conv1_2.bias)
         for m in self.modules():
-            if isinstance(m, NFResBlock):
-                targets.append(m.conv1.weight)
-                targets.append(m.conv1.bias)
-                targets.append(m.conv2.weight)
-                targets.append(m.conv2.bias)
-        targets.append(self.value_conv1.weight)
-        targets.append(self.value_conv1.bias)
+            if isinstance(m, WSConv2d):
+                targets.extend(m.parameters())
         return targets
