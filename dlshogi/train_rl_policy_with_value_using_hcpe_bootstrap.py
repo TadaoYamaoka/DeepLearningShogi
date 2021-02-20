@@ -154,38 +154,34 @@ def binary_accuracy(y, t):
     truth = t >= 0.5
     return pred.eq(truth).sum().item() / len(t)
 
-def unitwise_norm(x: torch.Tensor):
-    if x.ndim <= 1:
-        dim = 0
-        keepdim = False
-    elif x.ndim in [2, 3]:
-        dim = 0
-        keepdim = True
-    elif x.ndim == 4:
-        dim = [1, 2, 3]
-        keepdim = True
-    else:
-        raise ValueError('Wrong input dimensions')
 
-    return torch.norm(x.detach(), 2.0, dim=dim, keepdim=keepdim)
+if 'nf' in args.network:
+    agc_targets = model.agc_targets()
+
+def unitwise_norm(x):
+    if x.ndim <= 1:
+        return x.norm(2.0)
+    else:
+        return x.norm(2.0, dim=tuple(range(1, x.ndim)), keepdim=True)
 
 def adaptive_grad_clip_(parameters, clip=1e-2, eps=1e-3):
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
-    parameters = [p for p in parameters if p.grad is not None]
-    if len(parameters) == 0:
-        return torch.tensor(0.)
     for p in parameters:
-        g_norm = unitwise_norm(p.grad)
-        p_norm = unitwise_norm(p)
+        if p.grad is None:
+            continue
+        p_data = p.detach()
+        g_data = p.grad.detach()
+        p_norm = unitwise_norm(p_data)
+        g_norm = unitwise_norm(g_data)
         # Maximum allowable norm
-        max_norm = torch.max(p_norm, torch.tensor(eps).to(p_norm.device)) * clip
+        max_norm = p_norm.clamp_(min=eps).mul_(clip)
         # If grad norm > clipping * param_norm, rescale
         trigger = g_norm > max_norm
         # This little max(., 1e-6) is distinct from the normal eps and just prevents
         # division by zero. It technically should be impossible to engage.
-        clipped_grad = p.grad * (max_norm / torch.max(g_norm, torch.tensor(1e-6).to(g_norm.device)))
-        p.grad.detach().data.copy_(torch.where(trigger, clipped_grad, p.grad))
+        clipped_grad = g_data * (max_norm / g_norm.clamp(min=1e-6))
+        p.grad.detach().copy_(torch.where(trigger, clipped_grad, g_data))
 
 # train
 itr = 0
@@ -225,12 +221,7 @@ for e in range(args.epoch):
             scaler.scale(loss).backward()
             if 'nf' in args.network:
                 scaler.unscale_(optimizer)
-                parameters = []
-                parameters.extend(model.conv1_1_1.parameters())
-                parameters.extend(model.conv1_1_2.parameters())
-                parameters.extend(model.conv1_2.parameters())
-                parameters.extend(model.blocks.parameters())
-                adaptive_grad_clip_(parameters)
+                adaptive_grad_clip_(agc_targets)
             elif args.clip_grad_max_norm:
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
@@ -239,12 +230,7 @@ for e in range(args.epoch):
         else:
             loss.backward()
             if 'nf' in args.network:
-                parameters = []
-                parameters.extend(model.conv1_1_1.parameters())
-                parameters.extend(model.conv1_1_2.parameters())
-                parameters.extend(model.conv1_2.parameters())
-                parameters.extend(model.blocks.parameters())
-                adaptive_grad_clip_(model.parameters())
+                adaptive_grad_clip_(agc_targets)
             elif args.clip_grad_max_norm:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             optimizer.step()
