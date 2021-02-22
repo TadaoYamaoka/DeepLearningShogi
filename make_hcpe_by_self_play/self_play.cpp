@@ -36,6 +36,8 @@ auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 819
 
 using namespace std;
 
+std::atomic<size_t> hcp_idx(0);
+
 int threads = 2;
 
 volatile sig_atomic_t stopflg = false;
@@ -79,7 +81,7 @@ int usi_byoyomi;
 std::mutex mutex_all_gpu;
 
 constexpr unsigned int uct_hash_size = 524288; // UCTハッシュサイズ
-constexpr int MAX_PLY = 320; // 最大手数
+constexpr int MAX_PLY = 512; // 最大手数
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
 
 struct CachedNNRequest {
@@ -107,7 +109,7 @@ std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
-//ofstream ofs_dup;
+ofstream ofs_del;
 mutex imutex;
 mutex omutex;
 size_t entryNum;
@@ -431,7 +433,7 @@ void UCTSearcherGroup::SelfPlay()
 	vector<vector<TrajectorEntry>> trajectories_batch(policy_value_batch_maxsize);
 
 	// 全スレッドが生成した局面数が生成局面数以上になったら終了
-	while (madeTeacherNodes < teacherNodes && !stopflg) {
+	while (hcp_idx < entryNum && !stopflg) {
 		current_policy_value_batch_index = 0;
 
 		// すべての対局についてシミュレーションを行う
@@ -1024,8 +1026,11 @@ void UCTSearcher::Playout(vector<TrajectorEntry>& trajectories)
 				// 開始局面を局面集からランダムに選ぶ
 				{
 					std::unique_lock<Mutex> lock(imutex);
-					ifs.seekg(inputFileDist(*mt_64) * sizeof(HuffmanCodedPos), std::ios_base::beg);
-					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
+					if (hcp_idx < entryNum) {
+						//ifs.seekg(inputFileDist(*mt_64) * sizeof(HuffmanCodedPos), std::ios_base::beg);
+						ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
+						hcp_idx++;
+					}
 				}
 				setPosition(*pos_root, hcp);
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
@@ -1208,97 +1213,122 @@ void UCTSearcher::NextStep()
 		child_node_t* uct_child = uct_node[current_root].child;
 		unsigned int select_index = 0;
 		Move best_move;
-		if (ply <= RANDOM_MOVE) {
-			// N手までは訪問数に応じた確率で選択する
-			vector<int> probabilities(uct_node[current_root].child_num);
+
+		// 勝率がしきい値以上の初期局面を削除対象とする
+		if (ply == 1) {
+			int max_i = 0;
+			int max_move_count = 0;
 			for (int i = 0; i < uct_node[current_root].child_num; i++) {
-				probabilities[i] = uct_child[i].move_count;
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+				if (uct_child[i].move_count > max_move_count) {
+					max_move_count = uct_child[i].move_count;
+					max_i = i;
+				}
 			}
-
-			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
-			select_index = dist(*mt_64);
-			best_move = uct_child[select_index].move;
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
+			const float best_wp = uct_child[max_i].win / uct_child[max_i].move_count;
+			const float winrate = (best_wp - 0.5f) * 2.0f;
+			if (0.85f < abs(winrate)) {
+				{
+					std::unique_lock<Mutex> lock(omutex);
+					ofs_del.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
+				}
+				NextGame();
+				return;
+			}
 		}
-		else {
-			// 探索回数最大の手を見つける
-			int max_count = uct_child[0].move_count;
-			int child_win_count = 0;
-			int child_lose_count = 0;
-			SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, 0, uct_child[0].move.toUSI(), uct_child[0].move_count, uct_child[0].win / (uct_child[0].move_count + 0.0001f));
-			const int child_num = uct_node[current_root].child_num;
-			for (int i = 1; i < child_num; i++) {
-				if (uct_child[i].index != NOT_EXPANDED) {
-					const float child_value_win = uct_node[uct_child[i].index].value_win;
-					if (child_value_win == VALUE_WIN) {
-						// 負けが確定しているノードは選択しない
-						if (child_win_count == i || uct_child[i].move_count > max_count) {
-							// すべて負けの場合は、探索回数が最大の手を選択する
-							select_index = i;
-							max_count = uct_child[i].move_count;
-						}
-						child_win_count++;
-						continue;
-					}
-					else if (child_value_win == VALUE_LOSE) {
-						// 子ノードに一つでも負けがあれば、勝ちなので選択する
-						if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-							// すべて勝ちの場合は、探索回数が最大の手を選択する
-							select_index = i;
-							max_count = uct_child[i].move_count;
-						}
-						child_lose_count++;
-						continue;
-					}
-				}
+		NextGame();
+		return;
 
-				if (uct_child[i].move_count > max_count) {
-					select_index = i;
-					max_count = uct_child[i].move_count;
-				}
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
-			}
+		//if (ply <= RANDOM_MOVE) {
+		//	// N手までは訪問数に応じた確率で選択する
+		//	vector<int> probabilities(uct_node[current_root].child_num);
+		//	for (int i = 0; i < uct_node[current_root].child_num; i++) {
+		//		probabilities[i] = uct_child[i].move_count;
+		//		SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+		//	}
 
-			// 選択した着手の勝率の算出
-			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
-			// 勝ちの場合
-			if (child_lose_count > 0) {
-				best_wp = 1.0f;
-			}
-			// すべて負けの場合
-			else if (child_win_count == child_num) {
-				best_wp = 0.0f;
-			}
-			best_move = uct_child[select_index].move;
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} bestmove:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
+		//	discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
+		//	select_index = dist(*mt_64);
+		//	best_move = uct_child[select_index].move;
+		//	SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
+		//}
+		//else {
+		//	// 探索回数最大の手を見つける
+		//	int max_count = uct_child[0].move_count;
+		//	int child_win_count = 0;
+		//	int child_lose_count = 0;
+		//	SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, 0, uct_child[0].move.toUSI(), uct_child[0].move_count, uct_child[0].win / (uct_child[0].move_count + 0.0001f));
+		//	const int child_num = uct_node[current_root].child_num;
+		//	for (int i = 1; i < child_num; i++) {
+		//		if (uct_child[i].index != NOT_EXPANDED) {
+		//			const float child_value_win = uct_node[uct_child[i].index].value_win;
+		//			if (child_value_win == VALUE_WIN) {
+		//				// 負けが確定しているノードは選択しない
+		//				if (child_win_count == i || uct_child[i].move_count > max_count) {
+		//					// すべて負けの場合は、探索回数が最大の手を選択する
+		//					select_index = i;
+		//					max_count = uct_child[i].move_count;
+		//				}
+		//				child_win_count++;
+		//				continue;
+		//			}
+		//			else if (child_value_win == VALUE_LOSE) {
+		//				// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		//				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+		//					// すべて勝ちの場合は、探索回数が最大の手を選択する
+		//					select_index = i;
+		//					max_count = uct_child[i].move_count;
+		//				}
+		//				child_lose_count++;
+		//				continue;
+		//			}
+		//		}
 
-			{
-				// 勝率が閾値を超えた場合、ゲーム終了
-				const float winrate = (best_wp - 0.5f) * 2.0f;
-				if (WINRATE_THRESHOLD < abs(winrate)) {
-					if (pos_root->turn() == Black)
-						gameResult = (winrate < 0 ? WhiteWin : BlackWin);
-					else
-						gameResult = (winrate < 0 ? BlackWin : WhiteWin);
+		//		if (uct_child[i].move_count > max_count) {
+		//			select_index = i;
+		//			max_count = uct_child[i].move_count;
+		//		}
+		//		SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+		//	}
 
-					NextGame();
-					return;
-				}
-			}
+		//	// 選択した着手の勝率の算出
+		//	float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+		//	// 勝ちの場合
+		//	if (child_lose_count > 0) {
+		//		best_wp = 1.0f;
+		//	}
+		//	// すべて負けの場合
+		//	else if (child_win_count == child_num) {
+		//		best_wp = 0.0f;
+		//	}
+		//	best_move = uct_child[select_index].move;
+		//	SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} bestmove:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
 
-			// 局面追加
-			s16 eval;
-			if (best_wp == 1.0f)
-				eval = 30000;
-			else if (best_wp == 0.0f)
-				eval = -30000;
-			else
-				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			AddTeacher(eval, best_move);
-		}
+		//	{
+		//		// 勝率が閾値を超えた場合、ゲーム終了
+		//		const float winrate = (best_wp - 0.5f) * 2.0f;
+		//		if (WINRATE_THRESHOLD < abs(winrate)) {
+		//			if (pos_root->turn() == Black)
+		//				gameResult = (winrate < 0 ? WhiteWin : BlackWin);
+		//			else
+		//				gameResult = (winrate < 0 ? BlackWin : WhiteWin);
 
-		NextPly(best_move);
+		//			NextGame();
+		//			return;
+		//		}
+		//	}
+
+		//	// 局面追加
+		//	s16 eval;
+		//	if (best_wp == 1.0f)
+		//		eval = 30000;
+		//	else if (best_wp == 0.0f)
+		//		eval = -30000;
+		//	else
+		//		eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+		//	AddTeacher(eval, best_move);
+		//}
+
+		//NextPly(best_move);
 	}
 }
 
@@ -1307,6 +1337,8 @@ void UCTSearcher::NextPly(const Move move)
 	// 一定の手数以上で引き分け
 	if (ply >= MAX_PLY) {
 		gameResult = Draw;
+		// 最大手数に達した対局は出力しない
+		hcpevec.clear();
 		NextGame();
 		return;
 	}
@@ -1353,7 +1385,7 @@ void UCTSearcher::NextGame()
 		elem.gameResult = gameResult;
 
 	// 局面出力
-	if (hcpevec.size() >= MIN_MOVE) {
+	if (ply >= MIN_MOVE && hcpevec.size() > 0) {
 		std::unique_lock<Mutex> lock(omutex);
 		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 		madeTeacherNodes += hcpevec.size();
@@ -1365,7 +1397,7 @@ void UCTSearcher::NextGame()
 	}
 
 	// USIエンジンとの対局結果
-	if (usi_engine_turn >= 0) {
+	if (ply >= MIN_MOVE && usi_engine_turn >= 0) {
 		++usi_games;
 		if (ply % 2 == 1 && (pos_root->turn() == Black && gameResult == (BlackWin + usi_engine_turn) || pos_root->turn() == White && gameResult == (WhiteWin - usi_engine_turn)) ||
 			ply % 2 == 0 && (pos_root->turn() == Black && gameResult == (WhiteWin - usi_engine_turn) || pos_root->turn() == White && gameResult == (BlackWin + usi_engine_turn))) {
@@ -1384,7 +1416,7 @@ void UCTSearcher::NextGame()
 	// すぐに終局した初期局面を削除候補とする
 	/*if (ply < 10) {
 		std::unique_lock<Mutex> lock(omutex);
-		ofs_dup.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
+		ofs_del.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
 	}*/
 
 	// 新しいゲーム
@@ -1404,6 +1436,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	entryNum = ifs.tellg() / sizeof(HuffmanCodedPos);
+	ifs.seekg(0, std::ios_base::beg);
 
 	// 教師局面を保存するファイル
 	ofs.open(outputFileName, ios::binary);
@@ -1412,7 +1445,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	// 削除候補の初期局面を出力するファイル
-	//ofs_dup.open(string(outputFileName) + "_dup", ios::binary);
+	ofs_del.open(string(outputFileName) + "_del", ios::binary);
 
 	// 初期設定
 	InitializeUctSearch();
@@ -1435,7 +1468,8 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		}
 		while (!stopflg) {
 			std::this_thread::sleep_for(std::chrono::seconds(10)); // 指定秒だけ待機し、進捗を表示する。
-			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
+			//const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
+			const double progress = static_cast<double>(hcp_idx) / entryNum;
 			auto elapsed_msec = t.elapsed();
 			if (progress > 0.0) // 0 除算を回避する。
 				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
@@ -1479,7 +1513,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
-	//ofs_dup.close();
+	ofs_del.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
 		madeTeacherNodes, t.elapsed() / 1000,
