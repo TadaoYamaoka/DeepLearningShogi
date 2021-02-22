@@ -1474,8 +1474,8 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 			if (progress > 0.0) // 0 除算を回避する。
 				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
-					idx,
-					static_cast<double>(idx) / elapsed_msec * 1000.0,
+					hcp_idx.load(),
+					static_cast<double>(hcp_idx.load()) / elapsed_msec * 1000.0,
 					games,
 					draws,
 					nyugyokus,
@@ -1516,7 +1516,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	ofs_del.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
-		madeTeacherNodes, t.elapsed() / 1000,
+		hcp_idx.load(), t.elapsed() / 1000,
 		games,
 		draws,
 		static_cast<double>(madeTeacherNodes) / games,
