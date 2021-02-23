@@ -25,6 +25,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="delete_hcp_by_usi.py" />
     <Compile Include="aoba_to_hcp.py" />
     <Compile Include="aoba_to_hcpe.py">
       <SubType>Code</SubType>
