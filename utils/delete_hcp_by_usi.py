@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import os
 import re
+from tqdm import tqdm
 
 from cshogi import *
 from cshogi.usi import Engine
@@ -47,7 +48,7 @@ listener = Listener()
 
 board = Board()
 p = 0
-for hcp in hcps:
+for hcp in tqdm(hcps):
     board.set_hcp(np.asarray(hcp))
     engine.position(sfen=board.sfen())
     engine.go(nodes=args.nodes, listener=listener)
