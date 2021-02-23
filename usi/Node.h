@@ -12,6 +12,14 @@ typedef double WinType;
 typedef float WinType;
 #endif
 
+#ifdef SELF_PLAY
+template <typename T>
+using atomic_t = T;
+#else
+template <typename T>
+using atomic_t = std::atomic<T>;
+#endif
+
 // 詰み探索で詰みの場合の定数
 constexpr u32 VALUE_WIN = 0x1000000;
 constexpr u32 VALUE_LOSE = 0x2000000;
@@ -47,8 +55,8 @@ struct child_node_t {
 	void SetDraw() { move |= Move(VALUE_DRAW); }
 
 	Move move;                   // 着手する座標
-	std::atomic<int> move_count; // 探索回数
-	std::atomic<WinType> win;    // 勝った回数
+	atomic_t<int> move_count; // 探索回数
+	atomic_t<WinType> win;    // 勝った回数
 	float nnrate;                // ニューラルネットワークでのレート
 };
 
@@ -87,9 +95,9 @@ struct uct_node_t {
 	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
 	void SetEvaled() { move_count = 0; }
 
-	std::atomic<int> move_count;
-	std::atomic<WinType> win;
-	std::atomic<float> visited_nnrate;
+	atomic_t<int> move_count;
+	atomic_t<WinType> win;
+	atomic_t<float> visited_nnrate;
 	short child_num;                       // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報
 	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // 子ノードへのポインタ配列

@@ -230,19 +230,18 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
+    <ClCompile Include="..\usi\Node.cpp" />
     <ClCompile Include="self_play.cpp" />
     <ClCompile Include="USIEngine.cpp" />
-    <ClCompile Include="ZobristHash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\usi\fastmath.h" />
+    <ClInclude Include="..\usi\Node.h" />
     <ClInclude Include="LruCache.h" />
-    <ClInclude Include="UctSearch.h" />
     <ClInclude Include="USIEngine.h" />
-    <ClInclude Include="ZobristHash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
