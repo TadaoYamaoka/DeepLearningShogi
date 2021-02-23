@@ -33,6 +33,7 @@
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="delete_hcp_by_usi.py" />
     <Compile Include="hcpe_to_psv.py">
       <SubType>Code</SubType>
     </Compile>
