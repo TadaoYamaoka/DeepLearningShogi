@@ -291,6 +291,13 @@ private:
 		hcpe.bestMove16 = static_cast<u16>(move.value());
 		idx++;
 	}
+	// キャッシュからnnrateをコピー
+	void CopyNNRate(uct_node_t* node, const vector<float>& nnrate) {
+		child_node_t* uct_child = node->child.get();
+		for (int i = 0; i < node->child_num; i++) {
+			uct_child[i].nnrate = nnrate[i];
+		}
+	}
 
 	UCTSearcherGroup* grp;
 	int id;
@@ -595,10 +602,14 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 		}
 		else if (nn_cache.ContainsKey(pos->getKey())) {
 			NNCacheLock cache_lock(&nn_cache, pos->getKey());
-			const float value_win = cache_lock->value_win;
 			// キャッシュヒット
+			// 候補手を展開する
+			child_node->ExpandNode(pos);
+			assert(cache_lock->nnrate.size() == child_node->child_num);
+			// キャッシュからnnrateをコピー
+			CopyNNRate(child_node, cache_lock->nnrate);
 			// 経路により詰み探索の結果が異なるためキャッシュヒットしても詰みの場合があるが、速度が落ちるため詰みチェックは行わない
-			result = 1.0f - value_win;
+			result = 1.0f - cache_lock->value_win;
 		}
 		else {
 			// 詰みチェック
@@ -741,7 +752,11 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			u = sqrt_sum / (1 + move_count);
 		}
 
-		const float rate = uct_child[i].nnrate;
+		float rate = uct_child[i].nnrate;
+		// ランダムに確率を上げる
+		if (parent == nullptr && rnd(*mt) < ROOT_NOISE) {
+			rate = (rate + 1.0f) / 2.0f;
+		}
 
 		const float ucb_value = q + c * u * rate;
 
@@ -860,13 +875,16 @@ void UCTSearcherGroup::EvalNode() {
 		auto req = make_unique<CachedNNRequest>(child_num);
 		for (int j = 0; j < child_num; j++) {
 			req->nnrate[j] = legal_move_probabilities[j];
+			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
 
-		if (policy_value_batch[i].value_win)
-			*policy_value_batch[i].value_win = *value;
+		const float value_win = *value;
 
-		req->value_win = *value;
+		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));
+
+		if (policy_value_batch[i].value_win)
+			*policy_value_batch[i].value_win = value_win;
 
 		node->SetEvaled();
 	}
@@ -956,6 +974,9 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				return;
 			}
 			else {
+				assert(cache_lock->nnrate.size() == root_node->child_num);
+				// キャッシュからnnrateをコピー
+				CopyNNRate(root_node.get(), cache_lock->nnrate);
 				NextStep();
 				continue;
 			}
@@ -1074,7 +1095,7 @@ void UCTSearcher::NextStep()
 			vector<int> probabilities(root_node->child_num);
 			for (int i = 0; i < root_node->child_num; i++) {
 				probabilities[i] = uct_child[i].move_count;
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nn_rate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count + 0.000001f));
 			}
 
 			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
@@ -1087,7 +1108,6 @@ void UCTSearcher::NextStep()
 			int max_count = uct_child[0].move_count;
 			int child_win_count = 0;
 			int child_lose_count = 0;
-			SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, 0, uct_child[0].move.toUSI(), uct_child[0].move_count, uct_child[0].win / (uct_child[0].move_count + 0.0001f));
 			const int child_num = root_node->child_num;
 			for (int i = 0; i < child_num; i++) {
 				if (uct_child[i].IsWin()) {
@@ -1115,7 +1135,7 @@ void UCTSearcher::NextStep()
 					select_index = i;
 					max_count = uct_child[i].move_count;
 				}
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].win / (uct_child[i].move_count + 0.0001f));
+				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nn_rate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count + 0.000001f));
 			}
 
 			// 選択した着手の勝率の算出
