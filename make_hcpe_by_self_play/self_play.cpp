@@ -912,6 +912,9 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				return;
 			}
 
+			// ルートノード作成(以前のノードは再利用しないで破棄する)
+			root_node = std::make_unique<uct_node_t>();
+
 			// ルートノード展開
 			root_node->ExpandNode(pos_root);
 
@@ -936,9 +939,6 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				NextGame();
 				continue;
 			}
-
-			// ルートノード作成(以前のノードは再利用しないで破棄する)
-			root_node = std::make_unique<uct_node_t>();
 
 			// ルート局面を詰み探索キューに追加
 			if (ROOT_MATE_SEARCH_DEPTH > 0) {
