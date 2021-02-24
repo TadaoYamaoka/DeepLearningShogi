@@ -78,7 +78,7 @@ int usi_byoyomi;
 
 std::mutex mutex_all_gpu;
 
-constexpr int MAX_PLY = 320; // 最大手数
+int MAX_MOVE = 320; // 最大手数
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
 
 struct CachedNNRequest {
@@ -250,7 +250,8 @@ public:
 		inputFileDist(0, entryNum - 1),
 		max_playout_num(playout_num),
 		playout(0),
-		ply(0) {
+		ply(0),
+		states(MAX_MOVE + 1) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
 		usi_engine_turn = (grp->usi_engines.size() > 0 && id < usi_engine_num) ? rnd(*mt) % 2 : -1;
 	}
@@ -308,7 +309,7 @@ private:
 	int ply;
 	GameResult gameResult;
 
-	StateInfo states[MAX_PLY + 1];
+	std::vector<StateInfo> states;
 	std::vector<HuffmanCodedPosAndEval> hcpevec;
 	uniform_int_distribution<s64> inputFileDist;
 
@@ -1162,7 +1163,7 @@ void UCTSearcher::NextStep()
 void UCTSearcher::NextPly(const Move move)
 {
 	// 一定の手数以上で引き分け
-	if (ply >= MAX_PLY) {
+	if (ply >= MAX_MOVE) {
 		gameResult = Draw;
 		NextGame();
 		return;
@@ -1369,6 +1370,7 @@ int main(int argc, char* argv[]) {
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
+			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
 			("root_noise", "add noise to the policy prior at the root", cxxopts::value<int>(ROOT_NOISE)->default_value("3"), "per mille")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
@@ -1430,7 +1432,15 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (MIN_MOVE <= 0) {
-		cerr << "too few mini_move" << endl;
+		cerr << "too few min_move" << endl;
+		return 0;
+	}
+	if (MAX_MOVE <= MIN_MOVE) {
+		cerr << "too few max_move" << endl;
+		return 0;
+	}
+	if (MAX_MOVE >= 1000) {
+		cerr << "too large max_move" << endl;
 		return 0;
 	}
 	if (ROOT_NOISE < 0) {
