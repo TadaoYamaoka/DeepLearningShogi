@@ -61,8 +61,6 @@ float WINRATE_THRESHOLD;
 uint32_t ROOT_MATE_SEARCH_DEPTH;
 // 詰み探索の最大ノード数
 int64_t MATE_SEARCH_MAX_NODE;
-// 詰み探索の上限ノード数をランダムに決める
-bool MATE_SEARCH_RAND_LIMIT_NODES = false;
 constexpr int64_t MATE_SEARCH_MIN_NODE = 10000;
 
 // モデルのパス
@@ -180,7 +178,6 @@ public:
 	~UCTSearcherGroup() {
 		delete[] policy_value_batch;
 		delete[] mate_search_slot;
-		delete[] mate_search_limit_nodes;
 		checkCudaErrors(cudaFreeHost(features1));
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
@@ -192,9 +189,6 @@ public:
 	void SelfPlay();
 	void Run();
 	void Join();
-	void SetMateSearchLimitNodes(int limit_nodes, const int id) {
-		mate_search_limit_nodes[id] = limit_nodes;
-	}
 	void QueuingMateSearch(Position *pos, const int id) {
 		lock_guard<mutex> lock(mate_search_mutex);
 		mate_search_slot[id].pos = pos;
@@ -240,7 +234,6 @@ private:
 	// 詰み探索
 	DfPn dfpn;
 	MateSearchEntry* mate_search_slot = nullptr;
-	int* mate_search_limit_nodes = nullptr;
 	deque<int> mate_search_queue;
 	mutex mate_search_mutex;
 	thread* handle_mate_search = nullptr;
@@ -420,9 +413,6 @@ UCTSearcherGroup::Initialize()
 		dfpn.init();
 		dfpn.set_max_search_node(MATE_SEARCH_MAX_NODE);
 		mate_search_slot = new MateSearchEntry[policy_value_batch_maxsize];
-		if (MATE_SEARCH_RAND_LIMIT_NODES) {
-			mate_search_limit_nodes = new int[policy_value_batch_maxsize];
-		}
 	}
 }
 
@@ -521,11 +511,6 @@ void UCTSearcherGroup::MateSearch()
 		for (int& id : queue) {
 			// 盤面のコピー
 			Position pos_copy(*mate_search_slot[id].pos);
-
-			// 詰み探索の上限ノード数をランダムに決めた場合
-			if (MATE_SEARCH_RAND_LIMIT_NODES) {
-				dfpn.set_max_search_node(mate_search_limit_nodes[id]);
-			}
 
 			// 詰み探索
 			if (!pos_copy.inCheck()) {
@@ -911,12 +896,6 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
 				hcpevec.clear();
-
-				// 詰み探索の上限ノード数をランダムに決める
-				if (MATE_SEARCH_RAND_LIMIT_NODES) {
-					std::uniform_int_distribution<> rand(MATE_SEARCH_MIN_NODE, MATE_SEARCH_MAX_NODE);
-					grp->SetMateSearchLimitNodes(rand(*mt_64), id);
-				}
 
 				// USIエンジン
 				if (usi_engine_turn >= 0) {
@@ -1394,7 +1373,6 @@ int main(int argc, char* argv[]) {
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
-			("mate_rand_limit_nodes", "mate search randomize limit nodes", cxxopts::value<bool>(MATE_SEARCH_RAND_LIMIT_NODES))
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
 			("c_base", "UCT parameter c_base", cxxopts::value<float>(c_base)->default_value("39470.0"), "val")
 			("c_fpu_reduction", "UCT parameter c_fpu_reduction", cxxopts::value<float>(c_fpu_reduction)->default_value("20"), "val")
@@ -1502,7 +1480,6 @@ int main(int argc, char* argv[]) {
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
-	logger->info("mate rand limit nodes:{}", MATE_SEARCH_RAND_LIMIT_NODES);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
 	logger->info("c_fpu_reduction:{}", c_fpu_reduction);
