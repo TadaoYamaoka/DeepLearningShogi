@@ -79,6 +79,7 @@ int usi_byoyomi;
 std::mutex mutex_all_gpu;
 
 int MAX_MOVE = 320; // 最大手数
+bool OUT_MAX_MOVE = false; // 最大手数に達した対局の局面を出力するか
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
 
 struct CachedNNRequest {
@@ -1165,6 +1166,9 @@ void UCTSearcher::NextPly(const Move move)
 	// 一定の手数以上で引き分け
 	if (ply >= MAX_MOVE) {
 		gameResult = Draw;
+		// 最大手数に達した対局は出力しない
+		if (!OUT_MAX_MOVE)
+			hcpevec.clear();
 		NextGame();
 		return;
 	}
@@ -1371,6 +1375,7 @@ int main(int argc, char* argv[]) {
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
+			("out_max_move", "output the max move game", cxxopts::value<bool>(OUT_MAX_MOVE)->default_value("false"))
 			("root_noise", "add noise to the policy prior at the root", cxxopts::value<int>(ROOT_NOISE)->default_value("3"), "per mille")
 			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
