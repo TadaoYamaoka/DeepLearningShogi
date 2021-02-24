@@ -1231,7 +1231,7 @@ void UCTSearcher::NextGame()
 		elem.gameResult = gameResult;
 
 	// 局面出力
-	if (hcpevec.size() >= MIN_MOVE) {
+	if (ply >= MIN_MOVE && hcpevec.size() > 0) {
 		std::unique_lock<Mutex> lock(omutex);
 		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 		madeTeacherNodes += hcpevec.size();
