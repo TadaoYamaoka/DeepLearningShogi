@@ -1243,7 +1243,7 @@ void UCTSearcher::NextGame()
 	}
 
 	// USIエンジンとの対局結果
-	if (usi_engine_turn >= 0) {
+	if (ply >= MIN_MOVE && usi_engine_turn >= 0) {
 		++usi_games;
 		if (ply % 2 == 1 && (pos_root->turn() == Black && gameResult == (BlackWin + usi_engine_turn) || pos_root->turn() == White && gameResult == (WhiteWin - usi_engine_turn)) ||
 			ply % 2 == 0 && (pos_root->turn() == Black && gameResult == (WhiteWin - usi_engine_turn) || pos_root->turn() == White && gameResult == (BlackWin + usi_engine_turn))) {
