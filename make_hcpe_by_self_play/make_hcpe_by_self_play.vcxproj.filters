@@ -60,9 +60,6 @@
     <ClCompile Include="..\cppshogi\cppshogi.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-    <ClCompile Include="ZobristHash.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\dfpn.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -72,17 +69,14 @@
     <ClCompile Include="..\usi\nn_tensorrt.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\Node.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ZobristHash.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="UctSearch.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="USIEngine.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -90,6 +84,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="LruCache.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\usi\Node.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

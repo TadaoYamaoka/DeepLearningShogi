@@ -5,7 +5,7 @@ INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include -I$(CONDA_PREFIX)/inc
 LIB = -L/usr/local/cuda-10.2/lib64 -L$(CONDA_PREFIX)/lib
 
 target = bin/make_hcpe_by_self_play
-sources = self_play.cpp ZobristHash.cpp USIEngine.cpp
+sources = self_play.cpp Node.cpp USIEngine.cpp
 usi_sources = dfpn.cpp nn_tensorrt.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
