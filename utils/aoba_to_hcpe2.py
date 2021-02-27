@@ -12,7 +12,7 @@ HuffmanCodedPosAndEval2 = np.dtype([
     ('eval', dtypeEval),
     ('bestMove16', dtypeMove16),
     ('result', np.uint8),
-    ('dummy', np.uint8),
+    ('seq', np.uint8),
     ])
 
 
@@ -28,6 +28,10 @@ hcpes = np.zeros(10000*512, HuffmanCodedPosAndEval2)
 
 board = Board()
 kif_num = 0
+sennichite_num = 0
+nyugyoku_num = 0
+minogashi_num = 0
+chudan_num = 0
 position_num = 0
 for filepath in csa_file_list:
     print(filepath)
@@ -40,6 +44,7 @@ for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(file):
         if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%HIKIWAKE', '%CHUDAN') or len(kif.moves) <= 30:
             continue
+        assert len(kif.moves) <= 513, (filepath, kif.endgame, len(kif.moves))
         kif_num += 1
         board.set_sfen(kif.sfen)
         # 30手までで最善手以外が指された手番を見つける
@@ -70,23 +75,33 @@ for filepath in csa_file_list:
                     # 詰みを見逃して逆転したゲームの結果を修正
                     hcpes[start_p:p]['result'] = board.turn + 1
                     endgame = '%TORYO'
+                minogashi_num += 1
                 break
             hcpe = hcpes[p]
             board.to_hcp(hcpe['hcp'])
             hcpe['bestMove16'] = move16(move)
             hcpe['result'] = kif.win
+            hcpe['seq'] = i // 2
             p += 1
             board.push(move)
 
         if endgame == '%SENNICHITE':
             hcpes[start_p:p]['result'] += 4
+            sennichite_num += 1
         elif endgame == '%KACHI':
             hcpes[start_p:p]['result'] += 8
+            nyugyoku_num += 1
         elif endgame == '%HIKIWAKE' or endgame == '%CHUDAN':
+            # 引き分けは出力しない
             p = start_p
+            chudan_num += 1
 
     hcpes[:p].tofile(os.path.join(args.out_dir, os.path.splitext(os.path.basename(filepath))[0] + '.hcpe2'))
     position_num += p
 
 print('kif_num', kif_num)
+print('sennichite_num', sennichite_num)
+print('nyugyoku_num', nyugyoku_num)
+print('minogashi_num', minogashi_num)
+print('chudan_num', chudan_num)
 print('position_num', position_num)
