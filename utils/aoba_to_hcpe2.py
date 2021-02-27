@@ -85,7 +85,7 @@ for filepath in csa_file_list:
                     # 詰みを見逃して逆転したゲームの結果を修正
                     hcpes[start_p:p]['result'] = board.turn + 1
                     endgame = '%TORYO'
-                stat['minogashi'] += 1
+                    stat['minogashi'] += 1
                 break
             hcpe = hcpes[p]
             board.to_hcp(hcpe['hcp'])
