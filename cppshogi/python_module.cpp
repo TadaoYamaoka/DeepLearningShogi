@@ -61,7 +61,7 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int *move = reinterpret_cast<int *>(ndmove.get_data());
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -84,7 +84,7 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int *move = reinterpret_cast<int *>(ndmove.get_data());
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
 
 	// set all zero
@@ -111,7 +111,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int *move = reinterpret_cast<int *>(ndmove.get_data());
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
 
