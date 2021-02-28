@@ -7,6 +7,19 @@
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
+class ReleaseGIL {
+public:
+	ReleaseGIL() {
+		save_state = PyEval_SaveThread();
+	}
+
+	~ReleaseGIL() {
+		PyEval_RestoreThread(save_state);
+	}
+private:
+	PyThreadState* save_state;
+};
+
 // make result
 inline float make_result(const GameResult gameResult, const Position& position) {
 	if (gameResult == Draw)
@@ -39,6 +52,7 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -62,6 +76,7 @@ void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndar
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -86,6 +101,7 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -114,6 +130,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float *result = reinterpret_cast<float *>(ndresult.get_data());
 	float *value = reinterpret_cast<float *>(ndvalue.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);

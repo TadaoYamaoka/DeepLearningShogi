@@ -11,6 +11,7 @@ from dlshogi import cppshogi
 import argparse
 import random
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import logging
 
@@ -127,6 +128,7 @@ class DataLoader:
         self.value = self.torch_value.numpy().reshape(-1)
 
         self.i = 0
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     def mini_batch(self, hcpevec):
         cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
@@ -144,20 +146,29 @@ class DataLoader:
     def sample(self):
         return self.mini_batch(np.random.choice(self.data, self.batch_size))
 
+    def pre_fetch(self):
+        hcpevec = self.data[self.i:self.i+self.batch_size]
+        if len(hcpevec) == 0:
+            return
+        self.i += self.batch_size
+
+        self.f = self.executor.submit(self.mini_batch, hcpevec)
+
     def __iter__(self):
         self.i = 0
         if self.shuffle:
             np.random.shuffle(self.data)
+        self.pre_fetch()
         return self
 
     def __next__(self):
         if self.i >= len(self.data) - self.batch_size + 1:
             raise StopIteration()
 
-        hcpevec = self.data[self.i:self.i+self.batch_size]
-        self.i += self.batch_size
+        result = self.f.result()
+        self.pre_fetch()
 
-        return self.mini_batch(hcpevec)
+        return result
 
 
 train_dataloader = DataLoader(train_data, args.batchsize, shuffle=True)
