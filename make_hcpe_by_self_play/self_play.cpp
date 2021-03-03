@@ -1491,6 +1491,8 @@ int main(int argc, char* argv[]) {
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("min_move:{}", MIN_MOVE);
+	logger->info("max_move:{}", MAX_MOVE);
+	logger->info("out_max_move:{}", OUT_MAX_MOVE);
 	logger->info("root_noise:{}", ROOT_NOISE);
 	logger->info("threashold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
