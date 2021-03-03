@@ -57,7 +57,11 @@ for hcp in tqdm(hcps):
     engine.go(nodes=args.nodes, listener=listener)
     m = ptn.search(listener.info1)
     #print(m[1], m[2])
-    if m[1] == 'mate' or abs(int(m[2])) > args.th:
+    if m[1] == 'mate':
+        eval = 30000
+    else:
+        eval = abs(int(m[2]))
+    if eval > args.th:
         delhcps[p] = hcp
         p += 1
 
