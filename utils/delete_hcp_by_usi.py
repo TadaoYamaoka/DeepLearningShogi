@@ -49,7 +49,10 @@ listener = Listener()
 board = Board()
 p = 0
 for hcp in tqdm(hcps):
-    board.set_hcp(np.asarray(hcp))
+    if not board.set_hcp(np.asarray(hcp)):
+        delhcps[p] = hcp
+        p += 1
+        continue
     engine.position(sfen=board.sfen())
     engine.go(nodes=args.nodes, listener=listener)
     m = ptn.search(listener.info1)
