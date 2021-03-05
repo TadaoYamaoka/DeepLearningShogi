@@ -86,28 +86,28 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;..\usi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>C:\boost_1_75_0;C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\boost_1_75_0\stage\x64\lib;C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
