@@ -134,12 +134,12 @@ class DataLoader:
 
         z = self.result - self.value + 0.5
 
-        return (self.torch_features1.to(device),
-                self.torch_features2.to(device),
-                self.torch_move.to(device),
-                self.torch_result.to(device),
-                torch.tensor(z).to(device),
-                self.torch_value.to(device)
+        return (self.torch_features1.to(device, non_blocking=True),
+                self.torch_features2.to(device, non_blocking=True),
+                self.torch_move.to(device, non_blocking=True),
+                self.torch_result.to(device, non_blocking=True),
+                torch.tensor(z).to(device, non_blocking=True),
+                self.torch_value.to(device, non_blocking=True)
                 )
 
     def sample(self):
