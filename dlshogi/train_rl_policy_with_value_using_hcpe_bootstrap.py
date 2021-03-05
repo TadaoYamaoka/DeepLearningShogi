@@ -59,8 +59,7 @@ logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 
 if args.gpu >= 0:
-    torch.cuda.set_device(args.gpu)
-    device = torch.device("cuda")
+    device = torch.device(f"cuda:{args.gpu}")
 else:
     device = torch.device("cpu")
 
