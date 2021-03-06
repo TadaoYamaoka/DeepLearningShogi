@@ -143,7 +143,7 @@ class DataLoader:
                 )
 
     def sample(self):
-        return self.mini_batch(np.random.choice(self.data, self.batch_size))
+        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
 
     def pre_fetch(self):
         hcpevec = self.data[self.i:self.i+self.batch_size]
