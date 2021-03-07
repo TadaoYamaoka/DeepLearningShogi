@@ -9,8 +9,8 @@ using namespace std;
 using namespace ns_dfpn;
 
 int64_t DfPn::HASH_SIZE_MB = 2048;
-uint32_t DfPn::kMaxDepth = 30;
-const constexpr uint32_t REPEAT = UINT_MAX;
+uint32_t DfPn::kMaxDepth = 31;
+const constexpr uint32_t REPEAT = UINT_MAX - 1;
 
 // --- 詰み将棋探索
 

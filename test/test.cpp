@@ -278,7 +278,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -289,7 +289,7 @@ int main()
 	DfPn dfpn;
 	dfpn.init();
 	//dfpn.set_max_search_node(1000000);
-	dfpn.set_maxdepth(29);
+	dfpn.set_maxdepth(31);
 
 	Position pos;
 
@@ -496,7 +496,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 合法手生成
 int main() {
 	initTable();
@@ -516,6 +516,55 @@ int main() {
 		}
 		std::cout << std::endl;
 	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 自己対局で異常終了した詰み探索局面の調査
+#include <fstream>
+#include <regex>
+#include "dfpn.h"
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+
+	// Positionをメモリダンプしたテキストを読み込む
+	std::ifstream is(argv[1]);
+	std::string str;
+	char buf[sizeof(Position)] = {};
+	auto re = std::regex(R"([0-9a-f]{2})");
+	
+	for (int i = 0; i < sizeof(Position); ) {
+		is >> str;
+		if (str.size() != 2) continue;
+		if (!std::regex_match(str, re)) continue;
+
+		buf[i++] = (char)std::stoi(str, nullptr, 16);
+	}
+
+	Position pos;
+	std::memcpy((void*)&pos, buf, sizeof(Position));
+	auto sfen = pos.toSFEN().substr(5);
+	std::cout << sfen << std::endl;
+
+	Position pos_copy;
+	pos_copy.set(sfen);
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(150000);
+	dfpn.set_maxdepth(25);
+
+	bool mate;
+	if (!pos_copy.inCheck()) {
+		mate = dfpn.dfpn(pos_copy);
+	}
+	else {
+		mate = dfpn.dfpn_andnode(pos_copy);
+	}
+	std::cout << mate << std::endl;
 
 	return 0;
 }
