@@ -265,7 +265,7 @@ for e in range(args.epoch):
 
             x1, x2, t1, t2, t3, z, value = test_dataloader.sample()
             with torch.no_grad():
-                y1, y2 = model(x1, x2)
+                y1, y2, y3 = model(x1, x2)
 
                 loss1 = (cross_entropy_loss(y1, t1) * z).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
