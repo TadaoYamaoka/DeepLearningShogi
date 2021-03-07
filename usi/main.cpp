@@ -60,8 +60,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		if (argc == 1 && !std::getline(std::cin, cmd))
 			cmd = "quit";
 
-		//std::cout << "info string " << cmd << std::endl;
 		std::istringstream ssCmd(cmd);
+		token.clear();
 
 		ssCmd >> std::skipws >> token;
 
