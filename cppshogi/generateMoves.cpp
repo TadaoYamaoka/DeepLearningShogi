@@ -228,7 +228,7 @@ namespace {
 						const bool toCanPromote = canPromote(US, makeRank(to));
 						if (toCanPromote) {
 							(*moveList++).move = makePromoteMove<MT>(Lance, from, to, pos);
-							if (MT == NonEvasion || ALL) {
+							if (/*MT == NonEvasion || */ALL) {
 								if (isBehind<US, Rank1, Rank9>(makeRank(to))) // 1段目の不成は省く
 									(*moveList++).move = makeNonPromoteMove<MT>(Lance, from, to, pos);
 							}

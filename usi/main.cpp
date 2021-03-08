@@ -60,8 +60,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		if (argc == 1 && !std::getline(std::cin, cmd))
 			cmd = "quit";
 
-		//std::cout << "info string " << cmd << std::endl;
 		std::istringstream ssCmd(cmd);
+		token.clear();
 
 		ssCmd >> std::skipws >> token;
 
@@ -82,8 +82,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			// 無視されるがbestmoveを返す
-			std::cout << "bestmove resign" << std::endl;
+			if (pos.searcher()->limits.ponder) {
+				// 無視されるがbestmoveを返す
+				std::cout << "bestmove resign" << std::endl;
+			}
 		}
 		else if (token == "ponderhit" || token == "go") {
 			// ponderの探索を停止
@@ -615,6 +617,9 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 	int white_num = 0;
 	std::vector<Move> moves;
 	for (int trial = 0; trial < limitTrialNum; trial += 2) {
+		// 進捗状況表示
+		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
+
 		// 先手番
 		int count = 0;
 		moves.clear();
@@ -631,7 +636,7 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 		make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
 		white_num += count;
 
-		// 完了時および100回ごとに途中経過を保存
+		// 完了時およびSave_Book_Intervalごとに途中経過を保存
 		if ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg)
 		{
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);

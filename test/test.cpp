@@ -6,69 +6,6 @@
 using namespace std;
 
 #if 0
-#include "nn_wideresnet10.h"
-int main() {
-	initTable();
-	Position::initZobrist();
-
-	// 入力データ作成
-	const int batchsize = 2;
-	features1_t features1[batchsize];
-	features2_t features2[batchsize];
-
-	std::fill_n((DType*)features1, batchsize * sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2, batchsize * sizeof(features2_t) / sizeof(DType), _zero);
-
-	Position pos[batchsize];
-	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
-	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
-
-	make_input_features(pos[0], features1, features2);
-	make_input_features(pos[1], features1 + 1, features2 + 1);
-
-	NNWideResnet10 nn(batchsize);
-
-	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
-
-	float y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
-	float y2[batchsize];
-	nn.forward(batchsize, features1, features2, (float*)y1, y2);
-
-	for (int i = 0; i < batchsize; i++) {
-		// policyの結果
-		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
-			cout << y1[i][j] << endl;
-		}
-		// valueの結果
-		cout << y2[i] << endl;
-
-		// 合法手一覧
-		std::vector<Move> legal_moves;
-		std::vector<float> legal_move_probabilities;
-		for (MoveList<Legal> ml(pos[i]); !ml.end(); ++ml) {
-			const Move move = ml.move();
-			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
-			legal_moves.emplace_back(move);
-			legal_move_probabilities.emplace_back(y1[i][move_label]);
-		}
-
-		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
-
-		// print result
-		for (int j = 0; j < legal_moves.size(); j++) {
-			const Move& move = legal_moves[j];
-			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
-			cout << move.toUSI() << " logit:" << y1[i][move_label] << " rate:" << legal_move_probabilities[j] << endl;
-		}
-
-	}
-
-	return 0;
-}
-#endif
-
-#if 0
 // hcpe作成
 #include <fstream>
 int main() {
@@ -341,108 +278,7 @@ int main() {
 }
 #endif
 
-#if 0
-// cuDNN推論テスト
-#include "nn_wideresnet10.h"
-
-// 検証用
-#define BOOST_PYTHON_STATIC_LIB
-#define BOOST_NUMPY_STATIC_LIB
-#include <boost/python/numpy.hpp>
-namespace py = boost::python;
-namespace np = boost::python::numpy;
-py::object dlshogi_predict;
-
-int main() {
-	// Boost.PythonとBoost.Numpyの初期化
-	Py_Initialize();
-	np::initialize();
-	// Pythonモジュール読み込み
-	py::object dlshogi_ns = py::import("dlshogi.predict").attr("__dict__");
-	// modelロード
-	py::object dlshogi_load_model = dlshogi_ns["load_model"];
-	dlshogi_load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
-	// 予測関数取得
-	dlshogi_predict = dlshogi_ns["predict"];
-
-	initTable();
-	// 入力データ作成
-	const int batchsize = 20;
-	features1_t* features1 = new features1_t[batchsize];
-	features2_t* features2 = new features2_t[batchsize];
-	// set all zero
-	std::fill_n((float*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0.0f);
-	std::fill_n((float*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0.0f);
-
-	vector<Position> pos(batchsize);
-	pos[0].set("l5snl/4ggkb1/1rn2p2p/p1ps2pp1/1p1pp3P/P1PP1PPP1/1PBSP1NS1/3RG1GK1/LN6L b - 1 : 372 : 1 : 6f6e");
-	pos[1].set("l4pk2/4+B1s1g/3+N3p1/p+B7/2P2PL2/3P1GPK1/PS2+p2P1/1p1+n5/L5+sN1 w R2GSN7Prl 1 : -5828 : -1 : L*2d");
-	pos[2].set("1+Bs3+P+R1/l2kg2p1/2+B1p1p1p/p1pp1p3/9/2P1P1P2/PP1PGP2P/9/LNSGK1SNL w RGS2NLP 1 : -9493 : -1 : 6b7c");
-	pos[3].set("l3p2+R1/1Ss1gr2l/1pnp2p1p/kss2P3/8P/pG3+B2L/1PBP1GP1N/L1K1G4/1N7 w 6Pnp 1 : -5163 : -1 : N*9e");
-	pos[4].set("ln1l1R3/2k6/1p5p+P/p1pp+S1p2/6b2/2P1P4/PP1P1PSPL/1+bSGKR3/LN1GG2N1 b GS4Pn 1 : 6923 : 1 : 3g4f");
-	pos[5].set("ln4b1l/r2n5/3p1S3/ppp1pP2p/3SPkpl1/P1P5P/1PSP5/1KGB2+n2/LNG5+r b 2Gs4p 1 : 3503 : 1 : G*4f");
-	pos[6].set("lns3g2/2kgrs1bl/p1pppp1pp/1p7/5n3/2P3P2/PPSPPP1PP/L2G2R2/1N1K1GSNL b BP 1 : 920 : 1 : 3i2h");
-	pos[7].set("ln1gp+P2+R/2kss4/1pp2pp1l/p2pP3p/2P4+b1/P1S3P2/1PGP+p1G2/1K2+p4/LN5N+b w RGSLPn 1 : -1307 : -1 : 1i2i");
-	pos[8].set("l4kbnl/1r1g2s2/2Pp3pp/p2snpp2/2p1p1PP1/1P4N2/PS1GP1S1P/1B3R2L/L1K4N1 w 2P2gp 1 : 1715 : 1 : P*8e");
-	pos[9].set("2g+bk1+Bn1/1s2g3l/5P1p1/3Pp1p1p/1+R3p1P1/2P1N4/pKS1P1P1P/5S1R1/LN5NL w 2GS4Plp 1 : -6691 : -1 : L*4a");
-	pos[10].set("ln1gk1gn1/8l/2p1s2+Rp/pr1+bp1+P2/3p2p2/1l6P/N1PPPS2N/2GKS+bP2/L1S2G3 w 5Pp 1 : -986 : -1 : 4h4g");
-	pos[11].set("+Bn4gnl/2g1ssk2/2+N2p1p1/prSPpb2p/1p7/2p1P3P/PP2GPPP1/3+p1SK2/LR1G3NL b 2Pl 1 : -585 : -1 : 6d6c+");
-	pos[12].set("lnB3knl/1rs1g1gs1/p3p2pp/2pp1pp2/1p7/2PP1P1P1/PPS1P1P1P/2GKS2R1/LN3G1NL w b 1 : 724 : 1 : 8b8c");
-	pos[13].set("1n1rg2n1/1Bs2k3/lpp1psgpl/p2p2p1p/1P3R3/2P1S4/P2PP1PPP/2GS5/LN1K2GNL b Pbp 1 : 485 : 1 : 4e4i");
-	pos[14].set("ln7/3+R5/1ppSpgS1p/k8/b2P1Pp2/2S1P1P2/B1PKG+p2P/7S1/LN1G3NL b G4Prnl2p 1 : 4563 : 1 : G*8e");
-	pos[15].set("ln7/1r3g2G/2p1pksp1/5pp1P/2Pp2lP1/p1n1P3+b/1l2B4/2+r6/1N2K2N1 b 2g3sl7p 1 : -9389 : -1 : 1d1c+");
-	pos[16].set("1n5+P1/lks1r1p2/1p2gn3/1l1pg2+B1/2Pspp3/p1G3P2/1PNS1PG2/L1KS4+p/L3R4 b BN4P2p 1 : 3016 : 1 : 7g6e");
-	pos[17].set("1ns1k1s+B1/lrg3g2/pppppp1p1/6p2/9/2P5p/PPNPPPPPP/2SK2SRL/+b2GG2N1 w NLl 1 : -739 : -1 : L*7d");
-	pos[18].set("6pn1/4g3l/3kpp1+Bp/pN1p1bP2/1sP1P3P/2+n4P1/1P1P1PN1L/4GSS2/L+p+r1GK3 w Grsl3p 1 : 2989 : 1 : L*5f");
-	pos[19].set("1n1gk1snl/lrs2g3/pp2ppppb/2pp4p/9/4PP1P1/PPPP2P1P/LBKSG1R2/1N3GSNL b - 1 : 60 : -1 : 1g1f");
-
-	for (int i = 0; i < batchsize; i++) {
-		make_input_features(pos[i], features1 + i, features2 + i);
-	}
-
-	NNWideResnet10 nn(batchsize);
-
-	nn.load_model(R"(H:\src\DeepLearningShogi\dlshogi\model_rl_val_wideresnet10_110_1)");
-
-	float y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
-	float y2[batchsize];
-	nn.forward(batchsize, features1, features2, (float*)y1, y2);
-
-
-	// predict
-	np::ndarray ndfeatures1 = np::from_data(
-		features1,
-		np::dtype::get_builtin<float>(),
-		py::make_tuple(batchsize, (int)ColorNum * MAX_FEATURES1_NUM, 9, 9),
-		py::make_tuple(sizeof(float)*(int)ColorNum*MAX_FEATURES1_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-		py::object());
-	np::ndarray ndfeatures2 = np::from_data(
-		features2,
-		np::dtype::get_builtin<float>(),
-		py::make_tuple(batchsize, MAX_FEATURES2_NUM, 9, 9),
-		py::make_tuple(sizeof(float)*MAX_FEATURES2_NUM * 81, sizeof(float) * 81, sizeof(float) * 9, sizeof(float)),
-		py::object());
-	auto ret = dlshogi_predict(ndfeatures1, ndfeatures2);
-	py::tuple ret_list = py::extract<py::tuple>(ret);
-	np::ndarray y1_data = py::extract<np::ndarray>(ret_list[0]);
-	np::ndarray y2_data = py::extract<np::ndarray>(ret_list[1]);
-	float(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1_data.get_data());
-	float *value = reinterpret_cast<float*>(y2_data.get_data());
-
-	for (int i = 0; i < batchsize; i++) {
-		// policyの結果
-		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
-			cout << y1[i][j] << "\t" << logits[i][j] << endl;
-		}
-		// valueの結果
-		cout << y2[i] << "\t" << value[i] << endl;
-	}
-
-	return 0;
-}
-#endif
-
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -453,7 +289,7 @@ int main()
 	DfPn dfpn;
 	dfpn.init();
 	//dfpn.set_max_search_node(1000000);
-	dfpn.set_maxdepth(29);
+	dfpn.set_maxdepth(31);
 
 	Position pos;
 
@@ -558,112 +394,6 @@ int main() {
 #endif
 
 #if 0
-#include "nn_senet10.h"
-int main() {
-	initTable();
-	Position::initZobrist();
-
-	// 入力データ作成
-	const int batchsize = 2;
-	features1_t features1[batchsize];
-	features2_t features2[batchsize];
-
-	std::fill_n((DType*)features1, batchsize * sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2, batchsize * sizeof(features2_t) / sizeof(DType), _zero);
-
-	Position pos[batchsize];
-	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
-	pos[1].set("lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1");
-
-	make_input_features(pos[0], features1, features2);
-	make_input_features(pos[1], features1 + 1, features2 + 1);
-
-	NNSENet10 nn(batchsize);
-
-	nn.load_model(R"(F:\model\model_rl_val_senet10_50)");
-
-	DType y1[batchsize][MAX_MOVE_LABEL_NUM * SquareNum];
-	DType y2[batchsize];
-	nn.forward(batchsize, features1, features2, (DType*)y1, y2);
-
-	for (int i = 0; i < batchsize; i++) {
-		// policyの結果
-		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
-			cout << y1[i][j] << endl;
-		}
-		// valueの結果
-		cout << y2[i] << endl;
-
-		// 合法手一覧
-		std::vector<Move> legal_moves;
-		std::vector<float> legal_move_logits;
-		std::vector<float> legal_move_probabilities;
-		for (MoveList<Legal> ml(pos[i]); !ml.end(); ++ml) {
-			const Move move = ml.move();
-			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
-			legal_moves.emplace_back(move);
-			float logits = to_float(y1[i][move_label]);
-			legal_move_logits.emplace_back(logits);
-			legal_move_probabilities.emplace_back(logits);
-		}
-
-		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
-
-		// print result
-		for (int j = 0; j < legal_moves.size(); j++) {
-			const Move& move = legal_moves[j];
-			const int move_label = make_move_label((u16)move.proFromAndTo(), pos[i].turn());
-			cout << move.toUSI() << " logit:" << legal_move_logits[j] << " rate:" << legal_move_probabilities[j] << endl;
-		}
-
-	}
-
-	return 0;
-}
-#endif
-
-#if 0
-#include "../make_hcpe_by_self_play/USIEngine.h"
-
-int main()
-{
-	initTable();
-	Position::initZobrist();
-
-	USIEngine engine(R"(E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe)", {
-		{ "USI_Ponder", "False" },
-		{ "Threads", "4" },
-	}, 1);
-
-	Position pos;
-	std::string sfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
-	pos.set(sfen);
-	Move move = engine.Think(pos, "position sfen " + sfen, 1000);
-	cout << move.toUSI() << endl;
-
-	// 投了
-	sfen = "3+L4l/7+R1/1P1s1p3/pp1pp3k/8R/P3S3P/4PPpP1/4G4/LN3BK2 w SNPb3gs2nl5p 152";
-	pos.set(sfen);
-	move = engine.Think(pos, "position sfen " + sfen, 1000);
-	if (move == moveResign())
-		cout << "resign" << endl;
-	else
-		cout << move.toUSI() << endl;
-
-	// 入玉宣言勝ち
-	sfen = "8l/1+P1K2+P2/+P+L+P+NS4/5+N2g/1S7/9/G4+bg+p+p/S2+pl1g1k/2+r4+ns w B4Prnl7p 218";
-	pos.set(sfen);
-	move = engine.Think(pos, "position sfen " + sfen, 1000);
-	if (move == moveWin())
-		cout << "win" << endl;
-	else
-		cout << move.toUSI() << endl;
-}
-
-#endif
-
-#if 0
 #include "mate.h"
 int main() {
 	initTable();
@@ -761,6 +491,80 @@ int main() {
 		bool ret = mateMoveInOddPly<5>(pos);
 		cout << ret << endl;
 	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 合法手生成
+int main() {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	vector<string> sfens = {
+		"l5p1K/p8/2nrpp1g1/LLppk1L2/9/9/9/9/9 b r2b3g4s3n12p 1", // 2段目への香の不成(3d3b,8d8b,9d9b)
+		"9/9/9/9/9/2l1KPPll/1G1PPRN2/8P/k1P5L w R2B3G4S3N12P 1" // 2段目への香の不成(1f1h,2f2h,7f7h)
+	};
+
+	for (string sfen : sfens) {
+		std::cout << sfen << "\n";
+		pos.set(sfen);
+		for (MoveList<Legal> ml(pos); !ml.end(); ++ml) {
+			std::cout << ml.move().toUSI() << "\n";
+		}
+		std::cout << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 自己対局で異常終了した詰み探索局面の調査
+#include <fstream>
+#include <regex>
+#include "dfpn.h"
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+
+	// Positionをメモリダンプしたテキストを読み込む
+	std::ifstream is(argv[1]);
+	std::string str;
+	char buf[sizeof(Position)] = {};
+	auto re = std::regex(R"([0-9a-f]{2})");
+	
+	for (int i = 0; i < sizeof(Position); ) {
+		is >> str;
+		if (str.size() != 2) continue;
+		if (!std::regex_match(str, re)) continue;
+
+		buf[i++] = (char)std::stoi(str, nullptr, 16);
+	}
+
+	Position pos;
+	std::memcpy((void*)&pos, buf, sizeof(Position));
+	auto sfen = pos.toSFEN().substr(5);
+	std::cout << sfen << std::endl;
+
+	Position pos_copy;
+	pos_copy.set(sfen);
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(150000);
+	dfpn.set_maxdepth(25);
+
+	bool mate;
+	if (!pos_copy.inCheck()) {
+		mate = dfpn.dfpn(pos_copy);
+	}
+	else {
+		mate = dfpn.dfpn_andnode(pos_copy);
+	}
+	std::cout << mate << std::endl;
 
 	return 0;
 }
