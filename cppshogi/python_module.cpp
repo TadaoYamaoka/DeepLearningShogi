@@ -202,38 +202,6 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 	}
 }
 
-struct HuffmanCodedPosAndEval3 {
-	HuffmanCodedPos hcp; // 開始局面
-	u16 moveNum; // 手数
-	u8 result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 最大手数
-	u8 opponent; // 対戦相手（0:自己対局、1:後手usi、2:先手usi）
-};
-static_assert(sizeof(HuffmanCodedPosAndEval3) == 36, "");
-
-struct MoveInfo {
-	u16 selectedMove16; // 指し手
-	s16 eval; // 評価値
-	u16 candidateNum; // 候補手の数
-};
-static_assert(sizeof(MoveInfo) == 6, "");
-
-struct MoveVisits {
-	u16 move16;
-	u16 visitNum;
-};
-static_assert(sizeof(MoveVisits) == 4, "");
-
-struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const s16 eval, const u16 selectedMove16, const u8 result, const size_t size)
-		: hcp(hcp), eval(eval), selectedMove16(selectedMove16), result(result), candidates(size) {};
-
-	HuffmanCodedPos hcp;
-	s16 eval;
-	u16 selectedMove16;
-	u8 result;
-	std::vector<MoveVisits> candidates;
-};
-
 std::vector<TrainingData> trainingData;
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
