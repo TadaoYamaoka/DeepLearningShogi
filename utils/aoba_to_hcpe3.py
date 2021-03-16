@@ -4,7 +4,6 @@ import numpy as np
 import os
 import glob
 import lzma
-import gzip
 import math
 import argparse
 
@@ -12,7 +11,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:後手usi、2:先手usi）
+    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
@@ -48,7 +47,7 @@ for filepath in csa_file_list:
     else:
         file = filepath
 
-    f = gzip.open(os.path.join(args.out_dir, os.path.splitext(os.path.basename(filepath))[0] + '.hcpe3.gz'), 'wb', compresslevel=6)
+    f = open(os.path.join(args.out_dir, os.path.splitext(os.path.basename(filepath))[0] + '.hcpe3'), 'wb')
 
     for kif in CSA.Parser.parse_file(file):
         if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%CHUDAN') or len(kif.moves) <= 30:

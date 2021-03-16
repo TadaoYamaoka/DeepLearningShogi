@@ -75,7 +75,7 @@ struct HuffmanCodedPosAndEval3 {
 	HuffmanCodedPos hcp; // 開始局面
 	u16 moveNum; // 手数
 	u8 result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 最大手数
-	u8 opponent; // 対戦相手（0:自己対局、1:後手usi、2:先手usi）
+	u8 opponent; // 対戦相手（0:自己対局、1:先手usi、2:後手usi）
 };
 static_assert(sizeof(HuffmanCodedPosAndEval3) == 36, "");
 
@@ -87,6 +87,9 @@ struct MoveInfo {
 static_assert(sizeof(MoveInfo) == 6, "");
 
 struct MoveVisits {
+	MoveVisits() {}
+	MoveVisits(const u16 move16, const u16 visitNum) : move16(move16), visitNum(visitNum) {}
+
 	u16 move16;
 	u16 visitNum;
 };
@@ -102,3 +105,7 @@ struct TrainingData {
 	u8 result;
 	std::vector<MoveVisits> candidates;
 };
+
+constexpr u8 GAMERESULT_SENNICHITE = 0x4;
+constexpr u8 GAMERESULT_NYUGYOKU = 0x8;
+constexpr u8 GAMERESULT_MAXMOVE = 0x16;

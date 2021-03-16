@@ -255,6 +255,7 @@ public:
 		states(MAX_MOVE + 1) {
 		pos_root = new Position(DefaultStartPositionSFEN, s.thisptr);
 		usi_engine_turn = (grp->usi_engines.size() > 0 && id < usi_engine_num) ? rnd(*mt) % 2 : -1;
+		noise_count.reserve(UCT_CHILD_MAX);
 	}
 	UCTSearcher(UCTSearcher&& o) : nn_cache(o.nn_cache) {} // not use
 	~UCTSearcher() {
@@ -276,16 +277,6 @@ private:
 	void NextPly(const Move move);
 	void NextGame();
 
-	// 局面追加
-	void AddTeacher(s16 eval, Move move) {
-		hcpevec.emplace_back(HuffmanCodedPosAndEval());
-		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
-		hcpe.hcp = pos_root->toHuffmanCodedPos();
-		const Color rootTurn = pos_root->turn();
-		hcpe.eval = eval;
-		hcpe.bestMove16 = static_cast<u16>(move.value());
-		idx++;
-	}
 	// キャッシュからnnrateをコピー
 	void CopyNNRate(uct_node_t* node, const vector<float>& nnrate) {
 		child_node_t* uct_child = node->child.get();
@@ -309,22 +300,61 @@ private:
 	int playout;
 	int ply;
 	GameResult gameResult;
+	u8 reason;
 
 	std::vector<StateInfo> states;
-	std::vector<HuffmanCodedPosAndEval> hcpevec;
 	uniform_int_distribution<s64> inputFileDist;
 
 	// 局面管理と探索スレッド
 	Position* pos_root;
 
+	// ノイズにより選んだ回数
+	std::vector<int> noise_count;
+
 	// 詰み探索のステータス
 	MateSearchEntry::State mate_status;
 
+	// 開始局面
 	HuffmanCodedPos hcp;
 
 	// USIエンジン
 	int usi_engine_turn; // -1:未使用、0:偶数手、1:奇数手
 	std::string usi_position;
+
+	// 出力棋譜データ
+	struct Record {
+		Record() {}
+		Record(const u16 selectedMove16, const s16 eval) : selectedMove16(selectedMove16), eval(eval) {}
+
+		u16 selectedMove16; // 指し手
+		s16 eval; // 評価値
+		std::vector<MoveVisits> candidates;
+	};
+	std::vector<Record> records;
+
+	// 局面追加
+	// 訓練に使用しない手はtrainningをfalseにする
+	void AddRecord(Move move, s16 eval, bool trainning) {
+		Record& record = records.emplace_back(
+			static_cast<u16>(move.value()),
+			eval
+		);
+		if (trainning) {
+			const auto child = root_node->child.get();
+			record.candidates.reserve(root_node->child_num);
+			for (size_t i = 0; i < root_node->child_num; ++i) {
+				// ノイズにより選んだ回数を除く
+				const auto move_count = child[i].move_count - noise_count[i];
+				if (move_count > 0) {
+					record.candidates.emplace_back(
+						static_cast<u16>(child[i].move.value()),
+						static_cast<u16>(move_count)
+					);
+				}
+			}
+			idx++;
+		}
+	}
 };
 
 class UCTSearcherGroupPair {
@@ -695,13 +725,13 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 {
 	const child_node_t* uct_child = current->child.get();
 	const int child_num = current->child_num;
-	int max_child = 0;
+	int max_child = 0, max_child_nonoise = 0;
 	const int sum = current->move_count;
 	const WinType sum_win = current->win;
-	float q, u, max_value;
+	float q, u, max_value, max_value_nonoise;
 	int child_win_count = 0;
 
-	max_value = -FLT_MAX;
+	max_value = max_value_nonoise = -FLT_MAX;
 
 	const float sqrt_sum = sqrtf((float)sum);
 	const float c = parent == nullptr ?
@@ -740,9 +770,16 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		}
 
 		float rate = uct_child[i].nnrate;
-		// ランダムに確率を上げる
-		if (parent == nullptr && rnd(*mt) < ROOT_NOISE) {
-			rate = (rate + 1.0f) / 2.0f;
+		if (parent == nullptr) {
+			const float ucb_value_nonoise = q + c * u * rate;
+			// ノイズがない場合の選択
+			if (ucb_value_nonoise > max_value_nonoise) {
+				max_value_nonoise = ucb_value_nonoise;
+				max_child_nonoise = i;
+			}
+			// ランダムに確率を上げる
+			if (rnd(*mt) < ROOT_NOISE)
+				rate = (rate + 1.0f) / 2.0f;
 		}
 
 		const float ucb_value = q + c * u * rate;
@@ -761,6 +798,11 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	else {
 		// for FPU reduction
 		current->visited_nnrate += uct_child[max_child].nnrate;
+	}
+
+	// ノイズにより選んだ回数
+	if (parent == nullptr && max_child != max_child_nonoise) {
+		noise_count[max_child]++;
 	}
 
 	return max_child;
@@ -897,7 +939,8 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				setPosition(*pos_root, hcp);
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 
-				hcpevec.clear();
+				records.clear();
+				reason = 0;
 
 				// USIエンジン
 				if (usi_engine_turn >= 0) {
@@ -920,6 +963,10 @@ void UCTSearcher::Playout(visitor_t& visitor)
 			// ルートノード展開
 			root_node->ExpandNode(pos_root);
 
+			// ノイズ回数初期化
+			noise_count.resize(root_node->child_num);
+			std::fill(noise_count.begin(), noise_count.end(), 0);
+
 			// 詰みのチェック
 			if (root_node->child_num == 0) {
 				gameResult = (pos_root->turn() == Black) ? GameResult::WhiteWin : GameResult::BlackWin;
@@ -930,13 +977,15 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				// 1手しかないときは、その手を指して次の手番へ
 				const Move move = root_node->child[0].move;
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
+				AddRecord(move, 0, false);
 				NextPly(move);
 				continue;
 			}
 			else if (nyugyoku(*pos_root)) {
 				// 入玉宣言勝ち
 				gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
-				if (hcpevec.size() > 0)
+				reason = GAMERESULT_NYUGYOKU;
+				if (records.size() > 0)
 					++nyugyokus;
 				NextGame();
 				continue;
@@ -992,6 +1041,7 @@ void UCTSearcher::NextStep()
 		}
 		else if (move == moveWin()) {
 			gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
+			reason = GAMERESULT_NYUGYOKU;
 			NextGame();
 			return;
 		}
@@ -1002,6 +1052,7 @@ void UCTSearcher::NextStep()
 		}
 		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
 
+		AddRecord(move, 0, false);
 		NextPly(move);
 		return;
 	}
@@ -1019,7 +1070,7 @@ void UCTSearcher::NextStep()
 
 				// 局面追加（ランダム局面は除く）
 				if (ply > RANDOM_MOVE)
-					AddTeacher(30000, grp->GetMateSearchMove(id));
+					AddRecord(grp->GetMateSearchMove(id), 30000, false);
 
 				NextGame();
 				return;
@@ -1056,7 +1107,7 @@ void UCTSearcher::NextStep()
 
 				// 局面追加（初期局面は除く）
 				if (ply > RANDOM_MOVE)
-					AddTeacher(30000, grp->GetMateSearchMove(id));
+					AddRecord(grp->GetMateSearchMove(id), 30000, false);
 
 				NextGame();
 				return;
@@ -1083,6 +1134,7 @@ void UCTSearcher::NextStep()
 			select_index = dist(*mt_64);
 			best_move = uct_child[select_index].move;
 			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
+			AddRecord(best_move, 0, false);
 		}
 		else {
 			// 探索回数最大の手を見つける
@@ -1154,7 +1206,7 @@ void UCTSearcher::NextStep()
 				eval = -30000;
 			else
 				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			AddTeacher(eval, best_move);
+			AddRecord(best_move, eval, true);
 		}
 
 		NextPly(best_move);
@@ -1166,9 +1218,10 @@ void UCTSearcher::NextPly(const Move move)
 	// 一定の手数以上で引き分け
 	if (ply >= MAX_MOVE) {
 		gameResult = Draw;
+		reason = GAMERESULT_MAXMOVE;
 		// 最大手数に達した対局は出力しない
 		if (!OUT_MAX_MOVE)
-			hcpevec.clear();
+			records.clear();
 		NextGame();
 		return;
 	}
@@ -1181,6 +1234,7 @@ void UCTSearcher::NextPly(const Move move)
 	case RepetitionDraw:
 		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} RepetitionDraw", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN());
 		gameResult = Draw;
+		reason = GAMERESULT_SENNICHITE;
 		NextGame();
 		return;
 	case RepetitionWin:
@@ -1210,15 +1264,29 @@ void UCTSearcher::NextPly(const Move move)
 void UCTSearcher::NextGame()
 {
 	SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} gameResult:{}", grp->gpu_id, grp->group_id, id, ply, gameResult);
-	// 勝敗を1局全てに付ける。
-	for (auto& elem : hcpevec)
-		elem.gameResult = gameResult;
 
 	// 局面出力
-	if (ply >= MIN_MOVE && hcpevec.size() > 0) {
-		std::unique_lock<Mutex> lock(omutex);
-		ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
-		madeTeacherNodes += hcpevec.size();
+	if (ply >= MIN_MOVE && records.size() > 0) {
+		const Color start_turn = (ply % 2 == 1 && pos_root->turn() == Black || ply % 2 == 0 && pos_root->turn() == White) ? Black : White;
+		const u8 opponent = usi_engine_turn < 0 ? 0 : (usi_engine_turn == 1 && start_turn == Black || usi_engine_turn == 0 && start_turn == White) ? 1 : 2;
+		HuffmanCodedPosAndEval3 hcpe3{
+			hcp,
+			records.size(),
+			gameResult | reason,
+			opponent
+		};
+		{
+			std::unique_lock<Mutex> lock(omutex);
+			ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+			for (auto& record : records) {
+				MoveInfo moveInfo{ record.selectedMove16, record.eval, record.candidates.size() };
+				ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
+				if (record.candidates.size() > 0) {
+					ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
+					madeTeacherNodes++;
+				}
+			}
+		}
 		++games;
 
 		if (gameResult == Draw) {

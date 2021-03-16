@@ -1,8 +1,6 @@
 ﻿#define BOOST_PYTHON_STATIC_LIB
 #define BOOST_NUMPY_STATIC_LIB
 #include <boost/python/numpy.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 
 #include <numeric>
 #include "cppshogi.h"
@@ -38,10 +36,10 @@ inline float make_result(const uint8_t result, const Position& position) {
 	}
 }
 inline float is_sennichite(const uint8_t result) {
-	return result & 0x4 ? 1.0f : 0.0f;
+	return result & GAMERESULT_SENNICHITE ? 1.0f : 0.0f;
 }
 inline float is_nyugyoku(const uint8_t result) {
-	return result & 0x8 ? 1.0f : 0.0f;
+	return result & GAMERESULT_NYUGYOKU ? 1.0f : 0.0f;
 }
 
 /*
@@ -210,17 +208,12 @@ py::object load_hcpe3(std::string filepath) {
 	std::ifstream ifs(filepath, std::ifstream::binary);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
 
-	boost::iostreams::filtering_streambuf<boost::iostreams::input> filter;
-	filter.push(boost::iostreams::gzip_decompressor());
-	filter.push(ifs);
-	std::istream is(&filter);
-
 	int len = 0;
 
-	for (int p = 0; is; ++p) {
+	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval3 hcpe3;
-		is.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
-		if (is.eof()) {
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
 			break;
 		}
 		assert(hcpe3.moveNum <= 513);
@@ -236,7 +229,7 @@ py::object load_hcpe3(std::string filepath) {
 
 		for (int i = 0; i < hcpe3.moveNum; ++i) {
 			MoveInfo moveInfo;
-			is.read((char*)&moveInfo, sizeof(MoveInfo));
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
 			assert(moveInfo.candidateNum <= 593);
 
 			// candidateNum==0の手は読み飛ばす
@@ -248,7 +241,7 @@ py::object load_hcpe3(std::string filepath) {
 					hcpe3.result,
 					moveInfo.candidateNum
 				);
-				is.read((char*)data.candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+				ifs.read((char*)data.candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 				++len;
 			}
 
