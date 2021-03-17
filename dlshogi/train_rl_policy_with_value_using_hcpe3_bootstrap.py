@@ -2,15 +2,13 @@
 import torch
 import torch.optim as optim
 
-from dlshogi.common import *
 from dlshogi import serializers
 from dlshogi.swa import SWA
-
-from dlshogi import cppshogi
+from dlshogi.data_loader import Hcpe3DataLoader
+from dlshogi.data_loader import DataLoader
 
 import argparse
 import random
-import os
 
 import logging
 
@@ -29,10 +27,10 @@ parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
 parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
-parser.add_argument('--beta', type=float, default=0.001, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
+parser.add_argument('--use_swa', action='store_true')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
 parser.add_argument('--swa_lr', type=float)
@@ -54,7 +52,6 @@ logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
 logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
-logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 
 if args.gpu >= 0:
@@ -66,7 +63,10 @@ model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+if args.use_swa:
+    optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+else:
+    optimizer = base_optimizer
 def cross_entropy_loss_with_soft_target(pred, soft_targets):
     return torch.sum(-soft_targets * F.log_softmax(pred, dim=1), 1)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
@@ -92,17 +92,7 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-def load_teacher(files):
-    for path in files:
-        if os.path.exists(path):
-            logging.debug(path)
-            sum_len, len_ = cppshogi.load_hcpe3(path)
-            if len_ == 0:
-                raise RuntimeError('read error {}'.format(path))
-        else:
-            logging.debug('{} not found, skipping'.format(path))
-    return sum_len
-train_len = load_teacher(args.train_data)
+train_len = Hcpe3DataLoader.load_files(args.train_data)
 train_data = np.arange(train_len)
 logging.debug('read test data')
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
@@ -110,46 +100,12 @@ test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
-# mini batch
-def mini_batch(index):
-    features1 = np.empty((len(index), FEATURES1_NUM, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(index), FEATURES2_NUM, 9, 9), dtype=np.float32)
-    probability = np.empty((len(index), 9*9*MAX_MOVE_LABEL_NUM), dtype=np.float32)
-    result = np.empty((len(index), 1), dtype=np.float32)
-    value = np.empty((len(index), 1), dtype=np.float32)
-
-    cppshogi.hcpe3_decode_with_value(index, features1, features2, probability, result, value)
-
-    return (torch.tensor(features1).to(device),
-            torch.tensor(features2).to(device),
-            torch.tensor(probability).to(device),
-            torch.tensor(result).to(device),
-            torch.tensor(value).to(device)
-            )
-
-def test_mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
-    move = np.empty((len(hcpevec)), dtype=np.int64)
-    result = np.empty((len(hcpevec), 1), dtype=np.float32)
-    value = np.empty((len(hcpevec), 1), dtype=np.float32)
-
-    cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
-
-    z = result.astype(np.float32) - value + 0.5
-
-    return (torch.tensor(features1).to(device),
-            torch.tensor(features2).to(device),
-            torch.tensor(move).to(device),
-            torch.tensor(result).to(device),
-            torch.tensor(z).to(device),
-            torch.tensor(value).to(device)
-            )
+train_dataloader = Hcpe3DataLoader(train_data, args.batchsize, device, shuffle=True)
+test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for i in range(0, len(data) - batchsize + 1, batchsize):
-        x1, x2, t1, t2, value = mini_batch(data[i:i+batchsize])
+    for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -168,21 +124,18 @@ sum_loss3 = 0
 sum_loss = 0
 eval_interval = args.eval_interval
 for e in range(args.epoch):
-    np.random.shuffle(train_data)
-
     itr_epoch = 0
     sum_loss1_epoch = 0
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
-    for i in range(0, len(train_data) - args.batchsize + 1, args.batchsize):
+    for x1, x2, t1, t2, value in train_dataloader:
         if args.use_amp:
             amp_context = torch.cuda.amp.autocast()
             amp_context.__enter__()
 
         model.train()
 
-        x1, x2, t1, t2, value = mini_batch(train_data[i:i+args.batchsize])
         y1, y2 = model(x1, x2)
 
         model.zero_grad()
@@ -194,10 +147,15 @@ for e in range(args.epoch):
         if args.use_amp:
             amp_context.__exit__()
             scaler.scale(loss).backward()
+            if args.clip_grad_max_norm:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
+            if args.clip_grad_max_norm:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             optimizer.step()
 
         t += 1
@@ -216,7 +174,7 @@ for e in range(args.epoch):
         if t % eval_interval == 0:
             model.eval()
 
-            x1, x2, t1, t2, z, value = test_mini_batch(np.random.choice(test_data, args.testbatchsize))
+            x1, x2, t1, t2, z, value = test_dataloader.sample()
             with torch.no_grad():
                 y1, y2 = model(x1, x2)
 
@@ -236,13 +194,15 @@ for e in range(args.epoch):
             sum_loss3 = 0
             sum_loss = 0
 
-    optimizer.swap_swa_sgd()
+    if args.use_swa:
+        optimizer.swap_swa_sgd()
 
     if args.use_amp:
         amp_context = torch.cuda.amp.autocast()
         amp_context.__enter__()
 
-    optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+    if args.use_swa:
+        optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     if args.use_amp:
         amp_context.__exit__()
@@ -259,8 +219,7 @@ for e in range(args.epoch):
     sum_test_entropy2 = 0
     model.eval()
     with torch.no_grad():
-        for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
-            x1, x2, t1, t2, z, value = test_mini_batch(test_data[i:i+args.testbatchsize])
+        for x1, x2, t1, t2, z, value in test_dataloader:
             y1, y2 = model(x1, x2)
 
             itr_test += 1
@@ -293,8 +252,9 @@ for e in range(args.epoch):
 
     epoch += 1
 
-    if e != args.epoch - 1:
-        optimizer.swap_swa_sgd()
+    if args.use_swa:
+        if e != args.epoch - 1:
+            optimizer.swap_swa_sgd()
 
 print('save the model')
 serializers.save_npz(args.model, model)
