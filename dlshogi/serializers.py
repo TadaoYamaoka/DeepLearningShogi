@@ -2,10 +2,12 @@ import numpy as np
 from collections import OrderedDict
 import torch
 
-def load_npz(file, obj):
+def load_npz(file, obj, remove_aux=False):
     state_dict = OrderedDict()
     with np.load(file) as f:
         for key in f.keys():
+            if remove_aux and '_aux' in key:
+                continue
             names = key.split('/')
             if names[-1] == 'W':
                 names[-1] = 'weight'
