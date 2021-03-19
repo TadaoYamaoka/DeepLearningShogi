@@ -21,7 +21,7 @@ class Swish(nn.Module):
 k = 192
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, use_aux=False):
         super(PolicyValueNetwork, self).__init__()
         self.l1_1_1 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=k, kernel_size=3, padding=1, bias=False)
         self.l1_1_2 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=k, kernel_size=1, padding=0, bias=False)
@@ -53,8 +53,9 @@ class PolicyValueNetwork(nn.Module):
         self.l22_v = nn.Conv2d(in_channels=k, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
         self.l23_v = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.l24_v = nn.Linear(fcl, 1)
-        # sennichite, nyugyoku, jishogi
-        self.l24_aux = nn.Linear(fcl, 2)
+        # sennichite, nyugyoku
+        if use_aux:
+            self.l24_aux = nn.Linear(fcl, 2)
 
         self.norm1 = nn.BatchNorm2d(k)
         self.norm2 = nn.BatchNorm2d(k)
@@ -80,7 +81,7 @@ class PolicyValueNetwork(nn.Module):
         self.norm22_v = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
 
         self.swish = nn.SiLU()
-        self.use_aux = False
+        self.use_aux = use_aux
 
     def __call__(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)

@@ -2,15 +2,13 @@
 import torch
 import torch.optim as optim
 
-from dlshogi.common import *
 from dlshogi import serializers
 from dlshogi.swa import SWA
-
-from dlshogi import cppshogi
+from dlshogi.data_loader import Hcpe2DataLoader
+from dlshogi.data_loader import DataLoader
 
 import argparse
 import random
-import os
 
 import logging
 
@@ -28,11 +26,13 @@ parser.add_argument('--resume', '-r', default='', help='Resume the optimization 
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
+parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
 parser.add_argument('--beta', type=float, default=0.001, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--aux_ratio', type=float, default=0.1, help='auxiliary targets loss ratio')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
+parser.add_argument('--use_swa', action='store_true')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
 parser.add_argument('--swa_lr', type=float)
@@ -58,17 +58,18 @@ logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 
 if args.gpu >= 0:
-    torch.cuda.set_device(args.gpu)
-    device = torch.device("cuda")
+    device = torch.device(f"cuda:{args.gpu}")
 else:
     device = torch.device("cpu")
 
-model = PolicyValueNetwork()
-model.use_aux = True
+model = PolicyValueNetwork(use_aux=True)
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+if args.use_swa:
+    optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+else:
+    optimizer = base_optimizer
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
@@ -92,16 +93,7 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-def load_teacher(files):
-    data = []
-    for path in files:
-        if os.path.exists(path):
-            logging.debug(path)
-            data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval2))
-        else:
-            logging.debug('{} not found, skipping'.format(path))
-    return np.concatenate(data)
-train_data = load_teacher(args.train_data)
+train_data = Hcpe2DataLoader.load_files(args.train_data)
 logging.debug('read test data')
 logging.debug(args.test_data)
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
@@ -116,32 +108,12 @@ pos_weight = torch.tensor([
 logging.info('pos_weight = {}'.format(pos_weight))
 bce_with_logits_loss_aux = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-# mini batch
-def mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
-    move = np.empty((len(hcpevec)), dtype=np.int32)
-    result = np.empty((len(hcpevec), 1), dtype=np.float32)
-    aux = np.empty((len(hcpevec), 2), dtype=np.float32)
-    value = np.empty((len(hcpevec), 1), dtype=np.float32)
-
-    cppshogi.hcpe2_decode_with_value(hcpevec, features1, features2, move, result, aux, value)
-
-    z = result.astype(np.float32) - value + 0.5
-
-    return (torch.tensor(features1).to(device),
-            torch.tensor(features2).to(device),
-            torch.tensor(move.astype(np.int64)).to(device),
-            torch.tensor(result).to(device),
-            torch.tensor(aux).to(device),
-            torch.tensor(z).to(device),
-            torch.tensor(value).to(device)
-            )
+train_dataloader = Hcpe2DataLoader(train_data, args.batchsize, device, shuffle=True)
+test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for i in range(0, len(data) - batchsize + 1, batchsize):
-        x1, x2, t1, t2, t3, z, value = mini_batch(data[i:i+batchsize])
+    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -161,22 +133,19 @@ sum_loss4 = 0
 sum_loss = 0
 eval_interval = args.eval_interval
 for e in range(args.epoch):
-    np.random.shuffle(train_data)
-
     itr_epoch = 0
     sum_loss1_epoch = 0
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss4_epoch = 0
     sum_loss_epoch = 0
-    for i in range(0, len(train_data) - args.batchsize + 1, args.batchsize):
+    for x1, x2, t1, t2, t3, z, value in train_dataloader:
         if args.use_amp:
             amp_context = torch.cuda.amp.autocast()
             amp_context.__enter__()
 
         model.train()
 
-        x1, x2, t1, t2, t3, z, value = mini_batch(train_data[i:i+args.batchsize])
         y1, y2, y3 = model(x1, x2)
 
         model.zero_grad()
@@ -191,10 +160,15 @@ for e in range(args.epoch):
         if args.use_amp:
             amp_context.__exit__()
             scaler.scale(loss).backward()
+            if args.clip_grad_max_norm:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
+            if args.clip_grad_max_norm:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
             optimizer.step()
 
         t += 1
@@ -215,20 +189,19 @@ for e in range(args.epoch):
         if t % eval_interval == 0:
             model.eval()
 
-            x1, x2, t1, t2, t3, z, value = mini_batch(np.random.choice(test_data, args.testbatchsize))
+            x1, x2, t1, t2, z, value = test_dataloader.sample()
             with torch.no_grad():
-                y1, y2, y3 = model(x1, x2)
+                y1, y2, _ = model(x1, x2)
 
                 loss1 = (cross_entropy_loss(y1, t1) * z).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss4 = bce_with_logits_loss_aux(y3, t3)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + args.aux_ratio * loss4
+                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
+                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
                     epoch + 1, t,
-                    sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss4 / itr, sum_loss / itr,
-                    loss1.item(), loss2.item(), loss3.item(), loss4.item(), loss.item(),
+                    sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
+                    loss1.item(), loss2.item(), loss3.item(), loss.item(),
                     accuracy(y1, t1), binary_accuracy(y2, t2)))
             itr = 0
             sum_loss1 = 0
@@ -237,13 +210,15 @@ for e in range(args.epoch):
             sum_loss4 = 0
             sum_loss = 0
 
-    optimizer.swap_swa_sgd()
+    if args.use_swa:
+        optimizer.swap_swa_sgd()
 
     if args.use_amp:
         amp_context = torch.cuda.amp.autocast()
         amp_context.__enter__()
 
-    optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+    if args.use_swa:
+        optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     if args.use_amp:
         amp_context.__exit__()
@@ -253,7 +228,6 @@ for e in range(args.epoch):
     sum_test_loss1 = 0
     sum_test_loss2 = 0
     sum_test_loss3 = 0
-    sum_test_loss4 = 0
     sum_test_loss = 0
     sum_test_accuracy1 = 0
     sum_test_accuracy2 = 0
@@ -261,20 +235,17 @@ for e in range(args.epoch):
     sum_test_entropy2 = 0
     model.eval()
     with torch.no_grad():
-        for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
-            x1, x2, t1, t2, t3, z, value = mini_batch(test_data[i:i+args.testbatchsize])
-            y1, y2, y3 = model(x1, x2)
+        for x1, x2, t1, t2, z, value in test_dataloader:
+            y1, y2, _ = model(x1, x2)
 
             itr_test += 1
             loss1 = (cross_entropy_loss(y1, t1) * z).mean()
             loss2 = bce_with_logits_loss(y2, t2)
             loss3 = bce_with_logits_loss(y2, value)
-            loss4 = bce_with_logits_loss_aux(y3, t3)
-            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + args.aux_ratio * loss4
+            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
             sum_test_loss1 += loss1.item()
             sum_test_loss2 += loss2.item()
             sum_test_loss3 += loss3.item()
-            sum_test_loss4 += loss4.item()
             sum_test_loss += loss.item()
             sum_test_accuracy1 += accuracy(y1, t1)
             sum_test_accuracy2 += binary_accuracy(y2, t2)
@@ -288,17 +259,18 @@ for e in range(args.epoch):
             entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
             sum_test_entropy2 +=entropy2.mean().item()
 
-        logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test_loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
+        logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test_loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
             epoch + 1, t,
             sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss4_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
-            sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss4 / itr_test, sum_test_loss / itr_test,
+            sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss / itr_test,
             sum_test_accuracy1 / itr_test, sum_test_accuracy2 / itr_test,
             sum_test_entropy1 / itr_test, sum_test_entropy2 / itr_test))
 
     epoch += 1
 
-    if e != args.epoch - 1:
-        optimizer.swap_swa_sgd()
+    if args.use_swa:
+        if e != args.epoch - 1:
+            optimizer.swap_swa_sgd()
 
 print('save the model')
 serializers.save_npz(args.model, model)

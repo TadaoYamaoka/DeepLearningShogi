@@ -167,7 +167,7 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int* move = reinterpret_cast<int*>(ndmove.get_data());
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
 	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
