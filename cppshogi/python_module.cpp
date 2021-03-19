@@ -171,6 +171,7 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
 	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
