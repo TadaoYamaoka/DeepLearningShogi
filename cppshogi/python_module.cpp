@@ -263,6 +263,7 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
