@@ -82,7 +82,7 @@ class DataLoader:
 
         return result
 
-class Hcpe2DataLoader:
+class Hcpe2DataLoader(DataLoader):
     @staticmethod
     def load_files(files):
         data = []
@@ -131,34 +131,7 @@ class Hcpe2DataLoader:
                 self.torch_value.to(self.device)
                 )
 
-    def sample(self):
-        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
-
-    def pre_fetch(self):
-        hcpevec = self.data[self.i:self.i+self.batch_size]
-        if len(hcpevec) == 0:
-            return
-        self.i += self.batch_size
-
-        self.f = self.executor.submit(self.mini_batch, hcpevec)
-
-    def __iter__(self):
-        self.i = 0
-        if self.shuffle:
-            np.random.shuffle(self.data)
-        self.pre_fetch()
-        return self
-
-    def __next__(self):
-        if self.i >= len(self.data) - self.batch_size + 1:
-            raise StopIteration()
-
-        result = self.f.result()
-        self.pre_fetch()
-
-        return result
-
-class Hcpe3DataLoader:
+class Hcpe3DataLoader(DataLoader):
     @staticmethod
     def load_files(files):
         for path in files:
@@ -201,31 +174,3 @@ class Hcpe3DataLoader:
                 self.torch_result.to(self.device),
                 self.torch_value.to(self.device)
                 )
-
-    def sample(self):
-        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
-
-    def pre_fetch(self):
-        hcpevec = self.data[self.i:self.i+self.batch_size]
-        if len(hcpevec) == 0:
-            return
-        self.i += self.batch_size
-
-        self.f = self.executor.submit(self.mini_batch, hcpevec)
-
-    def __iter__(self):
-        self.i = 0
-        if self.shuffle:
-            np.random.shuffle(self.data)
-        self.pre_fetch()
-        return self
-
-    def __next__(self):
-        if self.i >= len(self.data) - self.batch_size + 1:
-            raise StopIteration()
-
-        result = self.f.result()
-        self.pre_fetch()
-
-        return result
-
