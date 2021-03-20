@@ -207,9 +207,11 @@ std::vector<TrainingData> trainingData;
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
 py::object load_hcpe3(std::string filepath) {
 	std::ifstream ifs(filepath, std::ifstream::binary);
-	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
+	if (!ifs) return py::make_tuple((int)trainingData.size(), 0, 0, 0);
 
 	int len = 0;
+	int sum_sennichite = 0;
+	int sum_nyugyoku = 0;
 
 	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval3 hcpe3;
@@ -244,6 +246,8 @@ py::object load_hcpe3(std::string filepath) {
 				);
 				ifs.read((char*)data.candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 				++len;
+				sum_sennichite += (int)is_sennichite(hcpe3.result);
+				sum_nyugyoku += (int)is_nyugyoku(hcpe3.result);
 			}
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
@@ -251,7 +255,7 @@ py::object load_hcpe3(std::string filepath) {
 		}
 	}
 
-	return py::make_tuple((int)trainingData.size(), len);
+	return py::make_tuple((int)trainingData.size(), len, sum_sennichite, sum_nyugyoku);
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
