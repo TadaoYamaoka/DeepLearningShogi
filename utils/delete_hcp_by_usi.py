@@ -53,6 +53,11 @@ for hcp in tqdm(hcps):
         delhcps[p] = hcp
         p += 1
         continue
+    # 王手がかかっている局面を除く
+    if board.is_check():
+        delhcps[p] = hcp
+        p += 1
+        continue
     engine.position(sfen=board.sfen())
     engine.go(nodes=args.nodes, listener=listener)
     m = ptn.search(listener.info1)
