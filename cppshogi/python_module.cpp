@@ -35,11 +35,13 @@ inline float make_result(const uint8_t result, const Position& position) {
 		return 0.0f;
 	}
 }
-inline float is_sennichite(const uint8_t result) {
-	return result & GAMERESULT_SENNICHITE ? 1.0f : 0.0f;
+template<typename T>
+inline T is_sennichite(const uint8_t result) {
+	return result & GAMERESULT_SENNICHITE ? 1 : 0;
 }
-inline float is_nyugyoku(const uint8_t result) {
-	return result & GAMERESULT_NYUGYOKU ? 1.0f : 0.0f;
+template<typename T>
+inline T is_nyugyoku(const uint8_t result) {
+	return result & GAMERESULT_NYUGYOKU ? 1 : 0;
 }
 
 /*
@@ -191,10 +193,10 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 		*result = make_result(hcpe->result, position);
 
 		// sennichite
-		(*aux)[0] = is_sennichite(hcpe->result);
+		(*aux)[0] = is_sennichite<float>(hcpe->result);
 
 		// nyugyoku
-		(*aux)[1] = is_nyugyoku(hcpe->result);
+		(*aux)[1] = is_nyugyoku<float>(hcpe->result);
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
@@ -246,8 +248,8 @@ py::object load_hcpe3(std::string filepath) {
 				);
 				ifs.read((char*)data.candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 				++len;
-				sum_sennichite += (int)is_sennichite(hcpe3.result);
-				sum_nyugyoku += (int)is_nyugyoku(hcpe3.result);
+				sum_sennichite += is_sennichite<int>(hcpe3.result);
+				sum_nyugyoku += is_nyugyoku<int>(hcpe3.result);
 			}
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
