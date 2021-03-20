@@ -4,7 +4,8 @@ import torch.optim as optim
 
 from dlshogi import serializers
 from dlshogi.swa import SWA
-from dlshogi.data_loader import Hcpe2DataLoader
+from dlshogi.data_loader import Hcpe3AuxDataLoader
+from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.data_loader import DataLoader
 
 import argparse
@@ -27,7 +28,6 @@ parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
 parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
-parser.add_argument('--beta', type=float, default=0.001, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--aux_ratio', type=float, default=0.1, help='auxiliary targets loss ratio')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
@@ -54,7 +54,6 @@ logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
 logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
-logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 logging.info('aux_ratio={}'.format(args.aux_ratio))
 
@@ -71,6 +70,8 @@ if args.use_swa:
     optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
 else:
     optimizer = base_optimizer
+def cross_entropy_loss_with_soft_target(pred, soft_targets):
+    return torch.sum(-soft_targets * F.log_softmax(pred, dim=1), 1)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
@@ -94,27 +95,27 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-train_data = Hcpe2DataLoader.load_files(args.train_data)
+train_len, train_sennichite_len, train_nyugyoku_len = Hcpe3AuxDataLoader.load_files(args.train_data)
+train_data = np.arange(train_len)
 logging.debug('read test data')
-logging.debug(args.test_data)
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
 pos_weight = torch.tensor([
-    len(train_data) / (train_data['result'] // 4 & 1).sum(), # sennichite
-    len(train_data) / (train_data['result'] // 8 & 1).sum(), # nyugyoku
+    train_len / train_sennichite_len, # sennichite
+    train_len / train_nyugyoku_len, # nyugyoku
     ], dtype=torch.float32, device=device)
 logging.info('pos_weight = {}'.format(pos_weight))
 bce_with_logits_loss_aux = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-train_dataloader = Hcpe2DataLoader(train_data, args.batchsize, device, shuffle=True)
+train_dataloader = Hcpe3AuxDataLoader(train_data, args.batchsize, device, shuffle=True)
 test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize, device):
+    for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -140,7 +141,7 @@ for e in range(args.epoch):
     sum_loss3_epoch = 0
     sum_loss4_epoch = 0
     sum_loss_epoch = 0
-    for x1, x2, t1, t2, z, value, aux in train_dataloader:
+    for x1, x2, t1, t2, value, aux in train_dataloader:
         if args.use_amp:
             amp_context = torch.cuda.amp.autocast()
             amp_context.__enter__()
@@ -150,9 +151,7 @@ for e in range(args.epoch):
         y1, y2, y3 = model(x1, x2)
 
         model.zero_grad()
-        loss1 = (cross_entropy_loss(y1, t1) * z).mean()
-        if args.beta > 0:
-            loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
+        loss1 = cross_entropy_loss_with_soft_target(y1, t1).mean()
         loss2 = bce_with_logits_loss(y2, t2)
         loss3 = bce_with_logits_loss(y2, value)
         loss4 = bce_with_logits_loss_aux(y3, aux)

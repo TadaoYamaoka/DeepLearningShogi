@@ -164,15 +164,15 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
-void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndaux, np::ndarray ndvalue) {
+void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue, np::ndarray ndaux) {
 	const int len = (int)ndhcpe2.shape(0);
 	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
-	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
+	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
 	ReleaseGIL unlock = ReleaseGIL();
 
 	// set all zero
@@ -192,14 +192,14 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 		// game result
 		*result = make_result(hcpe->result, position);
 
+		// eval
+		*value = score_to_value((Score)hcpe->eval);
+
 		// sennichite
 		(*aux)[0] = is_sennichite<float>(hcpe->result);
 
 		// nyugyoku
 		(*aux)[1] = is_nyugyoku<float>(hcpe->result);
-
-		// eval
-		*value = score_to_value((Score)hcpe->eval);
 	}
 }
 
@@ -301,6 +301,54 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 	}
 }
 
+// 補助タスクあり
+void hcpe3_decode_with_value_and_aux(np::ndarray ndindex, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndprobability, np::ndarray ndresult, np::ndarray ndvalue, np::ndarray ndaux) {
+	const size_t len = (size_t)ndindex.shape(0);
+	int* index = reinterpret_cast<int*>(ndindex.get_data());
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
+	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
+	float* result = reinterpret_cast<float*>(ndresult.get_data());
+	float* value = reinterpret_cast<float*>(ndvalue.get_data());
+	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
+	ReleaseGIL unlock = ReleaseGIL();
+
+	// set all zero
+	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
+	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
+
+	Position position;
+	for (int i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++, aux++) {
+		auto& hcpe3 = trainingData[*index];
+
+		position.set(hcpe3.hcp);
+
+		// input features
+		make_input_features(position, features1, features2);
+
+		// move probability
+		const float sum_visitNum = (float)std::accumulate(hcpe3.candidates.begin(), hcpe3.candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
+		for (size_t j = 0; j < hcpe3.candidates.size(); j++) {
+			auto label = make_move_label(hcpe3.candidates[j].move16, position.turn());
+			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
+			(*probability)[label] = (float)hcpe3.candidates[j].visitNum / sum_visitNum;
+		}
+
+		// game result
+		*result = make_result(hcpe3.result, position);
+
+		// eval
+		*value = score_to_value((Score)hcpe3.eval);
+
+		// sennichite
+		(*aux)[0] = is_sennichite<float>(hcpe3.result);
+
+		// nyugyoku
+		(*aux)[1] = is_nyugyoku<float>(hcpe3.result);
+	}
+}
+
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
 	np::initialize();
@@ -316,4 +364,5 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe2_decode_with_value", hcpe2_decode_with_value);
 	py::def("load_hcpe3", load_hcpe3);
 	py::def("hcpe3_decode_with_value", hcpe3_decode_with_value);
+	py::def("hcpe3_decode_with_value_and_aux", hcpe3_decode_with_value_and_aux);
 }
