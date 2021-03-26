@@ -1396,7 +1396,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1411,7 +1410,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1419,11 +1417,10 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				mask_rest = _mm256_set_epi32(0, 0, 0, 0, 0, 0, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, 0, 0, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1434,7 +1431,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1442,19 +1438,17 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				if (uct_child[i + 2].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 2].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 2;
 				}
 				mask_rest = _mm256_set_epi32(0, 0, 0, 0, 0, -1, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, 0, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1465,7 +1459,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1473,27 +1466,24 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				if (uct_child[i + 2].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 2].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 2;
 				}
 				if (uct_child[i + 3].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 3].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 3;
 				}
 				mask_rest = _mm256_set_epi32(0, 0, 0, 0, -1, -1, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1504,7 +1494,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1512,35 +1501,31 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				if (uct_child[i + 2].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 2].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 2;
 				}
 				if (uct_child[i + 3].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 3].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 3;
 				}
 				if (uct_child[i + 4].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 4].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 4;
 				}
 				mask_rest = _mm256_set_epi32(0, 0, 0, -1, -1, -1, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, 0, 0, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1551,7 +1536,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1559,43 +1543,38 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				if (uct_child[i + 2].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 2].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 2;
 				}
 				if (uct_child[i + 3].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 3].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 3;
 				}
 				if (uct_child[i + 4].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 4].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 4;
 				}
 				if (uct_child[i + 5].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 5].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 5;
 				}
 				mask_rest = _mm256_set_epi32(0, 0, -1, -1, -1, -1, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, 0, uct_child[i + 5].move_count, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1606,7 +1585,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				// 詰みチェック
 				if (uct_child[i].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
@@ -1614,51 +1592,45 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 				}
 				if (uct_child[i + 1].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 1].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 1;
 				}
 				if (uct_child[i + 2].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 2].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 2;
 				}
 				if (uct_child[i + 3].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 3].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 3;
 				}
 				if (uct_child[i + 4].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 4].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 4;
 				}
 				if (uct_child[i + 5].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 5].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 5;
 				}
 				if (uct_child[i + 6].IsWin()) {
 					child_win_count++;
-					continue;
 				}
 				else if (uct_child[i + 6].IsLose()) {
 					if (parent != nullptr) parent->SetWin();
-					return i;
+					return i + 6;
 				}
 				mask_rest = _mm256_set_epi32(0, -1, -1, -1, -1, -1, -1, -1);
 				m256i_move_count = _mm256_set_epi32(0, uct_child[i + 6].move_count, uct_child[i + 5].move_count, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
@@ -1704,7 +1676,6 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		// 詰みチェック
 		if (uct_child[i].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
@@ -1712,59 +1683,52 @@ int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		}
 		if (uct_child[i + 1].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 1].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 1;
 		}
 		if (uct_child[i + 2].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 2].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 2;
 		}
 		if (uct_child[i + 3].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 3].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 3;
 		}
 		if (uct_child[i + 4].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 4].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 4;
 		}
 		if (uct_child[i + 5].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 5].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 5;
 		}
 		if (uct_child[i + 6].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 6].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 6;
 		}
 		if (uct_child[i + 7].IsWin()) {
 			child_win_count++;
-			continue;
 		}
 		else if (uct_child[i + 7].IsLose()) {
 			if (parent != nullptr) parent->SetWin();
-			return i;
+			return i + 7;
 		}
 
 		//if (move_count == 0) {
