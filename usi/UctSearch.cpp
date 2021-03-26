@@ -1345,18 +1345,24 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 /////////////////////////////////////////////////////
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
-int
-UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
+#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) && defined(_WIN64)
+inline unsigned int __builtin_ctz(unsigned int x) { unsigned long r; _BitScanForward(&r, x); return r; }
+#endif
+
+const __m256i m256i_zero{};
+const __m256i m256i_one = _mm256_set1_epi32(1);
+const __m256 m256_one = _mm256_set1_ps(1);
+const __m256i m256i_eight = _mm256_set1_epi32(8);
+
+int UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 {
-	const child_node_t *uct_child = current->child.get();
+	const child_node_t* uct_child = current->child.get();
 	const int child_num = current->child_num;
+	int child_win_count = 0;
+
 	int max_child = 0;
 	const int sum = current->move_count;
 	const WinType sum_win = current->win;
-	float q, u, max_value;
-	int child_win_count = 0;
-
-	max_value = -FLT_MAX;
 
 	const float sqrt_sum = sqrtf(sum);
 	const float c = parent == nullptr ?
@@ -1366,43 +1372,445 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
+	__m256 m256_c = _mm256_broadcast_ss(&c);
+	__m256 m256_parent_q = _mm256_broadcast_ss(&parent_q);
+	__m256 m256_init_u = _mm256_broadcast_ss(&init_u);
+	__m256 m256_sqrt_sum = _mm256_broadcast_ss(&sqrt_sum);
+
 	// UCB値最大の手を求める
-	for (int i = 0; i < child_num; i++) {
+	__m256 vmaxvalue = _mm256_set1_ps(-FLT_MAX);
+	__m256i vnowposition = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
+	__m256i vmaxposition = vnowposition;
+	for (int i = 0; i < child_num; i += 8) {
+		// const WinType win = uct_child[i].win;
+		// const int move_count = uct_child[i].move_count;
+
+		if (i + 8 > child_num) {
+			// 残り8未満
+			__m256i mask_rest;
+			__m256i m256i_move_count;
+			__m256 m256_win;
+			__m256 m256_rate;
+			switch (child_num - i) {
+			case 1:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, 0, 0, 0, 0, 0, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, 0, 0, 0, 0, 0, uct_child[i].nnrate);
+				break;
+			case 2:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, 0, 0, 0, 0, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, 0, 0, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, 0, 0, 0, 0, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, 0, 0, 0, 0, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			case 3:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 2].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 2].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, 0, 0, 0, -1, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, 0, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, 0, 0, 0, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, 0, 0, 0, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			case 4:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 2].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 2].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 3].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 3].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, 0, 0, -1, -1, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, 0, 0, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, 0, 0, uct_child[i + 3].win, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, 0, 0, uct_child[i + 3].nnrate, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			case 5:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 2].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 2].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 3].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 3].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 4].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 4].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, 0, -1, -1, -1, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, 0, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, 0, uct_child[i + 4].win, uct_child[i + 3].win, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, 0, uct_child[i + 4].nnrate, uct_child[i + 3].nnrate, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			case 6:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 2].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 2].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 3].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 3].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 4].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 4].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 5].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 5].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, 0, -1, -1, -1, -1, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, 0, uct_child[i + 5].move_count, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, 0, uct_child[i + 5].win, uct_child[i + 4].win, uct_child[i + 3].win, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, 0, uct_child[i + 5].nnrate, uct_child[i + 4].nnrate, uct_child[i + 3].nnrate, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			case 7:
+				// 詰みチェック
+				if (uct_child[i].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 1].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 1].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 2].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 2].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 3].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 3].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 4].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 4].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 5].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 5].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				if (uct_child[i + 6].IsWin()) {
+					child_win_count++;
+					continue;
+				}
+				else if (uct_child[i + 6].IsLose()) {
+					if (parent != nullptr) parent->SetWin();
+					return i;
+				}
+				mask_rest = _mm256_set_epi32(0, -1, -1, -1, -1, -1, -1, -1);
+				m256i_move_count = _mm256_set_epi32(0, uct_child[i + 6].move_count, uct_child[i + 5].move_count, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+				m256_win = _mm256_set_ps(0, uct_child[i + 6].win, uct_child[i + 5].win, uct_child[i + 4].win, uct_child[i + 3].win, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+				m256_rate = _mm256_set_ps(0, uct_child[i + 6].nnrate, uct_child[i + 5].nnrate, uct_child[i + 4].nnrate, uct_child[i + 3].nnrate, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
+				break;
+			default:
+				// unreachable
+				mask_rest = _mm256_set1_epi32(0);
+				break;
+			}
+			__m256i mask = _mm256_cmpgt_epi32(m256i_move_count, m256i_zero);
+
+			//	q = (float)(win / move_count);
+			__m256 m256_move_count = _mm256_cvtepi32_ps(m256i_move_count);
+
+			__m256 m256_q_tmp = _mm256_div_ps(m256_win, m256_move_count);
+			__m256 m256_q = _mm256_blendv_ps(m256_parent_q, m256_q_tmp, _mm256_castsi256_ps(mask));
+
+			//	u = sqrt_sum / (1 + move_count);
+			__m256 m256_move_count_plus1 = _mm256_add_ps(m256_move_count, m256_one);
+
+			__m256 m256_u_tmp = _mm256_div_ps(m256_sqrt_sum, m256_move_count_plus1);
+			__m256 m256_u = _mm256_blendv_ps(m256_init_u, m256_u_tmp, _mm256_castsi256_ps(mask));
+
+			//const float ucb_value = q + c * u * rate;
+			__m256 m256_ucb_value = _mm256_mul_ps(m256_c, m256_u);
+			m256_ucb_value = _mm256_mul_ps(m256_ucb_value, m256_rate);
+			m256_ucb_value = _mm256_add_ps(m256_q, m256_ucb_value);
+
+			// mask
+			m256_ucb_value = _mm256_and_ps(m256_ucb_value, _mm256_castsi256_ps(mask_rest));
+
+			// find max
+			__m256 vcmp = _mm256_cmp_ps(m256_ucb_value, vmaxvalue, _CMP_GT_OS);
+			vmaxvalue = _mm256_max_ps(m256_ucb_value, vmaxvalue);
+			vmaxposition = _mm256_blendv_epi8(vmaxposition, vnowposition, _mm256_castps_si256(vcmp));
+			vnowposition = _mm256_add_epi32(vnowposition, m256i_eight);
+
+			break;
+		}
+
+		// 詰みチェック
 		if (uct_child[i].IsWin()) {
 			child_win_count++;
-			// 負けが確定しているノードは選択しない
 			continue;
 		}
 		else if (uct_child[i].IsLose()) {
-			// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-			if (parent != nullptr)
-				parent->SetWin();
-			// 勝ちが確定しているため、選択する
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 1].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 1].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 2].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 2].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 3].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 3].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 4].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 4].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 5].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 5].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 6].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 6].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
+			return i;
+		}
+		if (uct_child[i + 7].IsWin()) {
+			child_win_count++;
+			continue;
+		}
+		else if (uct_child[i + 7].IsLose()) {
+			if (parent != nullptr) parent->SetWin();
 			return i;
 		}
 
-		const WinType win = uct_child[i].win;
-		const int move_count = uct_child[i].move_count;
+		//if (move_count == 0) {
+		__m256i m256i_move_count = m256i_move_count = _mm256_set_epi32(uct_child[i + 7].move_count, uct_child[i + 6].move_count, uct_child[i + 5].move_count, uct_child[i + 4].move_count, uct_child[i + 3].move_count, uct_child[i + 2].move_count, uct_child[i + 1].move_count, uct_child[i].move_count);
+		__m256i mask = _mm256_cmpgt_epi32(m256i_move_count, m256i_zero);
 
-		if (move_count == 0) {
-			// 未探索のノードの価値に、親ノードの価値を使用する
-			q = parent_q;
-			u = init_u;
-		}
-		else {
-			q = (float)(win / move_count);
-			u = sqrt_sum / (1 + move_count);
-		}
+		//	// 未探索のノードの価値に、親ノードの価値を使用する
+		//	q = parent_q;
+		//	u = init_u;
+		//  --> 下記のelseの計算結果と合わせて_mm256_blendv_psで設定する
+		//}
+		//else {
+		//	q = (float)(win / move_count);
+		__m256 m256_win = _mm256_set_ps(uct_child[i + 7].win, uct_child[i + 6].win, uct_child[i + 5].win, uct_child[i + 4].win, uct_child[i + 3].win, uct_child[i + 2].win, uct_child[i + 1].win, uct_child[i].win);
+		__m256 m256_move_count = _mm256_cvtepi32_ps(m256i_move_count);
+		__m256 m256_q_tmp = _mm256_div_ps(m256_win, m256_move_count);
+		__m256 m256_q = _mm256_blendv_ps(m256_parent_q, m256_q_tmp, _mm256_castsi256_ps(mask));
 
-		const float rate = uct_child[i].nnrate;
+		//	u = sqrt_sum / (1 + move_count);
+		__m256 m256_move_count_plus1 = _mm256_add_ps(m256_move_count, m256_one);
+		__m256 m256_u_tmp = _mm256_div_ps(m256_sqrt_sum, m256_move_count_plus1);
+		__m256 m256_u = _mm256_blendv_ps(m256_init_u, m256_u_tmp, _mm256_castsi256_ps(mask));
+		//}
 
-		const float ucb_value = q + c * u * rate;
+		//const float rate = uct_child[i].nnrate;
+		__m256 m256_rate = _mm256_set_ps(uct_child[i + 7].nnrate, uct_child[i + 6].nnrate, uct_child[i + 5].nnrate, uct_child[i + 4].nnrate, uct_child[i + 3].nnrate, uct_child[i + 2].nnrate, uct_child[i + 1].nnrate, uct_child[i].nnrate);
 
-		if (ucb_value > max_value) {
-			max_value = ucb_value;
-			max_child = i;
-		}
+		//const float ucb_value = q + c * u * rate;
+		__m256 m256_ucb_value = _mm256_mul_ps(m256_c, m256_u);
+		m256_ucb_value = _mm256_mul_ps(m256_ucb_value, m256_rate);
+		m256_ucb_value = _mm256_add_ps(m256_q, m256_ucb_value);
+
+		// find max
+		__m256 vcmp = _mm256_cmp_ps(m256_ucb_value, vmaxvalue, _CMP_GT_OS);
+		vmaxvalue = _mm256_max_ps(m256_ucb_value, vmaxvalue);
+		vmaxposition = _mm256_blendv_epi8(vmaxposition, vnowposition, _mm256_castps_si256(vcmp));
+		vnowposition = _mm256_add_epi32(vnowposition, m256i_eight);
 	}
+	// find max
+	const int* maxposition = (int*)&vmaxposition;
+	__m256 vallmax = _mm256_max_ps(vmaxvalue, _mm256_shuffle_ps(vmaxvalue, vmaxvalue, 0xb1));
+	vallmax = _mm256_max_ps(vallmax, _mm256_shuffle_ps(vallmax, vallmax, 0x4e));
+	vallmax = _mm256_max_ps(vallmax, _mm256_permute2f128_ps(vallmax, vallmax, 0x01));
+	__m256 vcmp = _mm256_cmp_ps(vallmax, vmaxvalue, _CMP_EQ_US);
+	int mask = _mm256_movemask_ps(vcmp);
+	max_child = maxposition[__builtin_ctz(mask)];
 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
