@@ -1445,7 +1445,7 @@ int main(int argc, char* argv[]) {
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
 			("out_max_move", "output the max move game", cxxopts::value<bool>(OUT_MAX_MOVE)->default_value("false"))
 			("root_noise", "add noise to the policy prior at the root", cxxopts::value<int>(ROOT_NOISE)->default_value("3"), "per mille")
-			("threashold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
+			("threshold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
 			("mate_depth", "mate search depth", cxxopts::value<uint32_t>(ROOT_MATE_SEARCH_DEPTH)->default_value("0"), "depth")
 			("mate_nodes", "mate search max nodes", cxxopts::value<int64_t>(MATE_SEARCH_MAX_NODE)->default_value("100000"), "nodes")
 			("c_init", "UCT parameter c_init", cxxopts::value<float>(c_init)->default_value("1.49"), "val")
@@ -1521,7 +1521,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (WINRATE_THRESHOLD <= 0) {
-		cerr << "too few threashold" << endl;
+		cerr << "too few threshold" << endl;
 		return 0;
 	}
 	if (MATE_SEARCH_MAX_NODE < MATE_SEARCH_MIN_NODE) {
@@ -1562,7 +1562,7 @@ int main(int argc, char* argv[]) {
 	logger->info("max_move:{}", MAX_MOVE);
 	logger->info("out_max_move:{}", OUT_MAX_MOVE);
 	logger->info("root_noise:{}", ROOT_NOISE);
-	logger->info("threashold:{}", WINRATE_THRESHOLD);
+	logger->info("threshold:{}", WINRATE_THRESHOLD);
 	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
