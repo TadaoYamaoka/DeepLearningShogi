@@ -36,11 +36,11 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
             # hcp
             if i >= limit_moves:
                 if kachi_moves and kachi and i <= kachi_moves:
-                    board.to_hcp(hcps[i:i+1])
+                    board.to_hcp(np.asarray(hcps[i]))
                 else:
                     break
             else:
-                board.to_hcp(hcps[i:i+1])
+                board.to_hcp(np.asarray(hcps[i]))
 
             board.push(move)
 
@@ -48,9 +48,9 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
             continue
 
         # write data
-        hcps[:i].tofile(f)
+        hcps[:i+1].tofile(f)
 
-        num_positions += i
+        num_positions += i+1
         num_games += 1
 
     return num_games, num_positions

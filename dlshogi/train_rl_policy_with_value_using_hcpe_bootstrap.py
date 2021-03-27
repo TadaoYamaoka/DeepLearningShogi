@@ -11,6 +11,7 @@ from dlshogi import cppshogi
 import argparse
 import random
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import logging
 
@@ -58,8 +59,7 @@ logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 
 if args.gpu >= 0:
-    torch.cuda.set_device(args.gpu)
-    device = torch.device("cuda")
+    device = torch.device(f"cuda:{args.gpu}")
 else:
     device = torch.device("cpu")
 
@@ -108,30 +108,74 @@ test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
-# mini batch
-def mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
-    move = np.empty((len(hcpevec)), dtype=np.int32)
-    result = np.empty((len(hcpevec)), dtype=np.float32)
-    value = np.empty((len(hcpevec)), dtype=np.float32)
+class DataLoader:
+    def __init__(self, data, batch_size, shuffle=False):
+        self.data = data
+        self.batch_size = batch_size
+        self.shuffle = shuffle
 
-    cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
+        self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
+        self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
+        self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
+        self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
 
-    z = result.astype(np.float32) - value + 0.5
+        self.features1 = self.torch_features1.numpy()
+        self.features2 = self.torch_features2.numpy()
+        self.move = self.torch_move.numpy()
+        self.result = self.torch_result.numpy().reshape(-1)
+        self.value = self.torch_value.numpy().reshape(-1)
 
-    return (torch.tensor(features1).to(device),
-            torch.tensor(features2).to(device),
-            torch.tensor(move.astype(np.int64)).to(device),
-            torch.tensor(result.reshape((len(hcpevec), 1))).to(device),
-            torch.tensor(z).to(device),
-            torch.tensor(value.reshape((len(value), 1))).to(device)
-            )
+        self.i = 0
+        self.executor = ThreadPoolExecutor(max_workers=1)
+
+    def mini_batch(self, hcpevec):
+        cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
+
+        z = self.result - self.value + 0.5
+
+        return (self.torch_features1.to(device),
+                self.torch_features2.to(device),
+                self.torch_move.to(device),
+                self.torch_result.to(device),
+                torch.tensor(z).to(device),
+                self.torch_value.to(device)
+                )
+
+    def sample(self):
+        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
+
+    def pre_fetch(self):
+        hcpevec = self.data[self.i:self.i+self.batch_size]
+        if len(hcpevec) == 0:
+            return
+        self.i += self.batch_size
+
+        self.f = self.executor.submit(self.mini_batch, hcpevec)
+
+    def __iter__(self):
+        self.i = 0
+        if self.shuffle:
+            np.random.shuffle(self.data)
+        self.pre_fetch()
+        return self
+
+    def __next__(self):
+        if self.i >= len(self.data) - self.batch_size + 1:
+            raise StopIteration()
+
+        result = self.f.result()
+        self.pre_fetch()
+
+        return result
+
+
+train_dataloader = DataLoader(train_data, args.batchsize, shuffle=True)
+test_dataloader = DataLoader(test_data, args.testbatchsize)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for i in range(0, len(data) - batchsize + 1, batchsize):
-        x1, x2, t1, t2, z, value = mini_batch(data[i:i+batchsize])
+    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize):
         yield x1, x2
 
 def accuracy(y, t):
@@ -150,21 +194,18 @@ sum_loss3 = 0
 sum_loss = 0
 eval_interval = args.eval_interval
 for e in range(args.epoch):
-    np.random.shuffle(train_data)
-
     itr_epoch = 0
     sum_loss1_epoch = 0
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
-    for i in range(0, len(train_data) - args.batchsize + 1, args.batchsize):
+    for x1, x2, t1, t2, z, value in train_dataloader:
         if args.use_amp:
             amp_context = torch.cuda.amp.autocast()
             amp_context.__enter__()
 
         model.train()
 
-        x1, x2, t1, t2, z, value = mini_batch(train_data[i:i+args.batchsize])
         y1, y2 = model(x1, x2)
 
         model.zero_grad()
@@ -205,7 +246,7 @@ for e in range(args.epoch):
         if t % eval_interval == 0:
             model.eval()
 
-            x1, x2, t1, t2, z, value = mini_batch(np.random.choice(test_data, args.testbatchsize))
+            x1, x2, t1, t2, z, value = test_dataloader.sample()
             with torch.no_grad():
                 y1, y2 = model(x1, x2)
 
@@ -248,8 +289,7 @@ for e in range(args.epoch):
     sum_test_entropy2 = 0
     model.eval()
     with torch.no_grad():
-        for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
-            x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
+        for x1, x2, t1, t2, z, value in test_dataloader:
             y1, y2 = model(x1, x2)
 
             itr_test += 1
