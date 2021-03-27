@@ -185,6 +185,9 @@ typedef pair<uct_node_t*, unsigned int> trajectory_t;
 typedef vector<trajectory_t> trajectories_t;
 
 struct visitor_t {
+	visitor_t() {
+		trajectories.reserve(64);
+	}
 	trajectories_t trajectories;
 	float value_win;
 };
@@ -1049,8 +1052,9 @@ UCTSearcher::ParallelUctSearch()
 	}
 
 	// 探索経路のバッチ
-	vector<visitor_t> visitor_batch;
-	vector<trajectories_t> trajectories_batch_discarded;
+	vector<visitor_t> visitor_pool(policy_value_batch_maxsize);
+	vector<visitor_t*> visitor_batch;
+	vector<trajectories_t*> trajectories_batch_discarded;
 	visitor_batch.reserve(policy_value_batch_maxsize);
 	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
@@ -1066,8 +1070,8 @@ UCTSearcher::ParallelUctSearch()
 			Position pos(*pos_root);
 			
 			// 1回プレイアウトする
-			visitor_batch.emplace_back();
-			const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
+			visitor_pool[i].trajectories.clear();
+			const float result = UctSearch(&pos, nullptr, current_root, visitor_pool[i]);
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
@@ -1075,12 +1079,14 @@ UCTSearcher::ParallelUctSearch()
 			}
 			else {
 				// 破棄した探索経路を保存
-				trajectories_batch_discarded.emplace_back(std::move(visitor_batch.back().trajectories));
+				trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
 			}
 
-			// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			if (result == DISCARDED || result != QUEUING) {
-				visitor_batch.pop_back();
+				// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
+			}
+			else {
+				visitor_batch.emplace_back(&visitor_pool[i]);
 			}
 		}
 
@@ -1088,9 +1094,9 @@ UCTSearcher::ParallelUctSearch()
 		EvalNode();
 
 		// 破棄した探索経路のVirtual Lossを戻す
-		for (auto& trajectories : trajectories_batch_discarded) {
-			for (int i = trajectories.size() - 1; i >= 0; i--) {
-				auto& current_next = trajectories[i];
+		for (auto trajectories : trajectories_batch_discarded) {
+			for (int i = trajectories->size() - 1; i >= 0; i--) {
+				auto& current_next = trajectories->at(i);
 				uct_node_t* current = current_next.first;
 				child_node_t* uct_child = current->child.get();
 				const unsigned int next_index = current_next.second;
@@ -1100,8 +1106,8 @@ UCTSearcher::ParallelUctSearch()
 
 		// バックアップ
 		for (auto& visitor : visitor_batch) {
-			auto& trajectories = visitor.trajectories;
-			float result = 1.0f - visitor.value_win;
+			auto& trajectories = visitor->trajectories;
+			float result = 1.0f - visitor->value_win;
 			for (int i = trajectories.size() - 1; i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
