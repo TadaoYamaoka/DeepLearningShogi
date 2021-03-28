@@ -1360,8 +1360,6 @@ int main(int argc, char* argv[]) {
 	cxxopts::Options options("make_hcpe_by_self_play");
 	options.positional_help("modelfile hcp output nodes playout_num gpu_id batchsize [gpu_id batchsize]*");
 	try {
-		std::string file;
-
 		options.add_options()
 			("modelfile", "model file path", cxxopts::value<std::string>(model_path))
 			("hcp", "initial position file", cxxopts::value<std::string>(recordFileName))
