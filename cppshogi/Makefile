@@ -1,5 +1,5 @@
 ﻿# change here if you are using anaconda
-PYTHON_PREFIX=/usr
+PYTHON_PREFIX=$(CONDA_PREFIX)
 
 CC = g++
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2 -fPIC

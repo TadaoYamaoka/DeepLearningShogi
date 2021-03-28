@@ -2,7 +2,7 @@
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DMATE_SEARCH_DEPTH=5 -DLEARN -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -lz -flto -lboost_system
 INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include -I$(CONDA_PREFIX)/include
-LIB = -L/usr/local/cuda-10.2/lib64 -L$(CONDA_PREFIX)/lib
+LIB = -L/usr/local/cuda-11.0/lib64 -L$(CONDA_PREFIX)/lib
 
 target = bin/make_hcpe_by_self_play
 sources = self_play.cpp Node.cpp USIEngine.cpp
