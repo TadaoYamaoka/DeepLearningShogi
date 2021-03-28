@@ -29,6 +29,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="benchmark.py" />
+    <Compile Include="build_onnx.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="csa_to_roots_hcp.py" />
     <Compile Include="csa_to_hcp.py">
       <SubType>Code</SubType>
