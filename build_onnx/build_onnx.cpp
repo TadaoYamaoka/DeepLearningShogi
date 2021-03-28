@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 #include "cxxopts/cxxopts.hpp"
 
@@ -33,7 +34,13 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	NNTensorRT nn(onnx_path.c_str(), gpu_id, batchsize);
+	try {
+		NNTensorRT nn(onnx_path.c_str(), gpu_id, batchsize);
+	}
+	catch (std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
+		return 1;
+	}
 
 	return 0;
 }
