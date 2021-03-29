@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
 	}
 
 	try {
+		cudaSetDevice(gpu_id);
 		NNTensorRT nn(onnx_path.c_str(), gpu_id, batchsize);
 	}
 	catch (std::runtime_error& e) {
