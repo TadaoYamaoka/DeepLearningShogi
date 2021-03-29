@@ -72,7 +72,7 @@ cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
     logging.info('use amp')
-    scaler = torch.cuda.amp.GradScaler()
+scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
 # Init/Resume
 if args.initmodel:
@@ -200,35 +200,25 @@ for e in range(args.epoch):
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
     for x1, x2, t1, t2, z, value in train_dataloader:
-        if args.use_amp:
-            amp_context = torch.cuda.amp.autocast()
-            amp_context.__enter__()
+        with torch.cuda.amp.autocast(enabled=args.use_amp):
+            model.train()
 
-        model.train()
+            y1, y2 = model(x1, x2)
 
-        y1, y2 = model(x1, x2)
+            model.zero_grad()
+            loss1 = (cross_entropy_loss(y1, t1) * z).mean()
+            if args.beta > 0:
+                loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
+            loss2 = bce_with_logits_loss(y2, t2)
+            loss3 = bce_with_logits_loss(y2, value)
+            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-        model.zero_grad()
-        loss1 = (cross_entropy_loss(y1, t1) * z).mean()
-        if args.beta > 0:
-            loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
-        loss2 = bce_with_logits_loss(y2, t2)
-        loss3 = bce_with_logits_loss(y2, value)
-        loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
-
-        if args.use_amp:
-            amp_context.__exit__()
-            scaler.scale(loss).backward()
-            if args.clip_grad_max_norm:
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            loss.backward()
-            if args.clip_grad_max_norm:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
-            optimizer.step()
+        scaler.scale(loss).backward()
+        if args.clip_grad_max_norm:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
+        scaler.step(optimizer)
+        scaler.update()
 
         t += 1
         itr += 1
@@ -268,14 +258,8 @@ for e in range(args.epoch):
 
     optimizer.swap_swa_sgd()
 
-    if args.use_amp:
-        amp_context = torch.cuda.amp.autocast()
-        amp_context.__enter__()
-
-    optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
-
-    if args.use_amp:
-        amp_context.__exit__()
+    with torch.cuda.amp.autocast(enabled=args.use_amp):
+        optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     # print train loss for each epoch
     itr_test = 0
