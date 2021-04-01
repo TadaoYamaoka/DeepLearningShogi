@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>aoba_to_hcpe3.py</StartupFile>
+    <StartupFile>split_hcpe3.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,7 +13,7 @@
     <Name>utils</Name>
     <RootNamespace>utils</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\b r:\hcpe3 --out_maxmove</CommandLineArguments>
+    <CommandLineArguments>R:\selfplay-446_org.hcpe3 -n 1000000 --opponent 0</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -40,6 +40,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="delete_hcp_by_usi.py" />
+    <Compile Include="split_hcpe3.py" />
     <Compile Include="hcpe3_to_hcpe.py" />
     <Compile Include="hcpe3_to_csa.py">
       <SubType>Code</SubType>
