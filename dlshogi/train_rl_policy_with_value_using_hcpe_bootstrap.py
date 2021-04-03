@@ -147,9 +147,9 @@ class DataLoader:
 
     def pre_fetch(self):
         hcpevec = self.data[self.i:self.i+self.batch_size]
-        if len(hcpevec) == 0:
-            return
         self.i += self.batch_size
+        if len(hcpevec) < self.batch_size:
+            return
 
         self.f = self.executor.submit(self.mini_batch, hcpevec)
 
@@ -161,7 +161,7 @@ class DataLoader:
         return self
 
     def __next__(self):
-        if self.i >= len(self.data) - self.batch_size + 1:
+        if self.i > len(self.data):
             raise StopIteration()
 
         result = self.f.result()
