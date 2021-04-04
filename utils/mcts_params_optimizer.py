@@ -11,6 +11,7 @@ parser.add_argument('command1')
 parser.add_argument('command2')
 parser.add_argument('--options1', default='')
 parser.add_argument('--options2', default='')
+parser.add_argument('--study_name', default='mcts_params_optimizer')
 parser.add_argument('--storage')
 parser.add_argument('--trials', type=int, default=100)
 parser.add_argument('--n_warmup_steps', type=int, default=30)
@@ -101,7 +102,7 @@ def objective(trial):
     return -callback.win_rate
 
 if args.storage:
-    study = load_study(study_name='mcts_params_optimizer', storage=args.storage, pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
+    study = load_study(study_name=args.study_name, storage=args.storage, pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
 else:
     study = create_study(pruner=MedianPruner(n_warmup_steps=args.n_warmup_steps))
 study.optimize(objective, n_trials=args.trials)
