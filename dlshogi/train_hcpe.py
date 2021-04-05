@@ -2,16 +2,12 @@
 import torch
 import torch.optim as optim
 
-from dlshogi.common import *
 from dlshogi import serializers
 from dlshogi.swa import SWA
-
-from dlshogi import cppshogi
+from dlshogi.data_loader import DataLoader
 
 import argparse
 import random
-import os
-from concurrent.futures import ThreadPoolExecutor
 
 import logging
 
@@ -34,6 +30,7 @@ parser.add_argument('--beta', type=float, default=0.001, help='entropy regulariz
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
+parser.add_argument('--use_swa', action='store_true')
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
 parser.add_argument('--swa_lr', type=float)
@@ -67,7 +64,10 @@ model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
-optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+if args.use_swa:
+    optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+else:
+    optimizer = base_optimizer
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
 if args.use_amp:
@@ -91,16 +91,7 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-def load_teacher(files):
-    data = []
-    for path in files:
-        if os.path.exists(path):
-            logging.debug(path)
-            data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval))
-        else:
-            logging.debug('{} not found, skipping'.format(path))
-    return np.concatenate(data)
-train_data = load_teacher(args.train_data)
+train_data = DataLoader.load_files(args.train_data)
 logging.debug('read test data')
 logging.debug(args.test_data)
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
@@ -108,74 +99,12 @@ test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 
-class DataLoader:
-    def __init__(self, data, batch_size, shuffle=False):
-        self.data = data
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-
-        self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
-        self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-
-        self.features1 = self.torch_features1.numpy()
-        self.features2 = self.torch_features2.numpy()
-        self.move = self.torch_move.numpy()
-        self.result = self.torch_result.numpy().reshape(-1)
-        self.value = self.torch_value.numpy().reshape(-1)
-
-        self.i = 0
-        self.executor = ThreadPoolExecutor(max_workers=1)
-
-    def mini_batch(self, hcpevec):
-        cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
-
-        z = self.result - self.value + 0.5
-
-        return (self.torch_features1.to(device),
-                self.torch_features2.to(device),
-                self.torch_move.to(device),
-                self.torch_result.to(device),
-                torch.tensor(z).to(device),
-                self.torch_value.to(device)
-                )
-
-    def sample(self):
-        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
-
-    def pre_fetch(self):
-        hcpevec = self.data[self.i:self.i+self.batch_size]
-        self.i += self.batch_size
-        if len(hcpevec) < self.batch_size:
-            return
-
-        self.f = self.executor.submit(self.mini_batch, hcpevec)
-
-    def __iter__(self):
-        self.i = 0
-        if self.shuffle:
-            np.random.shuffle(self.data)
-        self.pre_fetch()
-        return self
-
-    def __next__(self):
-        if self.i > len(self.data):
-            raise StopIteration()
-
-        result = self.f.result()
-        self.pre_fetch()
-
-        return result
-
-
-train_dataloader = DataLoader(train_data, args.batchsize, shuffle=True)
-test_dataloader = DataLoader(test_data, args.testbatchsize)
+train_dataloader = DataLoader(train_data, args.batchsize, device, shuffle=True)
+test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize):
+    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -256,10 +185,11 @@ for e in range(args.epoch):
             sum_loss3 = 0
             sum_loss = 0
 
-    optimizer.swap_swa_sgd()
+    if args.use_swa:
+        optimizer.swap_swa_sgd()
 
-    with torch.cuda.amp.autocast(enabled=args.use_amp):
-        optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+        with torch.cuda.amp.autocast(enabled=args.use_amp):
+            optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
     # print train loss for each epoch
     itr_test = 0
@@ -306,8 +236,9 @@ for e in range(args.epoch):
 
     epoch += 1
 
-    if e != args.epoch - 1:
-        optimizer.swap_swa_sgd()
+    if args.use_swa:
+        if e != args.epoch - 1:
+            optimizer.swap_swa_sgd()
 
 print('save the model')
 serializers.save_npz(args.model, model)
