@@ -4,8 +4,7 @@ import torch.optim as optim
 
 from dlshogi.common import *
 from dlshogi import serializers
-
-from dlshogi import cppshogi
+from dlshogi.data_loader import DataLoader
 
 import argparse
 import random
@@ -58,25 +57,7 @@ test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 
 logging.info('test position num = {}'.format(len(test_data)))
 
-# mini batch
-def mini_batch(hcpevec):
-    features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
-    features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
-    move = np.empty((len(hcpevec)), dtype=np.int32)
-    result = np.empty((len(hcpevec)), dtype=np.float32)
-    value = np.empty((len(hcpevec)), dtype=np.float32)
-
-    cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
-
-    z = result.astype(np.float32) - value + 0.5
-
-    return (torch.tensor(features1).to(device),
-            torch.tensor(features2).to(device),
-            torch.tensor(move.astype(np.int64)).to(device),
-            torch.tensor(result.reshape((len(hcpevec), 1))).to(device),
-            torch.tensor(z).to(device),
-            torch.tensor(value.reshape((len(value), 1))).to(device)
-            )
+test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 def accuracy(y, t):
     return (torch.max(y, 1)[1] == t).sum().item() / len(t)
@@ -97,8 +78,7 @@ sum_test_entropy1 = 0
 sum_test_entropy2 = 0
 model.eval()
 with torch.no_grad():
-    for i in range(0, len(test_data) - args.testbatchsize, args.testbatchsize):
-        x1, x2, t1, t2, z, value = mini_batch(test_data[i:i+args.testbatchsize])
+    for x1, x2, t1, t2, z, value in test_dataloader:
         y1, y2 = model(x1, x2)
 
         itr_test += 1
