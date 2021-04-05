@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_rl_policy_with_value_using_hcpe_bootstrap.py</StartupFile>
+    <StartupFile>train_hcpe.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -44,7 +44,7 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="train_rl_policy_with_value_using_hcpe_bootstrap.py" />
+    <Compile Include="train_hcpe.py" />
     <Compile Include="policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
