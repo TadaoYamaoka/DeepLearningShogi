@@ -20,6 +20,8 @@ parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--max_turn', type=int, default=320)
 parser.add_argument('--opening')
 parser.add_argument('--name')
+parser.add_argument('--init_params', default='C_init:144,C_base:28288,C_fpu_reduction:27,C_init_root:116,C_base_root:25617,Softmax_Temperature:174')
+parser.add_argument('--suggest_params', default='C_init:100~200,C_base:20000~50000,C_fpu_reduction:0~40,C_init_root:100~200,C_base_root:20000~50000,Softmax_Temperature:100~200')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
@@ -40,34 +42,23 @@ for i, kvs in enumerate([options.split(',') for options in (args.options1, args.
         options_list[i][kv[0]] = kv[1]
 
 def objective(trial):
-    if trial.number == 0:
-        C_init = trial.suggest_int('C_init', 144, 144)
-        C_base = trial.suggest_int('C_base', 28288, 28288)
-        C_fpu_reduction = trial.suggest_int('C_fpu_reduction', 27, 27)
-        C_init_root = trial.suggest_int('C_init_root', 116, 116)
-        C_base_root = trial.suggest_int('C_base_root', 25617, 25617)
-        C_fpu_reduction_root = trial.suggest_int('C_fpu_reduction_root', 0, 0)
-        Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 174, 174)
-    else:
-        C_init = trial.suggest_int('C_init', 100, 200)
-        C_base = trial.suggest_int('C_base', 20000, 50000)
-        C_fpu_reduction = trial.suggest_int('C_fpu_reduction', 0, 40)
-        C_init_root = trial.suggest_int('C_init_root', 100, 200)
-        C_base_root = trial.suggest_int('C_base_root', 20000, 50000)
-        C_fpu_reduction_root = trial.suggest_int('C_fpu_reduction_root', 0, 0)
-        Softmax_Temperature = trial.suggest_int('Softmax_Temperature', 100, 200)
+    params = {}
+    for k, v in [kv.split(':') for kv in args.suggest_params.split(',')]:
+        params[k] = [int(x) for x in v.split('~')]
 
-    print('Trial {} start. C_init = {}, C_base = {}, C_fpu_reduction = {}, C_init_root = {}, C_base_root = {}, C_fpu_reduction_root = {}, Softmax_Temperature = {}'.format(
-        trial.number, C_init, C_base, C_fpu_reduction, C_init_root, C_base_root, C_fpu_reduction_root, Softmax_Temperature))
+    if trial.number == 0 and args.init_params:
+        for k, v in [kv.split(':') for kv in args.init_params.split(',')]:
+            params[k] = [int(v)] * 2
+
+    suggested = {}
+    for k, v in params.items():
+        suggested[k] = trial.suggest_int(k, v[0], v[1])
+
+    print('Trial {} start. params = {}'.format(trial.number, str(suggested)))
 
     options1, options2 = options_list
-    options1['C_init'] = C_init
-    options1['C_base'] = C_base
-    options1['C_fpu_reduction'] = C_fpu_reduction
-    options1['C_init_root'] = C_init_root
-    options1['C_base_root'] = C_base_root
-    options1['C_fpu_reduction_root'] = C_fpu_reduction_root
-    options1['Softmax_Temperature'] = Softmax_Temperature
+    for k, v in suggested.items():
+        options1[k] = v
 
     class Callback:
         def __init__(self):
