@@ -70,7 +70,7 @@ for filepath in csa_file_list:
         hcpe['moveNum'] = move_num
         hcpe.tofile(f)
         for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
-            assert board.is_pseudo_legal(move)
+            assert board.is_legal(move)
             move_info['eval'] = score if board.turn == BLACK else -score
             move_info['selectedMove16'] = move16(move)
             move_info.tofile(f)
