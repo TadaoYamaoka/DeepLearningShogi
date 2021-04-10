@@ -36,10 +36,10 @@ filter_rating = args.filter_rating
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
 hcpe = np.zeros(1, HuffmanCodedPosAndEval3)
-move_info = np.empty(1, MoveInfo)
-move_info['candidateNum'] = 1
-move_visits = np.empty(1, MoveVisits)
-move_visits['visitNum'] = 1
+move_info_vec = np.empty(513, MoveInfo)
+move_info_vec['candidateNum'] = 1
+move_visits_vec = np.empty(513, MoveVisits)
+move_visits_vec['visitNum'] = 1
 
 f = open(args.hcpe3, 'wb')
 
@@ -48,17 +48,22 @@ kif_num = 0
 position_num = 0
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
-        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%CHUDAN') or len(kif.moves) < filter_moves:
+        endgame = kif.endgame
+        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
 
+        # 評価値がない棋譜は除く
+        if len(kif.moves) != len(kif.scores):
+            continue
+
         hcpe['result'] = kif.win
-        if kif.endgame == '%SENNICHITE':
+        if endgame == '%SENNICHITE':
             hcpe['result'] += 4
-        elif kif.endgame == '%KACHI':
+        elif endgame == '%KACHI':
             hcpe['result'] += 8
-        elif kif.endgame == '%CHUDAN':
+        elif endgame == '%JISHOGI':
             if not args.out_maxmove:
                 continue
             hcpe['result'] += 16
@@ -67,25 +72,33 @@ for filepath in csa_file_list:
         board.to_hcp(hcpe['hcp'])
         move_num = len(kif.moves)
         hcpe['moveNum'] = move_num
-        move_info_list = []
         try:
             for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
                 assert board.is_legal(move)
+                move_info = move_info_vec[i]
+                move_visits = move_visits_vec[i]
+
+                assert abs(score) <= 100000
+                score = min(32767, max(score, -32767))
                 move_info['eval'] = score if board.turn == BLACK else -score
                 move_info['selectedMove16'] = move16(move)
                 move_visits['move16'] = move16(move)
-                move_info_list.append((move_info, move_visits))
                 board.push(move)
         except:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
 
+        # 評価値がない棋譜は除く
+        if (move_info_vec[:move_num]['eval'] == 0).sum() >= move_num // 2:
+            continue
+
+        assert move_num == i + 1
         hcpe.tofile(f)
-        for move_info, move_visits in move_info_list:
+        for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
             move_info.tofile(f)
             move_visits.tofile(f)
         kif_num += 1
-        position_num += len(move_info_list)
+        position_num += move_num
 
 print('kif_num', kif_num)
 print('position_num', position_num)
