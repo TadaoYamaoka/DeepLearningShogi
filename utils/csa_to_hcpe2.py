@@ -3,8 +3,6 @@ from cshogi import CSA
 import numpy as np
 import os
 import glob
-import math
-import random
 import argparse
 
 HuffmanCodedPosAndEval2 = np.dtype([
@@ -15,76 +13,65 @@ HuffmanCodedPosAndEval2 = np.dtype([
     ('dummy', np.uint8),
     ])
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
-parser.add_argument('out_train')
-parser.add_argument('out_test')
+parser.add_argument('hcpe')
+parser.add_argument('--out_maxmove', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
-parser.add_argument('--filter_rating', type=int, default=3000)
-parser.add_argument('--start_moves', type=int, default=30)
-parser.add_argument('--test_ratio', type=float, default=0.1)
+parser.add_argument('--filter_rating', type=int, default=3500)
 args = parser.parse_args()
 
-start_moves = args.start_moves
+filter_moves = args.filter_moves
+filter_rating = args.filter_rating
 
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
-random.shuffle(csa_file_list)
-train_num = int(len(csa_file_list) * (1 - args.test_ratio))
-csa_file_list_train = csa_file_list[:train_num]
-csa_file_list_test = csa_file_list[train_num:]
+hcpes = np.zeros(513, HuffmanCodedPosAndEval2)
 
-def make_hcpe2(csa_file_list, out):
-    hcpes = np.zeros(len(csa_file_list)*256, HuffmanCodedPosAndEval2)
+f = open(args.hcpe, 'wb')
 
-    board = Board()
-    kif_num = 0
-    p = 0
-    for filepath in csa_file_list:
-        kif = CSA.Parser.parse_file(filepath)[0]
+board = Board()
+kif_num = 0
+position_num = 0
+for filepath in csa_file_list:
+    for kif in CSA.Parser.parse_file(filepath):
         endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI') and len(kif.moves) < 256 or len(kif.moves) < args.filter_moves:
+        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
-        if args.filter_rating > 0 and (kif.ratings[0] < args.filter_rating and kif.ratings[1] < args.filter_rating):
+        if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
+
+        if endgame == '%JISHOGI':
+            if not args.out_maxmove:
+                continue
 
         board.set_sfen(kif.sfen)
-        start_p = p
         try:
             for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
                 assert board.is_legal(move)
-
-                if i <= start_moves:
-                    board.push(move)
-                    continue
-
-                if board.is_draw() and endgame == '%SENNICHITE':
-                    break
-
-                hcpe = hcpes[p]
+                hcpe = hcpes[i]
                 board.to_hcp(hcpe['hcp'])
+                assert abs(score) <= 100000
+                score = min(32767, max(score, -32767))
                 hcpe['eval'] = score if board.turn == BLACK else -score
                 hcpe['bestMove16'] = move16(move)
                 hcpe['result'] = kif.win
-                p += 1
                 board.push(move)
         except:
-            print("skip {}:{}:{}:{}".format(filepath, i, move_to_usi(move), score))
+            print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
 
         if endgame == '%SENNICHITE':
-            hcpes[start_p:p]['result'] += 4
+            hcpes[:i + 1]['result'] += 4
         elif endgame == '%KACHI':
-            hcpes[start_p:p]['result'] += 8
-        elif len(kif.moves) == 256:
-            hcpes[start_p:p]['result'] += 16
+            hcpes[:i + 1]['result'] += 8
+        elif endgame == '%JISHOGI':
+            hcpes[:i + 1]['result'] += 16
+
+        hcpes[:i + 1].tofile(f)
 
         kif_num += 1
-    hcpes[:p].tofile(out)
+        position_num += i + 1
 
-    print('kif_num', kif_num)
-    print('position_num', p)
-
-make_hcpe2(csa_file_list_train, args.out_train)
-make_hcpe2(csa_file_list_test, args.out_test)
+print('kif_num', kif_num)
+print('position_num', position_num)
