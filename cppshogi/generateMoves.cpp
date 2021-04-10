@@ -503,7 +503,7 @@ namespace {
 	// 王手が掛かっていないときの指し手生成
 	// これには、玉が相手駒の利きのある地点に移動する自殺手と、pin されている駒を動かす自殺手を含む。
 	// ここで生成した手は pseudo legal
-	template <Color US> struct GenerateMoves<NonEvasion, US> {
+	template <Color US, bool ALL> struct GenerateMoves<NonEvasion, US, ALL> {
 		/*FORCE_INLINE*/ ExtMove* operator () (ExtMove* moveList, const Position& pos) {
 			Bitboard target = pos.emptyBB();
 
@@ -511,14 +511,14 @@ namespace {
 			target |= pos.bbOf(oppositeColor(US));
 			const Square ksq = pos.kingSquare(oppositeColor(US));
 
-			moveList = GeneratePieceMoves<NonEvasion, Pawn           , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Lance          , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Knight         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Silver         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Bishop         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Rook           , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, GoldHorseDragon, US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, King           , US, false>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Pawn           , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Lance          , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Knight         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Silver         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Bishop         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Rook           , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, GoldHorseDragon, US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, King           , US, ALL>()(moveList, pos, target, ksq);
 
 			return moveList;
 		}
@@ -533,7 +533,7 @@ namespace {
 			const Bitboard pinned = pos.pinnedBB();
 
 			moveList = pos.inCheck() ?
-				GenerateMoves<Evasion, US>()(moveList, pos) : GenerateMoves<NonEvasion, US>()(moveList, pos);
+				GenerateMoves<Evasion, US, false>()(moveList, pos) : GenerateMoves<NonEvasion, US, false>()(moveList, pos);
 
 			// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
@@ -555,7 +555,7 @@ namespace {
 			const Bitboard pinned = pos.pinnedBB();
 
 			moveList = pos.inCheck() ?
-				GenerateMoves<Evasion, US, true>()(moveList, pos) : GenerateMoves<NonEvasion, US>()(moveList, pos);
+				GenerateMoves<Evasion, US, true>()(moveList, pos) : GenerateMoves<NonEvasion, US, true>()(moveList, pos);
 
 			// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
