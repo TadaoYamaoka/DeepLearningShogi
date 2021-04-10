@@ -48,28 +48,30 @@ def make_hcpe2(csa_file_list, out):
             continue
         if args.filter_rating > 0 and (kif.ratings[0] < args.filter_rating and kif.ratings[1] < args.filter_rating):
             continue
-        kif_num += 1
 
         board.set_sfen(kif.sfen)
         start_p = p
-        for i, move in enumerate(kif.moves):
-            if not board.is_legal(move):
-                print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
-                break
+        try:
+            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+                assert board.is_legal(move)
 
-            if i <= start_moves:
+                if i <= start_moves:
+                    board.push(move)
+                    continue
+
+                if board.is_draw() and endgame == '%SENNICHITE':
+                    break
+
+                hcpe = hcpes[p]
+                board.to_hcp(hcpe['hcp'])
+                hcpe['eval'] = score if board.turn == BLACK else -score
+                hcpe['bestMove16'] = move16(move)
+                hcpe['result'] = kif.win
+                p += 1
                 board.push(move)
-                continue
-
-            if board.is_draw() and endgame == '%SENNICHITE':
-                break
-
-            hcpe = hcpes[p]
-            board.to_hcp(hcpe['hcp'])
-            hcpe['bestMove16'] = move16(move)
-            hcpe['result'] = kif.win
-            p += 1
-            board.push(move)
+        except:
+            print("skip {}:{}:{}:{}".format(filepath, i, move_to_usi(move), score))
+            continue
 
         if endgame == '%SENNICHITE':
             hcpes[start_p:p]['result'] += 4
@@ -78,6 +80,7 @@ def make_hcpe2(csa_file_list, out):
         elif len(kif.moves) == 256:
             hcpes[start_p:p]['result'] += 16
 
+        kif_num += 1
     hcpes[:p].tofile(out)
 
     print('kif_num', kif_num)
