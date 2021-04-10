@@ -63,21 +63,29 @@ for filepath in csa_file_list:
                 continue
             hcpe['result'] += 16
 
-        kif_num += 1
         board.set_sfen(kif.sfen)
         board.to_hcp(hcpe['hcp'])
         move_num = len(kif.moves)
         hcpe['moveNum'] = move_num
+        move_info_list = []
+        try:
+            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+                assert board.is_legal(move)
+                move_info['eval'] = score if board.turn == BLACK else -score
+                move_info['selectedMove16'] = move16(move)
+                move_visits['move16'] = move16(move)
+                move_info_list.append((move_info, move_visits))
+                board.push(move)
+        except:
+            print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
+            continue
+
         hcpe.tofile(f)
-        for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
-            assert board.is_legal(move)
-            move_info['eval'] = score if board.turn == BLACK else -score
-            move_info['selectedMove16'] = move16(move)
+        for move_info, move_visits in move_info_list:
             move_info.tofile(f)
-            move_visits['move16'] = move16(move)
             move_visits.tofile(f)
-            position_num += 1
-            board.push(move)
+        kif_num += 1
+        position_num += len(move_info_list)
 
 print('kif_num', kif_num)
 print('position_num', position_num)
