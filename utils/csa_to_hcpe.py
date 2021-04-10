@@ -32,6 +32,10 @@ for filepath in csa_file_list:
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
 
+        # 評価値がない棋譜は除く
+        if len(kif.moves) != len(kif.scores):
+            continue
+
         if kif.endgame == '%JISHOGI':
             if not args.out_maxmove:
                 continue
@@ -52,10 +56,17 @@ for filepath in csa_file_list:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
 
-        hcpes[:i + 1].tofile(f)
+        move_num = len(kif.moves)
+        assert move_num == i + 1
+
+        # 評価値がない棋譜は除く
+        if (hcpes[:move_num]['eval'] == 0).sum() >= move_num // 2:
+            continue
+
+        hcpes[:move_num].tofile(f)
 
         kif_num += 1
-        position_num += i + 1
+        position_num += move_num
 
 print('kif_num', kif_num)
 print('position_num', position_num)
