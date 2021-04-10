@@ -189,9 +189,9 @@ for e in range(args.epoch):
                 loss3 = bce_with_logits_loss(y2, value)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
+                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
                     epoch + 1, t,
-                    sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
+                    sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss4 / itr, sum_loss / itr,
                     loss1.item(), loss2.item(), loss3.item(), loss.item(),
                     accuracy(y1, t1), binary_accuracy(y2, t2)))
             itr = 0
