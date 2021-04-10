@@ -42,6 +42,8 @@ for filepath in csa_file_list:
                 assert board.is_legal(move)
                 hcpe = hcpes[i]
                 board.to_hcp(hcpe['hcp'])
+                assert abs(score) <= 100000
+                score = min(32767, max(score, -32767))
                 hcpe['eval'] = score if board.turn == BLACK else -score
                 hcpe['bestMove16'] = move16(move)
                 hcpe['gameResult'] = kif.win
