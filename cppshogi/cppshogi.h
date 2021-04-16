@@ -96,14 +96,14 @@ struct MoveVisits {
 static_assert(sizeof(MoveVisits) == 4, "");
 
 struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const s16 eval, const u16 selectedMove16, const u8 result, const size_t size)
-		: hcp(hcp), eval(eval), selectedMove16(selectedMove16), result(result), candidates(size) {};
+	TrainingData(const HuffmanCodedPos& hcp, const s16 eval, const float result)
+		: hcp(hcp), eval(eval), result(result), count(1) {};
 
 	HuffmanCodedPos hcp;
-	s16 eval;
-	u16 selectedMove16;
-	u8 result;
-	std::vector<MoveVisits> candidates;
+	int eval;
+	float result;
+	std::map<u16, float> candidates;
+	int count; // 重複カウント
 };
 
 constexpr u8 GAMERESULT_SENNICHITE = 0x4;

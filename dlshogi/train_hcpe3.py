@@ -92,11 +92,12 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-train_len = Hcpe3DataLoader.load_files(args.train_data)
+train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data)
 train_data = np.arange(train_len)
 logging.debug('read test data')
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 
+logging.info('train position num befor preprocessing = {}'.format(actual_len))
 logging.info('train position num = {}'.format(len(train_data)))
 logging.info('test position num = {}'.format(len(test_data)))
 

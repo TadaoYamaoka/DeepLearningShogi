@@ -204,6 +204,8 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 }
 
 std::vector<TrainingData> trainingData;
+// 重複チェック用 局面に対応するtrainingDataのインデックスを保持
+std::map<Key, int> duplicates;
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
@@ -212,8 +214,7 @@ py::object load_hcpe3(std::string filepath) {
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0, 0, 0);
 
 	int len = 0;
-	int sum_sennichite = 0;
-	int sum_nyugyoku = 0;
+	std::vector<MoveVisits> candidates;
 
 	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval3 hcpe3;
@@ -239,17 +240,35 @@ py::object load_hcpe3(std::string filepath) {
 
 			// candidateNum==0の手は読み飛ばす
 			if (moveInfo.candidateNum > 0) {
-				auto& data = trainingData.emplace_back(
-					pos.toHuffmanCodedPos(),
-					moveInfo.eval,
-					moveInfo.selectedMove16,
-					hcpe3.result,
-					moveInfo.candidateNum
-				);
-				ifs.read((char*)data.candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+				candidates.resize(moveInfo.candidateNum);
+				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+				const float sum_visitNum = (float)std::accumulate(candidates.begin(), candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
+
+				const auto key = pos.getKey();
+				const auto itr = duplicates.find(key);
+				if (itr == duplicates.end()) {
+					duplicates[key] = trainingData.size();
+					auto& data = trainingData.emplace_back(
+						pos.toHuffmanCodedPos(),
+						moveInfo.eval,
+						make_result(hcpe3.result, pos)
+					);
+					for (auto& moveVisits : candidates) {
+						data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+					}
+				}
+				else {
+					// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
+					auto& data = trainingData[itr->second];
+					data.eval += moveInfo.eval;
+					data.result += make_result(hcpe3.result, pos);
+					for (auto& moveVisits : candidates) {
+						data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
+					}
+					data.count++;
+
+				}
 				++len;
-				sum_sennichite += is_sennichite<int>(hcpe3.result);
-				sum_nyugyoku += is_nyugyoku<int>(hcpe3.result);
 			}
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
@@ -257,10 +276,11 @@ py::object load_hcpe3(std::string filepath) {
 		}
 	}
 
-	return py::make_tuple((int)trainingData.size(), len, sum_sennichite, sum_nyugyoku);
+	return py::make_tuple((int)trainingData.size(), len);
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
+// 重複データは平均化する
 void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndprobability, np::ndarray ndresult, np::ndarray ndvalue) {
 	const size_t len = (size_t)ndindex.shape(0);
 	int* index = reinterpret_cast<int*>(ndindex.get_data());
@@ -286,66 +306,17 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 		make_input_features(position, features1, features2);
 
 		// move probability
-		const float sum_visitNum = (float)std::accumulate(hcpe3.candidates.begin(), hcpe3.candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
-		for (size_t j = 0; j < hcpe3.candidates.size(); j++) {
-			auto label = make_move_label(hcpe3.candidates[j].move16, position.turn());
+		for (const auto kv : hcpe3.candidates) {
+			const auto label = make_move_label(kv.first, position.turn());
 			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
-			(*probability)[label] = (float)hcpe3.candidates[j].visitNum / sum_visitNum;
+			(*probability)[label] = kv.second / hcpe3.count;
 		}
 
 		// game result
-		*result = make_result(hcpe3.result, position);
+		*result = hcpe3.result / hcpe3.count;
 
 		// eval
-		*value = score_to_value((Score)hcpe3.eval);
-	}
-}
-
-// 補助タスクあり
-void hcpe3_decode_with_value_and_aux(np::ndarray ndindex, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndprobability, np::ndarray ndresult, np::ndarray ndvalue, np::ndarray ndaux) {
-	const size_t len = (size_t)ndindex.shape(0);
-	int* index = reinterpret_cast<int*>(ndindex.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
-	float* result = reinterpret_cast<float*>(ndresult.get_data());
-	float* value = reinterpret_cast<float*>(ndvalue.get_data());
-	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
-
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
-
-	Position position;
-	for (int i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++, aux++) {
-		auto& hcpe3 = trainingData[*index];
-
-		position.set(hcpe3.hcp);
-
-		// input features
-		make_input_features(position, features1, features2);
-
-		// move probability
-		const float sum_visitNum = (float)std::accumulate(hcpe3.candidates.begin(), hcpe3.candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
-		for (size_t j = 0; j < hcpe3.candidates.size(); j++) {
-			auto label = make_move_label(hcpe3.candidates[j].move16, position.turn());
-			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
-			(*probability)[label] = (float)hcpe3.candidates[j].visitNum / sum_visitNum;
-		}
-
-		// game result
-		*result = make_result(hcpe3.result, position);
-
-		// eval
-		*value = score_to_value((Score)hcpe3.eval);
-
-		// sennichite
-		(*aux)[0] = is_sennichite<float>(hcpe3.result);
-
-		// nyugyoku
-		(*aux)[1] = is_nyugyoku<float>(hcpe3.result);
+		*value = score_to_value((Score)(hcpe3.eval / hcpe3.count));
 	}
 }
 
@@ -364,5 +335,4 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe2_decode_with_value", hcpe2_decode_with_value);
 	py::def("load_hcpe3", load_hcpe3);
 	py::def("hcpe3_decode_with_value", hcpe3_decode_with_value);
-	py::def("hcpe3_decode_with_value_and_aux", hcpe3_decode_with_value_and_aux);
 }
