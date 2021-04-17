@@ -258,7 +258,7 @@ FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
 		return true;
 
 	// 桂馬による王手
-	if (move.pieceTypeTo() == Lance)
+	if (move.pieceTypeTo() == Knight)
 		return true;
 
 	return false;

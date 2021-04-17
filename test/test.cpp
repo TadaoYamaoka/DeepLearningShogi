@@ -278,7 +278,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -567,5 +567,47 @@ int main(int argc, char* argv[]) {
 	std::cout << mate << std::endl;
 
 	return 0;
+}
+#endif
+
+#if 1
+#include "dfpn.h"
+// DfPnで不正な手を返すバグ
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(150000);
+	dfpn.set_maxdepth(27);
+
+	Position pos;
+
+	vector<string> sfens = {
+		"3B2p1p/l5g2/6np1/p2RpS2k/1pp1gbsP1/P1n3g1l/LP3+p2L/K4p3/1NR3N2 b GS2Ps4p 137", // 1b1bを返す
+	};
+
+	auto start0 = std::chrono::system_clock::now();
+	auto total = start0 - start0;
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		auto start = std::chrono::system_clock::now();
+		bool ret = dfpn.dfpn(pos);
+		auto end = std::chrono::system_clock::now();
+
+		const auto move = dfpn.dfpn_move(pos);
+
+		auto time = end - start;
+		total += time;
+
+		auto time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
+
+		cout << ret << "\t" << move.value() << "\t" << move.toUSI() << "\t";
+		cout << time_ns / 1000000.0 << endl;
+	}
+	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
+	cout << total_ns / 1000000.0 << endl;
 }
 #endif
