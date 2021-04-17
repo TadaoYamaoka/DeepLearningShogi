@@ -47,7 +47,6 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="train_hcpe3_with_aux.py" />
     <Compile Include="train_hcpe3.py" />
     <Compile Include="train_hcpe2.py" />
     <Compile Include="train_hcpe.py" />
