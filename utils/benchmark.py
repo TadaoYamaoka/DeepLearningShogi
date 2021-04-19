@@ -2,12 +2,13 @@ from cshogi.usi import Engine
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument('engine')
+parser.add_argument('model')
 parser.add_argument('--gpus', type=int, default=1)
 parser.add_argument('--threads', type=int, default=2)
 parser.add_argument('--nodelimit', type=int, default=10000000)
 parser.add_argument('--batch', type=int, default=128)
-parser.add_argument('--engine', default=r'H:\src\DeepLearningShogi\x64\Release\usi.exe')
-parser.add_argument('--model', default=r'F:\model\model_rl_val_fused_wideresnet10_selfplay_179')
+parser.add_argument('--options')
 args = parser.parse_args()
 
 engine = Engine(args.engine, debug=True)
@@ -22,6 +23,10 @@ engine.setoption('ReuseSubtree', 'false')
 engine.setoption('UCT_Threads', str(args.threads))
 for i in range(2, args.gpus + 1):
     engine.setoption('UCT_Threads' + str(i), str(args.threads))
+if args.options:
+    for option in args.options.split(','):
+        name, value = option.split(':')
+        engine.setoption(name, value)
 engine.isready()
 
 positions = [
