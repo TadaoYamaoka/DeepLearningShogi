@@ -1495,7 +1495,7 @@ int main(int argc, char* argv[]) {
 	logger->info("out_max_move:{}", OUT_MAX_MOVE);
 	logger->info("root_noise:{}", ROOT_NOISE);
 	logger->info("threshold:{}", WINRATE_THRESHOLD);
-	logger->info("mate depath:{}", ROOT_MATE_SEARCH_DEPTH);
+	logger->info("mate depth:{}", ROOT_MATE_SEARCH_DEPTH);
 	logger->info("mate nodes:{}", MATE_SEARCH_MAX_NODE);
 	logger->info("c_init:{}", c_init);
 	logger->info("c_base:{}", c_base);
