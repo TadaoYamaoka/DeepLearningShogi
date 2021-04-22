@@ -18,7 +18,7 @@ class Logger : public nvinfer1::ILogger
 	}
 	void log(Severity severity, const char* msg)
 	{
-		if (severity == Severity::kINTERNAL_ERROR) {
+		if (severity == Severity::kINTERNAL_ERROR || severity == Severity::kERROR) {
 			std::cerr << error_type(severity) << msg << std::endl;
 		}
 	}
@@ -29,7 +29,7 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 	return val * (1 << 20);
 }
 
-NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
+NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size, const char* int8_calibration_hcpe, const size_t int8_calibration_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
 {
 	// Create host and device buffers
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
@@ -39,7 +39,7 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 
 	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 
-	load_model(filename);
+	load_model(filename, int8_calibration_hcpe, int8_calibration_size);
 }
 
 NNTensorRT::~NNTensorRT()
@@ -50,7 +50,7 @@ NNTensorRT::~NNTensorRT()
 	checkCudaErrors(cudaFree(y2_dev));
 }
 
-void NNTensorRT::build(const std::string& onnx_filename)
+void NNTensorRT::build(const char* onnx_filename, const char* int8_calibration_hcpe, const size_t int8_calibration_size)
 {
 	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
 	if (!builder)
@@ -77,7 +77,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 		throw std::runtime_error("createParser");
 	}
 
-	auto parsed = parser->parseFromFile(onnx_filename.c_str(), (int)nvinfer1::ILogger::Severity::kWARNING);
+	auto parsed = parser->parseFromFile(onnx_filename, (int)nvinfer1::ILogger::Severity::kWARNING);
 	if (!parsed)
 	{
 		throw std::runtime_error("parseFromFile");
@@ -87,7 +87,15 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	config->setMaxWorkspaceSize(64_MiB);
 
 	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
-	if (builder->platformHasFastInt8())
+	if (int8_calibration_hcpe != nullptr)
+	{
+		// キャリブレーションを行う
+		if (!builder->platformHasFastInt8()) throw std::runtime_error("platformHasFastInt8");
+		config->setFlag(nvinfer1::BuilderFlag::kINT8);
+		calibrator.reset(new Int8EntropyCalibrator2(onnx_filename, max_batch_size, int8_calibration_hcpe, int8_calibration_size));
+		config->setInt8Calibrator(calibrator.get());
+	}
+	else if (builder->platformHasFastInt8())
 	{
 		// キャリブレーションキャッシュがある場合のみINT8を使用
 		std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
@@ -97,7 +105,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 			calibcache.close();
 
 			config->setFlag(nvinfer1::BuilderFlag::kINT8);
-			calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1));
+			calibrator.reset(new Int8EntropyCalibrator2(onnx_filename, 1));
 			config->setInt8Calibrator(calibrator.get());
 		}
 		else if (builder->platformHasFastFp16())
@@ -118,16 +126,19 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	assert(network->getNbOutputs() == 2);
 
 	// Optimization Profiles
-	auto profile = builder->createOptimizationProfile();
-	const auto dims1 = inputDims[0].d;
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-	const auto dims2 = inputDims[1].d;
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-	config->addOptimizationProfile(profile);
+	if (int8_calibration_hcpe == nullptr)
+	{
+		auto profile = builder->createOptimizationProfile();
+		const auto dims1 = inputDims[0].d;
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+		const auto dims2 = inputDims[1].d;
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+		config->addOptimizationProfile(profile);
+	}
 
 	engine.reset(builder->buildEngineWithConfig(*network, *config));
 	if (!engine)
@@ -136,7 +147,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	}
 }
 
-void NNTensorRT::load_model(const char* filename)
+void NNTensorRT::load_model(const char* filename, const char* int8_calibration_hcpe, const size_t int8_calibration_size)
 {
 	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
@@ -155,7 +166,7 @@ void NNTensorRT::load_model(const char* filename)
 	{
 
 		// build
-		build(filename);
+		build(filename, int8_calibration_hcpe, int8_calibration_size);
 
 		// serializing a model
 		auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());

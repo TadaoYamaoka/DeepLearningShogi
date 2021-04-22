@@ -16,7 +16,7 @@ public:
 		std::ifstream calibcache(calibration_cache_filename);
 		if (!calibcache.is_open())
 		{
-			if (hcpe_filename != "")
+			if (hcpe_filename != nullptr)
 			{
 				// hcpe‚©‚çƒ‰ƒ“ƒ_ƒ€‚É‘I‚Ô
 				std::ifstream ifs;
