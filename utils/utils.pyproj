@@ -74,6 +74,9 @@
     </Compile>
     <Compile Include="psv_to_hcpe.py" />
     <Compile Include="psv_to_hcp.py" />
+    <Compile Include="sfen_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="stat_csa_position_in_dir.py">
       <SubType>Code</SubType>
@@ -82,6 +85,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="mcts_params_optimizer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="uniq_hcpe.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
