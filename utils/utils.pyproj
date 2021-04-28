@@ -74,6 +74,9 @@
     </Compile>
     <Compile Include="psv_to_hcpe.py" />
     <Compile Include="psv_to_hcp.py" />
+    <Compile Include="sfen_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="stat_csa_in_dir.py" />
     <Compile Include="stat_csa_position_in_dir.py">
       <SubType>Code</SubType>
