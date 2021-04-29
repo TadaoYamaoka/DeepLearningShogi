@@ -56,10 +56,6 @@ for filepath in csa_file_list:
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
 
-        # 評価値がない棋譜は除く
-        if len(kif.moves) != len(kif.scores):
-            continue
-
         hcpe['result'] = kif.win
         if endgame == '%SENNICHITE':
             hcpe['result'] += 4
@@ -83,6 +79,8 @@ for filepath in csa_file_list:
                 move_info['eval'] = eval if board.turn == BLACK else -eval
                 move_info['selectedMove16'] = move16(move)
                 move_visits['move16'] = move16(move)
+                if not args.out_mate and abs(score) == 100000:
+                    break
                 board.push(move)
         except:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
