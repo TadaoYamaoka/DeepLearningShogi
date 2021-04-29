@@ -211,7 +211,7 @@ std::unordered_map<Key, int> duplicates;
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
 py::object load_hcpe3(std::string filepath) {
 	std::ifstream ifs(filepath, std::ifstream::binary);
-	if (!ifs) return py::make_tuple((int)trainingData.size(), 0, 0, 0);
+	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
 
 	int len = 0;
 	std::vector<MoveVisits> candidates;

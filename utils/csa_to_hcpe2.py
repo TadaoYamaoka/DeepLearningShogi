@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcpe')
 parser.add_argument('--out_maxmove', action='store_true')
+parser.add_argument('--out_noeval', action='store_true')
+parser.add_argument('--out_mate', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3500)
 args = parser.parse_args()
@@ -41,48 +43,47 @@ for filepath in csa_file_list:
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
 
-        # 評価値がない棋譜は除く
-        if len(kif.moves) != len(kif.scores):
-            continue
-
         if endgame == '%JISHOGI':
             if not args.out_maxmove:
                 continue
 
         board.set_sfen(kif.sfen)
+        p = 0
         try:
-            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+            for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
-                hcpe = hcpes[i]
+                if not args.out_noeval and comment == b'':
+                    board.push(move)
+                    continue
+                hcpe = hcpes[p]
+                p += 1
                 board.to_hcp(hcpe['hcp'])
                 assert abs(score) <= 100000
-                score = min(32767, max(score, -32767))
-                hcpe['eval'] = score if board.turn == BLACK else -score
+                eval = min(32767, max(score, -32767))
+                hcpe['eval'] = eval if board.turn == BLACK else -eval
                 hcpe['bestMove16'] = move16(move)
                 hcpe['result'] = kif.win
+                if not args.out_mate and abs(score) == 100000:
+                    break
                 board.push(move)
         except:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
 
-        move_num = len(kif.moves)
-        assert move_num == i + 1
-
-        # 評価値がない棋譜は除く
-        if (hcpes[:move_num]['eval'] == 0).sum() >= move_num // 2:
+        if p == 0:
             continue
 
         if endgame == '%SENNICHITE':
-            hcpes[:move_num]['result'] += 4
+            hcpes[:p]['result'] += 4
         elif endgame == '%KACHI':
-            hcpes[:move_num]['result'] += 8
+            hcpes[:p]['result'] += 8
         elif endgame == '%JISHOGI':
-            hcpes[:move_num]['result'] += 16
+            hcpes[:p]['result'] += 16
 
-        hcpes[:move_num].tofile(f)
+        hcpes[:p].tofile(f)
 
         kif_num += 1
-        position_num += move_num
+        position_num += p
 
 print('kif_num', kif_num)
 print('position_num', position_num)
