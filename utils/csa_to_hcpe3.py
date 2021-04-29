@@ -26,6 +26,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcpe3')
 parser.add_argument('--out_maxmove', action='store_true')
+parser.add_argument('--out_noeval', action='store_true')
+parser.add_argument('--out_mate', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3800)
 args = parser.parse_args()
@@ -70,17 +72,15 @@ for filepath in csa_file_list:
 
         board.set_sfen(kif.sfen)
         board.to_hcp(hcpe['hcp'])
-        move_num = len(kif.moves)
-        hcpe['moveNum'] = move_num
         try:
-            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+            for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
                 move_info = move_info_vec[i]
                 move_visits = move_visits_vec[i]
 
                 assert abs(score) <= 100000
-                score = min(32767, max(score, -32767))
-                move_info['eval'] = score if board.turn == BLACK else -score
+                eval = min(32767, max(score, -32767))
+                move_info['eval'] = eval if board.turn == BLACK else -eval
                 move_info['selectedMove16'] = move16(move)
                 move_visits['move16'] = move16(move)
                 board.push(move)
@@ -88,11 +88,13 @@ for filepath in csa_file_list:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
 
+        move_num = i + 1
+        hcpe['moveNum'] = move_num
+
         # 評価値がない棋譜は除く
-        if (move_info_vec[:move_num]['eval'] == 0).sum() >= move_num // 2:
+        if not args.out_noeval and (move_info_vec[:move_num]['eval'] == 0).sum() >= move_num // 2:
             continue
 
-        assert move_num == i + 1
         hcpe.tofile(f)
         for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
             move_info.tofile(f)
