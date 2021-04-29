@@ -137,7 +137,7 @@ class Hcpe3DataLoader(DataLoader):
         for path in files:
             if os.path.exists(path):
                 logging.debug(path)
-                sum_len, len_, _, _ = cppshogi.load_hcpe3(path)
+                sum_len, len_ = cppshogi.load_hcpe3(path)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
             else:
