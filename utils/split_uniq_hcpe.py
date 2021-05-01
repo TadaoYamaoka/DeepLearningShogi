@@ -23,3 +23,4 @@ for i in range(args.split):
     filepath = basepath + f'-{i:03}' + ext
     np.unique(hcpes_uniq, axis=0).tofile(filepath)
     print(filepath, len(hcpes_splited), len(hcpes_uniq))
+    pos = pos_next
