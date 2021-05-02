@@ -708,7 +708,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 	unsigned int best_index = best_root_child_index;
 	while (best_node->child_nodes && best_node->child_nodes[best_index]) {
 		best_node = best_node->child_nodes[best_index].get();
-		if (best_node->child_num == 0)
+		if (!best_node || best_node->child_num == 0)
 			break;
 
 		// 最大の子ノード
