@@ -121,7 +121,9 @@ string model_path[max_gpu];
 uniform_int_distribution<int> rnd(0, 999);
 
 // 末端ノードでの詰み探索の深さ(奇数であること)
+#ifndef MATE_SEARCH_DEPTH
 constexpr int MATE_SEARCH_DEPTH = 5;
+#endif
 
 // 探索の結果を評価のキューに追加したか、破棄したか
 constexpr float QUEUING = FLT_MAX;
