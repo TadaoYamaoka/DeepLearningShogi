@@ -12,6 +12,7 @@ parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'])
 parser.add_argument('--fixed_batchsize', type=int)
+parser.add_argument('--remove_aux', action='store_true')
 args = parser.parse_args()
 
 if args.gpu >= 0:
@@ -45,7 +46,7 @@ if args.network.endswith('_swish'):
     model.set_swish(False)
 model.to(device)
 
-serializers.load_npz(args.model, model)
+serializers.load_npz(args.model, model, args.remove_aux)
 model.eval()
 
 def mini_batch(hcpevec):

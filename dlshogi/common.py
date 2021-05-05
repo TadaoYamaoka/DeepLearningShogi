@@ -33,3 +33,11 @@ HuffmanCodedPosAndEval = np.dtype([
     ('gameResult', np.uint8),
     ('dummy', np.uint8),
     ])
+
+HuffmanCodedPosAndEval2 = np.dtype([
+    ('hcp', np.uint8, 32),
+    ('eval', np.int16),
+    ('bestMove16', np.uint16),
+    ('result', np.uint8),
+    ('dummy', np.uint8),
+    ])

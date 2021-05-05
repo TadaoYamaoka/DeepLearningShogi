@@ -62,3 +62,50 @@ void set_softmax_temperature(const float temperature);
 inline float score_to_value(const Score score) {
 	return 1.0f / (1.0f + expf(-(float)score * 0.0013226f));
 }
+
+struct HuffmanCodedPosAndEval2 {
+	HuffmanCodedPos hcp;
+	s16 eval;
+	u16 bestMove16;
+	uint8_t result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 最大手数
+};
+static_assert(sizeof(HuffmanCodedPosAndEval2) == 38, "");
+
+struct HuffmanCodedPosAndEval3 {
+	HuffmanCodedPos hcp; // 開始局面
+	u16 moveNum; // 手数
+	u8 result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 最大手数
+	u8 opponent; // 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+};
+static_assert(sizeof(HuffmanCodedPosAndEval3) == 36, "");
+
+struct MoveInfo {
+	u16 selectedMove16; // 指し手
+	s16 eval; // 評価値
+	u16 candidateNum; // 候補手の数
+};
+static_assert(sizeof(MoveInfo) == 6, "");
+
+struct MoveVisits {
+	MoveVisits() {}
+	MoveVisits(const u16 move16, const u16 visitNum) : move16(move16), visitNum(visitNum) {}
+
+	u16 move16;
+	u16 visitNum;
+};
+static_assert(sizeof(MoveVisits) == 4, "");
+
+struct TrainingData {
+	TrainingData(const HuffmanCodedPos& hcp, const s16 eval, const float result)
+		: hcp(hcp), eval(eval), result(result), count(1) {};
+
+	HuffmanCodedPos hcp;
+	int eval;
+	float result;
+	std::map<u16, float> candidates;
+	int count; // 重複カウント
+};
+
+constexpr u8 GAMERESULT_SENNICHITE = 0x4;
+constexpr u8 GAMERESULT_NYUGYOKU = 0x8;
+constexpr u8 GAMERESULT_MAXMOVE = 0x16;
