@@ -22,13 +22,13 @@ private:
 };
 
 // make result
-inline float make_result(const uint8_t result, const Position& position) {
+inline float make_result(const uint8_t result, const Color color) {
 	const GameResult gameResult = (GameResult)(result & 0x3);
 	if (gameResult == Draw)
 		return 0.5f;
 
-	if (position.turn() == Black && gameResult == BlackWin ||
-		position.turn() == White && gameResult == WhiteWin) {
+	if (color == Black && gameResult == BlackWin ||
+		color == White && gameResult == WhiteWin) {
 		return 1.0f;
 	}
 	else {
@@ -76,7 +76,7 @@ void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nd
 		make_input_features(position, features1, features2);
 
 		// game result
-		*result = make_result(hcpe->gameResult, position);
+		*result = make_result(hcpe->gameResult, position.turn());
 	}
 }
 
@@ -128,7 +128,7 @@ void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, n
 		*move = make_move_label(hcpe->bestMove16, position.turn());
 
 		// game result
-		*result = make_result(hcpe->gameResult, position);
+		*result = make_result(hcpe->gameResult, position.turn());
 	}
 }
 
@@ -157,7 +157,7 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 		*move = make_move_label(hcpe->bestMove16, position.turn());
 
 		// game result
-		*result = make_result(hcpe->gameResult, position);
+		*result = make_result(hcpe->gameResult, position.turn());
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
@@ -190,7 +190,7 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 		*move = make_move_label(hcpe->bestMove16, position.turn());
 
 		// game result
-		*result = make_result(hcpe->result, position);
+		*result = make_result(hcpe->result, position.turn());
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
@@ -205,10 +205,10 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 
 std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
-std::unordered_map<Key, int> duplicates;
+std::unordered_map<HuffmanCodedPos, int> duplicates;
 
 // hcpe形式の指し手をone-hotの方策として読み込む
-py::object load_hcpe(const std::string& filepath, std::ifstream& ifs) {
+py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, const double eval_scale) {
 	int len = 0;
 
 	for (int p = 0; ifs; ++p) {
@@ -218,29 +218,21 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs) {
 			break;
 		}
 
-		// 局面
-		Position pos;
-		if (!pos.set(hcpe.hcp)) {
-			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
-			ss << filepath << "(" << p << ")";
-			throw std::runtime_error(ss.str());
-		}
-		const auto key = pos.getKey();
-		const auto itr = duplicates.find(key);
-		if (itr == duplicates.end()) {
-			duplicates[key] = trainingData.size();
+		auto ret = duplicates.emplace(hcpe.hcp, trainingData.size());
+		const int eval = (int)(hcpe.eval * eval_scale);
+		if (ret.second) {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
-				hcpe.eval,
-				make_result(hcpe.gameResult, pos)
+				eval,
+				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
 		}
 		else {
 			// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
-			auto& data = trainingData[itr->second];
-			data.eval += hcpe.eval;
-			data.result += make_result(hcpe.gameResult, pos);
+			auto& data = trainingData[ret.first->second];
+			data.eval += eval;
+			data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
 			data.candidates[hcpe.bestMove16] += 1;
 			data.count++;
 		}
@@ -252,9 +244,11 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs) {
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-py::object load_hcpe3(std::string filepath) {
+py::object load_hcpe3(std::string filepath, double a) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
+
+	const double eval_scale = a == 0 ? 1 : 756.0864962951762 / a;
 
 	// フォーマット自動判別
 	// hcpeの場合は、指し手をone-hotの方策として読み込む
@@ -263,7 +257,7 @@ py::object load_hcpe3(std::string filepath) {
 		ifs.seekg(-1, std::ios_base::end);
 		if (ifs.get() == 0) {
 			ifs.seekg(std::ios_base::beg);
-			return load_hcpe(filepath, ifs);
+			return load_hcpe(filepath, ifs, eval_scale);
 		}
 	}
 	ifs.seekg(std::ios_base::beg);
@@ -299,14 +293,14 @@ py::object load_hcpe3(std::string filepath) {
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 				const float sum_visitNum = (float)std::accumulate(candidates.begin(), candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
 
-				const auto key = pos.getKey();
-				const auto itr = duplicates.find(key);
-				if (itr == duplicates.end()) {
-					duplicates[key] = trainingData.size();
+				const auto hcp = pos.toHuffmanCodedPos();
+				auto ret = duplicates.emplace(hcp, trainingData.size());
+				const int eval = (int)(moveInfo.eval * eval_scale);
+				if (ret.second) {
 					auto& data = trainingData.emplace_back(
-						pos.toHuffmanCodedPos(),
-						moveInfo.eval,
-						make_result(hcpe3.result, pos)
+						hcp,
+						eval,
+						make_result(hcpe3.result, pos.turn())
 					);
 					for (auto& moveVisits : candidates) {
 						data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
@@ -314,9 +308,9 @@ py::object load_hcpe3(std::string filepath) {
 				}
 				else {
 					// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
-					auto& data = trainingData[itr->second];
-					data.eval += moveInfo.eval;
-					data.result += make_result(hcpe3.result, pos);
+					auto& data = trainingData[ret.first->second];
+					data.eval += eval;
+					data.result += make_result(hcpe3.result, pos.turn());
 					for (auto& moveVisits : candidates) {
 						data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
 					}
@@ -376,8 +370,99 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 }
 
 // evalの補正用データ準備
-void prepare_evalfix(np::ndarray ndindex, np::ndarray eval, np::ndarray result) {
+py::object hcpe3_prepare_evalfix(std::string filepath) {
+	std::vector<int> eval;
+	std::vector<float> result;
 
+	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
+	if (!ifs) return py::object();
+
+	// フォーマット自動判別
+	bool hcpe3 = true;
+	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
+		// 最後の1byteが0であるかで判別
+		ifs.seekg(-1, std::ios_base::end);
+		if (ifs.get() == 0) {
+			hcpe3 = false;
+		}
+	}
+	ifs.seekg(std::ios_base::beg);
+
+	if (hcpe3) {
+		for (int p = 0; ifs; ++p) {
+			HuffmanCodedPosAndEval3 hcpe3;
+			ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+			if (ifs.eof()) {
+				break;
+			}
+			assert(hcpe3.moveNum <= 513);
+
+			// 開始局面
+			Position pos;
+			if (!pos.set(hcpe3.hcp)) {
+				std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+				ss << filepath << "(" << p << ")";
+				throw std::runtime_error(ss.str());
+			}
+			StateListPtr states{ new std::deque<StateInfo>(1) };
+
+			for (int i = 0; i < hcpe3.moveNum; ++i) {
+				MoveInfo moveInfo;
+				ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+				assert(moveInfo.candidateNum <= 593);
+
+				// candidateNum==0の手は読み飛ばす
+				if (moveInfo.candidateNum > 0) {
+					ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+					// 詰みは除く
+					if (std::abs(moveInfo.eval) < 30000) {
+						eval.emplace_back(moveInfo.eval);
+						result.emplace_back(make_result(hcpe3.result, pos.turn()));
+					}
+				}
+
+				const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+				pos.doMove(move, states->emplace_back(StateInfo()));
+			}
+		}
+	}
+	else {
+		// hcpeフォーマット
+		for (int p = 0; ifs; ++p) {
+			HuffmanCodedPosAndEval hcpe;
+			ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+			if (ifs.eof()) {
+				break;
+			}
+
+			// 詰みは除く
+			if (std::abs(hcpe.eval) < 30000) {
+				eval.emplace_back(hcpe.eval);
+				result.emplace_back(make_result(hcpe.gameResult, hcpe.hcp.color()));
+			}
+		}
+	}
+
+	Py_intptr_t size[]{ eval.size() };
+	auto ndeval = np::empty(1, size, np::dtype::get_builtin<int>());
+	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval.get_data()));
+	auto ndresult = np::empty(1, size, np::dtype::get_builtin<float>());
+	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult.get_data()));
+	return py::make_tuple(ndeval, ndresult);
+}
+
+// evalの補正
+void hcpe3_evalfix(np::ndarray ndindex, double a) {
+	const size_t len = (size_t)ndindex.shape(0);
+	int* index = reinterpret_cast<int*>(ndindex.get_data());
+
+	const double scale = 756.0864962951762 / a;
+	for (int i = 0; i < len; i++, index++) {
+		auto& hcpe3 = trainingData[*index];
+
+		// eval
+		hcpe3.eval = int(hcpe3.eval * scale);
+	}
 }
 
 BOOST_PYTHON_MODULE(cppshogi) {
@@ -395,4 +480,6 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("hcpe2_decode_with_value", hcpe2_decode_with_value);
 	py::def("load_hcpe3", load_hcpe3);
 	py::def("hcpe3_decode_with_value", hcpe3_decode_with_value);
+	py::def("hcpe3_prepare_evalfix", hcpe3_prepare_evalfix);
+	py::def("hcpe3_evalfix", hcpe3_evalfix);
 }

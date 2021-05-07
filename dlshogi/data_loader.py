@@ -131,14 +131,32 @@ class Hcpe2DataLoader(DataLoader):
                 self.torch_aux.to(self.device)
                 )
 
+# 評価値から勝率への変換
+def score_to_value(score, a):
+    return 1.0 / (1.0 + np.exp(-score / a))
+
 class Hcpe3DataLoader(DataLoader):
     @staticmethod
-    def load_files(files):
+    def load_files(files, use_evalfix=False):
+        if use_evalfix:
+            from scipy.optimize import curve_fit
+
         actual_len = 0
         for path in files:
             if os.path.exists(path):
-                logging.debug(path)
-                sum_len, len_ = cppshogi.load_hcpe3(path)
+                if use_evalfix:
+                    eval, result = cppshogi.hcpe3_prepare_evalfix(path)
+                    if (eval == 0).all():
+                        a = 0
+                        logging.debug('{}, skip evalfix'.format(path))
+                    else:
+                        popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
+                        a = popt[0]
+                        logging.debug('{}, a={}'.format(path, a))
+                else:
+                    a = 0
+                    logging.debug(path)
+                sum_len, len_ = cppshogi.load_hcpe3(path, a)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
                 actual_len += len_

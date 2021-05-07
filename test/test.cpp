@@ -570,7 +570,7 @@ int main(int argc, char* argv[]) {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnで不正な手を返すバグ
 int main()
@@ -609,5 +609,77 @@ int main()
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+}
+#endif
+
+#if 0
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+	std::string filepath = argv[1];
+
+	std::ifstream ifs(filepath, std::ifstream::binary);
+	if (!ifs) {
+		std::cerr << "read error" << std::endl;
+		return 1;
+	}
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (ifs.eof()) {
+			std::cout << p << std::endl;
+			break;
+		}
+
+		// 局面
+		Position pos;
+		if (!pos.set(hcpe.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+		if (hcpe.hcp.color() != pos.turn()) {
+			std::cerr << "hcpe.hcp.color() != pos.turn()" << std::endl;
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+int main() {
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	vector<string> sfens = {
+		"1n6+P/l1B1s1g2/p1+LG3p1/2pspS1kp/1P3P3/P1P3R2/3P+nN1PP/3+n2G2/L3s1K1L b G3Prb2p 1",
+		"1+B6+P/l3sg3/p+Ls1k1Ppb/2pspPp2/1P3s2K/P1P2+r3/3P1N1PP/2g+n2G2/L7L w GN3Prnp 1",
+		"1n6+P/l3s1g2/p1sk2Ppp/1LpspPp2/1P4N2/P1P2p3/2+nP3PP/2g6/L3+rNK1L w 2BS2Pr2g 1",
+		"1n6+P/l1B1s1g2/p1+LG3p1/2pspS1kp/1P3P3/P1P3R2/3P+nN1PP/3+n2G2/L3s1K1L b G3Prb2p 1",
+		"1n6+P/l3s1g2/p1sk2Ppp/1LpspPp2/1P4N2/P1P2p3/2+nP3PP/2g6/L3+rNK1L w 2BS2Pr2g 1",
+		"1n6+P/l1B1s1g2/p1+L1k1spp/2pspP2b/1P4R2/P1P3P1P/4+n2PK/4g1+p1N/L7+r w GS3Pgnlp 1",
+	};
+
+	std::unordered_map<HuffmanCodedPos, int> map;
+
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		const auto hcp = pos.toHuffmanCodedPos();
+		auto itr = map.find(hcp);
+		auto p = map.emplace(hcp, 1);
+		if (p.second) {
+			std::cout << "insert" << std::endl;
+		}
+		else {
+			std::cout << "exist" << std::endl;
+		}
+	}
+
 }
 #endif

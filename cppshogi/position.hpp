@@ -156,10 +156,30 @@ struct HuffmanCodedPos {
                 handCodeToPieceHash[handCodeTable[hp][c].key] = colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
     }
     void clear() { std::fill(std::begin(data), std::end(data), 0); }
+    Color color() const { return (Color)(data[0] & 1); }
+    bool operator==(const HuffmanCodedPos& other) const {
+        const auto* data4 = (const uint64_t*)data;
+        const auto* other4 = (const uint64_t*)other.data;
+        if (data4[0] != other4[0]) return false;
+        if (data4[1] != other4[1]) return false;
+        if (data4[2] != other4[2]) return false;
+        if (data4[3] != other4[3]) return false;
+        return true;
+    }
 
     u8 data[32];
 };
 static_assert(sizeof(HuffmanCodedPos) == 32, "");
+
+template <>
+struct std::hash<HuffmanCodedPos>
+{
+    std::size_t operator()(const HuffmanCodedPos& hcp) const
+    {
+        const auto* data4 = (uint64_t*)hcp.data;
+        return data4[0] ^ data4[1] ^ data4[2] ^ data4[3];
+    }
+};
 
 struct HuffmanCodedPosAndEval {
     HuffmanCodedPos hcp;

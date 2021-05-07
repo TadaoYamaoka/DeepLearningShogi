@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\hcpe3\arch000014000000.hcpe3.gz f:\selfplay\floodgate.hcpe --network resnet10_swish --lr 0.01 --model r:\model --state r:\state --eval_interval 100 --use_amp</CommandLineArguments>
+    <CommandLineArguments>F:\selfplay\selfplay-445_org f:\selfplay\floodgate.hcpe --network resnet10_swish -m F:\model\model_resnet10_swish_438 --model r:\model --state r:\state --eval_interval 100 --use_amp --use_evalfix</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
