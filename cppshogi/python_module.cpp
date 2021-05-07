@@ -207,11 +207,66 @@ std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
 std::unordered_map<Key, int> duplicates;
 
+// hcpe形式の指し手をone-hotの方策として読み込む
+py::object load_hcpe(const std::string& filepath, std::ifstream& ifs) {
+	int len = 0;
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 局面
+		Position pos;
+		if (!pos.set(hcpe.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+		const auto key = pos.getKey();
+		const auto itr = duplicates.find(key);
+		if (itr == duplicates.end()) {
+			duplicates[key] = trainingData.size();
+			auto& data = trainingData.emplace_back(
+				hcpe.hcp,
+				hcpe.eval,
+				make_result(hcpe.gameResult, pos)
+			);
+			data.candidates[hcpe.bestMove16] = 1;
+		}
+		else {
+			// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
+			auto& data = trainingData[itr->second];
+			data.eval += hcpe.eval;
+			data.result += make_result(hcpe.gameResult, pos);
+			data.candidates[hcpe.bestMove16] += 1;
+			data.count++;
+		}
+		++len;
+	}
+
+	return py::make_tuple((int)trainingData.size(), len);
+}
+
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
 py::object load_hcpe3(std::string filepath) {
-	std::ifstream ifs(filepath, std::ifstream::binary);
+	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
+
+	// フォーマット自動判別
+	// hcpeの場合は、指し手をone-hotの方策として読み込む
+	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
+		// 最後の1byteが0であるかで判別
+		ifs.seekg(-1, std::ios_base::end);
+		if (ifs.get() == 0) {
+			ifs.seekg(std::ios_base::beg);
+			return load_hcpe(filepath, ifs);
+		}
+	}
+	ifs.seekg(std::ios_base::beg);
 
 	int len = 0;
 	std::vector<MoveVisits> candidates;
@@ -318,6 +373,11 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 		// eval
 		*value = score_to_value((Score)(hcpe3.eval / hcpe3.count));
 	}
+}
+
+// evalの補正用データ準備
+void prepare_evalfix(np::ndarray ndindex, np::ndarray eval, np::ndarray result) {
+
 }
 
 BOOST_PYTHON_MODULE(cppshogi) {
