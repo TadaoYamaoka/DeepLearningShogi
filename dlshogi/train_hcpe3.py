@@ -104,7 +104,7 @@ else:
 
 logging.debug('read teacher data')
 train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix)
-train_data = np.arange(train_len)
+train_data = np.arange(train_len).astype(np.int32)
 logging.debug('read test data')
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 
