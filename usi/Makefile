@@ -3,7 +3,7 @@ MATE_SEARCH_DEPTH = 5
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -lz -flto
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
-LIB = -L/usr/local/cuda-11.0/lib64
+LIB = -L/usr/local/cuda/lib64
 
 target = bin/usi
 target_make_book = bin/make_book
