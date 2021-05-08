@@ -96,7 +96,7 @@ struct MoveVisits {
 static_assert(sizeof(MoveVisits) == 4, "");
 
 struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const s16 eval, const float result)
+	TrainingData(const HuffmanCodedPos& hcp, const int eval, const float result)
 		: hcp(hcp), eval(eval), result(result), count(1) {};
 
 	HuffmanCodedPos hcp;
