@@ -208,7 +208,7 @@ std::vector<TrainingData> trainingData;
 std::unordered_map<HuffmanCodedPos, int> duplicates;
 
 // hcpe形式の指し手をone-hotの方策として読み込む
-py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, const double eval_scale) {
+py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale) {
 	int len = 0;
 
 	for (int p = 0; ifs; ++p) {
@@ -218,23 +218,33 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, const doub
 			break;
 		}
 
-		auto ret = duplicates.emplace(hcpe.hcp, trainingData.size());
 		const int eval = (int)(hcpe.eval * eval_scale);
-		if (ret.second) {
+		if (use_average) {
+			auto ret = duplicates.emplace(hcpe.hcp, trainingData.size());
+			if (ret.second) {
+				auto& data = trainingData.emplace_back(
+					hcpe.hcp,
+					eval,
+					make_result(hcpe.gameResult, hcpe.hcp.color())
+				);
+				data.candidates[hcpe.bestMove16] = 1;
+			}
+			else {
+				// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
+				auto& data = trainingData[ret.first->second];
+				data.eval += eval;
+				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
+				data.candidates[hcpe.bestMove16] += 1;
+				data.count++;
+			}
+		}
+		else {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
 				eval,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
-		}
-		else {
-			// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
-			auto& data = trainingData[ret.first->second];
-			data.eval += eval;
-			data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
-			data.candidates[hcpe.bestMove16] += 1;
-			data.count++;
 		}
 		++len;
 	}
@@ -244,7 +254,7 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, const doub
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-py::object load_hcpe3(std::string filepath, double a) {
+py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
 
@@ -257,7 +267,7 @@ py::object load_hcpe3(std::string filepath, double a) {
 		ifs.seekg(-1, std::ios_base::end);
 		if (ifs.get() == 0) {
 			ifs.seekg(std::ios_base::beg);
-			return load_hcpe(filepath, ifs, eval_scale);
+			return load_hcpe(filepath, ifs, use_average, eval_scale);
 		}
 	}
 	ifs.seekg(std::ios_base::beg);
@@ -294,9 +304,32 @@ py::object load_hcpe3(std::string filepath, double a) {
 				const float sum_visitNum = (float)std::accumulate(candidates.begin(), candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
 
 				const auto hcp = pos.toHuffmanCodedPos();
-				auto ret = duplicates.emplace(hcp, trainingData.size());
 				const int eval = (int)(moveInfo.eval * eval_scale);
-				if (ret.second) {
+				if (use_average) {
+					auto ret = duplicates.emplace(hcp, trainingData.size());
+					if (ret.second) {
+						auto& data = trainingData.emplace_back(
+							hcp,
+							eval,
+							make_result(hcpe3.result, pos.turn())
+						);
+						for (auto& moveVisits : candidates) {
+							data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+						}
+					}
+					else {
+						// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
+						auto& data = trainingData[ret.first->second];
+						data.eval += eval;
+						data.result += make_result(hcpe3.result, pos.turn());
+						for (auto& moveVisits : candidates) {
+							data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
+						}
+						data.count++;
+
+					}
+				}
+				else {
 					auto& data = trainingData.emplace_back(
 						hcp,
 						eval,
@@ -305,17 +338,6 @@ py::object load_hcpe3(std::string filepath, double a) {
 					for (auto& moveVisits : candidates) {
 						data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
 					}
-				}
-				else {
-					// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
-					auto& data = trainingData[ret.first->second];
-					data.eval += eval;
-					data.result += make_result(hcpe3.result, pos.turn());
-					for (auto& moveVisits : candidates) {
-						data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
-					}
-					data.count++;
-
 				}
 				++len;
 			}
