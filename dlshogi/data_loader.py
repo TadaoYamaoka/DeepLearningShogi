@@ -188,9 +188,12 @@ class Hcpe3DataLoader(DataLoader):
     def mini_batch(self, index):
         cppshogi.hcpe3_decode_with_value(index, self.features1, self.features2, self.probability, self.result, self.value)
 
+        z = self.result - self.value + 0.5
+
         return (self.torch_features1.to(self.device),
                 self.torch_features2.to(self.device),
                 self.torch_probability.to(self.device),
                 self.torch_result.to(self.device),
+                torch.tensor(z).to(self.device),
                 self.torch_value.to(self.device)
                 )

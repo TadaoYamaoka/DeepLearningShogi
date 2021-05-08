@@ -27,6 +27,8 @@ parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
 parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
+parser.add_argument('--use_critic', action='store_true')
+parser.add_argument('--beta', type=float, help='entropy regularization coeff')
 parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
@@ -53,6 +55,10 @@ logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
 logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
+if args.use_critic:
+    logging.info('use critic')
+if args.beta:
+    logging.info('entropy regularization coeff={}'.format(args.beta))
 logging.info('val_lambda={}'.format(args.val_lambda))
 
 if args.gpu >= 0:
@@ -110,7 +116,7 @@ test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
+    for x1, x2, t1, t2, z, value in Hcpe3DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -134,14 +140,20 @@ for e in range(args.epoch):
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
-    for x1, x2, t1, t2, value in train_dataloader:
+    for x1, x2, t1, t2, z, value in train_dataloader:
         with torch.cuda.amp.autocast(enabled=args.use_amp):
             model.train()
 
             y1, y2 = model(x1, x2)
 
             model.zero_grad()
-            loss1 = cross_entropy_loss_with_soft_target(y1, t1).mean()
+            loss1 = cross_entropy_loss_with_soft_target(y1, t1)
+            if args.use_critic:
+                loss1 = (loss1 * z).mean()
+            else:
+                loss1 = loss1.mean()
+            if args.beta:
+                loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
             loss2 = bce_with_logits_loss(y2, t2)
             loss3 = bce_with_logits_loss(y2, value)
             loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
