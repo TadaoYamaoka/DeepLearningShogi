@@ -473,20 +473,6 @@ py::object hcpe3_prepare_evalfix(std::string filepath) {
 	return py::make_tuple(ndeval, ndresult);
 }
 
-// evalの補正
-void hcpe3_evalfix(np::ndarray ndindex, double a) {
-	const size_t len = (size_t)ndindex.shape(0);
-	int* index = reinterpret_cast<int*>(ndindex.get_data());
-
-	const double scale = 756.0864962951762 / a;
-	for (int i = 0; i < len; i++, index++) {
-		auto& hcpe3 = trainingData[*index];
-
-		// eval
-		hcpe3.eval = int(hcpe3.eval * scale);
-	}
-}
-
 BOOST_PYTHON_MODULE(cppshogi) {
 	Py_Initialize();
 	np::initialize();
@@ -503,5 +489,4 @@ BOOST_PYTHON_MODULE(cppshogi) {
 	py::def("load_hcpe3", load_hcpe3);
 	py::def("hcpe3_decode_with_value", hcpe3_decode_with_value);
 	py::def("hcpe3_prepare_evalfix", hcpe3_prepare_evalfix);
-	py::def("hcpe3_evalfix", hcpe3_evalfix);
 }
