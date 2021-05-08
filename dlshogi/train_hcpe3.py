@@ -88,10 +88,10 @@ if args.use_evalfix:
 
 # Init/Resume
 if args.initmodel:
-    print('Load model from', args.initmodel)
+    logging.info('Load model from {}'.format(args.initmodel))
     serializers.load_npz(args.initmodel, model)
 if args.resume:
-    print('Load optimizer state from', args.resume)
+    logging.info('Load optimizer state from {}'.format(args.resume))
     checkpoint = torch.load(args.resume, map_location=device)
     epoch = checkpoint['epoch']
     t = checkpoint['t']
@@ -259,9 +259,9 @@ for e in range(args.epoch):
         if e != args.epoch - 1:
             optimizer.swap_swa_sgd()
 
-print('save the model')
+logging.info('save the model to {}'.format(args.model))
 serializers.save_npz(args.model, model)
-print('save the optimizer')
+logging.info('save the optimizer to {}'.format(args.state))
 state = {
     'epoch': epoch,
     't': t,
