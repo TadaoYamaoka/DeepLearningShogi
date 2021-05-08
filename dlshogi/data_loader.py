@@ -45,13 +45,10 @@ class DataLoader:
     def mini_batch(self, hcpevec):
         cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
 
-        z = self.result - self.value + 0.5
-
         return (self.torch_features1.to(self.device),
                 self.torch_features2.to(self.device),
                 self.torch_move.to(self.device),
                 self.torch_result.to(self.device),
-                torch.tensor(z).to(self.device),
                 self.torch_value.to(self.device)
                 )
 
@@ -120,13 +117,10 @@ class Hcpe2DataLoader(DataLoader):
     def mini_batch(self, hcpevec):
         cppshogi.hcpe2_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value, self.aux)
 
-        z = self.result - self.value + 0.5
-
         return (self.torch_features1.to(self.device),
                 self.torch_features2.to(self.device),
                 self.torch_move.to(self.device),
                 self.torch_result.to(self.device),
-                torch.tensor(z).to(self.device),
                 self.torch_value.to(self.device),
                 self.torch_aux.to(self.device)
                 )
@@ -188,12 +182,9 @@ class Hcpe3DataLoader(DataLoader):
     def mini_batch(self, index):
         cppshogi.hcpe3_decode_with_value(index, self.features1, self.features2, self.probability, self.result, self.value)
 
-        z = self.result - self.value + 0.5
-
         return (self.torch_features1.to(self.device),
                 self.torch_features2.to(self.device),
                 self.torch_probability.to(self.device),
                 self.torch_result.to(self.device),
-                torch.tensor(z).to(self.device),
                 self.torch_value.to(self.device)
                 )

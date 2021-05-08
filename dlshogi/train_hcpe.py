@@ -104,7 +104,7 @@ test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
 # for SWA bn_update
 def hcpe_loader(data, batchsize):
-    for x1, x2, t1, t2, z, value in DataLoader(data, batchsize, device):
+    for x1, x2, t1, t2, value in DataLoader(data, batchsize, device):
         yield x1, x2
 
 def accuracy(y, t):
@@ -128,11 +128,12 @@ for e in range(args.epoch):
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
-    for x1, x2, t1, t2, z, value in train_dataloader:
+    for x1, x2, t1, t2, value in train_dataloader:
         with torch.cuda.amp.autocast(enabled=args.use_amp):
             model.train()
 
             y1, y2 = model(x1, x2)
+            z = t2.view(-1) - value.view(-1) + 0.5
 
             model.zero_grad()
             loss1 = (cross_entropy_loss(y1, t1) * z).mean()
@@ -165,11 +166,11 @@ for e in range(args.epoch):
         if t % eval_interval == 0:
             model.eval()
 
-            x1, x2, t1, t2, z, value = test_dataloader.sample()
+            x1, x2, t1, t2, value = test_dataloader.sample()
             with torch.no_grad():
                 y1, y2 = model(x1, x2)
 
-                loss1 = (cross_entropy_loss(y1, t1) * z).mean()
+                loss1 = cross_entropy_loss(y1, t1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
@@ -203,11 +204,11 @@ for e in range(args.epoch):
     sum_test_entropy2 = 0
     model.eval()
     with torch.no_grad():
-        for x1, x2, t1, t2, z, value in test_dataloader:
+        for x1, x2, t1, t2, value in test_dataloader:
             y1, y2 = model(x1, x2)
 
             itr_test += 1
-            loss1 = (cross_entropy_loss(y1, t1) * z).mean()
+            loss1 = cross_entropy_loss(y1, t1).mean()
             loss2 = bce_with_logits_loss(y2, t2)
             loss3 = bce_with_logits_loss(y2, value)
             loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
