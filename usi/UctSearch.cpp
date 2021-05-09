@@ -579,7 +579,8 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	const int color = pos->turn();
 	int divisor = 14 + std::max(0, 30 - pos->gamePly());
 	// 引き分けとする手数までに時間を使い切る
-	divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
+	if (draw_ply - pos->gamePly() >= 0)
+		divisor = std::min(divisor, draw_ply - pos->gamePly() + 1);
 	remaining_time[color] = limits.time[color];
 	time_limit = remaining_time[color] / divisor + limits.inc[color];
 	minimum_time = limits.moveTime;
