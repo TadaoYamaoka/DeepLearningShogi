@@ -207,8 +207,24 @@ std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
 std::unordered_map<HuffmanCodedPos, int> duplicates;
 
+inline void label_smoothing(std::map<u16, float>& candidates, const Position& pos, const u16 bestMove16, const float alpha) {
+	MoveList<Legal> ml(pos);
+	const float w = alpha / ml.size();
+	for (; !ml.end(); ++ml) {
+		const auto move = static_cast<u16>(ml.move().value());
+		candidates[move] += w;
+	}
+	candidates[bestMove16] += 1.0f - alpha;
+}
+
+inline void label_smoothing(std::map<u16, float>& candidates, const HuffmanCodedPosAndEval& hcpe, const float alpha) {
+	Position pos;
+	pos.set(hcpe.hcp);
+	label_smoothing(candidates, pos, hcpe.bestMove16, alpha);
+}
+
 // hcpe形式の指し手をone-hotの方策として読み込む
-py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale) {
+py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, const float alpha) {
 	int len = 0;
 
 	for (int p = 0; ifs; ++p) {
@@ -227,14 +243,20 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_a
 					eval,
 					make_result(hcpe.gameResult, hcpe.hcp.color())
 				);
-				data.candidates[hcpe.bestMove16] = 1;
+				if (alpha > 0)
+					label_smoothing(data.candidates, hcpe, alpha);
+				else
+					data.candidates[hcpe.bestMove16] = 1;
 			}
 			else {
 				// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 				auto& data = trainingData[ret.first->second];
 				data.eval += eval;
 				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
-				data.candidates[hcpe.bestMove16] += 1;
+				if (alpha > 0)
+					label_smoothing(data.candidates, hcpe, alpha);
+				else
+					data.candidates[hcpe.bestMove16] += 1;
 				data.count++;
 			}
 		}
@@ -244,7 +266,10 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_a
 				eval,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
-			data.candidates[hcpe.bestMove16] = 1;
+			if (alpha > 0)
+				label_smoothing(data.candidates, hcpe, alpha);
+			else
+				data.candidates[hcpe.bestMove16] = 1;
 		}
 		++len;
 	}
@@ -254,7 +279,7 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_a
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-py::object load_hcpe3(std::string filepath, bool use_average, double a) {
+py::object load_hcpe3(std::string filepath, bool use_average, double a, float alpha) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
 
@@ -267,7 +292,7 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 		ifs.seekg(-1, std::ios_base::end);
 		if (ifs.get() == 0) {
 			ifs.seekg(std::ios_base::beg);
-			return load_hcpe(filepath, ifs, use_average, eval_scale);
+			return load_hcpe(filepath, ifs, use_average, eval_scale, alpha);
 		}
 	}
 	ifs.seekg(std::ios_base::beg);
@@ -313,8 +338,13 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 							eval,
 							make_result(hcpe3.result, pos.turn())
 						);
-						for (auto& moveVisits : candidates) {
-							data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+						if (alpha > 0 && moveInfo.candidateNum == 1) {
+							label_smoothing(data.candidates, pos, candidates[0].move16, alpha);
+						}
+						else {
+							for (auto& moveVisits : candidates) {
+								data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+							}
 						}
 					}
 					else {
@@ -322,8 +352,13 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 						auto& data = trainingData[ret.first->second];
 						data.eval += eval;
 						data.result += make_result(hcpe3.result, pos.turn());
-						for (auto& moveVisits : candidates) {
-							data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
+						if (alpha > 0 && moveInfo.candidateNum == 1) {
+							label_smoothing(data.candidates, pos, candidates[0].move16, alpha);
+						}
+						else {
+							for (auto& moveVisits : candidates) {
+								data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
+							}
 						}
 						data.count++;
 
@@ -335,8 +370,13 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 						eval,
 						make_result(hcpe3.result, pos.turn())
 					);
-					for (auto& moveVisits : candidates) {
-						data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+					if (alpha > 0 && moveInfo.candidateNum == 1) {
+						label_smoothing(data.candidates, pos, candidates[0].move16, alpha);
+					}
+					else {
+						for (auto& moveVisits : candidates) {
+							data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
+						}
 					}
 				}
 				++len;
