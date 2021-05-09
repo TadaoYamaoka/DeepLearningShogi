@@ -36,6 +36,9 @@
     <Compile Include="build_onnx.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="fix_hcpe_eval.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="split_uniq_hcpe.py" />
     <Compile Include="csa_to_hcpe.py" />
     <Compile Include="csa_to_roots_hcp.py" />
