@@ -131,7 +131,7 @@ def score_to_value(score, a):
 
 class Hcpe3DataLoader(DataLoader):
     @staticmethod
-    def load_files(files, use_average=False, use_evalfix=False):
+    def load_files(files, use_average=False, use_evalfix=False, temperature=1.0):
         if use_evalfix:
             from scipy.optimize import curve_fit
 
@@ -150,7 +150,7 @@ class Hcpe3DataLoader(DataLoader):
                 else:
                     a = 0
                     logging.debug(path)
-                sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a)
+                sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a, temperature)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
                 actual_len += len_

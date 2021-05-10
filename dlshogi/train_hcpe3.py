@@ -39,6 +39,7 @@ parser.add_argument('--swa_lr', type=float)
 parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 parser.add_argument('--use_average', action='store_true')
 parser.add_argument('--use_evalfix', action='store_true')
+parser.add_argument('--temperature', type=float, default=1.0)
 args = parser.parse_args()
 
 if args.network == 'wideresnet15':
@@ -85,6 +86,7 @@ scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
 if args.use_evalfix:
     logging.info('use evalfix')
+logging.info('temperature={}'.format(args.temperature))
 
 # Init/Resume
 if args.initmodel:
@@ -103,7 +105,7 @@ else:
     t = 0
 
 logging.debug('read teacher data')
-train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix)
+train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
 train_data = np.arange(train_len, dtype=np.int32)
 logging.debug('read test data')
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)

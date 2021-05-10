@@ -252,9 +252,58 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_a
 	return py::make_tuple((int)trainingData.size(), len);
 }
 
+template <bool add>
+inline void visits_to_proberbility(TrainingData& data, const std::vector<MoveVisits>& candidates, const double temperature) {
+	if (candidates.size() == 1) {
+		// one-hot
+		const auto& moveVisits = candidates[0];
+		if constexpr (add)
+			data.candidates[moveVisits.move16] += 1.0f;
+		else
+			data.candidates[moveVisits.move16] = 1.0f;
+	}
+	else if (temperature == 0) {
+		// greedy
+		const auto itr = std::max_element(candidates.begin(), candidates.end(), [](const MoveVisits& a, const MoveVisits& b) { return a.visitNum < b.visitNum; });
+		const MoveVisits& moveVisits = *itr;
+		if constexpr (add)
+			data.candidates[moveVisits.move16] += 1.0f;
+		else
+			data.candidates[moveVisits.move16] = 1.0f;
+	}
+	else if (temperature == 1) {
+		const float sum_visitNum = (float)std::accumulate(candidates.begin(), candidates.end(), 0, [](int acc, const MoveVisits& move_visits) { return acc + move_visits.visitNum; });
+		for (const auto& moveVisits : candidates) {
+			const float proberbility = (float)moveVisits.visitNum / sum_visitNum;
+			if constexpr (add)
+				data.candidates[moveVisits.move16] += proberbility;
+			else
+				data.candidates[moveVisits.move16] = proberbility;
+		}
+	}
+	else {
+		double exponentiated_visits[593];
+		double sum = 0;
+		for (size_t i = 0; i < candidates.size(); i++) {
+			const auto& moveVisits = candidates[i];
+			const auto new_visits = std::pow(moveVisits.visitNum, temperature);
+			exponentiated_visits[i] = new_visits;
+			sum += new_visits;
+		}
+		for (size_t i = 0; i < candidates.size(); i++) {
+			const auto& moveVisits = candidates[i];
+			const float proberbility = (float)(exponentiated_visits[i] / sum);
+			if constexpr (add)
+				data.candidates[moveVisits.move16] += proberbility;
+			else
+				data.candidates[moveVisits.move16] = proberbility;
+		}
+	}
+}
+
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-py::object load_hcpe3(std::string filepath, bool use_average, double a) {
+py::object load_hcpe3(std::string filepath, bool use_average, double a, double temperature) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
 
@@ -301,7 +350,6 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 			if (moveInfo.candidateNum > 0) {
 				candidates.resize(moveInfo.candidateNum);
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
-				const float sum_visitNum = (float)std::accumulate(candidates.begin(), candidates.end(), 0, [](int acc, MoveVisits& move_visits) { return acc + move_visits.visitNum; });
 
 				const auto hcp = pos.toHuffmanCodedPos();
 				const int eval = (int)(moveInfo.eval * eval_scale);
@@ -313,18 +361,14 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 							eval,
 							make_result(hcpe3.result, pos.turn())
 						);
-						for (auto& moveVisits : candidates) {
-							data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
-						}
+						visits_to_proberbility<false>(data, candidates, temperature);
 					}
 					else {
 						// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 						auto& data = trainingData[ret.first->second];
 						data.eval += eval;
 						data.result += make_result(hcpe3.result, pos.turn());
-						for (auto& moveVisits : candidates) {
-							data.candidates[moveVisits.move16] += (float)moveVisits.visitNum / sum_visitNum;
-						}
+						visits_to_proberbility<true>(data, candidates, temperature);
 						data.count++;
 
 					}
@@ -335,9 +379,7 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a) {
 						eval,
 						make_result(hcpe3.result, pos.turn())
 					);
-					for (auto& moveVisits : candidates) {
-						data.candidates[moveVisits.move16] = (float)moveVisits.visitNum / sum_visitNum;
-					}
+					visits_to_proberbility<false>(data, candidates, temperature);
 				}
 				++len;
 			}
