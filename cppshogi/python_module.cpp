@@ -286,7 +286,7 @@ inline void visits_to_proberbility(TrainingData& data, const std::vector<MoveVis
 		double sum = 0;
 		for (size_t i = 0; i < candidates.size(); i++) {
 			const auto& moveVisits = candidates[i];
-			const auto new_visits = std::pow(moveVisits.visitNum, temperature);
+			const auto new_visits = std::pow(moveVisits.visitNum, 1.0 / temperature);
 			exponentiated_visits[i] = new_visits;
 			sum += new_visits;
 		}
