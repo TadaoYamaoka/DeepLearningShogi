@@ -94,6 +94,9 @@
     <Compile Include="uniq_hcpe.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="yanebook_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
