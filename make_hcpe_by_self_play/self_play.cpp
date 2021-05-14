@@ -81,6 +81,7 @@ std::mutex mutex_all_gpu;
 int MAX_MOVE = 320; // 最大手数
 bool OUT_MAX_MOVE = false; // 最大手数に達した対局の局面を出力するか
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
+bool REUSE_SUBTREE = false; // 探索済みノードを再利用するか
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
@@ -943,6 +944,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 
 				records.clear();
 				reason = 0;
+				root_node.release();
 
 				// USIエンジン
 				if (usi_engine_turn >= 0) {
@@ -959,11 +961,13 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				return;
 			}
 
-			// ルートノード作成(以前のノードは再利用しないで破棄する)
-			root_node = std::make_unique<uct_node_t>();
+			if (!root_node || !REUSE_SUBTREE) {
+				// ルートノード作成(以前のノードは再利用しないで破棄する)
+				root_node = std::make_unique<uct_node_t>();
 
-			// ルートノード展開
-			root_node->ExpandNode(pos_root);
+				// ルートノード展開
+				root_node->ExpandNode(pos_root);
+			}
 
 			// ノイズ回数初期化
 			noise_count.resize(root_node->child_num);
@@ -1000,17 +1004,17 @@ void UCTSearcher::Playout(visitor_t& visitor)
 			}
 
 			// ルート局面をキューに追加
-			NNCacheLock cache_lock(&nn_cache, pos_root->getKey());
-			if (!cache_lock || cache_lock->nnrate.size() == 0) {
-				grp->QueuingNode(pos_root, root_node.get(), nullptr);
-				return;
-			}
-			else {
-				assert(cache_lock->nnrate.size() == root_node->child_num);
-				// キャッシュからnnrateをコピー
-				CopyNNRate(root_node.get(), cache_lock->nnrate);
-				NextStep();
-				continue;
+			if (!root_node->IsEvaled()) {
+				NNCacheLock cache_lock(&nn_cache, pos_root->getKey());
+				if (!cache_lock || cache_lock->nnrate.size() == 0) {
+					grp->QueuingNode(pos_root, root_node.get(), nullptr);
+					return;
+				}
+				else {
+					assert(cache_lock->nnrate.size() == root_node->child_num);
+					// キャッシュからnnrateをコピー
+					CopyNNRate(root_node.get(), cache_lock->nnrate);
+				}
 			}
 		}
 
@@ -1261,6 +1265,34 @@ void UCTSearcher::NextPly(const Move move)
 		if (ply % 2 == usi_engine_turn)
 			grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 	}
+
+	// ノード再利用
+	if (root_node && REUSE_SUBTREE) {
+		bool found = false;
+		if (root_node->child_nodes) {
+			for (int i = 0; i < root_node->child_num; i++) {
+				if (root_node->child[i].move == move && root_node->child_nodes[i]) {
+					found = true;
+					// 子ノードをルートノードにする
+					auto root_node_tmp = std::move(root_node->child_nodes[i]);
+					root_node = std::move(root_node_tmp);
+					// ルートの訪問回数をクリア
+					root_node->move_count = 0;
+					root_node->win = 0;
+					root_node->visited_nnrate = 0;
+					for (int j = 0; j < root_node->child_num; j++) {
+						root_node->child[j].move_count = 0;
+						root_node->child[j].win = 0;
+					}
+					break;
+				}
+			}
+		}
+		// USIエンジンが選んだ手が見つからない可能性があるため、見つからなかったらルートノードを再作成する
+		if (!found) {
+			root_node.release();
+		}
+	}
 }
 
 void UCTSearcher::NextGame()
@@ -1454,6 +1486,7 @@ int main(int argc, char* argv[]) {
 			("c_init_root", "UCT parameter c_init_root", cxxopts::value<float>(c_init_root)->default_value("1.49"), "val")
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
+			("reuse", "reuse sub tree", cxxopts::value<bool>(REUSE_SUBTREE)->default_value("false"))
 			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
@@ -1572,6 +1605,7 @@ int main(int argc, char* argv[]) {
 	logger->info("c_init_root:{}", c_init_root);
 	logger->info("c_base_root:{}", c_base_root);
 	logger->info("temperature:{}", temperature);
+	logger->info("reuse:{}", REUSE_SUBTREE);
 	logger->info("nn_cache_size:{}", nn_cache_size);
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
