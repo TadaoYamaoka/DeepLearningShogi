@@ -1271,7 +1271,7 @@ void UCTSearcher::NextPly(const Move move)
 		bool found = false;
 		if (root_node->child_nodes) {
 			for (int i = 0; i < root_node->child_num; i++) {
-				if (root_node->child[i].move == move && root_node->child_nodes[i]) {
+				if (root_node->child[i].move == move && root_node->child_nodes[i] && root_node->child_nodes[i]->child) {
 					found = true;
 					// 子ノードをルートノードにする
 					auto root_node_tmp = std::move(root_node->child_nodes[i]);
