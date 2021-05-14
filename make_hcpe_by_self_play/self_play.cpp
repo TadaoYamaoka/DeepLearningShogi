@@ -89,7 +89,7 @@ struct CachedNNRequest {
 };
 typedef LruCache<uint64_t, CachedNNRequest> NNCache;
 typedef LruCacheLock<uint64_t, CachedNNRequest> NNCacheLock;
-constexpr unsigned int nn_cache_size = 8388608; // NNキャッシュサイズ
+unsigned int nn_cache_size = 8388608; // NNキャッシュサイズ
 
 s64 teacherNodes; // 教師局面数
 std::atomic<s64> idx(0);
@@ -1454,6 +1454,7 @@ int main(int argc, char* argv[]) {
 			("c_init_root", "UCT parameter c_init_root", cxxopts::value<float>(c_init_root)->default_value("1.49"), "val")
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
+			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
 			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
@@ -1571,6 +1572,7 @@ int main(int argc, char* argv[]) {
 	logger->info("c_init_root:{}", c_init_root);
 	logger->info("c_base_root:{}", c_base_root);
 	logger->info("temperature:{}", temperature);
+	logger->info("nn_cache_size:{}", nn_cache_size);
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
 	logger->info("usi_threads:{}", usi_threads);
