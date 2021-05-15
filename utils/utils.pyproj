@@ -85,6 +85,9 @@
     <Compile Include="stat_csa_position_in_dir.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="stat_hcpe3.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="throughput.py">
       <SubType>Code</SubType>
     </Compile>
