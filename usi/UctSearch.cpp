@@ -21,6 +21,7 @@
 #include "UctSearch.h"
 #include "Node.h"
 #include "mate.h"
+#include "PvMateSearch.h"
 
 #ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
@@ -136,6 +137,8 @@ float draw_value_white = 0.5f;
 // 引き分けとする手数（この手数に達した場合引き分けとする）
 int draw_ply = INT_MAX;
 
+// PVの詰み探索
+std::vector<PvMateSearcher> pv_mate_searchers;
 
 ////////////
 //  関数  //
@@ -427,6 +430,7 @@ void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_m
 
 void NewGame()
 {
+	PvMateSearcher::Clear();
 }
 
 void GameOver()
@@ -456,6 +460,14 @@ int GetTimeLimit()
 void SetDrawPly(const int ply)
 {
 	draw_ply = ply > 0 ? ply : INT_MAX;
+}
+
+// PVの詰み探索の設定
+void SetPvMateSearch(const int threads, const int depth, const int nodes)
+{
+	pv_mate_searchers.reserve(threads);
+	for (int i = 0; i < threads; i++)
+		pv_mate_searchers.emplace_back(depth, nodes);
 }
 
 void
@@ -551,6 +563,9 @@ InitializeUctSearch(const unsigned int node_limit)
 void TerminateUctSearch()
 {
 #ifdef THREAD_POOL
+	for (auto& searcher : pv_mate_searchers)
+		searcher.Term();
+
 	if (search_groups) {
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Term();
@@ -613,48 +628,11 @@ FinalizeUctSearch(void)
 void
 StopUctSearch(void)
 {
+	// PVの詰み探索スレッド停止
+	for (auto& searcher : pv_mate_searchers)
+		searcher.Stop();
+
 	uct_search_stop = true;
-}
-
-inline unsigned int select_max_child_node(const uct_node_t* uct_node)
-{
-	const child_node_t* uct_child = uct_node->child.get();
-
-	unsigned int select_index = 0;
-	int max_count = 0;
-	const int child_num = uct_node->child_num;
-	int child_win_count = 0;
-	int child_lose_count = 0;
-
-	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].IsWin()) {
-			// 負けが確定しているノードは選択しない
-			if (child_win_count == i && uct_child[i].move_count > max_count) {
-				// すべて負けの場合は、探索回数が最大の手を選択する
-				select_index = i;
-				max_count = uct_child[i].move_count;
-			}
-			child_win_count++;
-			continue;
-		}
-		else if (uct_child[i].IsLose()) {
-			// 子ノードに一つでも負けがあれば、勝ちなので選択する
-			if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-				// すべて勝ちの場合は、探索回数が最大の手を選択する
-				select_index = i;
-				max_count = uct_child[i].move_count;
-			}
-			child_lose_count++;
-			continue;
-		}
-
-		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-			select_index = i;
-			max_count = uct_child[i].move_count;
-		}
-	}
-
-	return select_index;
 }
 
 bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
@@ -803,7 +781,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Move>& moves, Move &ponderMove, bool ponder)
+UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
 {
 	uct_search_stop = false;
 
@@ -843,12 +821,21 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Run();
 
+	// PVの詰み探索スレッド開始
+	for (auto& searcher : pv_mate_searchers)
+		searcher.Run();
+
 	// 探索スレッド終了待機
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
 
-	if (pondering)
+	if (pondering) {
+		// PVの詰み探索スレッド終了待機
+		for (auto& searcher : pv_mate_searchers)
+			searcher.Join();
+
 		return Move::moveNone();
+	}
 
 	// 着手が21手以降で,
 	// 時間延長を行う設定になっていて,
@@ -871,6 +858,13 @@ UctSearchGenmove(Position *pos, const Key starting_pos_key, const std::vector<Mo
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Join();
 	}
+
+	// PVの詰み探索スレッド停止
+	for (auto& searcher : pv_mate_searchers)
+		searcher.Stop();
+	// PVの詰み探索スレッド終了待機
+	for (auto& searcher : pv_mate_searchers)
+		searcher.Join();
 
 	// PV取得と表示
 	Move move;

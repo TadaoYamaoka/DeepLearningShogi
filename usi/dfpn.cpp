@@ -9,7 +9,7 @@ using namespace std;
 using namespace ns_dfpn;
 
 int64_t DfPn::HASH_SIZE_MB = 2048;
-uint32_t DfPn::kMaxDepth = 31;
+int DfPn::draw_ply = INT_MAX;
 const constexpr uint32_t REPEAT = UINT_MAX - 1;
 
 // --- 詰み将棋探索
@@ -177,8 +177,8 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 }
 
 template <bool or_node>
-TTEntry& TranspositionTable::LookUp(const Position& n, const uint16_t depth) {
-	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), depth);
+TTEntry& TranspositionTable::LookUp(const Position& n) {
+	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), n.gamePly());
 }
 
 // moveを指した後の子ノードのキーを返す
@@ -208,12 +208,12 @@ void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, 
 
 // moveを指した後の子ノードの置換表エントリを返す
 template <bool or_node>
-TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move, const uint16_t depth) {
+TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move) {
 	Cluster* entries;
 	uint32_t hash_high;
 	Hand hand;
 	GetChildFirstEntry<or_node>(n, move, entries, hash_high, hand);
-	return LookUpDirect(*entries, hash_high, hand, depth + 1);
+	return LookUpDirect(*entries, hash_high, hand, n.gamePly() + 1);
 }
 
 void TranspositionTable::Resize(int64_t hash_size_mb) {
@@ -278,11 +278,11 @@ FORCE_INLINE u32 dp(const Hand& us, const Hand& them) {
 }
 
 template <bool or_node>
-void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16_t depth, int64_t& searchedNode) {
-	auto& entry = transposition_table.LookUp<or_node>(n, depth);
+void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode) {
+	auto& entry = transposition_table.LookUp<or_node>(n);
 
 	if (or_node) {
-		if (depth + 2 > kMaxDepth) {
+		if (n.gamePly() + 2 > maxDepth) {
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
 			entry.num_searched = REPEAT;
@@ -339,7 +339,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						continue;
 					}
 
-					auto& entry2 = transposition_table.LookUp<false>(n, depth + 1);
+					auto& entry2 = transposition_table.LookUp<false>(n);
 
 					// この局面ですべてのevasionを試す
 					MovePicker<false> move_picker2(n);
@@ -368,7 +368,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						return;
 					}
 
-					if (depth + 4 > kMaxDepth) {
+					if (n.gamePly() + 3 > maxDepth) {
 						n.undoMove(m);
 
 						entry2.pn = kInfinitePnDn;
@@ -390,7 +390,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 						n.doMove(m2, si2, ci2, false);
 
 						if (n.mateMoveIn1Ply()) {
-							auto& entry1 = transposition_table.LookUp<true>(n, depth + 2);
+							auto& entry1 = transposition_table.LookUp<true>(n);
 							entry1.pn = 0;
 							entry1.dn = kInfinitePnDn;
 						}
@@ -441,7 +441,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 				n.doMove(m2, si2, ci2, false);
 
 				if (const Move move = n.mateMoveIn1Ply()) {
-					auto& entry1 = transposition_table.LookUp<true>(n, depth + 1);
+					auto& entry1 = transposition_table.LookUp<true>(n);
 					entry1.pn = 0;
 					entry1.dn = kInfinitePnDn;
 
@@ -462,7 +462,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 					// 王手がない場合
 					MovePicker<true> move_picker2(n);
 					if (move_picker2.empty()) {
-						auto& entry1 = transposition_table.LookUp<true>(n, depth + 1);
+						auto& entry1 = transposition_table.LookUp<true>(n);
 						entry1.pn = kInfinitePnDn;
 						entry1.dn = 0;
 						// 反証駒
@@ -593,7 +593,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			bool first = true;
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
-				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, depth + 1);
+				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
 				if (child_entry.pn == 0) {
 					// 詰みの場合
 					//cout << n.toSFEN() << " or" << endl;
@@ -705,7 +705,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 			bool all_mate = true;
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
-				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, depth + 1);
+				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
 				if (all_mate) {
 					if (child_entry.pn == 0) {
 						const Hand& child_pp = child_entry.hand;
@@ -811,7 +811,7 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 		//cout << n.toSFEN() << "," << best_move.toUSI() << endl;
 		n.doMove(best_move, state_info);
 		++searchedNode;
-		dfpn_inner<!or_node>(n, thpn_child, thdn_child/*, inc_flag*/, depth + 1, searchedNode);
+		dfpn_inner<!or_node>(n, thpn_child, thdn_child/*, inc_flag*/, maxDepth, searchedNode);
 		n.undoMove(best_move);
 	}
 }
@@ -827,7 +827,7 @@ Move DfPn::dfpn_move(Position& pos) {
 	}
 
 	for (const auto& move : move_picker) {
-		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move, 0);
+		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
 		if (child_entry.pn == 0) {
 			return move;
 		}
@@ -842,15 +842,16 @@ void DfPn::init()
 }
 
 // 詰将棋探索のエントリポイント
-bool DfPn::dfpn(Position& r) {
+bool DfPn::dfpn(Position& r, const bool new_search) {
 	// 自玉に王手がかかっていないこと
 
 	// キャッシュの世代を進める
-	transposition_table.NewSearch();
+	if (new_search)
+		transposition_table.NewSearch();
 
 	searchedNode = 0;
-	dfpn_inner<true>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, 0, searchedNode);
-	const auto& entry = transposition_table.LookUp<true>(r, 0);
+	dfpn_inner<true>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);
+	const auto& entry = transposition_table.LookUp<true>(r);
 
 	//cout << searchedNode << endl;
 
@@ -865,15 +866,16 @@ bool DfPn::dfpn(Position& r) {
 }
 
 // 詰将棋探索のエントリポイント
-bool DfPn::dfpn_andnode(Position& r) {
+bool DfPn::dfpn_andnode(Position& r, const bool new_search) {
 	// 自玉に王手がかかっていること
 
 	// キャッシュの世代を進める
-	transposition_table.NewSearch();
+	if (new_search)
+		transposition_table.NewSearch();
 
 	searchedNode = 0;
-	dfpn_inner<false>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, 0, searchedNode);
-	const auto& entry = transposition_table.LookUp<false>(r, 0);
+	dfpn_inner<false>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);
+	const auto& entry = transposition_table.LookUp<false>(r);
 
 	return entry.pn == 0;
 }

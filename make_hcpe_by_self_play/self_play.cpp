@@ -447,6 +447,7 @@ UCTSearcherGroup::Initialize()
 	if (ROOT_MATE_SEARCH_DEPTH > 0) {
 		dfpn.init();
 		dfpn.set_max_search_node(MATE_SEARCH_MAX_NODE);
+		dfpn.set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 		mate_search_slot = new MateSearchEntry[policy_value_batch_maxsize];
 	}
 }
@@ -1570,8 +1571,6 @@ int main(int argc, char* argv[]) {
 		cerr << "too few usi_threads" << endl;
 		return 0;
 	}
-
-	DfPn::set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
 
 	logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 	logger->set_level(spdlog::level::trace);
