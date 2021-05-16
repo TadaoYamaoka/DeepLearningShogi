@@ -45,7 +45,6 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 		mtx_searched.unlock();
 		// 詰みの場合、ノードを更新
 		if (dfpn.dfpn(pos, false)) {
-			std::cout << "info string pvmate" << std::endl;
 			uct_child[next_index].SetWin();
 		}
 		// 探索中にPVが変わっている可能性があるため、ルートに戻る
