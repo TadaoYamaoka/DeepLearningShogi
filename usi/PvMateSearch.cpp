@@ -76,9 +76,9 @@ void PvMateSearcher::Run()
 				// 停止になるまで繰り返す
 				while (!stop) {
 					// 盤面のコピー
-					Position pos_root(*pos_root);
+					Position pos_copy(*pos_root);
 					// PV上の詰み探索
-					SearchInner(pos_root, tree->GetCurrentHead());
+					SearchInner(pos_copy, tree->GetCurrentHead());
 				}
 
 				std::unique_lock<std::mutex> lk(mtx_th);
