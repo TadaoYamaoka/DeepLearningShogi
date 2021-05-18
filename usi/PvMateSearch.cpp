@@ -47,6 +47,11 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 		if (dfpn.dfpn(pos, false)) {
 			uct_child[next_index].SetWin();
 		}
+		else if (stop) {
+			// 途中で停止された場合、未探索にする
+			std::lock_guard<std::mutex> lock(mtx_searched);
+			searched.erase(&uct_child[next_index]);
+		}
 		// 探索中にPVが変わっている可能性があるため、ルートに戻る
 	}
 	else {
