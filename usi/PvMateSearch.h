@@ -24,7 +24,7 @@ public:
 	}
 	PvMateSearcher(PvMateSearcher&& o) noexcept : th(o.th) {} // 未使用
 	void Run();
-	void Stop();
+	void Stop(const bool stop = true);
 	void Join();
 #ifdef THREAD_POOL
 	void Term();

@@ -61,10 +61,6 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 
 void PvMateSearcher::Run()
 {
-	// 停止状態をクリア
-	dfpn.dfpn_stop(false);
-	stop = false;
-
 	// ハッシュをクリア
 	dfpn.new_search();
 
@@ -108,10 +104,10 @@ void PvMateSearcher::Run()
 #endif
 }
 
-void PvMateSearcher::Stop()
+void PvMateSearcher::Stop(const bool stop)
 {
-	dfpn.dfpn_stop(true);
-	stop = true;
+	dfpn.dfpn_stop(stop);
+	this->stop = stop;
 }
 
 void PvMateSearcher::Join()
