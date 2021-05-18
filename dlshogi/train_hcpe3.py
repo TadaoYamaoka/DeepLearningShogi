@@ -1,6 +1,7 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 
 from dlshogi import serializers
 from dlshogi.swa import SWA
@@ -18,7 +19,7 @@ parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'], help='network type')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
@@ -44,14 +45,28 @@ args = parser.parse_args()
 
 if args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
-elif args.network == 'senet10':
-    from dlshogi.policy_value_network_senet10 import *
+    model = PolicyValueNetwork()
 elif args.network == 'resnet10_swish':
     from dlshogi.policy_value_network_resnet10_swish import *
+    model = PolicyValueNetwork()
 elif args.network == 'resnet20_swish':
     from dlshogi.policy_value_network_resnet20_swish import *
+    model = PolicyValueNetwork()
+elif args.network == 'senet10':
+    from dlshogi.policy_value_network_senet import *
+    model = PolicyValueNetwork(blocks=10, channels=192)
+elif args.network == 'senet10_swish':
+    from dlshogi.policy_value_network_senet import *
+    model = PolicyValueNetwork(blocks=10, channels=192, activation=nn.SiLU())
+elif args.network == 'senet15_swish':
+    from dlshogi.policy_value_network_senet import *
+    model = PolicyValueNetwork(blocks=15, channels=224, activation=nn.SiLU())
+elif args.network == 'senet20_swish':
+    from dlshogi.policy_value_network_senet import *
+    model = PolicyValueNetwork(blocks=20, channels=256, activation=nn.SiLU())
 else:
     from dlshogi.policy_value_network import *
+    model = PolicyValueNetwork()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))
@@ -68,7 +83,6 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = PolicyValueNetwork()
 model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)

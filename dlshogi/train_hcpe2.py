@@ -18,7 +18,7 @@ parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
+parser.add_argument('--network', type=str, default='resnet10_swish', choices=['resnet10_swish', 'resnet20_swish'], help='network type')
 parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
 parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
 parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
@@ -39,16 +39,10 @@ parser.add_argument('--swa_lr', type=float)
 parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 args = parser.parse_args()
 
-if args.network == 'wideresnet15':
-    from dlshogi.policy_value_network_wideresnet15 import *
-elif args.network == 'senet10':
-    from dlshogi.policy_value_network_senet10 import *
-elif args.network == 'resnet10_swish':
+if args.network == 'resnet10_swish':
     from dlshogi.policy_value_network_resnet10_swish import *
 elif args.network == 'resnet20_swish':
     from dlshogi.policy_value_network_resnet20_swish import *
-else:
-    from dlshogi.policy_value_network import *
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))

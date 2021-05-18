@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model')
 parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'])
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'])
 parser.add_argument('--fixed_batchsize', type=int)
 parser.add_argument('--remove_aux', action='store_true')
 args = parser.parse_args()
@@ -25,23 +25,32 @@ if args.network == 'wideresnet10':
     from dlshogi.policy_value_network import *
 elif args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
-elif args.network == 'senet10':
-    from dlshogi.policy_value_network_senet10 import *
 elif args.network == 'resnet10_swish':
     from dlshogi.policy_value_network_resnet10_swish import *
 elif args.network == 'resnet20_swish':
     from dlshogi.policy_value_network_resnet20_swish import *
-baseclass = PolicyValueNetwork
+elif args.network[:5] == 'senet':
+    from dlshogi.policy_value_network_senet import *
 
-class PolicyValueNetworkAddSigmoid(baseclass):
-    def __init__(self):
-        super(PolicyValueNetworkAddSigmoid, self).__init__()
+class PolicyValueNetworkAddSigmoid(PolicyValueNetwork):
+    def __init__(self, *args, **kwargs):
+        super(PolicyValueNetworkAddSigmoid, self).__init__(*args, **kwargs)
 
     def __call__(self, x1, x2):
         y1, y2 = super(PolicyValueNetworkAddSigmoid, self).__call__(x1, x2)
         return y1, torch.sigmoid(y2)
 
-model = PolicyValueNetworkAddSigmoid()
+if args.network == 'senet10':
+    model = PolicyValueNetworkAddSigmoid(blocks=10, channels=192)
+elif args.network == 'senet10_swish':
+    model = PolicyValueNetworkAddSigmoid(blocks=10, channels=192, activation=nn.SiLU())
+elif args.network == 'senet15_swish':
+    model = PolicyValueNetworkAddSigmoid(blocks=15, channels=224, activation=nn.SiLU())
+elif args.network == 'senet20_swish':
+    model = PolicyValueNetworkAddSigmoid(blocks=20, channels=256, activation=nn.SiLU())
+else:
+    model = PolicyValueNetworkAddSigmoid()
+
 if args.network.endswith('_swish'):
     model.set_swish(False)
 model.to(device)
