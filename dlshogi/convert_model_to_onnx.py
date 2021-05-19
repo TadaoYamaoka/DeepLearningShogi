@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model')
 parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'])
+parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet15_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'])
 parser.add_argument('--fixed_batchsize', type=int)
 parser.add_argument('--remove_aux', action='store_true')
 args = parser.parse_args()
@@ -27,6 +27,8 @@ elif args.network == 'wideresnet15':
     from dlshogi.policy_value_network_wideresnet15 import *
 elif args.network == 'resnet10_swish':
     from dlshogi.policy_value_network_resnet10_swish import *
+elif args.network == 'resnet15_swish':
+    from dlshogi.policy_value_network_resnet15_swish import *
 elif args.network == 'resnet20_swish':
     from dlshogi.policy_value_network_resnet20_swish import *
 elif args.network[:5] == 'senet':

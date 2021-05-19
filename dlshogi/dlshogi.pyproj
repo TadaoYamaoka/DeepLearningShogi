@@ -35,6 +35,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="policy_value_network.py" />
+    <Compile Include="policy_value_network_resnet15_swish.py" />
     <Compile Include="policy_value_network_resnet10_swish.py" />
     <Compile Include="policy_value_network_resnet20_swish.py" />
     <Compile Include="policy_value_network_senet.py" />
