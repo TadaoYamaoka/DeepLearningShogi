@@ -316,12 +316,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		if (draw_ply > 0)
 			DfPn::set_maxdepth(std::min(mate_depth, draw_ply - pos.gamePly()));
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
-			if (!pos_copy.inCheck()) {
-				mate = dfpn.dfpn(pos_copy);
-				if (mate)
-					StopUctSearch();
-				dfpn_done = true;
-			}
+			mate = dfpn.dfpn(pos_copy);
+			if (mate)
+				StopUctSearch();
+			dfpn_done = true;
 		}));
 	}
 
