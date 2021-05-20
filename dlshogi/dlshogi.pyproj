@@ -38,6 +38,7 @@
     <Compile Include="policy_value_network_resnet15_swish.py" />
     <Compile Include="policy_value_network_resnet10_swish.py" />
     <Compile Include="policy_value_network_resnet20_swish.py" />
+    <Compile Include="policy_value_network_mobilenet.py" />
     <Compile Include="policy_value_network_senet.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
