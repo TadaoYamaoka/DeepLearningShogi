@@ -49,7 +49,7 @@ constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex mutexes[MUTEX_NUM];
 inline std::mutex& GetNodeMutex(const uct_node_t* node)
 {
-	return mutexes[std::hash<uint64_t>()((uint64_t)node) & (MUTEX_NUM - 1)];
+	return mutexes[((reinterpret_cast<uint64_t>(node) ^ 14695981039346656037ULL) * 1099511628211ULL) & (MUTEX_NUM - 1)];
 }
 
 
