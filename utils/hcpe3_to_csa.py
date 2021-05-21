@@ -36,6 +36,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
 parser.add_argument('csa')
 parser.add_argument('--range')
+parser.add_argument('--nyugyoku', action='store_true')
 parser.add_argument('--aoba', action='store_true')
 parser.add_argument('--out_v', action='store_true')
 parser.add_argument('--sort_visits', action='store_true')
@@ -79,7 +80,8 @@ while p < end:
     move_num = hcpe['moveNum']
     result = hcpe['result']
 
-    if p >= start:
+    need_output = p >= start and (not args.nyugyoku or result & 8 != 0)
+    if need_output:
         csa.info(board, comments=[f"moveNum={move_num},result={result},opponent={hcpe['opponent']}"])
 
     for i in range(move_num):
@@ -87,7 +89,7 @@ while p < end:
         candidate_num = move_info['candidateNum']
         move_visits = np.frombuffer(f.read(MoveVisits.itemsize * candidate_num), MoveVisits, candidate_num)
         move = board.move_from_move16(move_info['selectedMove16'])
-        if p >= start:
+        if need_output:
             if candidate_num > 0:
                 if args.aoba:
                     if args.out_v:
@@ -110,6 +112,6 @@ while p < end:
             csa.move(move, comment=comment, sep=sep)
         board.push(move)
         assert board.is_ok()
-    if p >= start:
+    if need_output:
         csa.endgame(ENDGAME_SYMBOLS[hcpe['result']])
     p += 1
