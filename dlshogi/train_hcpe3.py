@@ -19,10 +19,10 @@ parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
-parser.add_argument('--model', type=str, default='model_rl_val_hcpe', help='model file name')
-parser.add_argument('--state', type=str, default='state_rl_val_hcpe', help='state file name')
-parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file')
-parser.add_argument('--resume', '-r', default='', help='Resume the optimization from snapshot')
+parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
+parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
+parser.add_argument('--model', type=str, help='model file name')
+parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file (for compatibility)')
 parser.add_argument('--log', default=None, help='log file path')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
@@ -73,6 +73,7 @@ model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
 if args.use_swa:
+    logging.info(f'use swa(swa_freq={args.swa_freq}, swa_lr={args.swa_lr}, swa_n_avr={args.swa_n_avr})')
     optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
 else:
     optimizer = base_optimizer
@@ -90,16 +91,25 @@ logging.info('temperature={}'.format(args.temperature))
 
 # Init/Resume
 if args.initmodel:
+    # for compatibility
     logging.info('Load model from {}'.format(args.initmodel))
     serializers.load_npz(args.initmodel, model)
 if args.resume:
-    logging.info('Load optimizer state from {}'.format(args.resume))
     checkpoint = torch.load(args.resume, map_location=device)
     epoch = checkpoint['epoch']
     t = checkpoint['t']
-    base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    if args.use_amp and 'scaler_state_dict' in checkpoint:
-        scaler.load_state_dict(checkpoint['scaler_state_dict'])
+    if 'model' in checkpoint:
+        logging.info('Load checkpoint from {}'.format(args.resume))
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        if args.use_amp and 'scaler' in checkpoint:
+            scaler.load_state_dict(checkpoint['scaler'])
+    else:
+        # for compatibility
+        logging.info('Load optimizer state from {}'.format(args.resume))
+        base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if args.use_amp and 'scaler_state_dict' in checkpoint:
+            scaler.load_state_dict(checkpoint['scaler_state_dict'])
 else:
     epoch = 0
     t = 0
@@ -130,6 +140,51 @@ def binary_accuracy(y, t):
     pred = y >= 0
     truth = t >= 0.5
     return pred.eq(truth).sum().item() / len(t)
+
+def test():
+    itr_test = 0
+    sum_test_loss1 = 0
+    sum_test_loss2 = 0
+    sum_test_loss3 = 0
+    sum_test_loss = 0
+    sum_test_accuracy1 = 0
+    sum_test_accuracy2 = 0
+    sum_test_entropy1 = 0
+    sum_test_entropy2 = 0
+    model.eval()
+    with torch.no_grad():
+        for x1, x2, t1, t2, value in test_dataloader:
+            y1, y2 = model(x1, x2)
+
+            itr_test += 1
+            loss1 = cross_entropy_loss(y1, t1).mean()
+            loss2 = bce_with_logits_loss(y2, t2)
+            loss3 = bce_with_logits_loss(y2, value)
+            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+            sum_test_loss1 += loss1.item()
+            sum_test_loss2 += loss2.item()
+            sum_test_loss3 += loss3.item()
+            sum_test_loss += loss.item()
+            sum_test_accuracy1 += accuracy(y1, t1)
+            sum_test_accuracy2 += binary_accuracy(y2, t2)
+
+            entropy1 = (- F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1)
+            sum_test_entropy1 += entropy1.mean().item()
+
+            p2 = y2.sigmoid()
+            #entropy2 = -(p2 * F.log(p2) + (1 - p2) * F.log(1 - p2))
+            log1p_ey2 = F.softplus(y2)
+            entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
+            sum_test_entropy2 +=entropy2.mean().item()
+
+    return (sum_test_loss1 / itr_test,
+            sum_test_loss2 / itr_test,
+            sum_test_loss3 / itr_test,
+            sum_test_loss / itr_test,
+            sum_test_accuracy1 / itr_test,
+            sum_test_accuracy2 / itr_test,
+            sum_test_entropy1 / itr_test,
+            sum_test_entropy2 / itr_test)
 
 # train
 itr = 0
@@ -206,69 +261,45 @@ for e in range(args.epoch):
             sum_loss3 = 0
             sum_loss = 0
 
+    # print train loss and test loss for each epoch
+    test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test()
+
+    logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
+        epoch + 1, t,
+        sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
+        test_loss1, test_loss2, test_loss3, test_loss,
+        test_accuracy1, test_accuracy2,
+        test_entropy1, test_entropy2))
+
+    epoch += 1
+
+if args.checkpoint:
+    logging.info('save the checkpoint to {}'.format(args.checkpoint))
+    checkpoint = {
+        'epoch': epoch,
+        't': t,
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'scaler': scaler.state_dict()}
+    torch.save(checkpoint, args.checkpoint)
+
+# save model
+if args.model:
     if args.use_swa:
+        logging.debug('update batch normalization')
         optimizer.swap_swa_sgd()
 
         with torch.cuda.amp.autocast(enabled=args.use_amp):
             optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
 
-    # print train loss for each epoch
-    itr_test = 0
-    sum_test_loss1 = 0
-    sum_test_loss2 = 0
-    sum_test_loss3 = 0
-    sum_test_loss = 0
-    sum_test_accuracy1 = 0
-    sum_test_accuracy2 = 0
-    sum_test_entropy1 = 0
-    sum_test_entropy2 = 0
-    model.eval()
-    with torch.no_grad():
-        for x1, x2, t1, t2, value in test_dataloader:
-            y1, y2 = model(x1, x2)
+        # print test loss with swa model
+        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test()
 
-            itr_test += 1
-            loss1 = cross_entropy_loss(y1, t1).mean()
-            loss2 = bce_with_logits_loss(y2, t2)
-            loss3 = bce_with_logits_loss(y2, value)
-            loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
-            sum_test_loss1 += loss1.item()
-            sum_test_loss2 += loss2.item()
-            sum_test_loss3 += loss3.item()
-            sum_test_loss += loss.item()
-            sum_test_accuracy1 += accuracy(y1, t1)
-            sum_test_accuracy2 += binary_accuracy(y2, t2)
+        logging.info('epoch = {}, iteration = {}, swa test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, swa test accuracy = {:.08f}, {:.08f}, swa test entropy = {:.08f}, {:.08f}'.format(
+            epoch, t,
+            test_loss1, test_loss2, test_loss3, test_loss,
+            test_accuracy1, test_accuracy2,
+            test_entropy1, test_entropy2))
 
-            entropy1 = (- F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1)
-            sum_test_entropy1 += entropy1.mean().item()
-
-            p2 = y2.sigmoid()
-            #entropy2 = -(p2 * F.log(p2) + (1 - p2) * F.log(1 - p2))
-            log1p_ey2 = F.softplus(y2)
-            entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
-            sum_test_entropy2 +=entropy2.mean().item()
-
-        logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test_loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
-            epoch + 1, t,
-            sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
-            sum_test_loss1 / itr_test, sum_test_loss2 / itr_test, sum_test_loss3 / itr_test, sum_test_loss / itr_test,
-            sum_test_accuracy1 / itr_test, sum_test_accuracy2 / itr_test,
-            sum_test_entropy1 / itr_test, sum_test_entropy2 / itr_test))
-
-    epoch += 1
-
-    if args.use_swa:
-        if e != args.epoch - 1:
-            optimizer.swap_swa_sgd()
-
-logging.info('save the model to {}'.format(args.model))
-serializers.save_npz(args.model, model)
-logging.info('save the optimizer to {}'.format(args.state))
-state = {
-    'epoch': epoch,
-    't': t,
-    'optimizer_state_dict': base_optimizer.state_dict(),
-    }
-if args.use_amp:
-    state['scaler_state_dict'] = scaler.state_dict()
-torch.save(state, args.state)
+    logging.info('save the model to {}'.format(args.model))
+    serializers.save_npz(args.model, model)
