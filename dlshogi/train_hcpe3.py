@@ -102,7 +102,10 @@ if args.resume:
     if 'model' in checkpoint:
         logging.info('Load checkpoint from {}'.format(args.resume))
         model.load_state_dict(checkpoint['model'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
+        if 'swa_state' in checkpoint['optimizer']:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+        else:
+            base_optimizer.load_state_dict(checkpoint['optimizer'])
         if args.use_amp and 'scaler' in checkpoint:
             scaler.load_state_dict(checkpoint['scaler'])
     else:
