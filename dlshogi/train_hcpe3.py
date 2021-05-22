@@ -33,6 +33,7 @@ parser.add_argument('--val_lambda', type=float, default=0.333, help='regularizat
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
 parser.add_argument('--use_swa', action='store_true')
+parser.add_argument('--swa_start', type=int)
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
 parser.add_argument('--swa_lr', type=float)
@@ -73,8 +74,8 @@ model.to(device)
 
 base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
 if args.use_swa:
-    logging.info(f'use swa(swa_freq={args.swa_freq}, swa_lr={args.swa_lr}, swa_n_avr={args.swa_n_avr})')
-    optimizer = SWA(base_optimizer, swa_start=args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
+    logging.info(f'use swa(swa_start={args.swa_start}, swa_freq={args.swa_freq}, swa_lr={args.swa_lr}, swa_n_avr={args.swa_n_avr})')
+    optimizer = SWA(base_optimizer, swa_start=args.swa_start if args.swa_start else args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
 else:
     optimizer = base_optimizer
 def cross_entropy_loss_with_soft_target(pred, soft_targets):
