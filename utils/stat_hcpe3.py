@@ -29,6 +29,8 @@ f = open(args.hcpe3, 'rb')
 
 board = Board()
 stats = []
+keys = set()
+unique_positions = 0
 while True:
     data = f.read(HuffmanCodedPosAndEval3.itemsize)
     if len(data) == 0:
@@ -56,6 +58,10 @@ while True:
                 max_candidate_num = candidate_num
             sum_visits += move_visits['visitNum'].sum()
             sum_top_visits += move_visits['visitNum'].max()
+            key = board.zobrist_hash()
+            if key not in keys:
+                unique_positions += 1
+                keys.add(key)
         move = board.move_from_move16(move_info['selectedMove16'])
         board.push(move)
         assert board.is_ok()
@@ -80,3 +86,7 @@ if args.csv:
 
 print(df[['moves', 'black win', 'nyugyoku', 'opponent']].describe())
 print(df[['positions', 'candidates avr', 'max candidates', 'visits avr', 'top visits avr']].describe())
+sum_poritions = df['positions'].sum()
+print('sum positions', sum_poritions)
+print('unique positions', unique_positions)
+print('unique positions / sum positions', unique_positions / sum_poritions)
