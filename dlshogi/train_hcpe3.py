@@ -1,9 +1,9 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+from torch.optim.swa_utils import AveragedModel, update_bn
 
 from dlshogi import serializers
-from dlshogi.swa import SWA
 from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.data_loader import DataLoader
 
@@ -33,10 +33,8 @@ parser.add_argument('--val_lambda', type=float, default=0.333, help='regularizat
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
 parser.add_argument('--use_swa', action='store_true')
-parser.add_argument('--swa_start', type=int)
 parser.add_argument('--swa_freq', type=int, default=250)
 parser.add_argument('--swa_n_avr', type=int, default=10)
-parser.add_argument('--swa_lr', type=float)
 parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 parser.add_argument('--use_average', action='store_true')
 parser.add_argument('--use_evalfix', action='store_true')
@@ -72,12 +70,13 @@ else:
 model = PolicyValueNetwork()
 model.to(device)
 
-base_optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
+optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
 if args.use_swa:
-    logging.info(f'use swa(swa_start={args.swa_start}, swa_freq={args.swa_freq}, swa_lr={args.swa_lr}, swa_n_avr={args.swa_n_avr})')
-    optimizer = SWA(base_optimizer, swa_start=args.swa_start if args.swa_start else args.swa_freq, swa_freq=args.swa_freq, swa_lr=args.swa_lr, swa_n_avr=args.swa_n_avr)
-else:
-    optimizer = base_optimizer
+    logging.info(f'use swa(swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
+    ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
+    ema_b = 1 / (args.swa_n_avr + 1)
+    ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged : ema_a * averaged_model_parameter + ema_b * model_parameter
+    swa_model = AveragedModel(model, avg_fn=ema_avg)
 def cross_entropy_loss_with_soft_target(pred, soft_targets):
     return torch.sum(-soft_targets * F.log_softmax(pred, dim=1), 1)
 cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
@@ -102,10 +101,9 @@ if args.resume:
     if 'model' in checkpoint:
         logging.info('Load checkpoint from {}'.format(args.resume))
         model.load_state_dict(checkpoint['model'])
-        if 'swa_state' in checkpoint['optimizer']:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-        else:
-            base_optimizer.load_state_dict(checkpoint['optimizer'])
+        if args.use_swa and 'swa_model' in checkpoint:
+            swa_model.load_state_dict(checkpoint['swa_model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
         if args.use_amp and 'scaler' in checkpoint:
             scaler.load_state_dict(checkpoint['scaler'])
     else:
@@ -132,10 +130,10 @@ logging.info('test position num = {}'.format(len(test_data)))
 train_dataloader = Hcpe3DataLoader(train_data, args.batchsize, device, shuffle=True)
 test_dataloader = DataLoader(test_data, args.testbatchsize, device)
 
-# for SWA bn_update
+# for SWA update_bn
 def hcpe_loader(data, batchsize):
     for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
-        yield x1, x2
+        yield { 'x1':x1, 'x2':x2 }
 
 def accuracy(y, t):
     return (torch.max(y, 1)[1] == t).sum().item() / len(t)
@@ -145,7 +143,7 @@ def binary_accuracy(y, t):
     truth = t >= 0.5
     return pred.eq(truth).sum().item() / len(t)
 
-def test():
+def test(model):
     itr_test = 0
     sum_test_loss1 = 0
     sum_test_loss2 = 0
@@ -204,6 +202,8 @@ for e in range(args.epoch):
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
     for x1, x2, t1, t2, value in train_dataloader:
+        t += 1
+        itr += 1
         with torch.cuda.amp.autocast(enabled=args.use_amp):
             model.train()
 
@@ -229,8 +229,9 @@ for e in range(args.epoch):
         scaler.step(optimizer)
         scaler.update()
 
-        t += 1
-        itr += 1
+        if args.use_swa and t % args.swa_freq == 0:
+            swa_model.update_parameters(model)
+
         sum_loss1 += loss1.item()
         sum_loss2 += loss2.item()
         sum_loss3 += loss3.item()
@@ -266,7 +267,7 @@ for e in range(args.epoch):
             sum_loss = 0
 
     # print train loss and test loss for each epoch
-    test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test()
+    test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
     logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
         epoch + 1, t,
@@ -283,21 +284,24 @@ if args.checkpoint:
         'epoch': epoch,
         't': t,
         'model': model.state_dict(),
+        'swa_model': swa_model.state_dict() if args.use_swa else None,
         'optimizer': optimizer.state_dict(),
         'scaler': scaler.state_dict()}
     torch.save(checkpoint, args.checkpoint)
+
 
 # save model
 if args.model:
     if args.use_swa:
         logging.debug('update batch normalization')
-        optimizer.swap_swa_sgd()
-
+        forward_ = swa_model.forward
+        swa_model.forward = lambda x : forward_(**x)
         with torch.cuda.amp.autocast(enabled=args.use_amp):
-            optimizer.bn_update(hcpe_loader(train_data, args.batchsize), model)
+            update_bn(hcpe_loader(train_data, args.batchsize), swa_model)
+        del swa_model.forward
 
         # print test loss with swa model
-        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test()
+        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(swa_model)
 
         logging.info('epoch = {}, iteration = {}, swa test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, swa test accuracy = {:.08f}, {:.08f}, swa test entropy = {:.08f}, {:.08f}'.format(
             epoch, t,
@@ -306,4 +310,4 @@ if args.model:
             test_entropy1, test_entropy2))
 
     logging.info('save the model to {}'.format(args.model))
-    serializers.save_npz(args.model, model)
+    serializers.save_npz(args.model, swa_model if args.use_swa else model)
