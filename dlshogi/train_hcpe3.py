@@ -284,9 +284,11 @@ if args.checkpoint:
         'epoch': epoch,
         't': t,
         'model': model.state_dict(),
-        'swa_model': swa_model.state_dict() if args.use_swa else None,
         'optimizer': optimizer.state_dict(),
         'scaler': scaler.state_dict()}
+    if args.use_swa:
+        checkpoint['swa_model'] = swa_model.state_dict()
+
     torch.save(checkpoint, args.checkpoint)
 
 
