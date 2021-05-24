@@ -301,6 +301,20 @@ inline void visits_to_proberbility(TrainingData& data, const std::vector<MoveVis
 	}
 }
 
+// フォーマット自動判別
+bool is_hcpe(std::ifstream& ifs) {
+	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
+		// 最後のデータがhcpeであるかで判別
+		ifs.seekg(-sizeof(HuffmanCodedPosAndEval), std::ios_base::end);
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (hcpe.hcp.isOK() && hcpe.bestMove16 >= 1 && hcpe.bestMove16 <= 26703) {
+			return true;
+		}
+	}
+	return false;
+}
+
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
 py::object load_hcpe3(std::string filepath, bool use_average, double a, double temperature) {
@@ -311,15 +325,9 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a, double t
 
 	// フォーマット自動判別
 	// hcpeの場合は、指し手をone-hotの方策として読み込む
-	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
-		// 最後のデータがhcpeであるかで判別
-		ifs.seekg(-sizeof(HuffmanCodedPosAndEval), std::ios_base::end);
-		HuffmanCodedPosAndEval hcpe;
-		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
-		if (hcpe.hcp.isOK() && hcpe.bestMove16 >= 1 && hcpe.bestMove16 <= 26703) {
-			ifs.seekg(std::ios_base::beg);
-			return load_hcpe(filepath, ifs, use_average, eval_scale);
-		}
+	if (is_hcpe(ifs)) {
+		ifs.seekg(std::ios_base::beg);
+		return load_hcpe(filepath, ifs, use_average, eval_scale);
 	}
 	ifs.seekg(std::ios_base::beg);
 
@@ -444,14 +452,7 @@ py::object hcpe3_prepare_evalfix(std::string filepath) {
 	if (!ifs) return py::object();
 
 	// フォーマット自動判別
-	bool hcpe3 = true;
-	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
-		// 最後の1byteが0であるかで判別
-		ifs.seekg(-1, std::ios_base::end);
-		if (ifs.get() == 0) {
-			hcpe3 = false;
-		}
-	}
+	bool hcpe3 = !is_hcpe(ifs);
 	ifs.seekg(std::ios_base::beg);
 
 	if (hcpe3) {
