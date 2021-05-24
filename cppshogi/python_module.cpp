@@ -312,9 +312,11 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a, double t
 	// フォーマット自動判別
 	// hcpeの場合は、指し手をone-hotの方策として読み込む
 	if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
-		// 最後の1byteが0であるかで判別
-		ifs.seekg(-1, std::ios_base::end);
-		if (ifs.get() == 0) {
+		// 最後のデータがhcpeであるかで判別
+		ifs.seekg(-sizeof(HuffmanCodedPosAndEval), std::ios_base::end);
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (hcpe.hcp.isOK() && hcpe.bestMove16 >= 1 && hcpe.bestMove16 <= 26703) {
 			ifs.seekg(std::ios_base::beg);
 			return load_hcpe(filepath, ifs, use_average, eval_scale);
 		}
@@ -485,6 +487,7 @@ py::object hcpe3_prepare_evalfix(std::string filepath) {
 					}
 				}
 
+				assert(moveInfo.selectedMove16 <= 0x7fff);
 				const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 				pos.doMove(move, states->emplace_back(StateInfo()));
 			}
