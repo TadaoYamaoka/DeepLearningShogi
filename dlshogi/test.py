@@ -78,11 +78,11 @@ sum_test_entropy1 = 0
 sum_test_entropy2 = 0
 model.eval()
 with torch.no_grad():
-    for x1, x2, t1, t2, z, value in test_dataloader:
+    for x1, x2, t1, t2, value in test_dataloader:
         y1, y2 = model(x1, x2)
 
         itr_test += 1
-        loss1 = (cross_entropy_loss(y1, t1) * z).mean()
+        loss1 = cross_entropy_loss(y1, t1).mean()
         loss2 = bce_with_logits_loss(y2, t2)
         loss3 = bce_with_logits_loss(y2, value)
         loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3

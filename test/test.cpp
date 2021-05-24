@@ -685,3 +685,46 @@ int main() {
 
 }
 #endif
+
+#if 1
+#include "dfpn.h"
+// 王手がかかっているときDfPnで不正な手を返すバグ修正
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_maxdepth(33);
+
+	Position pos;
+
+	vector<string> sfens = {
+		"7n1/l1g4k1/pp5gl/4s1ppp/3b+Bn3/1G1K5/PP1P1P2P/3R5/2+r1SG2L w N6P2snl2p 144", // oute_kaihimore
+		"3b3n1/l1g1B2k1/pp2sK1gl/3s2ppp/4sn3/1G7/PP1P1P2P/3R5/2+r1SG2L w N6Pnl2p 152", // 1手
+		"7n1/l1g4k1/pp5gl/3ss1ppp/3b+Bn3/1G1K5/PP1P1P2P/3R5/2+r1SG2L w N6Psnl2p 1" // 王手回避&1手詰め
+	};
+
+	auto start0 = std::chrono::system_clock::now();
+	auto total = start0 - start0;
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		auto start = std::chrono::system_clock::now();
+		bool ret = dfpn.dfpn(pos);
+		auto end = std::chrono::system_clock::now();
+
+		const auto move = dfpn.dfpn_move(pos);
+
+		auto time = end - start;
+		total += time;
+
+		auto time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
+
+		cout << ret << "\t" << move.value() << "\t" << move.toUSI() << "\t";
+		cout << time_ns / 1000000.0 << endl;
+	}
+	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
+	cout << total_ns / 1000000.0 << endl;
+}
+#endif

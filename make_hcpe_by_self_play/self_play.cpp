@@ -49,6 +49,8 @@ void sigint_handler(int signum)
 
 // ランダムムーブの手数
 int RANDOM_MOVE;
+// 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
+float RANDOM2 = 0;
 // 出力する最低手数
 int MIN_MOVE;
 // ルートの方策に加えるノイズの確率(千分率)
@@ -1146,6 +1148,8 @@ void UCTSearcher::NextStep()
 		else {
 			// 探索回数最大の手を見つける
 			int max_count = uct_child[0].move_count;
+			int second_index = 0;
+			int second_count = 0;
 			int child_win_count = 0;
 			int child_lose_count = 0;
 			const int child_num = root_node->child_num;
@@ -1172,10 +1176,23 @@ void UCTSearcher::NextStep()
 				}
 
 				if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+					second_index = select_index;
+					second_count = max_count;
 					select_index = i;
 					max_count = uct_child[i].move_count;
 				}
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count + 0.000001f));
+			}
+
+			if (RANDOM2 > 1) {
+				// 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
+				if (max_count < second_count * RANDOM2) {
+					vector<int> probabilities{ second_count, max_count };
+					discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
+					const auto i = dist(*mt_64);
+					if (i == 0)
+						select_index = second_index;
+					SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random2:{},{} selected:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), second_count, max_count, i);
+				}
 			}
 
 			// 選択した着手の勝率の算出
@@ -1474,6 +1491,7 @@ int main(int argc, char* argv[]) {
 			("positional", "", cxxopts::value<std::vector<int>>())
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
+			("random2", "random2", cxxopts::value<float>(RANDOM2)->default_value("0"))
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
 			("out_max_move", "output the max move game", cxxopts::value<bool>(OUT_MAX_MOVE)->default_value("false"))
@@ -1591,6 +1609,7 @@ int main(int argc, char* argv[]) {
 
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
+	logger->info("random2:{}", RANDOM2);
 	logger->info("min_move:{}", MIN_MOVE);
 	logger->info("max_move:{}", MAX_MOVE);
 	logger->info("out_max_move:{}", OUT_MAX_MOVE);
