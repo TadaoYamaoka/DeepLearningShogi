@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>csa_to_hcpe3.py</StartupFile>
+    <StartupFile>stat_hcpe3.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,7 +13,7 @@
     <Name>utils</Name>
     <RootNamespace>utils</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\a\floodaget R:\a\out.hcpe3</CommandLineArguments>
+    <CommandLineArguments>F:\hcpe3\suisho3kai-001.hcpe3</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -25,6 +25,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="clean_hcpe3.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="csa_to_hcpe3.py" />
     <Compile Include="aoba_to_hcpe3.py" />
     <Compile Include="csa_to_hcpe2.py" />
