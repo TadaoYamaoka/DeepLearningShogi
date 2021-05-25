@@ -819,12 +819,6 @@ void DfPn::dfpn_inner(Position& n, int thpn, int thdn/*, bool inc_flag*/, uint16
 // 詰みの手返す
 Move DfPn::dfpn_move(Position& pos) {
 	MovePicker<true> move_picker(pos);
-	Move mate1ply = pos.mateMoveIn1Ply();
-	if (mate1ply || move_picker.empty()) {
-		if (mate1ply) {
-			return mate1ply;
-		}
-	}
 
 	for (const auto& move : move_picker) {
 		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move, 0);
@@ -843,8 +837,6 @@ void DfPn::init()
 
 // 詰将棋探索のエントリポイント
 bool DfPn::dfpn(Position& r) {
-	// 自玉に王手がかかっていないこと
-
 	// キャッシュの世代を進める
 	transposition_table.NewSearch();
 

@@ -166,6 +166,48 @@ struct HuffmanCodedPos {
         if (data4[3] != other4[3]) return false;
         return true;
     }
+    bool isOK() const {
+        HuffmanCodedPos tmp = *this; // ローカルにコピー
+        BitStream bs(tmp.data);
+
+        // 手番
+        static_cast<Color>(bs.getBit());
+
+        // 玉の位置
+        const Square sq0 = (Square)bs.getBits(7);
+        if (sq0 >= SquareNum) return false;
+        const Square sq1 = (Square)bs.getBits(7);
+        if (sq1 >= SquareNum) return false;
+
+        // 盤上の駒
+        for (Square sq = SQ11; sq < SquareNum; ++sq) {
+            if (sq == sq0 || sq == sq1) // piece(sq) は BKing, WKing, Empty のどれか。
+                continue;
+            HuffmanCode hc = { 0, 0 };
+            while (hc.numOfBits <= 8) {
+                hc.code |= bs.getBit() << hc.numOfBits++;
+                if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) != PieceNone) {
+                    break;
+                }
+            }
+            if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) == PieceNone)
+                return false;
+        }
+        while (bs.data() != std::end(tmp.data)) {
+            HuffmanCode hc = { 0, 0 };
+            while (hc.numOfBits <= 8) {
+                hc.code |= bs.getBit() << hc.numOfBits++;
+                const Piece pc = HuffmanCodedPos::handCodeToPieceHash.value(hc.key);
+                if (pc != PieceNone) {
+                    break;
+                }
+            }
+            if (HuffmanCodedPos::handCodeToPieceHash.value(hc.key) == PieceNone)
+                return false;
+        }
+
+        return true;
+    }
 
     u8 data[32];
 };
