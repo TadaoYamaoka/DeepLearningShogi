@@ -59,7 +59,7 @@ class SEResNetBlock(nn.Module):
         return out
 
 class PolicyValueNetwork(nn.Module):
-    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256, reduction=16):
+    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256, reduction=8):
         super(PolicyValueNetwork, self).__init__()
         self.l1_1_1 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=channels, kernel_size=3, padding=1, bias=False)
         self.l1_1_2 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=channels, kernel_size=1, padding=0, bias=False)
