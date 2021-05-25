@@ -57,9 +57,6 @@ public:
 	bool dfpn_andnode(Position& r);
 	void dfpn_stop(const bool stop);
 	Move dfpn_move(Position& pos);
-	void new_search() {
-		transposition_table.NewSearch();
-	}
 
 	static void set_hashsize(const uint64_t size) {
 		HASH_SIZE_MB = size;
