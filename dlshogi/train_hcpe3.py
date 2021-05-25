@@ -312,4 +312,4 @@ if args.model:
             test_entropy1, test_entropy2))
 
     logging.info('save the model to {}'.format(args.model))
-    serializers.save_npz(args.model, swa_model if args.use_swa else model)
+    serializers.save_npz(args.model, swa_model.module if args.use_swa else model)
