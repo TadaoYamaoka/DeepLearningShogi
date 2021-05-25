@@ -836,10 +836,9 @@ void DfPn::init()
 }
 
 // 詰将棋探索のエントリポイント
-bool DfPn::dfpn(Position& r, const bool new_search) {
+bool DfPn::dfpn(Position& r) {
 	// キャッシュの世代を進める
-	if (new_search)
-		transposition_table.NewSearch();
+	transposition_table.NewSearch();
 
 	searchedNode = 0;
 	dfpn_inner<true>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);
@@ -858,12 +857,11 @@ bool DfPn::dfpn(Position& r, const bool new_search) {
 }
 
 // 詰将棋探索のエントリポイント
-bool DfPn::dfpn_andnode(Position& r, const bool new_search) {
+bool DfPn::dfpn_andnode(Position& r) {
 	// 自玉に王手がかかっていること
 
 	// キャッシュの世代を進める
-	if (new_search)
-		transposition_table.NewSearch();
+	transposition_table.NewSearch();
 
 	searchedNode = 0;
 	dfpn_inner<false>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);

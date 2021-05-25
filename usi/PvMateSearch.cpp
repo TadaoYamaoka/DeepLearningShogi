@@ -44,7 +44,7 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 	if (searched.emplace(&uct_child[next_index]).second) {
 		mtx_searched.unlock();
 		// 詰みの場合、ノードを更新
-		if (dfpn.dfpn(pos, false)) {
+		if (dfpn.dfpn(pos)) {
 			uct_child[next_index].SetWin();
 		}
 		else if (stop) {
@@ -66,9 +66,6 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 
 void PvMateSearcher::Run()
 {
-	// ハッシュをクリア
-	dfpn.new_search();
-
 #ifdef THREAD_POOL
 	if (th == nullptr) {
 		th = new std::thread([&]() {

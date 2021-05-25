@@ -53,8 +53,8 @@ class DfPn
 {
 public:
 	void init();
-	bool dfpn(Position& r, const bool new_search = true);
-	bool dfpn_andnode(Position& r, const bool new_search = true);
+	bool dfpn(Position& r);
+	bool dfpn_andnode(Position& r);
 	void dfpn_stop(const bool stop);
 	Move dfpn_move(Position& pos);
 	void new_search() {
