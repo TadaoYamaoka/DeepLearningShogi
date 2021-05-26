@@ -46,7 +46,7 @@ const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
 };
 
 // 指し手を表すラベルの数
-constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
+constexpr int MAX_MOVE_LABEL_NUM = 1496;
 
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];

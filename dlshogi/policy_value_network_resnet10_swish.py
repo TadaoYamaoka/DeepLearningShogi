@@ -19,6 +19,7 @@ class Swish(nn.Module):
 
 
 k = 192
+l = k*4
 fcl = 256 # fully connected layers
 class PolicyValueNetwork(nn.Module):
     def __init__(self, use_aux=False):
@@ -47,11 +48,11 @@ class PolicyValueNetwork(nn.Module):
         self.l20 = nn.Conv2d(in_channels=k, out_channels=k, kernel_size=3, padding=1, bias=False)
         self.l21 = nn.Conv2d(in_channels=k, out_channels=k, kernel_size=3, padding=1, bias=False)
         # policy network
-        self.l22 = nn.Conv2d(in_channels=k, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
-        self.l22_2 = Bias(9*9*MAX_MOVE_LABEL_NUM)
+        self.l22_p = nn.Conv2d(in_channels=k, out_channels=l, kernel_size=1, bias=False)
+        self.l23_p = nn.Linear(9*9*l, MAX_MOVE_LABEL_NUM)
         # value network
-        self.l22_v = nn.Conv2d(in_channels=k, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
-        self.l23_v = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
+        self.l22_v = nn.Conv2d(in_channels=k, out_channels=l, kernel_size=1, bias=False)
+        self.l23_v = nn.Linear(9*9*l, fcl)
         self.l24_v = nn.Linear(fcl, 1)
         # sennichite, nyugyoku
         if use_aux:
@@ -78,7 +79,8 @@ class PolicyValueNetwork(nn.Module):
         self.norm19 = nn.BatchNorm2d(k)
         self.norm20 = nn.BatchNorm2d(k)
         self.norm21 = nn.BatchNorm2d(k)
-        self.norm22_v = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
+        self.norm22_p = nn.BatchNorm2d(l)
+        self.norm22_v = nn.BatchNorm2d(l)
 
         self.swish = nn.SiLU()
         self.use_aux = use_aux
@@ -129,15 +131,15 @@ class PolicyValueNetwork(nn.Module):
         h21 = self.norm21(self.l21(h20))
         u21 = self.swish(h21 + u19)
         # policy network
-        h22 = self.l22(u21)
-        h22_1 = self.l22_2(h22.view(-1, 9*9*MAX_MOVE_LABEL_NUM))
+        h22_p = self.swish(self.norm22_p(self.l22_p(u21)))
+        h23_p = self.l23_p(h22_p.view(-1, 9*9*l))
         # value network
         h22_v = self.swish(self.norm22_v(self.l22_v(u21)))
-        h23_v = self.swish(self.l23_v(h22_v.view(-1, 9*9*MAX_MOVE_LABEL_NUM)))
+        h23_v = self.swish(self.l23_v(h22_v.view(-1, 9*9*l)))
         if self.use_aux:
-            return h22_1, self.l24_v(h23_v), self.l24_aux(h23_v)
+            return h23_p, self.l24_v(h23_v), self.l24_aux(h23_v)
         else:
-            return h22_1, self.l24_v(h23_v)
+            return h23_p, self.l24_v(h23_v)
 
 
     def set_swish(self, memory_efficient=True):

@@ -7,7 +7,7 @@ MOVE_DIRECTION = [
 ] = range(20)
 
 # 指し手を表すラベルの数
-MAX_MOVE_LABEL_NUM = len(MOVE_DIRECTION) + 7 # 7はhand piece
+MAX_MOVE_LABEL_NUM = 1496
 
 MAX_PIECES_IN_HAND = [
     8, # 歩の持ち駒の上限

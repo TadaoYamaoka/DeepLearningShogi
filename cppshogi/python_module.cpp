@@ -409,7 +409,7 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 	int* index = reinterpret_cast<int*>(ndindex.get_data());
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
+	auto probability = reinterpret_cast<float(*)[MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
 	float* result = reinterpret_cast<float*>(ndresult.get_data());
 	float* value = reinterpret_cast<float*>(ndvalue.get_data());
 	ReleaseGIL unlock = ReleaseGIL();
@@ -417,7 +417,7 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
+	std::fill_n((float*)probability, MAX_MOVE_LABEL_NUM * len, 0.0f);
 
 	Position position;
 	for (int i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
@@ -431,7 +431,7 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 		// move probability
 		for (const auto kv : hcpe3.candidates) {
 			const auto label = make_move_label(kv.first, position.turn());
-			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
+			assert(label < MAX_MOVE_LABEL_NUM);
 			(*probability)[label] = kv.second / hcpe3.count;
 		}
 

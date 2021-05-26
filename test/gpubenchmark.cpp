@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
 
 	DType* y1;
 	DType* y2;
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * batchsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * batchsize * sizeof(DType), cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc(&y2, batchsize * sizeof(DType), cudaHostAllocPortable));
 
 	Color* color = new Color[batchsize];
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 
 	Position pos;
 	HuffmanCodedPosAndEval* hcpe = new HuffmanCodedPosAndEval[batchsize];
-	float *moves = new float[MAX_MOVE_LABEL_NUM * SquareNum];
+	float *moves = new float[MAX_MOVE_LABEL_NUM];
 
 	for (int n = 0; n < num / batchsize; n++) {
 		// set all zero
@@ -134,18 +134,18 @@ int main(int argc, char* argv[]) {
 		elapsed += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
 		// •]‰¿
-		DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+		DType(*logits)[MAX_MOVE_LABEL_NUM] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM]>(y1);
 		DType *value = reinterpret_cast<DType*>(y2);
 		for (int i = 0; i < batchsize; i++, logits++, value++) {
 			const DType* l = *logits;
-			for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; j++) {
+			for (int j = 0; j < MAX_MOVE_LABEL_NUM; j++) {
 #ifdef FP16
 				moves[j] = __half2float(l[j]);
 #else
 				moves[j] = l[j];
 #endif
 			}
-			const int move_label = (int)distance(moves, max_element(moves, moves + MAX_MOVE_LABEL_NUM * SquareNum));
+			const int move_label = (int)distance(moves, max_element(moves, moves + MAX_MOVE_LABEL_NUM));
 
 			// Žw‚µŽè‚Ì”äŠr
 			const int t_move_label = make_move_label(hcpe[i].bestMove16, color[i]);

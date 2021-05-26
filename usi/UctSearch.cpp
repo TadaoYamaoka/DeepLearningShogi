@@ -266,12 +266,12 @@ public:
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
 		features2 = new features2_t[policy_value_batch_maxsize];
-		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
+		y1 = new DType[MAX_MOVE_LABEL_NUM * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
 		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y1, (size_t)MAX_MOVE_LABEL_NUM * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
@@ -1446,7 +1446,7 @@ void UCTSearcher::EvalNode() {
 	// predict
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
-	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	const DType(*logits)[MAX_MOVE_LABEL_NUM] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM]>(y1);
 	const DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {

@@ -38,11 +38,11 @@ void NNOnnxRuntime::forward(const int batch_size, features1_t* x1, features2_t* 
 	};
 
 	// output
-	std::array<int64_t, 2> output_shape1{ batch_size, MAX_MOVE_LABEL_NUM * (size_t)SquareNum };
+	std::array<int64_t, 2> output_shape1{ batch_size, MAX_MOVE_LABEL_NUM };
 	std::array<int64_t, 2> output_shape2{ batch_size, 1 };
 
 	std::array<Ort::Value, 2> output_values{
-		Ort::Value::CreateTensor<float>(memory_info, y1, batch_size * MAX_MOVE_LABEL_NUM * (size_t)SquareNum, output_shape1.data(), output_shape1.size()),
+		Ort::Value::CreateTensor<float>(memory_info, y1, batch_size * MAX_MOVE_LABEL_NUM, output_shape1.data(), output_shape1.size()),
 		Ort::Value::CreateTensor<float>(memory_info, y2, batch_size, output_shape2.data(), output_shape2.size())
 	};
 

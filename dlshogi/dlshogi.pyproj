@@ -14,8 +14,8 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-445_org3 f:\selfplay\floodgate.hcpe</CommandLineArguments>
-    <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
+    <CommandLineArguments>F:\selfplay\selfplay-445_org3 f:\selfplay\floodgate.hcpe --use_amp</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

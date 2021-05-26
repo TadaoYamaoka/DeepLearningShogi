@@ -442,7 +442,7 @@ UCTSearcherGroup::Initialize()
 		searchers.emplace_back(this, nn_cache, i, entryNum);
 	}
 
-	checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y1, (size_t)MAX_MOVE_LABEL_NUM * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 
 	// 詰み探索
@@ -883,7 +883,7 @@ void UCTSearcherGroup::EvalNode() {
 	// predict
 	parent->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 
-	DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	DType(*logits)[MAX_MOVE_LABEL_NUM] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM]>(y1);
 	DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {

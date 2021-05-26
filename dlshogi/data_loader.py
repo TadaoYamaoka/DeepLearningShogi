@@ -166,7 +166,7 @@ class Hcpe3DataLoader(DataLoader):
 
         self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
         self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_probability = torch.empty((batch_size, 9*9*MAX_MOVE_LABEL_NUM), dtype=torch.float32, pin_memory=True)
+        self.torch_probability = torch.empty((batch_size, MAX_MOVE_LABEL_NUM), dtype=torch.float32, pin_memory=True)
         self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
         self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
 
