@@ -88,7 +88,6 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = PolicyValueNetwork()
 model.to(device)
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
