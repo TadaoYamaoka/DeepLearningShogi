@@ -49,6 +49,8 @@ void sigint_handler(int signum)
 
 // ランダムムーブの手数
 int RANDOM_MOVE;
+// 訪問数が最大のノードの価値の一定割合以下は除外
+float RANDOM_CUTOFF = 0.0f;
 // 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
 float RANDOM2 = 0;
 // 出力する最低手数
@@ -1127,19 +1129,31 @@ void UCTSearcher::NextStep()
 			}
 		}
 
-		child_node_t* uct_child = root_node->child.get();
+		const child_node_t* uct_child = root_node->child.get();
 		unsigned int select_index = 0;
 		Move best_move;
 		if (ply <= RANDOM_MOVE) {
 			// N手までは訪問数に応じた確率で選択する
-			vector<int> probabilities(root_node->child_num);
+			// 訪問数が最大のノードの価値の一定割合以下は除外
+			const auto max_move_count_child = std::max_element(uct_child, uct_child + root_node->child_num, [](const child_node_t& l, const child_node_t& r) { return l.move_count < r.move_count; });
+			const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count * RANDOM_CUTOFF;
+			vector<int> indexes;
+			vector<int> probabilities;
+			indexes.reserve(root_node->child_num);
+			probabilities.reserve(root_node->child_num);
 			for (int i = 0; i < root_node->child_num; i++) {
-				probabilities[i] = uct_child[i].move_count;
-				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count + 0.000001f));
+				if (uct_child[i].move_count > 0) {
+					const auto win = uct_child[i].win / uct_child[i].move_count;
+					if (win >= cutoff_threshold) {
+						indexes.emplace_back(i);
+						probabilities.emplace_back(uct_child[i].move_count);
+						SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count));
+					}
+				}
 			}
 
 			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
-			select_index = dist(*mt_64);
+			select_index = indexes[dist(*mt_64)];
 			best_move = uct_child[select_index].move;
 			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
 			AddRecord(best_move, 0, false);
@@ -1490,6 +1504,7 @@ int main(int argc, char* argv[]) {
 			("positional", "", cxxopts::value<std::vector<int>>())
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
+			("random_cutoff", "random cutoff ratio", cxxopts::value<float>(RANDOM_CUTOFF)->default_value("0.9"))
 			("random2", "random2", cxxopts::value<float>(RANDOM2)->default_value("0"))
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
@@ -1610,6 +1625,7 @@ int main(int argc, char* argv[]) {
 
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
+	logger->info("random_cutoff:{}", RANDOM_CUTOFF);
 	logger->info("random2:{}", RANDOM2);
 	logger->info("min_move:{}", MIN_MOVE);
 	logger->info("max_move:{}", MAX_MOVE);
