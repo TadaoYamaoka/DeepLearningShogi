@@ -36,7 +36,7 @@ struct child_node_t {
 		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
+		: move(o.move), move_count((int)o.move_count), win((float)o.win), nnrate(o.nnrate) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;

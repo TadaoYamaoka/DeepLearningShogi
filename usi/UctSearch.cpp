@@ -1411,6 +1411,10 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			max_value = ucb_value;
 			max_child = i;
 		}
+
+		// policy順にソートされているため、この子ノードが未訪問だった場合、それ以降は調べる必要がない
+		if (move_count == 0)
+			break;
 	}
 
 	if (child_win_count == child_num) {
@@ -1472,6 +1476,9 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			uct_child[j].nnrate = legal_move_probabilities[j];
 		}
+
+		// sort by policy
+		std::sort(uct_child, uct_child + child_num, [](const child_node_t& l, const child_node_t& r) { return l.nnrate > r.nnrate; });
 
 		*policy_value_batch[i].value_win = *value;
 
