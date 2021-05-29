@@ -12,8 +12,8 @@ import random
 
 import logging
 
-parser = argparse.ArgumentParser(description='Traning RL policy network using hcpe')
-parser.add_argument('train_data', type=str, nargs='+', help='train data file')
+parser = argparse.ArgumentParser(description='Train policy value network')
+parser.add_argument('train_data', type=str, nargs='+', help='training data file')
 parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
@@ -92,14 +92,14 @@ logging.info('temperature={}'.format(args.temperature))
 # Init/Resume
 if args.initmodel:
     # for compatibility
-    logging.info('Load model from {}'.format(args.initmodel))
+    logging.info('Loading the model from {}'.format(args.initmodel))
     serializers.load_npz(args.initmodel, model)
 if args.resume:
     checkpoint = torch.load(args.resume, map_location=device)
     epoch = checkpoint['epoch']
     t = checkpoint['t']
     if 'model' in checkpoint:
-        logging.info('Load checkpoint from {}'.format(args.resume))
+        logging.info('Loading the checkpoint from {}'.format(args.resume))
         model.load_state_dict(checkpoint['model'])
         if args.use_swa and 'swa_model' in checkpoint:
             swa_model.load_state_dict(checkpoint['swa_model'])
@@ -108,7 +108,7 @@ if args.resume:
             scaler.load_state_dict(checkpoint['scaler'])
     else:
         # for compatibility
-        logging.info('Load optimizer state from {}'.format(args.resume))
+        logging.info('Loading the optimizer state from {}'.format(args.resume))
         base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if args.use_amp and 'scaler_state_dict' in checkpoint:
             scaler.load_state_dict(checkpoint['scaler_state_dict'])
@@ -116,10 +116,10 @@ else:
     epoch = 0
     t = 0
 
-logging.debug('read teacher data')
+logging.info('Reading training data')
 train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
 train_data = np.arange(train_len, dtype=np.int32)
-logging.debug('read test data')
+logging.info('Reading test data')
 test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 
 if args.use_average:
@@ -144,7 +144,7 @@ def binary_accuracy(y, t):
     return pred.eq(truth).sum().item() / len(t)
 
 def test(model):
-    itr_test = 0
+    steps = 0
     sum_test_loss1 = 0
     sum_test_loss2 = 0
     sum_test_loss3 = 0
@@ -158,7 +158,7 @@ def test(model):
         for x1, x2, t1, t2, value in test_dataloader:
             y1, y2 = model(x1, x2)
 
-            itr_test += 1
+            steps += 1
             loss1 = cross_entropy_loss(y1, t1).mean()
             loss2 = bce_with_logits_loss(y2, t2)
             loss3 = bce_with_logits_loss(y2, value)
@@ -179,31 +179,31 @@ def test(model):
             entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
             sum_test_entropy2 +=entropy2.mean().item()
 
-    return (sum_test_loss1 / itr_test,
-            sum_test_loss2 / itr_test,
-            sum_test_loss3 / itr_test,
-            sum_test_loss / itr_test,
-            sum_test_accuracy1 / itr_test,
-            sum_test_accuracy2 / itr_test,
-            sum_test_entropy1 / itr_test,
-            sum_test_entropy2 / itr_test)
+    return (sum_test_loss1 / steps,
+            sum_test_loss2 / steps,
+            sum_test_loss3 / steps,
+            sum_test_loss / steps,
+            sum_test_accuracy1 / steps,
+            sum_test_accuracy2 / steps,
+            sum_test_entropy1 / steps,
+            sum_test_entropy2 / steps)
 
 # train
-itr = 0
+steps = 0
 sum_loss1 = 0
 sum_loss2 = 0
 sum_loss3 = 0
 sum_loss = 0
 eval_interval = args.eval_interval
 for e in range(args.epoch):
-    itr_epoch = 0
+    steps_epoch = 0
     sum_loss1_epoch = 0
     sum_loss2_epoch = 0
     sum_loss3_epoch = 0
     sum_loss_epoch = 0
     for x1, x2, t1, t2, value in train_dataloader:
         t += 1
-        itr += 1
+        steps += 1
         with torch.cuda.amp.autocast(enabled=args.use_amp):
             model.train()
 
@@ -236,7 +236,7 @@ for e in range(args.epoch):
         sum_loss2 += loss2.item()
         sum_loss3 += loss3.item()
         sum_loss += loss.item()
-        itr_epoch += 1
+        steps_epoch += 1
         sum_loss1_epoch += loss1.item()
         sum_loss2_epoch += loss2.item()
         sum_loss3_epoch += loss3.item()
@@ -255,12 +255,12 @@ for e in range(args.epoch):
                 loss3 = bce_with_logits_loss(y2, value)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                logging.info('epoch = {}, iteration = {}, loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}'.format(
-                    epoch + 1, t,
-                    sum_loss1 / itr, sum_loss2 / itr, sum_loss3 / itr, sum_loss / itr,
+                logging.info('epoch = {}, steps = {}, loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}'.format(
+                    epoch, t,
+                    sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
                     loss1.item(), loss2.item(), loss3.item(), loss.item(),
                     accuracy(y1, t1), binary_accuracy(y2, t2)))
-            itr = 0
+            steps = 0
             sum_loss1 = 0
             sum_loss2 = 0
             sum_loss3 = 0
@@ -269,9 +269,9 @@ for e in range(args.epoch):
     # print train loss and test loss for each epoch
     test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
-    logging.info('epoch = {}, iteration = {}, train loss avr = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, test accuracy = {:.08f}, {:.08f}, test entropy = {:.08f}, {:.08f}'.format(
-        epoch + 1, t,
-        sum_loss1_epoch / itr_epoch, sum_loss2_epoch / itr_epoch, sum_loss3_epoch / itr_epoch, sum_loss_epoch / itr_epoch,
+    logging.info('epoch = {}, steps = {}, train loss avr = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}, test entropy = {:.06f}, {:.06f}'.format(
+        epoch, t,
+        sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
         test_loss1, test_loss2, test_loss3, test_loss,
         test_accuracy1, test_accuracy2,
         test_entropy1, test_entropy2))
@@ -279,7 +279,7 @@ for e in range(args.epoch):
     epoch += 1
 
 if args.checkpoint:
-    logging.info('save the checkpoint to {}'.format(args.checkpoint))
+    logging.info('Saving the checkpoint to {}'.format(args.checkpoint))
     checkpoint = {
         'epoch': epoch,
         't': t,
@@ -295,7 +295,7 @@ if args.checkpoint:
 # save model
 if args.model:
     if args.use_swa:
-        logging.debug('update batch normalization')
+        logging.info('Updating batch normalization')
         forward_ = swa_model.forward
         swa_model.forward = lambda x : forward_(**x)
         with torch.cuda.amp.autocast(enabled=args.use_amp):
@@ -305,11 +305,11 @@ if args.model:
         # print test loss with swa model
         test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(swa_model)
 
-        logging.info('epoch = {}, iteration = {}, swa test loss = {:.08f}, {:.08f}, {:.08f}, {:.08f}, swa test accuracy = {:.08f}, {:.08f}, swa test entropy = {:.08f}, {:.08f}'.format(
+        logging.info('epoch = {}, steps = {}, swa test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, swa test accuracy = {:.06f}, {:.06f}, swa test entropy = {:.06f}, {:.06f}'.format(
             epoch, t,
             test_loss1, test_loss2, test_loss3, test_loss,
             test_accuracy1, test_accuracy2,
             test_entropy1, test_entropy2))
 
-    logging.info('save the model to {}'.format(args.model))
+    logging.info('Saving the model to {}'.format(args.model))
     serializers.save_npz(args.model, swa_model.module if args.use_swa else model)
