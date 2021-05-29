@@ -269,7 +269,7 @@ for e in range(args.epoch):
     # print train loss and test loss for each epoch
     test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
-    logging.info('epoch = {}, iteration = {}, train loss avr = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}, test entropy = {:.06f}, {:.06f}'.format(
+    logging.info('epoch = {}, steps = {}, train loss avr = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}, test entropy = {:.06f}, {:.06f}'.format(
         epoch, t,
         sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
         test_loss1, test_loss2, test_loss3, test_loss,
