@@ -34,10 +34,13 @@
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="policy_value_network.py" />
-    <Compile Include="policy_value_network_resnet10_swish.py" />
-    <Compile Include="policy_value_network_resnet20_swish.py" />
-    <Compile Include="policy_value_network_senet10.py" />
+    <Compile Include="network\policy_value_network.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="network\policy_value_network_wideresnet10.py" />
+    <Compile Include="network\policy_value_network_resnet10_swish.py" />
+    <Compile Include="network\policy_value_network_resnet20_swish.py" />
+    <Compile Include="network\policy_value_network_senet10.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -50,10 +53,13 @@
     <Compile Include="train_hcpe3.py" />
     <Compile Include="train_hcpe2.py" />
     <Compile Include="train_hcpe.py" />
-    <Compile Include="policy_value_network_wideresnet15.py" />
+    <Compile Include="network\policy_value_network_wideresnet15.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="network\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

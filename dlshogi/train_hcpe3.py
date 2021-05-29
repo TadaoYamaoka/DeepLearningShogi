@@ -1,11 +1,15 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.optim.swa_utils import AveragedModel, update_bn
 
+from dlshogi.common import *
+from dlshogi.network.policy_value_network import policy_value_network
 from dlshogi import serializers
 from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.data_loader import DataLoader
+
 
 import argparse
 import random
@@ -18,7 +22,7 @@ parser.add_argument('test_data', type=str, help='test data file')
 parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-parser.add_argument('--network', type=str, default='wideresnet10', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
+parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
 parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
 parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
 parser.add_argument('--model', type=str, help='model file name')
@@ -41,17 +45,6 @@ parser.add_argument('--use_evalfix', action='store_true')
 parser.add_argument('--temperature', type=float, default=1.0)
 args = parser.parse_args()
 
-if args.network == 'wideresnet15':
-    from dlshogi.policy_value_network_wideresnet15 import *
-elif args.network == 'senet10':
-    from dlshogi.policy_value_network_senet10 import *
-elif args.network == 'resnet10_swish':
-    from dlshogi.policy_value_network_resnet10_swish import *
-elif args.network == 'resnet20_swish':
-    from dlshogi.policy_value_network_resnet20_swish import *
-else:
-    from dlshogi.policy_value_network import *
-
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 logging.info('batchsize={}'.format(args.batchsize))
 logging.info('MomentumSGD(lr={})'.format(args.lr))
@@ -67,7 +60,7 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = PolicyValueNetwork()
+model = policy_value_network(args.network)
 model.to(device)
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
