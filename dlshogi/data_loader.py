@@ -15,10 +15,10 @@ class DataLoader:
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.debug(path)
+                logging.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval))
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -85,10 +85,10 @@ class Hcpe2DataLoader(DataLoader):
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.debug(path)
+                logging.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval2))
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -142,20 +142,20 @@ class Hcpe3DataLoader(DataLoader):
                     eval, result = cppshogi.hcpe3_prepare_evalfix(path)
                     if (eval == 0).all():
                         a = 0
-                        logging.debug('{}, skip evalfix'.format(path))
+                        logging.info('{}, skip evalfix'.format(path))
                     else:
                         popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
                         a = popt[0]
-                        logging.debug('{}, a={}'.format(path, a))
+                        logging.info('{}, a={}'.format(path, a))
                 else:
                     a = 0
-                    logging.debug(path)
+                    logging.info(path)
                 sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a, temperature)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
                 actual_len += len_
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return sum_len, actual_len
 
     def __init__(self, data, batch_size, device, shuffle=False):
