@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train_hcpe3.py</StartupFile>
+    <StartupFile>train_hcpe.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -50,8 +50,6 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="train_hcpe3.py" />
-    <Compile Include="train_hcpe2.py" />
     <Compile Include="train_hcpe.py" />
     <Compile Include="network\policy_value_network_wideresnet15.py" />
     <Compile Include="utils\aoba_to_hcpe.py" />

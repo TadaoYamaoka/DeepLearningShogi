@@ -1,6 +1,6 @@
 import torch
 
-def policy_value_network(network, use_aux=False, add_sigmoid=False):
+def policy_value_network(network, add_sigmoid=False):
     if network == 'wideresnet10':
         from dlshogi.network.policy_value_network_wideresnet10 import PolicyValueNetwork
     elif network == 'wideresnet15':
@@ -24,6 +24,6 @@ def policy_value_network(network, use_aux=False, add_sigmoid=False):
                 y1, y2 = super(PolicyValueNetworkAddSigmoid, self).__call__(x1, x2)
                 return y1, torch.sigmoid(y2)
 
-        return PolicyValueNetworkAddSigmoid(use_aux=use_aux)
+        return PolicyValueNetworkAddSigmoid()
     else:
-        return PolicyValueNetwork(use_aux=use_aux)
+        return PolicyValueNetwork()
