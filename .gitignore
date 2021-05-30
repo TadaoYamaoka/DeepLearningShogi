@@ -252,3 +252,6 @@ ModelManifest.xml
 /dlshogi/opponent_models
 /dlshogi/cppshogi.pyd
 /dlshogi/network/__pycache__
+/dlshogi/*.pyd
+/dlshogi/*.cpp
+/dist

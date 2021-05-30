@@ -61,6 +61,11 @@
   <ItemGroup>
     <Folder Include="network\" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="cppshogi.pyx">
+      <SubType>Code</SubType>
+    </Content>
+  </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
   </PropertyGroup>
