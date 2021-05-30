@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "dlshogi", "dlshogi\dlshogi.pyproj", "{44DC35CD-F353-4DA5-AC49-F1A723D9ABF6}"
 EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "utils", "utils\utils.pyproj", "{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usi", "usi\usi.vcxproj", "{A473DCFF-69E7-493B-81BC-EC18607CCE2A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cppshogi", "cppshogi\cppshogi.vcxproj", "{7815FCEE-3797-4B31-A611-CC6A11AE8BC4}"
@@ -43,16 +41,6 @@ Global
 		{44DC35CD-F353-4DA5-AC49-F1A723D9ABF6}.Release_NoOpt|x86.ActiveCfg = Release_NoOpt|Any CPU
 		{44DC35CD-F353-4DA5-AC49-F1A723D9ABF6}.Release|x64.ActiveCfg = Release|Any CPU
 		{44DC35CD-F353-4DA5-AC49-F1A723D9ABF6}.Release|x86.ActiveCfg = Release|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.MakeBook_NoOpt|x64.ActiveCfg = MakeBook_NoOpt|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.MakeBook_NoOpt|x86.ActiveCfg = MakeBook_NoOpt|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.MakeBook|x64.ActiveCfg = MakeBook|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.MakeBook|x86.ActiveCfg = MakeBook|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Release_NoOpt|x64.ActiveCfg = Release|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Release_NoOpt|x86.ActiveCfg = Release_NoOpt|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Release|x64.ActiveCfg = Release|Any CPU
-		{19C20A6A-480B-4846-8EA6-B9EE28DD7EDB}.Release|x86.ActiveCfg = Release|Any CPU
 		{A473DCFF-69E7-493B-81BC-EC18607CCE2A}.Debug|x64.ActiveCfg = Debug|x64
 		{A473DCFF-69E7-493B-81BC-EC18607CCE2A}.Debug|x64.Build.0 = Debug|x64
 		{A473DCFF-69E7-493B-81BC-EC18607CCE2A}.Debug|x86.ActiveCfg = Debug|x64

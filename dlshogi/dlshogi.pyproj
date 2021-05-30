@@ -54,17 +54,60 @@
     <Compile Include="train_hcpe2.py" />
     <Compile Include="train_hcpe.py" />
     <Compile Include="network\policy_value_network_wideresnet15.py" />
+    <Compile Include="utils\aoba_to_hcpe.py" />
+    <Compile Include="utils\aoba_to_hcpe2.py" />
+    <Compile Include="utils\aoba_to_hcpe3.py" />
+    <Compile Include="utils\append_book.py" />
+    <Compile Include="utils\benchmark.py" />
+    <Compile Include="utils\build_onnx.py" />
+    <Compile Include="utils\clean_hcpe3.py" />
+    <Compile Include="utils\csa_to_book.py" />
+    <Compile Include="utils\csa_to_hcp.py" />
+    <Compile Include="utils\csa_to_hcpe.py" />
+    <Compile Include="utils\csa_to_hcpe2.py" />
+    <Compile Include="utils\csa_to_hcpe3.py" />
+    <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\delete_hcp_by_usi.py" />
+    <Compile Include="utils\filter_csa_in_dir.py" />
+    <Compile Include="utils\filter_kif_in_dir.py" />
+    <Compile Include="utils\fix_hcpe_eval.py" />
+    <Compile Include="utils\hcpe3_to_csa.py" />
+    <Compile Include="utils\hcpe3_to_hcpe.py" />
+    <Compile Include="utils\hcpe_to_psv.py" />
+    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\kifustat.py" />
+    <Compile Include="utils\kif_to_pgn.py" />
+    <Compile Include="utils\matches.py" />
+    <Compile Include="utils\mcts_params_optimizer.py" />
+    <Compile Include="utils\measure_entropy.py" />
+    <Compile Include="utils\merge_book.py" />
+    <Compile Include="utils\plot_log_policy_value.py" />
+    <Compile Include="utils\print_hcpe.py" />
+    <Compile Include="utils\psv_to_hcp.py" />
+    <Compile Include="utils\psv_to_hcpe.py" />
+    <Compile Include="utils\sfen_to_hcp.py" />
+    <Compile Include="utils\split_hcpe3.py" />
+    <Compile Include="utils\split_uniq_hcpe.py" />
+    <Compile Include="utils\stat_csa_in_dir.py" />
+    <Compile Include="utils\stat_csa_position_in_dir.py" />
+    <Compile Include="utils\stat_hcpe3.py" />
+    <Compile Include="utils\throughput.py" />
+    <Compile Include="utils\uniq_hcpe.py" />
+    <Compile Include="utils\yanebook_to_hcp.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="network\" />
+    <Folder Include="utils\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="cppshogi.pyx">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="utils\cppshogi.pyd" />
+    <Content Include="utils\utils.pyproj" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
