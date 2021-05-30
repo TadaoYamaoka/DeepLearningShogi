@@ -23,6 +23,7 @@ parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of
 parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
 parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
 parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
+parser.add_argument('--user_network', type=str)
 parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
 parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
 parser.add_argument('--model', type=str, help='model file name')
@@ -60,7 +61,7 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = policy_value_network(args.network)
+model = policy_value_network(args.user_network if args.user_network else args.network)
 model.to(device)
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)

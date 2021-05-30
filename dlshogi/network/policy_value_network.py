@@ -11,6 +11,9 @@ def policy_value_network(network, use_aux=False, add_sigmoid=False):
         from dlshogi.network.policy_value_network_resnet10_swish import PolicyValueNetwork
     elif network == 'resnet20_swish':
         from dlshogi.network.policy_value_network_resnet20_swish import PolicyValueNetwork
+    else:
+        from importlib import import_module
+        PolicyValueNetwork = import_module(network).PolicyValueNetwork
 
     if add_sigmoid:
         class PolicyValueNetworkAddSigmoid(PolicyValueNetwork):

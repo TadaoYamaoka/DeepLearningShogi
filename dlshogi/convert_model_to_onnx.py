@@ -12,6 +12,7 @@ parser.add_argument('model')
 parser.add_argument('onnx')
 parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
 parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'])
+parser.add_argument('--user_network', type=str)
 parser.add_argument('--fixed_batchsize', type=int)
 parser.add_argument('--remove_aux', action='store_true')
 args = parser.parse_args()
@@ -22,8 +23,9 @@ if args.gpu >= 0:
 else:
     device = torch.device("cpu")
 
-model = policy_value_network(args.network, add_sigmoid=True)
-if args.network.endswith('_swish'):
+network = args.user_network if args.user_network else args.network
+model = policy_value_network(network, add_sigmoid=True)
+if hasattr(model, 'set_swish'):
     model.set_swish(False)
 model.to(device)
 
