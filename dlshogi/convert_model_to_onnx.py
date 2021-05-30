@@ -5,7 +5,9 @@ from dlshogi.common import *
 from dlshogi.network.policy_value_network import policy_value_network
 from dlshogi import serializers
 from dlshogi import cppshogi
+
 import argparse
+import sys
 
 def main(*args):
     parser = argparse.ArgumentParser()
