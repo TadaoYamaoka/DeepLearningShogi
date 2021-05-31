@@ -37,10 +37,11 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="network\policy_value_network_resnet15_swish.py" />
+    <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
     <Compile Include="network\policy_value_network_resnet20_swish.py" />
-    <Compile Include="network\policy_value_network_senet10.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>

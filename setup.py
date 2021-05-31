@@ -29,7 +29,7 @@ ext_modules = [
 
 setup(
     name = 'dlshogi',
-    version = '0.0.2',
+    version = '0.0.3',
     author = 'Tadao Yamaoka',
     url='https://github.com/TadaoYamaoka/DeepLearningShogi',
     packages = ['dlshogi', 'dlshogi.network', 'dlshogi.utils'],
