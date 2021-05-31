@@ -14,6 +14,7 @@ from dlshogi.data_loader import DataLoader
 import argparse
 import random
 import sys
+import os
 
 import logging
 
@@ -27,6 +28,7 @@ def main(*args):
     parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet15_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'], help='network type')
     parser.add_argument('--user_network', type=str)
     parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
+    parser.add_argument('--save_every_epoch', action='store_true', help='Save the checkpoint every epoch')
     parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
     parser.add_argument('--model', type=str, help='model file name')
     parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file (for compatibility)')
@@ -184,6 +186,24 @@ def main(*args):
                 sum_test_entropy1 / steps,
                 sum_test_entropy2 / steps)
 
+    def save_checkpoint():
+        if args.save_every_epoch:
+            base, ext = os.path.splitext(args.checkpoint)
+            path = base + '-' + str(epoch).zfill(3) + ext
+        else:
+            path = args.checkpoint
+        logging.info('Saving the checkpoint to {}'.format(path))
+        checkpoint = {
+            'epoch': epoch,
+            't': t,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scaler': scaler.state_dict()}
+        if args.use_swa:
+            checkpoint['swa_model'] = swa_model.state_dict()
+
+        torch.save(checkpoint, path)
+
     # train
     steps = 0
     sum_loss1 = 0
@@ -274,19 +294,13 @@ def main(*args):
 
         epoch += 1
 
-    if args.checkpoint:
-        logging.info('Saving the checkpoint to {}'.format(args.checkpoint))
-        checkpoint = {
-            'epoch': epoch,
-            't': t,
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'scaler': scaler.state_dict()}
-        if args.use_swa:
-            checkpoint['swa_model'] = swa_model.state_dict()
+        # save checkpoint every epoch
+        if args.checkpoint and args.save_every_epoch:
+            save_checkpoint()
 
-        torch.save(checkpoint, args.checkpoint)
-
+    # save checkpoint
+    if args.checkpoint and not args.save_every_epoch:
+        save_checkpoint()
 
     # save model
     if args.model:
