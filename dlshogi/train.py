@@ -272,7 +272,7 @@ def main(*args):
                     loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
                     logging.info('epoch = {}, steps = {}, loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}'.format(
-                        epoch, t,
+                        epoch + 1, t,
                         sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
                         loss1.item(), loss2.item(), loss3.item(), loss.item(),
                         accuracy(y1, t1), binary_accuracy(y2, t2)))
@@ -286,7 +286,7 @@ def main(*args):
         test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
         logging.info('epoch = {}, steps = {}, train loss avr = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, test accuracy = {:.06f}, {:.06f}, test entropy = {:.06f}, {:.06f}'.format(
-            epoch, t,
+            epoch + 1, t,
             sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
             test_loss1, test_loss2, test_loss3, test_loss,
             test_accuracy1, test_accuracy2,
@@ -316,7 +316,7 @@ def main(*args):
             test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(swa_model)
 
             logging.info('epoch = {}, steps = {}, swa test loss = {:.06f}, {:.06f}, {:.06f}, {:.06f}, swa test accuracy = {:.06f}, {:.06f}, swa test entropy = {:.06f}, {:.06f}'.format(
-                epoch, t,
+                epoch + 1, t,
                 test_loss1, test_loss2, test_loss3, test_loss,
                 test_accuracy1, test_accuracy2,
                 test_entropy1, test_entropy2))
