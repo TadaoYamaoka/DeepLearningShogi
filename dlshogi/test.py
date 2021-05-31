@@ -99,4 +99,4 @@ def main(*args):
             sum_test_entropy1 / itr_test, sum_test_entropy2 / itr_test))
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(*sys.argv[1:])

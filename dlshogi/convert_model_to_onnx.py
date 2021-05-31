@@ -14,7 +14,7 @@ def main(*args):
     parser.add_argument('model')
     parser.add_argument('onnx')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
-    parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'])
+    parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet15_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'])
     parser.add_argument('--user_network', type=str)
     parser.add_argument('--fixed_batchsize', type=int)
     parser.add_argument('--remove_aux', action='store_true')
@@ -78,4 +78,4 @@ def main(*args):
             output_names = ['output_policy', 'output_value'])
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(*sys.argv[1:])
