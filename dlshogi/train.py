@@ -15,6 +15,7 @@ import argparse
 import random
 import sys
 import os
+import re
 
 import logging
 
@@ -30,11 +31,15 @@ def main(*args):
     parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
     parser.add_argument('--save_every_epoch', action='store_true', help='Save the checkpoint every epoch')
     parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
+    parser.add_argument('--reset_optimizer', action='store_true')
     parser.add_argument('--model', type=str, help='model file name')
     parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file (for compatibility)')
     parser.add_argument('--log', default=None, help='log file path')
+    parser.add_argument('--optimizer', default='SGD(momentum=0.9,nesterov=True)', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
-    parser.add_argument('--weightdecay_rate', type=float, default=0.0001, help='weightdecay rate')
+    parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
+    parser.add_argument('--lr_scheduler', help='learning rate scheduler')
+    parser.add_argument('--reset_scheduler', action='store_true')
     parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
     parser.add_argument('--use_critic', action='store_true')
     parser.add_argument('--beta', type=float, help='entropy regularization coeff')
@@ -52,8 +57,10 @@ def main(*args):
 
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
     logging.info('batchsize={}'.format(args.batchsize))
-    logging.info('MomentumSGD(lr={})'.format(args.lr))
-    logging.info('WeightDecay(rate={})'.format(args.weightdecay_rate))
+    logging.info('lr={}'.format(args.lr))
+    logging.info('weight_decay={}'.format(args.weight_decay))
+    if args.lr_scheduler:
+        logging.info('lr_scheduler {}'.format(args.lr_scheduler))
     if args.use_critic:
         logging.info('use critic')
     if args.beta:
@@ -68,7 +75,13 @@ def main(*args):
     model = policy_value_network(args.user_network if args.user_network else args.network)
     model.to(device)
 
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightdecay_rate, nesterov=True)
+    if args.optimizer[-1] != ')':
+        args.optimizer += '()'
+    optimizer = eval('optim.' + args.optimizer.replace('(', '(model.parameters(),lr=args.lr,' + 'weight_decay=args.weight_decay,' if args.weight_decay >= 0 else ''))
+    if args.lr_scheduler:
+        if args.lr_scheduler[-1] != ')':
+            args.lr_scheduler += '()'
+        scheduler = eval('optim.lr_scheduler.' + args.lr_scheduler.replace('(', '(optimizer,'))
     if args.use_swa:
         logging.info(f'use swa(swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
@@ -101,9 +114,12 @@ def main(*args):
             model.load_state_dict(checkpoint['model'])
             if args.use_swa and 'swa_model' in checkpoint:
                 swa_model.load_state_dict(checkpoint['swa_model'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            if not args.reset_optimizer:
+                optimizer.load_state_dict(checkpoint['optimizer'])
             if args.use_amp and 'scaler' in checkpoint:
                 scaler.load_state_dict(checkpoint['scaler'])
+            if args.lr_scheduler and not args.reset_scheduler and 'scheduler' in checkpoint:
+                scheduler.load_state_dict(checkpoint['scheduler'])
         else:
             # for compatibility
             logging.info('Loading the optimizer state from {}'.format(args.resume))
@@ -113,6 +129,8 @@ def main(*args):
     else:
         epoch = 0
         t = 0
+
+    logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 
     logging.info('Reading training data')
     train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
@@ -201,6 +219,8 @@ def main(*args):
             'scaler': scaler.state_dict()}
         if args.use_swa:
             checkpoint['swa_model'] = swa_model.state_dict()
+        if args.lr_scheduler:
+            checkpoint['scheduler'] = scheduler.state_dict()
 
         torch.save(checkpoint, path)
 
@@ -212,6 +232,8 @@ def main(*args):
     sum_loss = 0
     eval_interval = args.eval_interval
     for e in range(args.epoch):
+        if args.lr_scheduler:
+            logging.info('lr_scheduler lr={}'.format(scheduler.get_last_lr()))
         steps_epoch = 0
         sum_loss1_epoch = 0
         sum_loss2_epoch = 0
@@ -293,6 +315,9 @@ def main(*args):
             test_entropy1, test_entropy2))
 
         epoch += 1
+
+        if args.lr_scheduler:
+            scheduler.step()
 
         # save checkpoint every epoch
         if args.checkpoint and args.save_every_epoch:
