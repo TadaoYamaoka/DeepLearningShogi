@@ -14,8 +14,8 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\selfplay\selfplay-445_org3 f:\selfplay\floodgate.hcpe</CommandLineArguments>
-    <EnableNativeCodeDebugging>True</EnableNativeCodeDebugging>
+    <CommandLineArguments>F:\hcpe3\floodgate_2021_0521_r3800_nomate.hcpe3 f:\selfplay\floodgate.hcpe --use_amp --eval_interval 100 --use_evalfix --resume r:\ckpt-resnet10_swish-003.pth --checkpoint r:\ckpt-resnet10_swish.pth --save_every_epoch -e 1 -b 2048 --reset_optimizer --lr_scheduler MultiStepLR([1,3],0.5) --reset_scheduler</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -102,7 +102,6 @@
     <Content Include="cppshogi.pyx">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="utils\cppshogi.pyd" />
     <Content Include="utils\utils.pyproj" />
   </ItemGroup>
   <PropertyGroup>
