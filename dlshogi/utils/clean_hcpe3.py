@@ -29,6 +29,7 @@ out = open(args.cleaned, 'wb')
 
 board = Board()
 games = 0
+positions = 0
 while True:
     data = f.read(HuffmanCodedPosAndEval3.itemsize)
     if len(data) == 0:
@@ -44,6 +45,8 @@ while True:
         try:
             move_info = np.frombuffer(f.read(MoveInfo.itemsize), MoveInfo, 1)[0]
             candidate_num = move_info['candidateNum']
+            if candidate_num > 0:
+                positions += 1
             move_visits = np.frombuffer(f.read(MoveVisits.itemsize * candidate_num), MoveVisits, candidate_num)
         except:
             print('read error')
@@ -65,3 +68,4 @@ while True:
     games += 1
 
 print(games)
+print(positions)
