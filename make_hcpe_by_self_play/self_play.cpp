@@ -112,7 +112,8 @@ std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
-//ofstream ofs_dup;
+bool OUT_MIN_HCP = false;
+ofstream ofs_minhcp;
 mutex imutex;
 mutex omutex;
 size_t entryNum;
@@ -1376,11 +1377,11 @@ void UCTSearcher::NextGame()
 		}
 	}
 
-	// すぐに終局した初期局面を削除候補とする
-	/*if (ply < 10) {
+	// すぐに終局した初期局面を出力する
+	if (OUT_MIN_HCP && ply < MIN_MOVE) {
 		std::unique_lock<Mutex> lock(omutex);
-		ofs_dup.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
-	}*/
+		ofs_minhcp.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
+	}
 
 	// 新しいゲーム
 	playout = 0;
@@ -1407,7 +1408,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	// 削除候補の初期局面を出力するファイル
-	//ofs_dup.open(string(outputFileName) + "_dup", ios::binary);
+	if (OUT_MIN_HCP) ofs_minhcp.open(string(outputFileName) + "_min.hcp", ios::binary);
 
 	vector<UCTSearcherGroupPair> group_pairs;
 	group_pairs.reserve(gpu_id.size());
@@ -1471,7 +1472,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
-	//ofs_dup.close();
+	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
 		madeTeacherNodes, t.elapsed() / 1000,
@@ -1520,6 +1521,7 @@ int main(int argc, char* argv[]) {
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("reuse", "reuse sub tree", cxxopts::value<bool>(REUSE_SUBTREE)->default_value("false"))
+			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
@@ -1642,6 +1644,7 @@ int main(int argc, char* argv[]) {
 	logger->info("temperature:{}", temperature);
 	logger->info("reuse:{}", REUSE_SUBTREE);
 	logger->info("nn_cache_size:{}", nn_cache_size);
+	if (OUT_MIN_HCP) logger->info("out_min_hcp");
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
 	logger->info("usi_threads:{}", usi_threads);
