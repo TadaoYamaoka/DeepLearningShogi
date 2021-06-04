@@ -1,7 +1,7 @@
 # DeepLearningShogi(dlshogi)
 [![pypi](https://img.shields.io/pypi/v/dlshogi.svg)](https://pypi.python.org/pypi/dlshogi)
 
-将棋でディープラーニングの実験するためのプロジェクトです。
+将棋でディープラーニングの実験をするためのプロジェクトです。
 
 基本的にAlphaGo/AlphaZeroの手法を参考に実装していく方針です。
 
