@@ -4,14 +4,10 @@ import torch.nn as nn
 def policy_value_network(network, add_sigmoid=False):
     if network == 'wideresnet10':
         from dlshogi.network.policy_value_network_wideresnet10 import PolicyValueNetwork
-    elif network == 'wideresnet15':
-        from dlshogi.network.policy_value_network_wideresnet15 import PolicyValueNetwork
     elif network == 'resnet10_swish':
         from dlshogi.network.policy_value_network_resnet10_swish import PolicyValueNetwork
-    elif network == 'resnet15_swish':
-        from dlshogi.network.policy_value_network_resnet15_swish import PolicyValueNetwork
-    elif network == 'resnet20_swish':
-        from dlshogi.network.policy_value_network_resnet20_swish import PolicyValueNetwork
+    elif network in ['resnet15_swish', 'resnet20_swish' ]:
+        from dlshogi.network.policy_value_network_resnet import PolicyValueNetwork
     elif network[:5] == 'senet':
         from dlshogi.network.policy_value_network_senet import PolicyValueNetwork
     else:
@@ -33,7 +29,11 @@ def policy_value_network(network, add_sigmoid=False):
 
         PolicyValueNetwork = PolicyValueNetworkAddSigmoid
 
-    if network == 'senet10':
+    if network == 'resnet15_swish':
+        return PolicyValueNetwork(blocks=15, channels=224, activation=nn.SiLU())
+    elif network == 'resnet20_swish':
+        return PolicyValueNetwork(blocks=20, channels=256, activation=nn.SiLU())
+    elif network == 'senet10':
         return PolicyValueNetwork(blocks=10, channels=192)
     elif network == 'senet10_swish':
         return PolicyValueNetwork(blocks=10, channels=192, activation=nn.SiLU())

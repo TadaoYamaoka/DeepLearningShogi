@@ -37,11 +37,11 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="network\policy_value_network_resnet15_swish.py" />
+    <Compile Include="network\policy_value_network_resnet.py" />
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
-    <Compile Include="network\policy_value_network_resnet20_swish.py" />
+    <Compile Include="network\policy_value_network_wideresnet15.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -49,7 +49,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train.py" />
-    <Compile Include="network\policy_value_network_wideresnet15.py" />
     <Compile Include="utils\aoba_to_hcpe.py" />
     <Compile Include="utils\aoba_to_hcpe2.py" />
     <Compile Include="utils\aoba_to_hcpe3.py" />
