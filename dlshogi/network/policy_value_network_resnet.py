@@ -52,7 +52,7 @@ class PolicyValueNetwork(nn.Module):
         self.policy_bias = Bias(9*9*MAX_MOVE_LABEL_NUM)
 
         # value network
-        self.value_conv1 = nn.Conv2d(in_channels=channels, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1)
+        self.value_conv1 = nn.Conv2d(in_channels=channels, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
         self.value_norm1 = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
         self.value_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.value_fc2 = nn.Linear(fcl, 1)
