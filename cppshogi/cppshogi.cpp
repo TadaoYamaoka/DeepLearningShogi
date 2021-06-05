@@ -143,7 +143,7 @@ int make_move_label(const u16 move16, const Color color) {
 
 		// promote
 		if ((move16 & 0b100000000000000) > 0) {
-			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
+			move_direction = (MOVE_DIRECTION)(move_direction + 10);
 		}
 		return 9 * 9 * move_direction + to_sq;
 	}
