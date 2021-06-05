@@ -17,8 +17,7 @@ def main(*args):
     parser.add_argument('model', type=str, default='model', help='model file name')
     parser.add_argument('test_data', type=str, help='test data file')
     parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
-    parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'senet10', 'resnet10_swish', 'resnet20_swish'], help='network type')
-    parser.add_argument('--user_network', type=str)
+    parser.add_argument('--network', default='resnet10_swish', help='network type')
     parser.add_argument('--log', default=None, help='log file path')
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
@@ -32,7 +31,7 @@ def main(*args):
     else:
         device = torch.device("cpu")
 
-    model = policy_value_network(args.user_network if args.user_network else args.network)
+    model = policy_value_network(args.network)
     model.to(device)
 
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')

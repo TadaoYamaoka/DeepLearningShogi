@@ -26,8 +26,7 @@ def main(*args):
     parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
     parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
-    parser.add_argument('--network', type=str, default='resnet10_swish', choices=['wideresnet10', 'wideresnet15', 'resnet10_swish', 'resnet15_swish', 'resnet20_swish', 'senet10', 'senet10_swish', 'senet15_swish', 'senet20_swish'], help='network type')
-    parser.add_argument('--user_network', type=str)
+    parser.add_argument('--network', default='resnet10_swish', help='network type')
     parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
     parser.add_argument('--save_every_epoch', action='store_true', help='Save the checkpoint every epoch')
     parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
@@ -56,6 +55,7 @@ def main(*args):
     args = parser.parse_args(args)
 
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+    logging.info('network {}'.format(args.network))
     logging.info('batchsize={}'.format(args.batchsize))
     logging.info('lr={}'.format(args.lr))
     logging.info('weight_decay={}'.format(args.weight_decay))
@@ -72,7 +72,7 @@ def main(*args):
     else:
         device = torch.device("cpu")
 
-    model = policy_value_network(args.user_network if args.user_network else args.network)
+    model = policy_value_network(args.network)
     model.to(device)
 
     if args.optimizer[-1] != ')':

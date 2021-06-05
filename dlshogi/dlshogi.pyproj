@@ -41,7 +41,6 @@
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
-    <Compile Include="network\policy_value_network_wideresnet15.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>

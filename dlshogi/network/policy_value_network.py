@@ -1,16 +1,19 @@
 import torch
 import torch.nn as nn
+import re
 
 def policy_value_network(network, add_sigmoid=False):
+    # wideresnet10 and resnet10_swish are treated specially because there are published models
     if network == 'wideresnet10':
         from dlshogi.network.policy_value_network_wideresnet10 import PolicyValueNetwork
     elif network == 'resnet10_swish':
         from dlshogi.network.policy_value_network_resnet10_swish import PolicyValueNetwork
-    elif network in ['resnet15_swish', 'resnet20_swish' ]:
+    elif network[:6] == 'resnet':
         from dlshogi.network.policy_value_network_resnet import PolicyValueNetwork
     elif network[:5] == 'senet':
         from dlshogi.network.policy_value_network_senet import PolicyValueNetwork
     else:
+        # user defined network
         names = network.split('.')
         if len(names) == 1:
             PolicyValueNetwork = globals()[names[0]]
@@ -29,17 +32,40 @@ def policy_value_network(network, add_sigmoid=False):
 
         PolicyValueNetwork = PolicyValueNetworkAddSigmoid
 
-    if network == 'resnet15_swish':
-        return PolicyValueNetwork(blocks=15, channels=224, activation=nn.SiLU())
-    elif network == 'resnet20_swish':
-        return PolicyValueNetwork(blocks=20, channels=256, activation=nn.SiLU())
-    elif network == 'senet10':
-        return PolicyValueNetwork(blocks=10, channels=192)
-    elif network == 'senet10_swish':
-        return PolicyValueNetwork(blocks=10, channels=192, activation=nn.SiLU())
-    elif network == 'senet15_swish':
-        return PolicyValueNetwork(blocks=15, channels=224, activation=nn.SiLU())
-    elif network == 'senet20_swish':
-        return PolicyValueNetwork(blocks=20, channels=256, activation=nn.SiLU())
+    if network in [ 'wideresnet10', 'resnet10_swish' ]:
+        return PolicyValueNetwork()
+    elif network[:6] == 'resnet' or network[:5] == 'senet':
+        m = re.match('^(resnet|senet)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_.+){0,1}$', network)
+
+        # blocks
+        blocks = int(m[2])
+
+        # channels
+        if m[3] is None:
+            channels = { 10: 192, 15: 224, 20: 256 }[blocks]
+        else:
+            channels = int(m[3][1:])
+
+        # fcl
+        if m[4] is None:
+            fcl = 256
+        else:
+            fcl = int(m[4][4:])
+
+        # activation
+        if m[6] is None:
+            activation = nn.ReLU()
+        else:
+            activation = { '_relu': nn.ReLU(), '_swish': nn.SiLU() }[m[6]]
+
+        if m[1] == 'resnet':
+            return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl)
+        else: # senet
+            # reduction
+            if m[5] is None:
+                reduction = 8
+            else:
+                reduction = int(m[5][10:])
+            return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl, reduction=reduction)
     else:
         return PolicyValueNetwork()
