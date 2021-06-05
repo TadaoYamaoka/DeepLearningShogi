@@ -827,7 +827,7 @@ Move DfPn::dfpn_move(Position& pos) {
 		}
 	}
 
-	return Move::moveNull();
+	return Move::moveNone();
 }
 
 void DfPn::init()

@@ -30,7 +30,7 @@ USIEngine::USIEngine(const std::string path, const std::vector<std::pair<std::st
 	ops << "usinewgame" << std::endl;
 
 	results = new Move[num];
-	std::fill_n(results, num, Move::moveNull());
+	std::fill_n(results, num, Move::moveNone());
 }
 
 USIEngine::~USIEngine()
