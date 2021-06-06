@@ -274,11 +274,6 @@ def main(*args):
             sum_loss2 += loss2.item()
             sum_loss3 += loss3.item()
             sum_loss += loss.item()
-            steps_epoch += 1
-            sum_loss1_epoch += loss1.item()
-            sum_loss2_epoch += loss2.item()
-            sum_loss3_epoch += loss3.item()
-            sum_loss_epoch += loss.item()
 
             # print train loss
             if t % eval_interval == 0:
@@ -298,11 +293,24 @@ def main(*args):
                         sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
                         loss1.item(), loss2.item(), loss3.item(), loss.item(),
                         accuracy(y1, t1), binary_accuracy(y2, t2)))
+
+                steps_epoch += steps
+                sum_loss1_epoch += sum_loss1
+                sum_loss2_epoch += sum_loss2
+                sum_loss3_epoch += sum_loss3
+                sum_loss_epoch += sum_loss
+
                 steps = 0
                 sum_loss1 = 0
                 sum_loss2 = 0
                 sum_loss3 = 0
                 sum_loss = 0
+
+        steps_epoch += steps
+        sum_loss1_epoch += sum_loss1
+        sum_loss2_epoch += sum_loss2
+        sum_loss3_epoch += sum_loss3
+        sum_loss_epoch += sum_loss
 
         # print train loss and test loss for each epoch
         test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
