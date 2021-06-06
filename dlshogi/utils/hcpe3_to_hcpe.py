@@ -25,13 +25,14 @@ MoveVisits = np.dtype([
 parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
 parser.add_argument('hcpe')
+parser.add_argument('--uniq', action='store_true')
 args = parser.parse_args()
 
 f = open(args.hcpe3, 'rb')
 
 board = Board()
 out = open(args.hcpe, 'wb')
-hcpevec = np.zeros(513, HuffmanCodedPosAndEval)
+hcpes = np.zeros(513, HuffmanCodedPosAndEval)
 games = 0
 positions = 0
 while True:
@@ -51,7 +52,7 @@ while True:
         f.seek(MoveVisits.itemsize * candidate_num, 1)
         move = board.move_from_move16(move_info['selectedMove16'])
         if candidate_num > 0:
-            hcpe = hcpevec[p]
+            hcpe = hcpes[p]
             board.to_hcp(hcpe['hcp'])
             hcpe['eval'] = move_info['eval']
             hcpe['bestMove16'] = move_info['selectedMove16']
@@ -60,9 +61,15 @@ while True:
         board.push(move)
         assert board.is_ok()
 
-    hcpevec[:p].tofile(out)
+    hcpes[:p].tofile(out)
     games += 1
     positions += p
 
 print('games', games)
 print('positions', positions)
+
+if args.uniq:
+    hcpes = np.fromfile(args.hcpe, HuffmanCodedPosAndEval)
+    hcpes_uniq = np.unique(hcpes, axis=0)
+    print('unique positions', len(hcpes_uniq))
+    hcpes_uniq.tofile(args.hcpe)
