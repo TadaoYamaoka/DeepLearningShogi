@@ -80,7 +80,7 @@ class PolicyValueNetwork(nn.Module):
         self.value_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.value_fc2 = nn.Linear(fcl, 1)
 
-    def __call__(self, x1, x2):
+    def forward(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
         u1_2 = self.l1_2(x2)

@@ -26,8 +26,8 @@ def policy_value_network(network, add_sigmoid=False):
             def __init__(self, *args, **kwargs):
                 super(PolicyValueNetworkAddSigmoid, self).__init__(*args, **kwargs)
 
-            def __call__(self, x1, x2):
-                y1, y2 = super(PolicyValueNetworkAddSigmoid, self).__call__(x1, x2)
+            def forward(self, x1, x2):
+                y1, y2 = super(PolicyValueNetworkAddSigmoid, self).forward(x1, x2)
                 return y1, torch.sigmoid(y2)
 
         PolicyValueNetwork = PolicyValueNetworkAddSigmoid
