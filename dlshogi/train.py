@@ -84,7 +84,7 @@ def main(*args):
             args.lr_scheduler += '()'
         scheduler = eval('optim.lr_scheduler.' + args.lr_scheduler.replace('(', '(optimizer,'))
     if args.use_swa:
-        logging.info(f'use swa(swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
+        logging.info(f'use swa(swa_start_epoch={args.swa_start_epoch}, swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
         ema_b = 1 / (args.swa_n_avr + 1)
         ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged : ema_a * averaged_model_parameter + ema_b * model_parameter
