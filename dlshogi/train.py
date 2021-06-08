@@ -46,6 +46,7 @@ def main(*args):
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
     parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
     parser.add_argument('--use_swa', action='store_true')
+    parser.add_argument('--swa_start_epoch', type=int, default=1)
     parser.add_argument('--swa_freq', type=int, default=250)
     parser.add_argument('--swa_n_avr', type=int, default=10)
     parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
@@ -234,6 +235,7 @@ def main(*args):
     for e in range(args.epoch):
         if args.lr_scheduler:
             logging.info('lr_scheduler lr={}'.format(scheduler.get_last_lr()))
+        epoch += 1
         steps_epoch = 0
         sum_loss1_epoch = 0
         sum_loss2_epoch = 0
@@ -289,7 +291,7 @@ def main(*args):
                     loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
                     logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
-                        epoch + 1, t,
+                        epoch, t,
                         sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
                         loss1.item(), loss2.item(), loss3.item(), loss.item(),
                         accuracy(y1, t1), binary_accuracy(y2, t2)))
@@ -316,13 +318,11 @@ def main(*args):
         test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
         logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
-            epoch + 1, t,
+            epoch, t,
             sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
             test_loss1, test_loss2, test_loss3, test_loss,
             test_accuracy1, test_accuracy2,
             test_entropy1, test_entropy2))
-
-        epoch += 1
 
         if args.lr_scheduler:
             scheduler.step()
@@ -349,7 +349,7 @@ def main(*args):
             test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(swa_model)
 
             logging.info('epoch = {}, steps = {}, swa test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, swa test accuracy = {:.07f}, {:.07f}, swa test entropy = {:.07f}, {:.07f}'.format(
-                epoch + 1, t,
+                epoch, t,
                 test_loss1, test_loss2, test_loss3, test_loss,
                 test_accuracy1, test_accuracy2,
                 test_entropy1, test_entropy2))
