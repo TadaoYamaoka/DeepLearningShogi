@@ -218,7 +218,7 @@ def main(*args):
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'scaler': scaler.state_dict()}
-        if args.use_swa:
+        if args.use_swa and epoch >= args.swa_start_epoch:
             checkpoint['swa_model'] = swa_model.state_dict()
         if args.lr_scheduler:
             checkpoint['scheduler'] = scheduler.state_dict()
@@ -269,7 +269,7 @@ def main(*args):
             scaler.step(optimizer)
             scaler.update()
 
-            if args.use_swa and args.swa_start_epoch >= epoch and t % args.swa_freq == 0:
+            if args.use_swa and epoch >= args.swa_start_epoch and t % args.swa_freq == 0:
                 swa_model.update_parameters(model)
 
             sum_loss1 += loss1.item()
@@ -337,7 +337,7 @@ def main(*args):
 
     # save model
     if args.model:
-        if args.use_swa and args.swa_start_epoch >= epoch:
+        if args.use_swa and epoch >= args.swa_start_epoch:
             logging.info('Updating batch normalization')
             forward_ = swa_model.forward
             swa_model.forward = lambda x : forward_(**x)
