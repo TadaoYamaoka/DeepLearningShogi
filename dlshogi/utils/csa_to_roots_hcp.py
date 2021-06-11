@@ -8,11 +8,12 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcp')
-parser.add_argument('--moves', type=int, default=26)
+parser.add_argument('--moves', type=int, default=24)
 parser.add_argument('--filter_moves', type=int, default=80)
 parser.add_argument('--filter_rating', type=int, default=3000)
+parser.add_argument('--filter_eval', type=int, default=300)
 parser.add_argument('--recursive', '-r', action='store_true')
-parser.add_argument('--percentile', type=float, default=0.99)
+parser.add_argument('--percentile', type=float, default=0)
 
 args = parser.parse_args()
 filter_rating = args.filter_rating
@@ -47,6 +48,9 @@ for filepath in csa_file_list:
         if board.is_draw():
             break
 
+        if abs(score) > args.filter_eval:
+            break
+
         # hcp
         board.to_hcp(hcp)
         key = hcp.tobytes()
@@ -63,12 +67,13 @@ df = pd.DataFrame.from_dict(dic, orient='index')
 print('num_games', num_games)
 print(df.describe())
 
-th = int(df['count'].quantile(args.percentile))
-print('th', th)
+if args.percentile > 0:
+    th = int(df['count'].quantile(args.percentile))
+    print('th', th)
 
-df = df[df['count']>th]
-print('output num', len(df))
-print(df.describe())
+    df = df[df['count']>=th]
+    print('output num', len(df))
+    print(df.describe())
 
 hcps = np.empty(len(df), dtype=HuffmanCodedPos)
 
