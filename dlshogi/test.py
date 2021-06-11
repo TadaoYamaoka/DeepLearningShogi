@@ -1,14 +1,17 @@
 ﻿import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 
 from dlshogi.common import *
 from dlshogi import serializers
 from dlshogi.data_loader import DataLoader
+from dlshogi.network.policy_value_network import policy_value_network
 
 import argparse
 import random
 import os
+import sys
 
 import logging
 
