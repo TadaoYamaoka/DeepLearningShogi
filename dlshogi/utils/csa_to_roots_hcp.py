@@ -8,12 +8,12 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcp')
-parser.add_argument('--moves', type=int, default=24)
-parser.add_argument('--filter_moves', type=int, default=100)
+parser.add_argument('--moves', type=int, default=16)
+parser.add_argument('--filter_moves', type=int, default=80)
 parser.add_argument('--filter_rating', type=int, default=3000)
 parser.add_argument('--filter_eval', type=int, default=300)
 parser.add_argument('--recursive', '-r', action='store_true')
-parser.add_argument('--percentile', type=float, default=0)
+parser.add_argument('--percentile', type=float, default=0.99)
 
 args = parser.parse_args()
 filter_rating = args.filter_rating
