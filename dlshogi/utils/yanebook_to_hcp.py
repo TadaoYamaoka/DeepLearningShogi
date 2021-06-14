@@ -41,6 +41,6 @@ for line in open(args.yanebook, encoding='utf_8_sig'):
                 board.to_hcp(hcp)
                 hcp.tofile(f)
                 count += 1
-            board.pop(move)
+            board.pop()
 
 print(count)
