@@ -25,7 +25,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>make_hcpe_by_self_play</RootNamespace>
+    <RootNamespace>selfplay</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

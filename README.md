@@ -18,7 +18,7 @@ http://tadaoyamaoka.hatenablog.com/
 |cppshogi|Aperyを流用した将棋ライブラリ（盤面管理、指し手生成）、入力特徴量作成|
 |dlshogi|ニューラルネットワークの学習（Python）|
 |dlshogi/utils|ツール類|
-|make_hcpe_by_self_play|MCTSによる自己対局|
+|selfplay|MCTSによる自己対局|
 |test|テストコード|
 |usi|対局用USIエンジン|
 |usi_onnxruntime|OnnxRuntime版ビルド用プロジェクト|

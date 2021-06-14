@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cppshogi", "cppshogi\cppsho
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj", "{A246A881-CCDA-4FC5-B8EA-DEFD779B2724}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "make_hcpe_by_self_play", "make_hcpe_by_self_play\make_hcpe_by_self_play.vcxproj", "{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "selfplay", "selfplay\selfplay.vcxproj", "{8C4DECB0-1BD4-4485-9E2D-19993F5D7C5D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usi_onnxruntime", "usi_onnxruntime\usi_onnxruntime.vcxproj", "{A14AB8E7-348F-45B0-BBA3-BA1721FFE242}"
 EndProject

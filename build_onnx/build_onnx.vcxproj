@@ -78,12 +78,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;..\make_hcpe_by_self_play;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;..\selfplay;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;..\make_hcpe_by_self_play;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;..\usi;..\selfplay;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

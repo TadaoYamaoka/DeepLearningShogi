@@ -1493,7 +1493,7 @@ int main(int argc, char* argv[]) {
 	vector<int> gpu_id(1);
 	vector<int> batchsize(1);
 
-	cxxopts::Options options("make_hcpe_by_self_play");
+	cxxopts::Options options("selfplay");
 	options.positional_help("modelfile hcp output nodes playout_num gpu_id batchsize [gpu_id batchsize]*");
 	try {
 		options.add_options()
