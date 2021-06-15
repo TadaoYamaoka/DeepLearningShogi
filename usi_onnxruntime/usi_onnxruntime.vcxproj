@@ -105,6 +105,7 @@
     <ClCompile Include="..\usi\main.cpp" />
     <ClCompile Include="..\usi\Message.cpp" />
     <ClCompile Include="..\usi\Node.cpp" />
+    <ClCompile Include="..\usi\PvMateSearch.cpp" />
     <ClCompile Include="..\usi\UctSearch.cpp" />
     <ClCompile Include="nn_onnxruntime.cpp" />
   </ItemGroup>

@@ -252,6 +252,7 @@
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="Node.cpp" />
+    <ClCompile Include="PvMateSearch.cpp" />
     <ClCompile Include="UctSearch.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -264,6 +265,7 @@
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="Node.h" />
+    <ClInclude Include="PvMateSearch.h" />
     <ClInclude Include="UctSearch.h" />
   </ItemGroup>
   <ItemGroup>
