@@ -27,8 +27,7 @@ def main(*args):
     parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
     parser.add_argument('--network', default='resnet10_swish', help='network type')
-    parser.add_argument('--checkpoint', type=str, help='checkpoint file name')
-    parser.add_argument('--save_every_epoch', action='store_true', help='Save the checkpoint every epoch')
+    parser.add_argument('--checkpoint', default='checkpoint-{epoch:03}.pth', help='checkpoint file name')
     parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
     parser.add_argument('--reset_optimizer', action='store_true')
     parser.add_argument('--model', type=str, help='model file name')
@@ -211,11 +210,7 @@ def main(*args):
                 sum_test_entropy2 / steps)
 
     def save_checkpoint():
-        if args.save_every_epoch:
-            base, ext = os.path.splitext(args.checkpoint)
-            path = base + '-' + str(epoch).zfill(3) + ext
-        else:
-            path = args.checkpoint
+        path = args.checkpoint.format(**{'epoch':epoch, 'step':t})
         logging.info('Saving the checkpoint to {}'.format(path))
         checkpoint = {
             'epoch': epoch,
@@ -332,13 +327,9 @@ def main(*args):
         if args.lr_scheduler:
             scheduler.step()
 
-        # save checkpoint every epoch
-        if args.checkpoint and args.save_every_epoch:
+        # save checkpoint
+        if args.checkpoint:
             save_checkpoint()
-
-    # save checkpoint
-    if args.checkpoint and not args.save_every_epoch:
-        save_checkpoint()
 
     # save model
     if args.model:
