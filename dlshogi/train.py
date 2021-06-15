@@ -117,6 +117,11 @@ def main(*args):
                 swa_model.load_state_dict(checkpoint['swa_model'])
             if not args.reset_optimizer:
                 optimizer.load_state_dict(checkpoint['optimizer'])
+                if not args.lr_scheduler:
+                    for param_group in optimizer.param_groups:
+                        param_group['lr'] = args.lr
+                        if args.weight_decay >= 0:
+                            param_group['weight_decay'] = args.weight_decay
             if args.use_amp and 'scaler' in checkpoint:
                 scaler.load_state_dict(checkpoint['scaler'])
             if args.lr_scheduler and not args.reset_scheduler and 'scheduler' in checkpoint:
