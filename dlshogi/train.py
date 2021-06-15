@@ -24,7 +24,7 @@ def main(*args):
     parser.add_argument('train_data', type=str, nargs='+', help='training data file')
     parser.add_argument('test_data', type=str, help='test data file')
     parser.add_argument('--batchsize', '-b', type=int, default=1024, help='Number of positions in each mini-batch')
-    parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
+    parser.add_argument('--testbatchsize', type=int, default=1024, help='Number of positions in each test mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=1, help='Number of epoch times')
     parser.add_argument('--network', default='resnet10_swish', help='network type')
     parser.add_argument('--checkpoint', default='checkpoint-{epoch:03}.pth', help='checkpoint file name')
