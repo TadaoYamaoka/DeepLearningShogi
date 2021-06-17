@@ -350,8 +350,9 @@ def main(*args):
                 test_accuracy1, test_accuracy2,
                 test_entropy1, test_entropy2))
 
-        logging.info('Saving the model to {}'.format(args.model))
-        serializers.save_npz(args.model, swa_model.module if args.use_swa else model)
+        model_path = args.model.format(**{'epoch':epoch, 'step':t})
+        logging.info('Saving the model to {}'.format(model_path))
+        serializers.save_npz(model_path, swa_model.module if args.use_swa else model)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
