@@ -17,7 +17,7 @@ constexpr int MAX_HGOLD_NUM = 4;
 constexpr int MAX_HBISHOP_NUM = 2;
 constexpr int MAX_HROOK_NUM = 2;
 
-const u32 MAX_PIECES_IN_HAND[] = {
+constexpr u32 MAX_PIECES_IN_HAND[] = {
 	MAX_HPAWN_NUM, // PAWN
 	MAX_HLANCE_NUM, // LANCE
 	MAX_HKNIGHT_NUM, // KNIGHT
