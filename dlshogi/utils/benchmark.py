@@ -8,7 +8,7 @@ parser.add_argument('--gpus', type=int, default=1)
 parser.add_argument('--threads', type=int, default=2)
 parser.add_argument('--nodelimit', type=int, default=10000000)
 parser.add_argument('--batch', type=int, default=128)
-parser.add_argument('--byoyomi', type=int, default=5000)
+parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--options')
 args = parser.parse_args()
 
