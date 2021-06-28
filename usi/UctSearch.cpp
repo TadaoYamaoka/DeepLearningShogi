@@ -996,7 +996,7 @@ InterruptionCheck(void)
 		extend_time &&
 		pos_root->gamePly() > 20 &&
 		remaining_time[pos_root->turn()] > time_limit * 2 &&
-		// 最善手の探索回数がが次善手の探索回数の1.5倍未満
+		// 最善手の探索回数が次善手の探索回数の1.5倍未満
 		// もしくは、勝率が逆なら探索延長
 		(max_searched < second_searched * 1.5 ||
 		 uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
