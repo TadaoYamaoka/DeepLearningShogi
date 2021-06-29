@@ -19,7 +19,7 @@ def main(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('model', type=str, default='model', help='model file name')
     parser.add_argument('test_data', type=str, help='test data file')
-    parser.add_argument('--testbatchsize', type=int, default=640, help='Number of positions in each test mini-batch')
+    parser.add_argument('--testbatchsize', type=int, default=1024, help='Number of positions in each test mini-batch')
     parser.add_argument('--network', default='resnet10_swish', help='network type')
     parser.add_argument('--log', default=None, help='log file path')
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
