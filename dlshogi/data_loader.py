@@ -45,12 +45,20 @@ class DataLoader:
     def mini_batch(self, hcpevec):
         cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
 
-        return (self.torch_features1.to(self.device),
-                self.torch_features2.to(self.device),
-                self.torch_move.to(self.device),
-                self.torch_result.to(self.device),
-                self.torch_value.to(self.device)
-                )
+        if self.device.type == 'cpu':
+            return (self.torch_features1.clone(),
+                    self.torch_features2.clone(),
+                    self.torch_move.clone(),
+                    self.torch_result.clone(),
+                    self.torch_value.clone()
+                    )
+        else:
+            return (self.torch_features1.to(self.device),
+                    self.torch_features2.to(self.device),
+                    self.torch_move.to(self.device),
+                    self.torch_result.to(self.device),
+                    self.torch_value.to(self.device)
+                    )
 
     def sample(self):
         return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))

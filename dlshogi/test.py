@@ -24,6 +24,7 @@ def main(*args):
     parser.add_argument('--log', default=None, help='log file path')
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
+    parser.add_argument('--onnx', action='store_true')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -34,15 +35,21 @@ def main(*args):
     else:
         device = torch.device("cpu")
 
-    model = policy_value_network(args.network)
-    model.to(device)
+    print('Load model from', args.model)
+    if args.onnx:
+        import onnxruntime
+        session = onnxruntime.InferenceSession(args.model)
+        io_binding = session.io_binding()
+        io_binding.bind_output('output_policy')
+        io_binding.bind_output('output_value')
+    else:
+        model = policy_value_network(args.network)
+        model.to(device)
+        serializers.load_npz(args.model, model)
+        model.eval()
 
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
     bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
-
-    # Init/Resume
-    print('Load model from', args.model)
-    serializers.load_npz(args.model, model)
 
     logging.debug('read test data')
     logging.debug(args.test_data)
@@ -50,7 +57,7 @@ def main(*args):
 
     logging.info('test position num = {}'.format(len(test_data)))
 
-    test_dataloader = DataLoader(test_data, args.testbatchsize, device)
+    test_dataloader = DataLoader(test_data, args.testbatchsize, torch.device("cpu") if args.onnx else device)
 
     def accuracy(y, t):
         return (torch.max(y, 1)[1] == t).sum().item() / len(t)
@@ -69,10 +76,21 @@ def main(*args):
     sum_test_accuracy2 = 0
     sum_test_entropy1 = 0
     sum_test_entropy2 = 0
-    model.eval()
     with torch.no_grad():
         for x1, x2, t1, t2, value in test_dataloader:
-            y1, y2 = model(x1, x2)
+            if args.onnx:
+                io_binding.bind_cpu_input('input1', x1.numpy())
+                io_binding.bind_cpu_input('input2', x2.numpy())
+                session.run_with_iobinding(io_binding)
+                y1, y2 = io_binding.copy_outputs_to_cpu()
+                y1 = torch.from_numpy(y1).to(device)
+                y2 = torch.from_numpy(y2).to(device)
+                y2 = torch.log(y2 / (1 - y2))
+                t1 = t1.to(device)
+                t2 = t2.to(device)
+                value = value.to(device)
+            else:
+                y1, y2 = model(x1, x2)
 
             itr_test += 1
             loss1 = cross_entropy_loss(y1, t1).mean()
