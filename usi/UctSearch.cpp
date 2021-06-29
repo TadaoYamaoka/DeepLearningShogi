@@ -949,18 +949,13 @@ InterruptionCheck(void)
 		return false;
 	}
 
-	bool should_interrupt = false;
 	int max_searched = 0, second_searched = 0;
 	int max_index = 0, second_index = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
-	// 計算時間が予定の値を超えている
-	if (spend_time >= time_limit) {
-		//cout << "info string interrupt_time_limit" << endl;
-		should_interrupt = true;
-	}
-	else {
+	// 消費時間が予定時間を超えていない場合
+	if (spend_time < time_limit) {
 		// 探索回数が最も多い手と次に多い手を求める
 		const int child_num = current_root->child_num;
 		for (int i = 0; i < child_num; i++) {
@@ -979,12 +974,10 @@ InterruptionCheck(void)
 		if (uct_child[max_index].IsLose())
 			return true;
 
-		// 残りの探索を全て次善手に費やしても
-		// 最善手を超えられない場合は探索を打ち切る
+		// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 		const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
-		if (max_searched - second_searched > rest_po) {
-			//cout << "info string interrupt_no_movechange" << endl;
-			should_interrupt = true;
+		if (max_searched - second_searched <= rest_po) {
+			return false;
 		}
 	}
 
@@ -992,8 +985,7 @@ InterruptionCheck(void)
 	// 時間延長を行う設定になっていて,
 	// 探索時間延長をすべきときは
 	// 探索回数を2倍に増やす
-	if (should_interrupt &&
-		extend_time &&
+	if (extend_time &&
 		pos_root->gamePly() > 20 &&
 		remaining_time[pos_root->turn()] > time_limit * 2 &&
 		// 最善手の探索回数が次善手の探索回数の1.5倍未満
@@ -1001,12 +993,12 @@ InterruptionCheck(void)
 		(max_searched < second_searched * 1.5 ||
 		 uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
 		time_limit *= 2;
-		should_interrupt = false;
 		extend_time = false; // 探索延長は1回のみ
 		cout << "ExtendTime" << endl;
+		return false;
 	}
 
-	return should_interrupt;
+	return true;
 }
 
 
