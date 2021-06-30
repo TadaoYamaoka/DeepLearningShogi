@@ -75,7 +75,6 @@
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
-    <Compile Include="utils\mcts_params_optimizer.py" />
     <Compile Include="utils\measure_entropy.py" />
     <Compile Include="utils\merge_book.py" />
     <Compile Include="utils\plot_log_policy_value.py" />
@@ -90,6 +89,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\throughput.py" />
     <Compile Include="utils\uniq_hcpe.py" />
+    <Compile Include="utils\usi_params_optimizer.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
