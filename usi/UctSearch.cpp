@@ -954,31 +954,28 @@ InterruptionCheck(void)
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
-	// 消費時間が予定時間を超えていない場合
-	if (spend_time < time_limit) {
-		// 探索回数が最も多い手と次に多い手を求める
-		const int child_num = current_root->child_num;
-		for (int i = 0; i < child_num; i++) {
-			if (uct_child[i].move_count > max_searched) {
-				second_searched = max_searched;
-				max_searched = uct_child[i].move_count;
-				max_index = i;
-			}
-			else if (uct_child[i].move_count > second_searched) {
-				second_searched = uct_child[i].move_count;
-				second_index = i;
-			}
+	// 探索回数が最も多い手と次に多い手を求める
+	const int child_num = current_root->child_num;
+	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].move_count > max_searched) {
+			second_searched = max_searched;
+			max_searched = uct_child[i].move_count;
+			max_index = i;
 		}
-
-		// 詰みが見つかった場合は探索を打ち切る
-		if (uct_child[max_index].IsLose())
-			return true;
-
-		// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
-		const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
-		if (max_searched - second_searched <= rest_po) {
-			return false;
+		else if (uct_child[i].move_count > second_searched) {
+			second_searched = uct_child[i].move_count;
+			second_index = i;
 		}
+	}
+
+	// 詰みが見つかった場合は探索を打ち切る
+	if (uct_child[max_index].IsLose())
+		return true;
+
+	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
+	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
+	if (max_searched - second_searched <= rest_po) {
+		return false;
 	}
 
 	// 着手が21手以降で,
