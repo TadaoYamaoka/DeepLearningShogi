@@ -9,7 +9,7 @@ from dlshogi import cppshogi
 import argparse
 import sys
 
-def main(*args):
+def main(*argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('model')
     parser.add_argument('onnx')
@@ -17,7 +17,7 @@ def main(*args):
     parser.add_argument('--network', default='resnet10_swish')
     parser.add_argument('--fixed_batchsize', type=int)
     parser.add_argument('--remove_aux', action='store_true')
-    args = parser.parse_args(args)
+    args = parser.parse_args(argv)
 
     if args.gpu >= 0:
         torch.cuda.set_device(args.gpu)

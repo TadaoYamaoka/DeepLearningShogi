@@ -15,7 +15,7 @@ import sys
 
 import logging
 
-def main(*args):
+def main(*argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('model', type=str, default='model', help='model file name')
     parser.add_argument('test_data', type=str, help='test data file')
@@ -25,7 +25,7 @@ def main(*args):
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
     parser.add_argument('--onnx', action='store_true')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 

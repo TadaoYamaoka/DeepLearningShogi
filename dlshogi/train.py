@@ -19,7 +19,7 @@ import re
 
 import logging
 
-def main(*args):
+def main(*argv):
     parser = argparse.ArgumentParser(description='Train policy value network')
     parser.add_argument('train_data', type=str, nargs='+', help='training data file')
     parser.add_argument('test_data', type=str, help='test data file')
@@ -52,7 +52,7 @@ def main(*args):
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
-    args = parser.parse_args(args)
+    args = parser.parse_args(argv)
 
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
     logging.info('network {}'.format(args.network))
