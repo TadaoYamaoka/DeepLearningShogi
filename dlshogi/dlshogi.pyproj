@@ -83,7 +83,7 @@
     <Compile Include="utils\psv_to_hcpe.py" />
     <Compile Include="utils\sfen_to_hcp.py" />
     <Compile Include="utils\split_hcpe3.py" />
-    <Compile Include="utils\split_uniq_hcpe.py" />
+    <Compile Include="utils\split_hcpe.py" />
     <Compile Include="utils\stat_csa_in_dir.py" />
     <Compile Include="utils\stat_csa_position_in_dir.py" />
     <Compile Include="utils\stat_hcpe3.py" />
