@@ -55,6 +55,9 @@ for filepath in csa_file_list:
             continue
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
+        # 評価値がない棋譜を除外
+        if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
+            continue
 
         hcpe['result'] = kif.win
         if endgame == '%SENNICHITE':
@@ -69,7 +72,7 @@ for filepath in csa_file_list:
         board.set_sfen(kif.sfen)
         board.to_hcp(hcpe['hcp'])
         try:
-            for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
+            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
                 assert board.is_legal(move)
                 move_info = move_info_vec[i]
                 move_visits = move_visits_vec[i]
@@ -88,10 +91,6 @@ for filepath in csa_file_list:
 
         move_num = i + 1
         hcpe['moveNum'] = move_num
-
-        # 評価値がない棋譜は除く
-        if not args.out_noeval and (move_info_vec[:move_num]['eval'] == 0).sum() >= move_num // 2:
-            continue
 
         hcpe.tofile(f)
         for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
