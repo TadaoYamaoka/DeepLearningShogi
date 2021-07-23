@@ -43,7 +43,7 @@ for filepath in csa_file_list:
         try:
             for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
-                if not args.out_noeval and comment == b'':
+                if not args.out_noeval and comment == '':
                     board.push(move)
                     continue
                 hcpe = hcpes[p]
