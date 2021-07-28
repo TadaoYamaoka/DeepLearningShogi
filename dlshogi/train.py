@@ -139,7 +139,7 @@ def main(*argv):
 
     logging.info('Reading training data')
     train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
-    train_data = np.arange(train_len, dtype=np.int32)
+    train_data = np.arange(train_len, dtype=np.uint32)
     logging.info('Reading test data')
     test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)
 

@@ -99,7 +99,7 @@ void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures
 
 std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
-std::unordered_map<HuffmanCodedPos, int> duplicates;
+std::unordered_map<HuffmanCodedPos, unsigned int> duplicates;
 
 // hcpe形式の指し手をone-hotの方策として読み込む
 size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, int& len) {
@@ -296,7 +296,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
-	int* index = reinterpret_cast<int*>(ndindex);
+	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
