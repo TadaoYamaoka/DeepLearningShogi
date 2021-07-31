@@ -118,8 +118,8 @@ class PolicyValueNetwork(nn.Module):
         h21 = F.relu(self.norm21(u21))
         # policy network
         h22 = self.l22(h21)
-        h22_1 = self.l22_2(h22.view(-1, 9*9*MAX_MOVE_LABEL_NUM))
+        h22_1 = self.l22_2(torch.flatten(h22, 1))
         # value network
         h22_v = F.relu(self.norm22_v(self.l22_v(h21)))
-        h23_v = F.relu(self.l23_v(h22_v.view(-1, 9*9*MAX_MOVE_LABEL_NUM)))
+        h23_v = F.relu(self.l23_v(torch.flatten(h22_v, 1)))
         return h22_1, self.l24_v(h23_v)

@@ -126,10 +126,10 @@ class PolicyValueNetwork(nn.Module):
         u21 = self.swish(h21 + u19)
         # policy network
         h22 = self.l22(u21)
-        h22_1 = self.l22_2(h22.view(-1, 9*9*MAX_MOVE_LABEL_NUM))
+        h22_1 = self.l22_2(torch.flatten(h22, 1))
         # value network
         h22_v = self.swish(self.norm22_v(self.l22_v(u21)))
-        h23_v = self.swish(self.l23_v(h22_v.view(-1, 9*9*MAX_MOVE_LABEL_NUM)))
+        h23_v = self.swish(self.l23_v(torch.flatten(h22_v, 1)))
         return h22_1, self.l24_v(h23_v)
 
 
