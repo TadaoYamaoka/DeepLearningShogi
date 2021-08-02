@@ -36,7 +36,7 @@ def main(*argv):
     def mini_batch(hcpevec):
         features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
         features2 = np.empty((len(hcpevec), FEATURES2_NUM, 9, 9), dtype=np.float32)
-        move = np.empty((len(hcpevec)), dtype=np.int32)
+        move = np.empty((len(hcpevec)), dtype=np.int64)
         result = np.empty((len(hcpevec)), dtype=np.float32)
         value = np.empty((len(hcpevec)), dtype=np.float32)
 
