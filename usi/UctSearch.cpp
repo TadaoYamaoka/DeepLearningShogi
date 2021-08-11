@@ -27,6 +27,8 @@
 
 #ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
+#elif LIBTORCH
+#include "nn_libtorch.h"
 #else
 #include "nn_tensorrt.h"
 #endif
@@ -222,6 +224,8 @@ public:
 		if (nn == nullptr) {
 #ifdef ONNXRUNTIME
 			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+#elif LIBTORCH
+			nn = (NN*)new NNLibTorch(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 #else
 			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 #endif
@@ -270,7 +274,7 @@ public:
 #endif
 		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
-#ifdef ONNXRUNTIME
+#if defined(ONNXRUNTIME) || defined(LIBTORCH)
 		features1 = new features1_t[policy_value_batch_maxsize];
 		features2 = new features2_t[policy_value_batch_maxsize];
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
@@ -292,7 +296,7 @@ public:
 		thread_id(thread_id),
 		mt(move(o.mt)) {}
 	~UCTSearcher() {
-#ifdef ONNXRUNTIME
+#if defined(ONNXRUNTIME) || defined(LIBTORCH)
 		delete[] features1;
 		delete[] features2;
 		delete[] y1;
@@ -334,7 +338,7 @@ public:
 		}
 #else
 		handle = new thread([this]() {
-#ifndef ONNXRUNTIME
+#if !defined(ONNXRUNTIME) && !defined(LIBTORCH)
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
 #endif

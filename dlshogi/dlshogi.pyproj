@@ -55,6 +55,9 @@
     <Compile Include="utils\benchmark.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
+    <Compile Include="utils\convert_model_to_torchscript.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_hcp.py" />
     <Compile Include="utils\csa_to_hcpe.py" />

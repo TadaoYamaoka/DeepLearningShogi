@@ -17,6 +17,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usi_onnxruntime", "usi_onnx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "build_onnx", "build_onnx\build_onnx.vcxproj", "{FD6E7F99-7E89-4670-B0B3-C57FFF0DA3A9}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usi_libtorch", "usi_libtorch\usi_libtorch.vcxproj", "{35862BF1-FC78-49C8-85E3-4374106C3B64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -131,6 +133,26 @@ Global
 		{FD6E7F99-7E89-4670-B0B3-C57FFF0DA3A9}.Release|x64.Build.0 = Release|x64
 		{FD6E7F99-7E89-4670-B0B3-C57FFF0DA3A9}.Release|x86.ActiveCfg = Release|Win32
 		{FD6E7F99-7E89-4670-B0B3-C57FFF0DA3A9}.Release|x86.Build.0 = Release|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Debug|x64.ActiveCfg = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Debug|x64.Build.0 = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Debug|x86.ActiveCfg = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Debug|x86.Build.0 = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook_NoOpt|x64.ActiveCfg = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook_NoOpt|x64.Build.0 = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook_NoOpt|x86.ActiveCfg = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook_NoOpt|x86.Build.0 = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook|x64.ActiveCfg = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook|x64.Build.0 = Debug|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook|x86.ActiveCfg = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.MakeBook|x86.Build.0 = Debug|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release_NoOpt|x64.ActiveCfg = Release|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release_NoOpt|x64.Build.0 = Release|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release_NoOpt|x86.ActiveCfg = Release|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release_NoOpt|x86.Build.0 = Release|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release|x64.ActiveCfg = Release|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release|x64.Build.0 = Release|x64
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release|x86.ActiveCfg = Release|Win32
+		{35862BF1-FC78-49C8-85E3-4374106C3B64}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
