@@ -315,7 +315,9 @@ public:
 		if (handle == nullptr) {
 			handle = new thread([this]() {
 				// スレッドにGPUIDを関連付けてから初期化する
+#if !defined(ONNXRUNTIME) && !defined(LIBTORCH)
 				cudaSetDevice(grp->gpu_id);
+#endif
 				grp->InitGPU();
 
 				while (!term_th) {
