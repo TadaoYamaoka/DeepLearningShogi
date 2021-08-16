@@ -49,6 +49,10 @@ public:
         return currentValue_;
     }
 
+    bool isDefault() const {
+        return defaultValue_ == currentValue_;
+    }
+
 private:
     friend std::ostream& operator << (std::ostream&, const OptionsMap&);
 
