@@ -39,9 +39,6 @@ def main(*argv):
     if args.onnx:
         import onnxruntime
         session = onnxruntime.InferenceSession(args.model)
-        io_binding = session.io_binding()
-        io_binding.bind_output('output_policy')
-        io_binding.bind_output('output_value')
     else:
         model = policy_value_network(args.network)
         model.to(device)
@@ -79,8 +76,11 @@ def main(*argv):
     with torch.no_grad():
         for x1, x2, t1, t2, value in test_dataloader:
             if args.onnx:
+                io_binding = session.io_binding()
                 io_binding.bind_cpu_input('input1', x1.numpy())
                 io_binding.bind_cpu_input('input2', x2.numpy())
+                io_binding.bind_output('output_policy')
+                io_binding.bind_output('output_value')
                 session.run_with_iobinding(io_binding)
                 y1, y2 = io_binding.copy_outputs_to_cpu()
                 y1 = torch.from_numpy(y1).to(device)
