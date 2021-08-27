@@ -81,6 +81,7 @@ int usi_threads;
 // USIエンジンオプション（name:value,...,name:value）
 string usi_options;
 int usi_byoyomi;
+int usi_turn; // 0:先手、1:後手、それ以外:ランダム
 
 std::mutex mutex_all_gpu;
 
@@ -959,6 +960,14 @@ void UCTSearcher::Playout(visitor_t& visitor)
 					// 開始局面設定
 					usi_position = "position " + pos_root->toSFEN() + " moves";
 
+					// 先手後手指定
+					if (usi_turn == Black)
+						usi_engine_turn = pos_root->turn() == Black ? 1 : 0;
+					else if (usi_turn == White)
+						usi_engine_turn = pos_root->turn() == White ? 1 : 0;
+					else
+						usi_engine_turn = rnd(*mt) % 2;
+
 					if (usi_engine_turn == 1 && RANDOM_MOVE == 0) {
 						grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 						return;
@@ -1532,6 +1541,7 @@ int main(int argc, char* argv[]) {
 			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
 			("usi_options", "USIEngine options", cxxopts::value<std::string>(usi_options))
 			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
+			("usi_turn", "USIEngine turn", cxxopts::value<int>(usi_turn)->default_value("-1"))
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
@@ -1653,6 +1663,7 @@ int main(int argc, char* argv[]) {
 	logger->info("usi_threads:{}", usi_threads);
 	logger->info("usi_options:{}", usi_options);
 	logger->info("usi_byoyomi:{}", usi_byoyomi);
+	logger->info("usi_turn:{}", usi_turn);
 
 	initTable();
 	Position::initZobrist();
