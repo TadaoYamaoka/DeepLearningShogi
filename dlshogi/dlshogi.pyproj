@@ -92,6 +92,9 @@
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
+    <Compile Include="utils\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
