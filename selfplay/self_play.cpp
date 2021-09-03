@@ -1278,6 +1278,7 @@ void UCTSearcher::NextPly(const Move move)
 
 	// 着手
 	pos_root->doMove(move, states[ply]);
+	ply++;
 
 	// 千日手の場合
 	switch (pos_root->isDraw(16)) {
@@ -1302,7 +1303,6 @@ void UCTSearcher::NextPly(const Move move)
 	// 次の手番
 	max_playout_num = playout_num;
 	playout = 0;
-	ply++;
 
 	if (usi_engine_turn >= 0) {
 		usi_position += " " + move.toUSI();
