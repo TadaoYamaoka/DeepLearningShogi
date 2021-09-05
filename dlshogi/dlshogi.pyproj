@@ -88,7 +88,6 @@
     <Compile Include="utils\stat_csa_in_dir.py" />
     <Compile Include="utils\stat_csa_position_in_dir.py" />
     <Compile Include="utils\stat_hcpe3.py" />
-    <Compile Include="utils\throughput.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
