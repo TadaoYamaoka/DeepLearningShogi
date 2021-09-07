@@ -2,7 +2,7 @@
 import sys
 import re
 import glob
-import matplotlib.pyplot as plt
+import pandas as pd
 
 def plot_log_policy_value(*argv):
     parser = argparse.ArgumentParser()
@@ -31,21 +31,14 @@ def plot_log_policy_value(*argv):
                 accuracy1_list.append(float(m.group(3)))
                 accuracy2_list.append(float(m.group(4)))
 
-    fig, ax1 = plt.subplots()
-    p1, = ax1.plot(step_list, loss_list, 'b', label=traintest + ' loss')
-    ax1.set_xlabel('steps')
-    ax1.set_ylabel('loss')
-
-    ax2 = ax1.twinx()
-    p2, = ax2.plot(step_list, accuracy1_list, 'g', label='policy accuracy')
-    p3, = ax2.plot(step_list, accuracy2_list, 'r', label='value accuracy')
-    ax2.set_ylabel('accuracy')
-
-    ax1.legend(handles=[p1, p2, p3])
-    if args.grid:
-        ax1.grid()
-
-    plt.show()
+    df = pd.DataFrame({
+        'steps': step_list,
+        traintest + ' loss': loss_list,
+        'policy accuracy': accuracy1_list,
+        'value accuracy': accuracy2_list}).set_index('steps').sort_index()
+    ax = df.plot(secondary_y=['policy accuracy', 'value accuracy'], grid=args.grid)
+    ax.set_ylabel('loss')
+    ax.right_ax.set_ylabel('accuracy')
 
 if __name__ == '__main__':
     plot_log_policy_value(*sys.argv[1:])
