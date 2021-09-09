@@ -11,6 +11,7 @@ parser.add_argument('hcpe')
 parser.add_argument('--out_maxmove', action='store_true')
 parser.add_argument('--out_noeval', action='store_true')
 parser.add_argument('--out_mate', action='store_true')
+parser.add_argument('--eval', type=int)
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3500)
 args = parser.parse_args()
@@ -47,16 +48,19 @@ for filepath in csa_file_list:
                     board.push(move)
                     continue
                 hcpe = hcpes[p]
-                p += 1
                 board.to_hcp(hcpe['hcp'])
-                assert abs(score) <= 100000
+                assert abs(score) <= 200000
                 eval = min(32767, max(score, -32767))
+                if args.eval and abs(eval) > args.eval:
+                    break
                 hcpe['eval'] = eval if board.turn == BLACK else -eval
                 hcpe['bestMove16'] = move16(move)
                 hcpe['gameResult'] = kif.win
                 if not args.out_mate and abs(score) == 100000:
+                    p += 1
                     break
                 board.push(move)
+                p += 1
         except:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
