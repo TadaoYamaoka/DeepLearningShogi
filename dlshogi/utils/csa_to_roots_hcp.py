@@ -33,7 +33,7 @@ for filepath in csa_file_list:
     parser.parse_csa_file(filepath)
     if parser.endgame not in ('%TORYO', '%KACHI') or len(parser.moves) < args.filter_moves:
         continue
-    if filter_rating > 0 and (parser.ratings[0] < filter_rating and parser.ratings[1] < filter_rating):
+    if filter_rating > 0 and min(parser.ratings) < filter_rating:
         continue
     board.set_sfen(parser.sfen)
     assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
