@@ -38,7 +38,7 @@ for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
         if kif.endgame not in endgames or len(kif.moves) < filter_moves:
             continue
-        if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
+        if filter_rating > 0 and min(kif.ratings) < filter_rating:
             continue
 
         board.set_sfen(kif.sfen)
