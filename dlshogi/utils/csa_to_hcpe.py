@@ -8,6 +8,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcpe')
+parser.add_argument('--out_draw', action='store_true')
 parser.add_argument('--out_maxmove', action='store_true')
 parser.add_argument('--out_noeval', action='store_true')
 parser.add_argument('--out_mate', action='store_true')
@@ -18,6 +19,11 @@ args = parser.parse_args()
 
 filter_moves = args.filter_moves
 filter_rating = args.filter_rating
+endgames = ['%TORYO', '%KACHI']
+if args.out_draw:
+    endgames.append('%SENNICHITE')
+if args.out_maxmove:
+    endgames.append('%JISHOGI')
 
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
@@ -30,14 +36,10 @@ kif_num = 0
 position_num = 0
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
-        if kif.endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
+        if kif.endgame not in endgames or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
             continue
-
-        if kif.endgame == '%JISHOGI':
-            if not args.out_maxmove:
-                continue
 
         board.set_sfen(kif.sfen)
         p = 0
