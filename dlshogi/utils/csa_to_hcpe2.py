@@ -40,7 +40,7 @@ for filepath in csa_file_list:
         endgame = kif.endgame
         if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
-        if filter_rating > 0 and (kif.ratings[0] < filter_rating and kif.ratings[1] < filter_rating):
+        if filter_rating > 0 and min(kif.ratings) < filter_rating:
             continue
 
         if endgame == '%JISHOGI':
