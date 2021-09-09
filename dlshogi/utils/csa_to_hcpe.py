@@ -58,11 +58,10 @@ for filepath in csa_file_list:
                 hcpe['eval'] = eval if board.turn == BLACK else -eval
                 hcpe['bestMove16'] = move16(move)
                 hcpe['gameResult'] = kif.win
+                p += 1
                 if not args.out_mate and abs(score) == 100000:
-                    p += 1
                     break
                 board.push(move)
-                p += 1
         except:
             print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
             continue
