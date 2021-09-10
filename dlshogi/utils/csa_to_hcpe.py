@@ -51,7 +51,7 @@ for filepath in csa_file_list:
                     continue
                 hcpe = hcpes[p]
                 board.to_hcp(hcpe['hcp'])
-                assert abs(score) <= 200000
+                assert abs(score) <= 1000000
                 eval = min(32767, max(score, -32767))
                 if args.eval and abs(eval) > args.eval:
                     break
@@ -59,7 +59,7 @@ for filepath in csa_file_list:
                 hcpe['bestMove16'] = move16(move)
                 hcpe['gameResult'] = kif.win
                 p += 1
-                if not args.out_mate and abs(score) == 100000:
+                if not args.out_mate and abs(score) >= 100000:
                     break
                 board.push(move)
         except:
