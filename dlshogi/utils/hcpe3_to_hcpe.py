@@ -25,7 +25,6 @@ MoveVisits = np.dtype([
 parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
 parser.add_argument('hcpe')
-parser.add_argument('--uniq', action='store_true')
 args = parser.parse_args()
 
 f = open(args.hcpe3, 'rb')
@@ -67,9 +66,3 @@ while True:
 
 print('games', games)
 print('positions', positions)
-
-if args.uniq:
-    hcpes = np.fromfile(args.hcpe, HuffmanCodedPosAndEval)
-    hcpes_uniq = np.unique(hcpes, axis=0)
-    print('unique positions', len(hcpes_uniq))
-    hcpes_uniq.tofile(args.hcpe)
