@@ -81,6 +81,9 @@
     <Compile Include="utils\print_hcpe.py" />
     <Compile Include="utils\psv_to_hcp.py" />
     <Compile Include="utils\psv_to_hcpe.py" />
+    <Compile Include="utils\sample_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\sfen_to_hcp.py" />
     <Compile Include="utils\split_hcpe3.py" />
     <Compile Include="utils\split_hcpe.py" />
