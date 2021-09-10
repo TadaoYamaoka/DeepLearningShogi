@@ -77,12 +77,12 @@ for filepath in csa_file_list:
                 move_info = move_info_vec[i]
                 move_visits = move_visits_vec[i]
 
-                assert abs(score) <= 100000
+                assert abs(score) <= 1000000
                 eval = min(32767, max(score, -32767))
                 move_info['eval'] = eval if board.turn == BLACK else -eval
                 move_info['selectedMove16'] = move16(move)
                 move_visits['move16'] = move16(move)
-                if not args.out_mate and endgame != '%KACHI' and abs(score) == 100000:
+                if not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
                     break
                 board.push(move)
         except:
