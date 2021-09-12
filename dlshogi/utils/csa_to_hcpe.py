@@ -5,16 +5,16 @@ import os
 import glob
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument('csa_dir')
-parser.add_argument('hcpe')
-parser.add_argument('--out_draw', action='store_true')
-parser.add_argument('--out_maxmove', action='store_true')
-parser.add_argument('--out_noeval', action='store_true')
-parser.add_argument('--out_mate', action='store_true')
-parser.add_argument('--eval', type=int)
-parser.add_argument('--filter_moves', type=int, default=50)
-parser.add_argument('--filter_rating', type=int, default=3500)
+parser = argparse.ArgumentParser(description='Convert CSA format game records to a hcpe file', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('csa_dir', help='the directory where csa files are stored')
+parser.add_argument('hcpe', help='the output hcpe file')
+parser.add_argument('--out_draw', action='store_true', help='output draw game records')
+parser.add_argument('--out_maxmove', action='store_true', help='output maxmove game records')
+parser.add_argument('--out_noeval', action='store_true', help='output positions without eval')
+parser.add_argument('--out_mate', action='store_true', help='output mated positions')
+parser.add_argument('--eval', type=int, help='eval threshold')
+parser.add_argument('--filter_moves', type=int, default=50, help='filter game records with moves less than this value')
+parser.add_argument('--filter_rating', type=int, default=3500, help='filter game records with both ratings below this value')
 args = parser.parse_args()
 
 filter_moves = args.filter_moves

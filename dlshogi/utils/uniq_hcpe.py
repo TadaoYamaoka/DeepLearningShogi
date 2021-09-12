@@ -3,10 +3,10 @@ from cshogi import *
 import numpy as np
 import pandas as pd
 
-parser = argparse.ArgumentParser()
-parser.add_argument('hcpe')
-parser.add_argument('hcpe_uniq')
-parser.add_argument('--average', action='store_true')
+parser = argparse.ArgumentParser(description='Make duplicate hcpe data unique')
+parser.add_argument('hcpe', help='the input hcpe')
+parser.add_argument('hcpe_uniq', help='the output hcpe')
+parser.add_argument('--average', action='store_true', help='aggregate data with the same position and move, make the evaluation value the average value, and make the result the mode')
 args = parser.parse_args()
 
 hcpes = np.fromfile(args.hcpe, HuffmanCodedPosAndEval)
