@@ -9,20 +9,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcp')
 parser.add_argument('--moves', type=int, default=16)
-parser.add_argument('--filter_moves', type=int, default=80)
-parser.add_argument('--filter_rating', type=int, default=3000)
-parser.add_argument('--filter_eval', type=int, default=300)
-parser.add_argument('--recursive', '-r', action='store_true')
+parser.add_argument('--filter_moves', type=int)
+parser.add_argument('--filter_rating', type=int)
+parser.add_argument('--filter_eval', type=int)
 parser.add_argument('--percentile', type=float, default=0.99)
 
 args = parser.parse_args()
 filter_rating = args.filter_rating
+filter_moves = args.filter_moves if args.filter_moves else 0
 
-if args.recursive:
-    dir = os.path.join(args.csa_dir, '**')
-else:
-    dir = args.csa_dir
-csa_file_list = glob.glob(os.path.join(dir, '*.csa'), recursive=args.recursive)
+csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
 board = Board()
 parser = Parser()
@@ -31,9 +27,9 @@ dic = {}
 num_games = 0
 for filepath in csa_file_list:
     parser.parse_csa_file(filepath)
-    if parser.endgame not in ('%TORYO', '%KACHI') or len(parser.moves) < args.filter_moves:
+    if parser.endgame not in ('%TORYO', '%KACHI') or len(parser.moves) < filter_moves:
         continue
-    if filter_rating > 0 and (parser.ratings[0] < filter_rating and parser.ratings[1] < filter_rating):
+    if filter_rating and min(parser.ratings) < filter_rating:
         continue
     board.set_sfen(parser.sfen)
     assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
@@ -48,7 +44,7 @@ for filepath in csa_file_list:
         if board.is_draw():
             break
 
-        if abs(score) > args.filter_eval:
+        if args.filter_eval and abs(score) > args.filter_eval:
             break
 
         # hcp
