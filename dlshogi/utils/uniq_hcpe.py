@@ -19,7 +19,6 @@ if args.average:
     df2 = df.groupby(list(range(32)) + ['bestMove16'], as_index=False).mean()
 
     # gameResultは最頻値に変換
-    # 引き分けは後手勝ちとする
     df2.loc[df2['gameResult'] >= 1.5, 'gameResult'] = 2
     df2.loc[(df2['gameResult'] > 0) & (df2['gameResult'] < 2), 'gameResult'] = 1
 
