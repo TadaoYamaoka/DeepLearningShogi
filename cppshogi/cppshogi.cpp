@@ -6,7 +6,7 @@
 // make input features
 template <Color turn>
 inline void make_input_features(const Position& position, features1_t* features1, features2_t* features2) {
-	DType(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<DType(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
+	DType(* const features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<DType(* const)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
 
 	const Bitboard occupied_bb = position.occupiedBB();
 
@@ -143,7 +143,7 @@ int make_move_label(const u16 move16, const Color color) {
 
 		// promote
 		if ((move16 & 0b100000000000000) > 0) {
-			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
+			move_direction = (MOVE_DIRECTION)(move_direction + 10);
 		}
 		return 9 * 9 * move_direction + to_sq;
 	}

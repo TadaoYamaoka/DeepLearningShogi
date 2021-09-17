@@ -77,10 +77,10 @@ struct uct_node_t {
 	// 候補手の展開
 	void ExpandNode(const Position* pos) {
 		MoveList<Legal> ml(*pos);
-		child_num = (short)ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+		child_num = (short)ml.size();
 	}
 	// 子ノードへのポインタ配列の初期化
 	void InitChildNodes() {

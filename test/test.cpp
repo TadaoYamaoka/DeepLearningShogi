@@ -278,7 +278,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -288,8 +288,8 @@ int main()
 
 	DfPn dfpn;
 	dfpn.init();
-	//dfpn.set_max_search_node(1000000);
-	dfpn.set_maxdepth(31);
+	dfpn.set_max_search_node(400000);
+	dfpn.set_maxdepth(33);
 
 	Position pos;
 
@@ -325,6 +325,8 @@ int main()
 		"ln5+LK/1rk1+B2S1/p1sp5/4p1pp1/1PPP1P3/2S1P3+l/P1B2S3/1R2G2+p1/LN3G3 b 2GN5Pnp", // mate 13
 		"1p+Bnn+R2K/3+R5/4ps1pp/3p2p2/1NG1s4/6kPP/P2PP4/3G1+s1G1/L8 b BSN3L6Pgp 1", // mate 11
 		"l2g2p1+P/1k2n4/ppns5/2pb2g1+L/4PP1pK/PP5S1/3+b1+s2P/7P1/8+r w 4Pr2gs2n2l2p 1", // mate 11
+		"+S5knl/R2g3g1/4sp1p1/2P1pNp2/Bp3P1Pp/p1pp2P1P/GP2P1N2/K1+n2G3/L7L b B2SLPrp 101", // mate 33(nodes 368571が必要)
+		"lr1s4l/3k1+P3/p2p4p/1NL2P3/1PpS5/P6pP/K1+b6/NR1P5/7NL w BSN3P4gs4p 166", // mate 33(depath 35, nodes 3000000が必要)
 		// 不詰み
 		"lns3kn1/1r7/4pgs+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b BG3Pl3p 49", // 不詰み
 		"lns4n1/1r3k3/4pgsg1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG2R1/LN1K3N+l b B3Pl3p 47", // 不詰み
@@ -351,7 +353,7 @@ int main()
 
 		auto time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
 
-		cout << ret << "\t";
+		cout << ret << "\t" << dfpn.searchedNode << "\t";
 		cout << time_ns / 1000000.0 << endl;
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
@@ -384,7 +386,7 @@ int main() {
 
 	for (auto& sfen_draw : sfens) {
 		pos.set(sfen_draw.first);
-		dfpn.set_maxdepth(sfen_draw.second - pos.gamePly());
+		DfPn::set_draw_ply(sfen_draw.second);
 		bool ret = dfpn.dfpn(pos);
 		cout << ret << endl;
 	}
@@ -464,7 +466,7 @@ int main() {
 	}
 
 	// テスト
-	// make_hcpe_by_self_play --threashold 1 --threads 1 --usi_engine E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe --usi_engine_num 1 --usi_threads 1 --usi_options USI_Ponder:False,Threads:1,Byoyomi_Margin:0 F:\model\model_rl_val_wideresnet10_selfplay_236 R:\hcp\black_win.hcp R:\hcpe 1 800 0 1
+	// selfplay --threashold 1 --threads 1 --usi_engine E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe --usi_engine_num 1 --usi_threads 1 --usi_options USI_Ponder:False,Threads:1,Byoyomi_Margin:0 F:\model\model_rl_val_wideresnet10_selfplay_236 R:\hcp\black_win.hcp R:\hcpe 1 800 0 1
 
 	return 0;
 }
@@ -684,7 +686,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // 王手がかかっているときDfPnで不正な手を返すバグ修正
 int main()

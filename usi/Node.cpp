@@ -117,8 +117,6 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 /////////////////////////////////////////////////////////////////////////
 
 bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves) {
-    int no_capture_ply;
-    int full_moves;
     if (gamebegin_node_ && history_starting_pos_key_ != starting_pos_key) {
         // Š®‘S‚ÉˆÙ‚È‚éˆÊ’u
         DeallocateTree();

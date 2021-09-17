@@ -131,6 +131,20 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						break;
 				}
 				SetModelPath(model_paths);
+				// モデルの.iniファイルにしたがってデフォルトパラメータ変更
+				std::ifstream is = std::ifstream(model_paths[0] + ".ini");
+				while (is) {
+					std::string line;
+					is >> line;
+					if (line != "") {
+						const auto pos = line.find_first_of('=');
+						const auto name = line.substr(0, pos);
+						if (options[name].isDefault()) {
+							options[name] = line.substr(pos + 1);
+							std::cout << "info string " << name << "=" << options[name] << std::endl;
+						}
+					}
+				}
 				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"], options["DNN_Batch_Size5"], options["DNN_Batch_Size6"], options["DNN_Batch_Size7"], options["DNN_Batch_Size8"] };
 				SetThread(new_thread, new_policy_value_batch_maxsize);
@@ -139,15 +153,24 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					DfPn::set_hashsize(options["DfPn_Hash"]);
 					dfpn.init();
 				}
-			}
-			else {
-				NewGame();
+
+#ifdef PV_MATE_SEARCH
+				// PVの詰み探索の設定
+				if (options["PV_Mate_Search_Threads"] > 0) {
+					SetPvMateSearch(options["PV_Mate_Search_Threads"], options["PV_Mate_Search_Depth"], options["PV_Mate_Search_Nodes"]);
+				}
+#endif
 			}
 			initialized = true;
 
+			NewGame();
+
 			// 詰み探索用
 			if (options["Mate_Root_Search"] > 0) {
-				DfPn::set_maxdepth(options["Mate_Root_Search"]);
+				dfpn.set_maxdepth(options["Mate_Root_Search"]);
+				const int draw_ply = pos.searcher()->options["Draw_Ply"];
+				if (draw_ply > 0)
+					DfPn::set_draw_ply(draw_ply);
 			}
 
 			// オプション設定
@@ -312,9 +335,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	const uint32_t mate_depth = pos.searcher()->options["Mate_Root_Search"];
 	Position pos_copy(pos);
 	if (!limits.ponder && mate_depth > 0) {
-		const uint32_t draw_ply = pos.searcher()->options["Draw_Ply"];
-		if (draw_ply > 0)
-			DfPn::set_maxdepth(std::min(mate_depth, draw_ply - pos.gamePly()));
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
 			mate = dfpn.dfpn(pos_copy);
 			if (mate)

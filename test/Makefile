@@ -1,6 +1,6 @@
 ﻿CC = g++
 CFLAGS = -g -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
-LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcuda -lcudnn -lcudart -lcublas -lz -flto
+LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcuda -lcudnn -lcudart -lcublas -flto
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda-10.2/lib64
 
