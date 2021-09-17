@@ -166,3 +166,35 @@ void NodeTree::DeallocateTree() {
     gamebegin_node_ = std::make_unique<uct_node_t>();
     current_head_ = gamebegin_node_.get();
 }
+
+// Boltzmann distribution
+// see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
+constexpr float default_softmax_temperature = 1.0f;
+float beta = 1.0f / default_softmax_temperature;
+void set_softmax_temperature(const float temperature) {
+    beta = 1.0f / temperature;
+}
+
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num) {
+    // apply beta exponent to probabilities(in log space)
+    float max = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x *= beta;
+        if (x > max) {
+            max = x;
+        }
+    }
+    // オーバーフローを防止するため最大値で引く
+    float sum = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x = expf(x - max);
+        sum += x;
+    }
+    // normalize
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x /= sum;
+    }
+}
