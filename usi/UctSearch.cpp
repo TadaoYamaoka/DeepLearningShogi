@@ -1412,6 +1412,24 @@ void SetModelPath(const std::string path[max_gpu])
 	}
 }
 
+void insertion_sort(child_node_t* begin, child_node_t* end) {
+
+	for (child_node_t* sortedEnd = begin, *p = begin + 1; p < end; ++p) {
+		Move tmp_move = p->move;
+		float tmp_nnrate = p->nnrate;
+		child_node_t* q;
+		++sortedEnd;
+		p->move = sortedEnd->move;
+		p->nnrate = sortedEnd->nnrate;
+		for (q = sortedEnd; q != begin && (q - 1)->nnrate < tmp_nnrate; --q) {
+			q->move = (q - 1)->move;
+			q->nnrate = (q - 1)->nnrate;
+		}
+		q->move = tmp_move;
+		q->nnrate = tmp_nnrate;
+	}
+}
+
 void UCTSearcher::EvalNode() {
 	if (current_policy_value_batch_index == 0)
 		return;
@@ -1443,7 +1461,7 @@ void UCTSearcher::EvalNode() {
 		softmax_temperature_with_normalize(uct_child, child_num);
 
 		// sort by policy
-		std::sort(uct_child, uct_child + child_num, [](const child_node_t& l, const child_node_t& r) { return l.nnrate > r.nnrate; });
+		insertion_sort(uct_child, uct_child + child_num);
 
 		*policy_value_batch[i].value_win = *value;
 
