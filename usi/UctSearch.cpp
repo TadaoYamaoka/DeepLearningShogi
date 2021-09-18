@@ -1432,21 +1432,15 @@ void UCTSearcher::EvalNode() {
 		child_node_t *uct_child = node->child.get();
 
 		// 合法手一覧
-		std::vector<float> legal_move_probabilities;
-		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 			const float logit = (*logits)[move_label];
-			legal_move_probabilities.emplace_back(logit);
+			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
-
-		for (int j = 0; j < child_num; j++) {
-			uct_child[j].nnrate = legal_move_probabilities[j];
-		}
+		softmax_temperature_with_normalize(uct_child, child_num);
 
 		// sort by policy
 		std::sort(uct_child, uct_child + child_num, [](const child_node_t& l, const child_node_t& r) { return l.nnrate > r.nnrate; });

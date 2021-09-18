@@ -901,22 +901,19 @@ void UCTSearcherGroup::EvalNode() {
 		child_node_t* uct_child = node->child.get();
 
 		// 合法手一覧
-		vector<float> legal_move_probabilities;
-		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 			const float logit = (*logits)[move_label];
-			legal_move_probabilities.emplace_back(logit);
+			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(uct_child, child_num);
 
 		auto req = make_unique<CachedNNRequest>(child_num);
 		for (int j = 0; j < child_num; j++) {
-			req->nnrate[j] = legal_move_probabilities[j];
-			uct_child[j].nnrate = legal_move_probabilities[j];
+			req->nnrate[j] = uct_child[j].nnrate;
 		}
 
 		const float value_win = *value;

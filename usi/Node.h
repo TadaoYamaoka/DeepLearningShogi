@@ -55,9 +55,9 @@ struct child_node_t {
 	void SetDraw() { move |= Move(VALUE_DRAW); }
 
 	Move move;                   // 着手する座標
+	float nnrate;                // ニューラルネットワークでのレート
 	atomic_t<int> move_count; // 探索回数
 	atomic_t<WinType> win;    // 勝った回数
-	float nnrate;                // ニューラルネットワークでのレート
 };
 
 struct uct_node_t {
@@ -121,3 +121,7 @@ private:
 	// 以前の局面
 	Key history_starting_pos_key_;
 };
+
+// Boltzmann distribution
+void set_softmax_temperature(const float temperature);
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num);
