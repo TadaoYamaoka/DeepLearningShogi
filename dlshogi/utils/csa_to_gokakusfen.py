@@ -26,7 +26,7 @@ dic = {}
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
         endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI') or len(kif.moves) < filter_moves:
+        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and min(kif.ratings) < filter_rating:
             continue
