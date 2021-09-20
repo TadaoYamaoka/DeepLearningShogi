@@ -15,7 +15,7 @@ parser.add_argument('--eval2', type=int, default=100)
 parser.add_argument('--count', type=int, default=5)
 parser.add_argument('--percentile', type=float, default=0.9)
 parser.add_argument('--filter_moves', type=int, default=50)
-parser.add_argument('--filter_rating', type=int, default=3500)
+parser.add_argument('--filter_rating', type=int, default=3800)
 args = parser.parse_args()
 
 filter_moves = args.filter_moves
