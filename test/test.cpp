@@ -278,7 +278,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -726,5 +726,59 @@ int main()
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+}
+#endif
+
+#if 1
+// hcpe3から最後の局面と指し手を抽出
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const auto filepath = argv[1];
+	std::ifstream ifs(argv[1], std::ios::binary);
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 開始局面
+		if (!pos.set(hcpe3.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+
+		std::stringstream sfen("sfen ");
+		sfen << pos.toSFEN() << " moves";
+
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+			}
+
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+
+			if (i == hcpe3.moveNum - 1) {
+				std::cout << sfen.str() << "\t" << move.toUSI() << "\t" << (int)hcpe3.result << std::endl;
+				break;
+			}
+
+			sfen << " " << move.toUSI();
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
 }
 #endif
