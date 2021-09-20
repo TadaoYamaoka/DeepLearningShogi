@@ -21,6 +21,7 @@ filter_rating = args.filter_rating
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
 board = Board()
+hcp = np.empty(1, HuffmanCodedPos)
 dic = {}
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
@@ -43,13 +44,14 @@ for filepath in csa_file_list:
         if i == args.moves1:
             if abs(score) > args.eval2:
                 break
-            sfen24 = sfen
+            board.to_hcp(hcp)
+            key = hcp.tobytes()
         elif i == args.moves2:
             if  abs(score) > args.eval2:
                 break
 
-            if not sfen24 in dic:
-                dic[sfen24] = sfen + '\n'
+            if not key in dic:
+                dic[key] = sfen + '\n'
             break
         elif abs(score) > args.eval:
             break
