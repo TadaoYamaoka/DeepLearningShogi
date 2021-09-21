@@ -34,29 +34,29 @@ for filepath in csa_file_list:
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
             continue
 
-    board.reset()
-    sfen = "startpos moves"
-    for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
-        if not board.is_legal(move):
-            print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
-            break
-
-        if i == args.moves1:
-            if abs(score) > args.eval2:
-                break
-            board.to_hcp(hcp)
-            key = hcp.tobytes()
-        elif i == args.moves2:
-            if  abs(score) > args.eval2:
+        board.reset()
+        sfen = "startpos moves"
+        for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+            if not board.is_legal(move):
+                print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
                 break
 
-            if not key in dic:
-                dic[key] = sfen + '\n'
-            break
-        elif abs(score) > args.eval:
-            break
+            if i == args.moves1:
+                if abs(score) > args.eval2:
+                    break
+                board.to_hcp(hcp)
+                key = hcp.tobytes()
+            elif i == args.moves2:
+                if  abs(score) > args.eval2:
+                    break
 
-        board.push(move)
-        sfen += " " + move_to_usi(move)
+                if not key in dic:
+                    dic[key] = sfen + '\n'
+                break
+            elif abs(score) > args.eval:
+                break
+
+            board.push(move)
+            sfen += " " + move_to_usi(move)
 
 open(args.gokakusfen, 'w').writelines(dic.values())
