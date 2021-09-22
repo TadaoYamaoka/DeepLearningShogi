@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "cppshogi.h"
 #include "error_util.h"
@@ -12,13 +12,13 @@ public:
 		checkCudaErrors(cudaMalloc(&input1, sizeof(features1_t) * batch_size));
 		checkCudaErrors(cudaMalloc(&input2, sizeof(features2_t) * batch_size));
 
-		// ƒLƒƒƒŠƒuƒŒ[ƒVƒ‡ƒ“ƒLƒƒƒbƒVƒ…‚ª‚ ‚é‚©ƒ`ƒFƒbƒN
+		// ã‚­ãƒ£ãƒªãƒ–ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ã‚­ãƒ£ãƒƒã‚·ãƒ¥ãŒã‚ã‚‹ã‹ãƒã‚§ãƒƒã‚¯
 		std::ifstream calibcache(calibration_cache_filename);
 		if (!calibcache.is_open())
 		{
 			if (hcpe_filename != "")
 			{
-				// hcpe‚©‚çƒ‰ƒ“ƒ_ƒ€‚É‘I‚Ô
+				// hcpeã‹ã‚‰ãƒ©ãƒ³ãƒ€ãƒ ã«é¸ã¶
 				std::ifstream ifs;
 				ifs.open(hcpe_filename, std::ifstream::in | std::ifstream::binary | std::ios::ate);
 				const auto entryNum = ifs.tellg() / sizeof(HuffmanCodedPosAndEval);
@@ -34,7 +34,7 @@ public:
 			}
 			else
 			{
-				// ƒLƒƒƒŠƒuƒŒ[ƒVƒ‡ƒ“ƒLƒƒƒbƒVƒ…‚ª‚È‚¢ê‡ƒGƒ‰[
+				// ã‚­ãƒ£ãƒªãƒ–ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ã‚­ãƒ£ãƒƒã‚·ãƒ¥ãŒãªã„å ´åˆã‚¨ãƒ©ãƒ¼
 				std::cerr << "missing calibration cache" << std::endl;
 				throw std::runtime_error("missing calibration cache");
 			}

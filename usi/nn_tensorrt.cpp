@@ -1,4 +1,4 @@
-#include "nn_tensorrt.h"
+ï»¿#include "nn_tensorrt.h"
 
 #include "cppshogi.h"
 
@@ -89,7 +89,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
 	if (builder->platformHasFastInt8())
 	{
-		// ƒLƒƒƒŠƒuƒŒ[ƒVƒ‡ƒ“ƒLƒƒƒbƒVƒ…‚ª‚ ‚éê‡‚Ì‚İINT8‚ğg—p
+		// ã‚­ãƒ£ãƒªãƒ–ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ã‚­ãƒ£ãƒƒã‚·ãƒ¥ãŒã‚ã‚‹å ´åˆã®ã¿INT8ã‚’ä½¿ç”¨
 		std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
 		std::ifstream calibcache(calibration_cache_filename);
 		if (calibcache.is_open())
