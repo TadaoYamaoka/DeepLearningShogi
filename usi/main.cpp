@@ -180,10 +180,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 			c_init = options["C_init"] / 100.0f;
-			c_base = options["C_base"];
+			c_base = (float)options["C_base"];
 			c_fpu_reduction = options["C_fpu_reduction"] / 100.0f;
 			c_init_root = options["C_init_root"] / 100.0f;
-			c_base_root = options["C_base_root"];
+			c_base_root = (float)options["C_base_root"];
 			c_fpu_reduction_root = options["C_fpu_reduction_root"] / 100.0f;
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);

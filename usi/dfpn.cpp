@@ -419,8 +419,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 					if (entry2.num_searched == 0) {
 						entry2.num_searched = 1;
-						entry2.pn = move_picker2.size();
-						entry2.dn = move_picker2.size();
+						entry2.pn = static_cast<int>(move_picker2.size());
+						entry2.dn = static_cast<int>(move_picker2.size());
 					}
 				}
 			}

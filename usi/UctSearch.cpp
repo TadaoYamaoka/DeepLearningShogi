@@ -588,7 +588,7 @@ void SetLimits(const LimitsType& limits)
 {
 	begin_time = limits.startTime;
 	time_limit = limits.moveTime;
-	po_info.halt = limits.nodes;
+	po_info.halt = static_cast<int>(limits.nodes);
 	minimum_time = limits.moveTime;
 }
 
@@ -615,7 +615,7 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	if (limits.infinite)
 		po_info.halt = INT_MAX;
 	else
-		po_info.halt = limits.nodes;
+		po_info.halt = static_cast<int>(limits.nodes);
 	extend_time = time_limit > minimum_time && limits.nodes == 0;
 }
 
@@ -771,7 +771,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		// Multi PV表示
 		for (int i = 0; i < multipv_num; i++) {
 			const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
-			const unsigned int best_root_child_index = best_root_uct_child - root_uct_child;
+			const unsigned int best_root_child_index = static_cast<unsigned int>(best_root_uct_child - root_uct_child);
 
 			std::tie(pv, cp, depth, move_tmp, best_wp_tmp, ponderMove_tmp) = get_pv(current_root, best_root_child_index);
 			std::cout << "info multipv " << i + 1 << info_string << cp << " depth " << depth << " pv " << pv << "\n";
@@ -1069,7 +1069,7 @@ UCTSearcher::ParallelUctSearch()
 
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto trajectories : trajectories_batch_discarded) {
-			for (int i = trajectories->size() - 1; i >= 0; i--) {
+			for (int i = static_cast<int>(trajectories->size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories->at(i);
 				uct_node_t* current = current_next.first;
 				child_node_t* uct_child = current->child.get();
@@ -1082,7 +1082,7 @@ UCTSearcher::ParallelUctSearch()
 		for (auto& visitor : visitor_batch) {
 			auto& trajectories = visitor->trajectories;
 			float result = 1.0f - visitor->value_win;
-			for (int i = trajectories.size() - 1; i >= 0; i--) {
+			for (int i = static_cast<int>(trajectories.size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				const unsigned int next_index = current_next.second;
@@ -1338,7 +1338,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrtf(sum);
+	const float sqrt_sum = sqrtf(static_cast<const float>(sum));
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;

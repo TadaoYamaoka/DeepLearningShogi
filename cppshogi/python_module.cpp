@@ -23,11 +23,11 @@ inline float make_result(const uint8_t result, const Color color) {
 }
 template<typename T>
 inline T is_sennichite(const uint8_t result) {
-	return result & GAMERESULT_SENNICHITE ? 1 : 0;
+	return static_cast<T>(result & GAMERESULT_SENNICHITE ? 1 : 0);
 }
 template<typename T>
 inline T is_nyugyoku(const uint8_t result) {
-	return result & GAMERESULT_NYUGYOKU ? 1 : 0;
+	return static_cast<T>(result & GAMERESULT_NYUGYOKU ? 1 : 0);
 }
 
 void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {

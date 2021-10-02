@@ -232,12 +232,12 @@ void randomMove(Position& pos, std::mt19937& mt) {
             }
         }
         if (&legalMoves[0] != pms) { // 手があったなら
-            std::uniform_int_distribution<int> moveDist(0, pms - &legalMoves[0] - 1);
+            std::uniform_int_distribution<int> moveDist(0, static_cast<int>(pms - &legalMoves[0] - 1));
             pos.doMove(legalMoves[moveDist(mt)].move, *st++);
             if (dist(mt)) { // 1/2 の確率で相手もランダムに指す事にする。
                 MoveList<LegalAll> ml(pos);
                 if (ml.size()) {
-                    std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                    std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                     pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 }
             }
@@ -251,7 +251,7 @@ void randomMove(Position& pos, std::mt19937& mt) {
         for (int i = 0; i < dist(mt) + 1; ++i) { // 自分だけ、または両者ランダムに1手指してみる。
             MoveList<LegalAll> ml(pos);
             if (ml.size()) {
-                std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                 pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 moved = true;
             }

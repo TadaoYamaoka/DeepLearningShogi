@@ -1346,15 +1346,15 @@ void UCTSearcher::NextGame()
 		const u8 opponent = usi_engine_turn < 0 ? 0 : (usi_engine_turn == 1 && start_turn == Black || usi_engine_turn == 0 && start_turn == White) ? 1 : 2;
 		HuffmanCodedPosAndEval3 hcpe3{
 			hcp,
-			records.size(),
-			gameResult | reason,
+			static_cast<u16>(records.size()),
+			static_cast<u8>(gameResult | reason),
 			opponent
 		};
 		{
 			std::unique_lock<Mutex> lock(omutex);
 			ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
 			for (auto& record : records) {
-				MoveInfo moveInfo{ record.selectedMove16, record.eval, record.candidates.size() };
+				MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
 				ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
 				if (record.candidates.size() > 0) {
 					ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
