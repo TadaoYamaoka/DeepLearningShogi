@@ -76,7 +76,6 @@
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
-    <Compile Include="utils\measure_entropy.py" />
     <Compile Include="utils\merge_book.py" />
     <Compile Include="utils\plot_log_policy_value.py" />
     <Compile Include="utils\print_hcpe.py" />
