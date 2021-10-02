@@ -47,11 +47,11 @@ public:
 		checkCudaErrors(cudaFree(input2));
 	}
 
-	int getBatchSize() const override {
+	int getBatchSize() const noexcept override {
 		return batch_size;
 	}
 
-	bool getBatch(void* bindings[], const char* names[], int nbBindings) override {
+	bool getBatch(void* bindings[], const char* names[], int nbBindings) noexcept override {
 		assert(nbBindings == 2);
 		if (current_pos > int8_calibration_data_size - batch_size)
 		{
@@ -75,7 +75,7 @@ public:
 		return true;
 	}
 
-	const void* readCalibrationCache(size_t& length) override
+	const void* readCalibrationCache(size_t& length) noexcept override
 	{
 		calibration_cache.clear();
 		std::ifstream input(calibration_cache_filename, std::ios::binary);
@@ -89,7 +89,7 @@ public:
 		return length ? calibration_cache.data() : nullptr;
 	}
 
-	void writeCalibrationCache(const void* cache, size_t length) override
+	void writeCalibrationCache(const void* cache, size_t length) noexcept override
 	{
 		std::ofstream output(calibration_cache_filename, std::ios::binary);
 		output.write(reinterpret_cast<const char*>(cache), length);

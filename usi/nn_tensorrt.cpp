@@ -16,7 +16,7 @@ class Logger : public nvinfer1::ILogger
 		default: assert(0); return "";
 		}
 	}
-	void log(Severity severity, const char* msg)
+	void log(Severity severity, const char* msg) noexcept
 	{
 		if (severity == Severity::kINTERNAL_ERROR) {
 			std::cerr << error_type(severity) << msg << std::endl;
