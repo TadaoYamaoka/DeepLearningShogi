@@ -13,8 +13,8 @@ inline float make_result(const uint8_t result, const Color color) {
 	if (gameResult == Draw)
 		return 0.5f;
 
-	if (color == Black && gameResult == BlackWin ||
-		color == White && gameResult == WhiteWin) {
+	if ((color == Black && gameResult == BlackWin) ||
+		(color == White && gameResult == WhiteWin)) {
 		return 1.0f;
 	}
 	else {
@@ -74,7 +74,7 @@ void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
+	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
 		position.set(hcpe->hcp);
 
 		// input features
@@ -309,7 +309,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
 	Position position;
-	for (int i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
+	for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
 		auto& hcpe3 = trainingData[*index];
 
 		position.set(hcpe3.hcp);
