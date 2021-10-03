@@ -686,7 +686,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // 王手がかかっているときDfPnで不正な手を返すバグ修正
 int main()
@@ -729,7 +729,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3から最後の局面と指し手を抽出
 int main(int argc, char* argv[])
 {

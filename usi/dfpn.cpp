@@ -818,8 +818,15 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 // 詰みの手返す
 Move DfPn::dfpn_move(Position& pos) {
-	MovePicker<true> move_picker(pos);
+	if (!pos.inCheck()) {
+		// 1手詰みチェック
+		Move mate1ply = pos.mateMoveIn1Ply();
+		if (mate1ply) {
+			return mate1ply;
+		}
+	}
 
+	MovePicker<true> move_picker(pos);
 	for (const auto& move : move_picker) {
 		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
 		if (child_entry.pn == 0) {
