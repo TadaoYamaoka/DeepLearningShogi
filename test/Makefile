@@ -1,12 +1,12 @@
 ﻿CC = g++
 CFLAGS = -g -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
-LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcuda -lcudnn -lcudart -lcublas -flto
+LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
-LIB = -L/usr/local/cuda-10.2/lib64
+LIB = -L/usr/local/cuda/lib64
 
 target = bin/test
-sources = gpubenchmark.cpp
-usi_sources = dfpn.cpp Message.cpp UctSearch.cpp Node.cpp
+sources = test.cpp gpubenchmark.cpp
+usi_sources = dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))

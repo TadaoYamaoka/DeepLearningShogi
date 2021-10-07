@@ -686,7 +686,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // 王手がかかっているときDfPnで不正な手を返すバグ修正
 int main()
@@ -776,6 +776,55 @@ int main(int argc, char* argv[])
 
 			sfen << " " << move.toUSI();
 			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// hcpe3をopponentで分割
+int main(int argc, char* argv[])
+{
+	if (argc < 2)
+		return 1;
+
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const std::string filepath{ argv[1] };
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::ofstream ofs[3];
+	MoveVisits moveVisits[593];
+
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		if (!ofs[hcpe3.opponent].is_open()) {
+			const auto ext_pos = filepath.rfind('.');
+			const std::string basepath = (ext_pos == std::string::npos) ? filepath : filepath.substr(0, ext_pos);
+			const std::string ext = (ext_pos == std::string::npos) ? "" : filepath.substr(ext_pos);
+
+			ofs[hcpe3.opponent].open(basepath + "_opp" + std::to_string(hcpe3.opponent) + ext, std::ios::binary);
+		}
+
+		ofs[hcpe3.opponent].write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			ofs[hcpe3.opponent].write((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.read((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
+				ofs[hcpe3.opponent].write((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
+			}
 		}
 	}
 
