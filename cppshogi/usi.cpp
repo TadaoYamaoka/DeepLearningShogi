@@ -127,7 +127,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_NodeLimit"]               = USIOption(10000000, 100000, 1000000000); // UCTノードの上限
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
-    (*this)["Settai"]                      = USIOption(50, 0, 100);
+    (*this)["Settai"]                      = USIOption(50, 1, 99);
     (*this)["ReuseSubtree"]                = USIOption(true);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
