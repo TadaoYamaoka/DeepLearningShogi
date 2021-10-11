@@ -139,6 +139,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					if (line != "") {
 						const auto pos = line.find_first_of('=');
 						const auto name = line.substr(0, pos);
+						// 接待では温度パラメータはUSI設定を使う
+						if (name == "Softmax_Temperature") continue;
 						if (options[name].isDefault()) {
 							options[name] = line.substr(pos + 1);
 							std::cout << "info string " << name << "=" << options[name] << std::endl;
@@ -185,6 +187,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			c_init_root = options["C_init_root"] / 100.0f;
 			c_base_root = (float)options["C_base_root"];
 			c_fpu_reduction_root = options["C_fpu_reduction_root"] / 100.0f;
+			settai = options["Settai"] / 100.0f;
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);

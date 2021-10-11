@@ -108,14 +108,14 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size6"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
-    (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
-    (*this)["Mate_Root_Search"]            = USIOption(33, 0, 37);
+    (*this)["Softmax_Temperature"]         = USIOption(500, 1, 500);
+    (*this)["Mate_Root_Search"]            = USIOption(5, 0, 37);
 #ifdef PV_MATE_SEARCH
     (*this)["PV_Mate_Search_Threads"]      = USIOption(0, 0, 256);
     (*this)["PV_Mate_Search_Depth"]        = USIOption(33, 0, 37);
     (*this)["PV_Mate_Search_Nodes"]        = USIOption(500000, 0, 10000000);
 #endif
-    (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
+    (*this)["Resign_Threshold"]            = USIOption(0, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
     (*this)["C_init"]                      = USIOption(144, 0, 500);
@@ -127,6 +127,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_NodeLimit"]               = USIOption(10000000, 100000, 1000000000); // UCTノードの上限
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
+    (*this)["Settai"]                      = USIOption(50, 0, 100);
     (*this)["ReuseSubtree"]                = USIOption(true);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
@@ -136,7 +137,7 @@ void OptionsMap::init(Searcher* s) {
 #endif // !MAKE_BOOK
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
-    (*this)["Engine_Name"]                 = USIOption("dlshogi");
+    (*this)["Engine_Name"]                 = USIOption("settai_dlshogi");
 #else
     (*this)["Engine_Name"]                 = USIOption("dlshogi Debug Build");
 #endif

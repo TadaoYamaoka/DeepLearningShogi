@@ -117,6 +117,8 @@ float c_init_root;
 float c_base_root;
 float c_fpu_reduction_root;
 
+float settai;
+
 // モデルのパス
 string model_path[max_gpu];
 
@@ -1376,7 +1378,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 		const float rate = uct_child[i].nnrate;
 
-		const float ucb_value = q + c * u * rate;
+		const float ucb_value = std::min(0.0f, 1.0f - std::abs(q - settai) * 2.0f) + c * u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;

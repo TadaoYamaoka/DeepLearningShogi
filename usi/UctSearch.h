@@ -24,6 +24,8 @@ extern float c_init_root;
 extern float c_base_root;
 extern float c_fpu_reduction_root;
 
+extern float settai;
+
 struct po_info_t {
 	int halt;  // 探索を打ち切る回数
 	std::atomic<int> count;       // 現在の探索回数
