@@ -265,7 +265,7 @@ def main(*argv):
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
                 scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_max_norm, error_if_nonfinite=False)
             scaler.step(optimizer)
             scaler.update()
 
