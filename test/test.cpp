@@ -783,7 +783,7 @@ int main(int argc, char* argv[])
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3をopponentで分割
 int main(int argc, char* argv[])
 {
@@ -825,6 +825,99 @@ int main(int argc, char* argv[])
 				ifs.read((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
 				ofs[hcpe3.opponent].write((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
 			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// hcpe3の同一局面の数
+int main(int argc, char* argv[])
+{
+	if (argc < 2)
+		return 1;
+
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const std::string filepath{ argv[1] };
+	std::ifstream ifs(argv[1], std::ios::binary);
+	MoveVisits moveVisits[593];
+
+	struct Data {
+		int black;
+		int white;
+		int draw;
+		int ply;
+		int count;
+
+		Data() : black(0), white(0), draw(0), ply(0), count(0) {}
+	};
+	std::vector<std::unordered_map<HuffmanCodedPos, Data>> map_counts(3);
+
+	Position position;
+	int position_num[3] = {};
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+		position.set(hcpe3.hcp);
+		if (!pos.set(hcpe3.hcp)) {
+			return 1;
+		}
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				position_num[hcpe3.opponent]++;
+				auto& data = map_counts[hcpe3.opponent][pos.toHuffmanCodedPos()];
+				const auto result = hcpe3.result & 3;
+				if (result == BlackWin)
+					data.black++;
+				else if (result == WhiteWin)
+					data.white++;
+				else if (result == Draw)
+					data.draw++;
+				data.ply = i;
+				data.count++;
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+				
+			}
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	for (int opp = 0; opp < 3; opp++) {
+		// サマリ
+		std::cout << "opponent\t" << opp << std::endl;
+		std::cout << "total position num\t" << position_num[opp] << std::endl;
+		std::cout << "unique position num\t" << map_counts[opp].size() << std::endl;
+
+		// ソート
+		const size_t num = std::min<size_t>(1000, map_counts[opp].size());
+		std::vector<std::pair<HuffmanCodedPos, Data>> counts;
+		for (auto v : map_counts[opp]) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			if (lhs.second.count == rhs.second.count)
+				return lhs.second.ply < rhs.second.ply;
+			return lhs.second.count > rhs.second.count;
+		});
+
+		for (int i = 0; i < num; i++) {
+			position.set(counts[i].first);
+			const auto& data = counts[i].second;
+			std::cout << position.toSFEN() << "\t" << data.ply << "\t" << data.count << "\t" << data.black << ":" << data.white << ":" << data.draw << std::endl;
 		}
 	}
 
