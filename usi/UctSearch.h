@@ -83,6 +83,9 @@ void SetPvInterval(const int interval);
 // MultiPV設定
 void SetMultiPV(const int multipv);
 
+// 勝率から評価値に変換する際の係数設定
+void SetEvalCoef(const int eval_coef);
+
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
 

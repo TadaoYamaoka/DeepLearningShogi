@@ -188,6 +188,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);
+			SetEvalCoef(options["Eval_Coef"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);

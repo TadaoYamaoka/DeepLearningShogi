@@ -95,6 +95,7 @@ int minimum_time = 0;
 int last_pv_print; // 最後にpvが表示された時刻
 int pv_interval = 500; // pvを表示する周期(ms)
 int multi_pv = 1; // MultiPvの数
+float eval_coef = 756; // 勝率から評価値に変換する際の係数
 
 // ハッシュの再利用
 bool reuse_subtree = true;
@@ -555,6 +556,12 @@ void SetMultiPV(const int multipv)
 	multi_pv = multipv;
 }
 
+// 勝率から評価値に変換する際の係数設定
+void SetEvalCoef(const int eval_coef)
+{
+	::eval_coef = (float)eval_coef;
+}
+
 /////////////////////////
 //  UCT探索の初期設定  //
 /////////////////////////
@@ -691,7 +698,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 		cp = -30000;
 	}
 	else {
-		cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+		cp = int(-logf(1.0f / best_wp - 1.0f) * eval_coef);
 	}
 
 	Move ponderMove = Move::moveNone();
