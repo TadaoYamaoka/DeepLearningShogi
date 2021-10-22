@@ -654,6 +654,11 @@ StopUctSearch(void)
 	uct_search_stop = true;
 }
 
+bool IsUctSearchStoped()
+{
+	return uct_search_stop;
+}
+
 bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
 {
 	if (lhs->IsWin()) {

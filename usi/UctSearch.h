@@ -44,6 +44,7 @@ extern unsigned int po_max;
 
 // 予測読みを止める
 void StopUctSearch(void);
+bool IsUctSearchStoped();
 
 // 予測読みのモードの設定
 void SetPonderingMode(bool flag);

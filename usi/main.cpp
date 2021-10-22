@@ -382,7 +382,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	}
 	std::cout << "bestmove " << move.toUSI();
 	// 確率的なPonderの場合、ponderを返さない
-	if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+	if (!IsUctSearchStoped() && pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
 		std::cout << std::endl;
 
 		// 相手局面から探索を継続する
