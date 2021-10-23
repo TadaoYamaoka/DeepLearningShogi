@@ -951,8 +951,6 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		game_num++;
-
 		long long size = 0;
 		std::stringstream ss;
 
@@ -961,6 +959,10 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < hcpe3.moveNum; ++i) {
 			MoveInfo moveInfo;
 			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				goto L_EXIT;
+			}
 			size += sizeof(MoveInfo);
 			ss.write((char*)&moveInfo.selectedMove16, sizeof(moveInfo.selectedMove16));
 			if (moveInfo.candidateNum > 0) {
@@ -973,16 +975,23 @@ int main(int argc, char* argv[])
 		const auto ret = map.try_emplace(ss.str(), 1);
 		if (ret.second) {
 			// 書き出し
-			ofs.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
 			ifs.seekg(-size, std::ios_base::cur);
 			buf.resize(size);
 			ifs.read(buf.data(), size);
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				break;
+			}
+			ofs.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
 			ofs.write(buf.data(), size);
 		}
 		else {
 			ret.first->second++;
 		}
+
+		game_num++;
 	}
+L_EXIT:
 
 	// サマリ
 	std::cout << "total game num\t" << game_num << std::endl;
