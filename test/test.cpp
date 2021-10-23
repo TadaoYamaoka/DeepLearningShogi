@@ -925,7 +925,7 @@ int main(int argc, char* argv[])
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3の同一手順の棋譜を削除
 #include <unordered_map>
 int main(int argc, char* argv[])
@@ -993,6 +993,9 @@ int main(int argc, char* argv[])
 	}
 L_EXIT:
 
+	ofs.close();
+	ifs.close();
+
 	// サマリ
 	std::cout << "total game num\t" << game_num << std::endl;
 	std::cout << "unique game num\t" << map.size() << std::endl;
@@ -1039,6 +1042,188 @@ L_EXIT:
 		}
 	}
 
+	std::_Exit(0);
+	return 0;
+}
+#endif
+
+#if 1
+// hcpe3の同一手順の棋譜を平均化
+#include <unordered_map>
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+		return 1;
+
+	initTable();
+	HuffmanCodedPos::init();
+
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::vector<char> buf;
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+
+	struct MoveInfo2 {
+		u16 selectedMove16; // 指し手
+		int eval; // 評価値
+		int count;
+	};
+	struct Data {
+		int count;
+		HuffmanCodedPosAndEval3 hcpe3;
+		std::vector<MoveInfo2> vecMoveInfo;
+		std::vector<std::map<u16, unsigned int>> vecMoveVisits;
+	};
+	std::unordered_map<std::string, Data> map;
+
+	int game_num = 0;
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		std::stringstream ss;
+		std::vector<MoveInfo> vecMoveInfo;
+		std::vector<std::vector<MoveVisits>> vecMoveVisits;
+
+		ss.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo& moveInfo = vecMoveInfo.emplace_back();
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				goto L_EXIT;
+			}
+			ss.write((char*)&moveInfo.selectedMove16, sizeof(moveInfo.selectedMove16));
+			std::vector<MoveVisits> moveVisits(moveInfo.candidateNum);
+			if (moveInfo.candidateNum > 0) {
+				ifs.read((char*)moveVisits.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+				if (ifs.eof()) {
+					std::cerr << "read error" << std::endl;
+					goto L_EXIT;
+				}
+			}
+			vecMoveVisits.emplace_back(std::move(moveVisits));
+		}
+
+		const auto ret = map.try_emplace(ss.str(), Data());
+		if (ret.second) {
+			auto& data = ret.first->second;
+			data.count = 1;
+			data.hcpe3 = hcpe3;
+			for (size_t i = 0; i < vecMoveVisits.size(); i++) {
+				const auto& moveInfo = vecMoveInfo[i];
+				auto& moveInfo2 = data.vecMoveInfo.emplace_back();
+				moveInfo2.selectedMove16 = moveInfo.selectedMove16;
+				moveInfo2.eval = moveInfo.eval;
+				auto& mapMoveVisits = data.vecMoveVisits.emplace_back();
+				if (moveInfo.candidateNum > 0) {
+					moveInfo2.count = 1;
+
+					const auto& moveVisits = vecMoveVisits[i];
+					for (const auto& v : moveVisits) {
+						mapMoveVisits.emplace(v.move16, v.visitNum);
+					}
+				}
+				else {
+					moveInfo2.count = 0;
+				}
+			}
+		}
+		else {
+			auto& data = ret.first->second;
+			data.count++;
+			for (size_t i = 0; i < vecMoveVisits.size(); i++) {
+				const auto& moveInfo = vecMoveInfo[i];
+				if (moveInfo.candidateNum > 0) {
+					data.vecMoveInfo[i].count++;
+					data.vecMoveInfo[i].eval += moveInfo.eval;
+
+					const auto& moveVisits = vecMoveVisits[i];
+					auto& mapMoveVisits = data.vecMoveVisits[i];
+					for (const auto& v : moveVisits) {
+						const auto ret2 = mapMoveVisits.try_emplace(v.move16, v.visitNum);
+						if (!ret2.second) {
+							ret2.first->second += v.visitNum;
+						}
+					}
+				}
+			}
+		}
+
+		game_num++;
+	}
+L_EXIT:
+
+	// 書き出し
+	for (const auto& v : map) {
+		const auto& data = v.second;
+		ofs.write((char*)&data.hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		for (size_t i = 0; i < data.vecMoveInfo.size(); i++) {
+			const auto& moveInfo2 = data.vecMoveInfo[i];
+			const auto& mapMoveVisits = data.vecMoveVisits[i];
+			MoveInfo moveInfoAvr{ moveInfo2.selectedMove16, moveInfo2.count > 0 ? (s16)(moveInfo2.eval / moveInfo2.count) : moveInfo2.eval, (u16)mapMoveVisits.size() };
+			ofs.write((char*)&moveInfoAvr, sizeof(MoveInfo));
+
+			for (const auto& moveVisits : mapMoveVisits) {
+				MoveVisits moveVisitsAvr{ moveVisits.first, (u16)(moveVisits.second / moveInfo2.count) };
+				ofs.write((char*)&moveVisitsAvr, sizeof(MoveVisits));
+			}
+		}
+	}
+	ofs.close();
+	ifs.close();
+
+	// サマリ
+	std::cout << "total game num\t" << game_num << std::endl;
+	std::cout << "unique game num\t" << map.size() << std::endl;
+
+	if (argc >= 4) {
+		size_t num = 0;
+		try {
+			num = std::stoi(argv[3]);
+		}
+		catch (std::invalid_argument&) {
+			return 0;
+		}
+
+		std::cout << "sfen\tmove num\tresult\topponent\tcount" << std::endl;
+
+		Position::initZobrist();
+		Position pos;
+
+		// ソート
+		num = std::min<size_t>(num, map.size());
+		std::vector<std::pair<std::string, Data>> counts;
+		for (auto v : map) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			return lhs.second.count > rhs.second.count;
+			});
+
+		for (int i = 0; i < num; i++) {
+			const char* data = counts[i].first.data();
+			HuffmanCodedPosAndEval3* phcpe3 = (HuffmanCodedPosAndEval3*)data;
+			pos.set(phcpe3->hcp);
+			u16* moves = (u16*)(data + sizeof(HuffmanCodedPosAndEval3));
+			const auto move_num = (counts[i].first.size() - sizeof(HuffmanCodedPosAndEval3)) / sizeof(u16);
+			std::cout << pos.toSFEN() << " moves";
+			for (size_t j = 0; j < move_num; j++) {
+				const auto move = move16toMove((Move)moves[j], pos);
+				std::cout << " " << move.toUSI();
+			}
+			std::cout << "\t" << (int)phcpe3->moveNum;
+			std::cout << "\t" << (int)phcpe3->result;
+			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << counts[i].second.count << std::endl;
+		}
+	}
+
+	std::_Exit(0);
 	return 0;
 }
 #endif
