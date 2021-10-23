@@ -832,7 +832,7 @@ int main(int argc, char* argv[])
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3の同一局面の数
 int main(int argc, char* argv[])
 {
@@ -918,6 +918,115 @@ int main(int argc, char* argv[])
 			position.set(counts[i].first);
 			const auto& data = counts[i].second;
 			std::cout << position.toSFEN() << "\t" << data.ply << "\t" << data.count << "\t" << data.black << ":" << data.white << ":" << data.draw << std::endl;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// hcpe3の同一手順の棋譜を削除
+#include <unordered_map>
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+		return 1;
+
+	initTable();
+	HuffmanCodedPos::init();
+
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::vector<char> buf;
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+
+	std::unordered_map<std::string, int> map;
+
+	int game_num = 0;
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		game_num++;
+
+		long long size = 0;
+		std::stringstream ss;
+
+		ss.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			size += sizeof(MoveInfo);
+			ss.write((char*)&moveInfo.selectedMove16, sizeof(moveInfo.selectedMove16));
+			if (moveInfo.candidateNum > 0) {
+				const size_t move_visits_size = sizeof(MoveVisits) * moveInfo.candidateNum;
+				ifs.seekg(move_visits_size, std::ios_base::cur);
+				size += move_visits_size;
+			}
+		}
+
+		const auto ret = map.try_emplace(ss.str(), 1);
+		if (ret.second) {
+			// 書き出し
+			ofs.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+			ifs.seekg(-size, std::ios_base::cur);
+			buf.resize(size);
+			ifs.read(buf.data(), size);
+			ofs.write(buf.data(), size);
+		}
+		else {
+			ret.first->second++;
+		}
+	}
+
+	// サマリ
+	std::cout << "total game num\t" << game_num << std::endl;
+	std::cout << "unique game num\t" << map.size() << std::endl;
+
+	if (argc >= 4) {
+		size_t num = 0;
+		try {
+			num = std::stoi(argv[3]);
+		}
+		catch (std::invalid_argument&) {
+			return 0;
+		}
+
+		std::cout << "sfen\tmove num\tresult\topponent\tcount" << std::endl;
+
+		Position::initZobrist();
+		Position pos;
+
+		// ソート
+		num = std::min<size_t>(num, map.size());
+		std::vector<std::pair<std::string, int>> counts;
+		for (auto v : map) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			return lhs.second > rhs.second;
+			});
+
+		for (int i = 0; i < num; i++) {
+			const char* data = counts[i].first.data();
+			HuffmanCodedPosAndEval3* phcpe3 = (HuffmanCodedPosAndEval3*)data;
+			pos.set(phcpe3->hcp);
+			u16* moves = (u16*)(data + sizeof(HuffmanCodedPosAndEval3));
+			const auto move_num = (counts[i].first.size() - sizeof(HuffmanCodedPosAndEval3)) / sizeof(u16);
+			std::cout << pos.toSFEN() << " moves";
+			for (size_t j = 0; j < move_num; j++) {
+				const auto move = move16toMove((Move)moves[j], pos);
+				std::cout << " " << move.toUSI();
+			}
+			std::cout << "\t" << (int)phcpe3->moveNum;
+			std::cout << "\t" << (int)phcpe3->result;
+			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << counts[i].second << std::endl;
 		}
 	}
 
