@@ -32,7 +32,7 @@ def main(*argv):
     parser.add_argument('--reset_optimizer', action='store_true')
     parser.add_argument('--model', type=str, help='model file name')
     parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file (for compatibility)')
-    parser.add_argument('--log', default=None, help='log file path')
+    parser.add_argument('--log', help='log file path')
     parser.add_argument('--optimizer', default='SGD(momentum=0.9,nesterov=True)', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
@@ -54,7 +54,10 @@ def main(*argv):
     parser.add_argument('--temperature', type=float, default=1.0)
     args = parser.parse_args(argv)
 
-    logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+    if args.log:
+        logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+    else:
+        logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', stream=sys.stdout, level=logging.DEBUG)
     logging.info('network {}'.format(args.network))
     logging.info('batchsize={}'.format(args.batchsize))
     logging.info('lr={}'.format(args.lr))
