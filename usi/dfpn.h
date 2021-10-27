@@ -62,7 +62,8 @@ public:
 		HASH_SIZE_MB = size;
 	}
 	static void set_draw_ply(const int draw_ply) {
-		DfPn::draw_ply = draw_ply;
+		// WCSCのルールでは、最大手数で詰ました場合は勝ちになるため+1する
+		DfPn::draw_ply = draw_ply + 1;
 	}
 	void set_maxdepth(const int depth) {
 		kMaxDepth = depth;

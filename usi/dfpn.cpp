@@ -282,7 +282,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 	auto& entry = transposition_table.LookUp<or_node>(n);
 
 	if (or_node) {
-		if (n.gamePly() + 2 > maxDepth) {
+		if (n.gamePly() + 1 > maxDepth) {
 			entry.pn = kInfinitePnDn;
 			entry.dn = 0;
 			entry.num_searched = REPEAT;
@@ -368,7 +368,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						return;
 					}
 
-					if (n.gamePly() + 3 > maxDepth) {
+					if (n.gamePly() + 2 > maxDepth) {
 						n.undoMove(m);
 
 						entry2.pn = kInfinitePnDn;

@@ -374,19 +374,53 @@ int main() {
 
 	// WCSCのルールでは、最大手数で詰ました場合は勝ちになる
 	vector<pair<string, int>> sfens = {
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 264 }, // 262手目で詰み → 詰み
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 264 }, // 262手目で詰み → 詰み
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 264 }, // 262手目で詰み → 詰み
-		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 11 }, // 11手で詰み → 持将棋
-		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 12 }, // 11手で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 262 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 262 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 262 }, // 262手目で詰み → 詰み
+		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 9 }, // 11手で詰み → 持将棋
+		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 10 }, // 11手で詰み → 詰み
+		{ "l7l/4g4/4s3p/p3b1p2/1PS3n2/4P1g2/P5n1P/2+n+rSpK2/LN2k3L w 2GS3Prb7p 254", 256 }, // 256手で詰み → 詰み
 	};
 
 	for (auto& sfen_draw : sfens) {
 		pos.set(sfen_draw.first);
 		DfPn::set_draw_ply(sfen_draw.second);
+		bool ret = dfpn.dfpn(pos);
+		cout << ret << endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+#include "dfpn.h"
+// 最大深さチェック
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	DfPn dfpn;
+	dfpn.init();
+
+	Position pos;
+
+	vector<pair<string, int>> sfens = {
+		{ "lns3kn1/1r4g2/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G2Pl4p 53", 1 }, // mate 1
+		{ "lns3kn1/1r4g2/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G2Pl4p 53", 2 }, // mate 1
+		{ "lns3kn1/1r3g3/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G3Pl3p 51", 2 }, // mate 3
+		{ "lns3kn1/1r3g3/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G3Pl3p 51", 3 }, // mate 3
+		{ "knS5K/llGp3G1/pp2+R2S1/2n6/9/6S2/P3+n3P/2P2P2L/6GNb b RBGSL11P 1", 6 }, // mate 7
+		{ "knS5K/llGp3G1/pp2+R2S1/2n6/9/6S2/P3+n3P/2P2P2L/6GNb b RBGSL11P 1", 7 }, // mate 7
+	};
+
+	for (auto& sfen_depth : sfens) {
+		pos.set(sfen_depth.first);
+		dfpn.set_maxdepth(sfen_depth.second);
 		bool ret = dfpn.dfpn(pos);
 		cout << ret << endl;
 	}
@@ -1047,7 +1081,7 @@ L_EXIT:
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3の同一手順の棋譜を平均化
 #include <unordered_map>
 int main(int argc, char* argv[])
