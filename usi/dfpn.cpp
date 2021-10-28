@@ -352,7 +352,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						entry2.dn = kInfinitePnDn;
 
 						entry.pn = 0;
-						entry.dn = kInfinitePnDn;
+						entry.dn = kInfinitePnDn + 1;
 
 						// 証明駒を初期化
 						entry.hand.set(0);
@@ -392,7 +392,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						if (n.mateMoveIn1Ply()) {
 							auto& entry1 = transposition_table.LookUp<true>(n);
 							entry1.pn = 0;
-							entry1.dn = kInfinitePnDn;
+							entry1.dn = kInfinitePnDn + 1;
 						}
 						else {
 							// 詰んでないので、m2で詰みを逃れている。
@@ -407,10 +407,10 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					n.undoMove(m);
 
 					entry2.pn = 0;
-					entry2.dn = kInfinitePnDn;
+					entry2.dn = kInfinitePnDn + 2;
 
 					entry.pn = 0;
-					entry.dn = kInfinitePnDn;
+					entry.dn = kInfinitePnDn + 3;
 
 					return;
 
@@ -835,6 +835,90 @@ Move DfPn::dfpn_move(Position& pos) {
 	}
 
 	return Move::moveNone();
+}
+
+template<bool or_node>
+int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
+	if (or_node) {
+		// ORノードで詰みが見つかったらその手を選ぶ
+		MovePicker<true> move_picker(pos);
+		for (const auto& move : move_picker) {
+			const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
+			if (child_entry.pn == 0) {
+				StateInfo state_info;
+				pos.doMove(move, state_info);
+				if (pos.isDraw(16) == NotRepetition) {
+					pv.emplace_back(move);
+					const auto depth = get_pv_inner<false>(pos, pv);
+					pos.undoMove(move);
+					return depth + 1;
+				}
+				pos.undoMove(move);
+			}
+		}
+	}
+	else {
+		// ANDノードでは詰みまでが最大手数となる手を選ぶ
+		int max_depth = 0;
+		std::vector<Move> max_pv;
+		MovePicker<false> move_picker(pos);
+		for (const auto& move : move_picker) {
+			const auto& child_entry = transposition_table.LookUpChildEntry<false>(pos, move);
+			if (child_entry.pn == 0) {
+				std::vector<Move> tmp_pv{ move };
+				StateInfo state_info;
+				pos.doMove(move, state_info);
+				int depth = -kInfinitePnDn;
+				if (child_entry.dn == kInfinitePnDn + 1) {
+					depth = 1;
+					if (!pos.inCheck()) {
+						// 1手詰みチェック
+						Move mate1ply = pos.mateMoveIn1Ply();
+						if (mate1ply) {
+							tmp_pv.emplace_back(mate1ply);
+						}
+					}
+					else
+						get_pv_inner<true>(pos, tmp_pv);
+				}
+				else {
+					depth = get_pv_inner<true>(pos, tmp_pv);
+				}
+				pos.undoMove(move);
+
+				if (depth > max_depth) {
+					max_depth = depth;
+					max_pv = std::move(tmp_pv);
+				}
+			}
+		}
+		if (max_depth > 0) {
+			std::copy(max_pv.begin(), max_pv.end(), std::back_inserter(pv));
+			return max_depth + 1;
+		}
+	}
+	return -kInfinitePnDn;
+}
+
+// 詰みの手返す
+std::tuple<std::string, int, Move> DfPn::get_pv(Position& pos) {
+	if (!pos.inCheck()) {
+		// 1手詰みチェック
+		Move mate1ply = pos.mateMoveIn1Ply();
+		if (mate1ply) {
+			return std::make_tuple(mate1ply.toUSI(), 1, mate1ply);
+		}
+	}
+
+	std::vector<Move> pv;
+	const auto depth = get_pv_inner<true>(pos, pv);
+	const Move& best_move = pv[0];
+	std::stringstream ss;
+	ss << best_move.toUSI();
+	for (size_t i = 1; i < pv.size(); i++)
+		ss << " " << pv[i].toUSI();
+
+	return std::make_tuple(ss.str(), depth, best_move);
 }
 
 void DfPn::init()

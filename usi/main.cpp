@@ -367,11 +367,14 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		t->join();
 		if (mate) {
 			// 詰み
-			Move move2 = dfpn.dfpn_move(pos);
+			std::string mate_pv;
+			int mate_depth;
+			Move mate_move;
+			std::tie(mate_pv, mate_depth, mate_move) = dfpn.get_pv(pos);
 			// PV表示
-			std::cout << "info score mate + pv " << move2.toUSI();
+			std::cout << "info score mate "<< mate_depth << " pv " << mate_pv;
 			std::cout << std::endl;
-			std::cout << "bestmove " << move2.toUSI() << std::endl;
+			std::cout << "bestmove " << mate_move.toUSI() << std::endl;
 			return;
 		}
 	}
