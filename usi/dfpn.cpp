@@ -900,7 +900,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 	return -kInfinitePnDn;
 }
 
-// 詰みの手返す
+// PVと詰みの手返す
 std::tuple<std::string, int, Move> DfPn::get_pv(Position& pos) {
 	if (!pos.inCheck()) {
 		// 1手詰みチェック
