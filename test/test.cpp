@@ -446,6 +446,7 @@ int main()
 
 	vector<string> sfens = {
 		// 詰み
+		"l1r3bn1/3k1g1sl/2G1pp3/p2p1Pp1p/4P4/PP1P2PRP/1g1S5/4+b4/LNK3sNL w Pgsn4p 104", // mate3 王手をかけられている局面から
 		"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
 		"1n1g3+Pl/k1p1s4/1ng5p/pSP1p1pp1/1n3p3/P1K3P1P/1P7/9/L1G5L b 2R2BG2SL5Pn 161", // mate 15
 		"ln6K/9/1sp2+P3/pp4G1p/6P2/+rl+B+R5/k8/+b8/9 b 2G2SNL2Pgs2nl10p 1", // mate 15
@@ -510,6 +511,60 @@ int main()
 	}
 	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
 	cout << total_ms << endl;
+}
+#endif
+
+#if 0
+#include "dfpn.h"
+// DfPnのPV表示テスト(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(400000);
+	dfpn.set_maxdepth(3);
+
+	std::ifstream ifs(argv[1]);
+
+	std::chrono::system_clock::duration total{};
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+
+		auto start = std::chrono::system_clock::now();
+		bool ret = dfpn.dfpn(pos);
+		auto end = std::chrono::system_clock::now();
+
+		auto time = end - start;
+		total += time;
+
+		auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
+
+		cout << ret << "\t" << dfpn.searchedNode << "\t";
+		cout << time_ms;
+
+		// pv
+		if (ret) {
+			std::string pv;
+			int depth;
+			Move move;
+			auto start_pv = std::chrono::system_clock::now();
+			std::tie(pv, depth, move) = dfpn.get_pv(pos);
+			auto end_pv = std::chrono::system_clock::now();
+
+			cout << "\t" << move.toUSI() << "\t" << pv << "\t" << depth << "\t" << std::chrono::duration_cast<std::chrono::milliseconds>(end_pv - start_pv).count();
+		}
+		cout << endl;
+	}
+	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
+	cout << total_ms << endl;
+
+	return 0;
 }
 #endif
 

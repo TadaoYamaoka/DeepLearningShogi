@@ -407,10 +407,10 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					n.undoMove(m);
 
 					entry2.pn = 0;
-					entry2.dn = kInfinitePnDn + 2;
+					entry2.dn = kInfinitePnDn;
 
 					entry.pn = 0;
-					entry.dn = kInfinitePnDn + 3;
+					entry.dn = kInfinitePnDn;
 
 					return;
 
@@ -443,7 +443,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				if (const Move move = n.mateMoveIn1Ply()) {
 					auto& entry1 = transposition_table.LookUp<true>(n);
 					entry1.pn = 0;
-					entry1.dn = kInfinitePnDn;
+					entry1.dn = kInfinitePnDn + 1;
 
 					// 証明駒を初期化
 					entry1.hand.set(0);
