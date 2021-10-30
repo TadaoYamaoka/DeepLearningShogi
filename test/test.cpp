@@ -446,7 +446,7 @@ int main()
 
 	vector<string> sfens = {
 		// 詰み
-		"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
+		/*"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
 		"1n1g3+Pl/k1p1s4/1ng5p/pSP1p1pp1/1n3p3/P1K3P1P/1P7/9/L1G5L b 2R2BG2SL5Pn 161", // mate 15
 		"ln6K/9/1sp2+P3/pp4G1p/6P2/+rl+B+R5/k8/+b8/9 b 2G2SNL2Pgs2nl10p 1", // mate 15
 		"ln1s+R3K/2s6/p1pp1p3/kp+r4pp/N3p4/1Sg6/P2B2P1P/5g3/LL3g1NL b BGS2Pn5p 1", // mate 17
@@ -481,6 +481,9 @@ int main()
 		"l3kgsnl/9/p1pS+Bp3/7pp/6PP1/9/PPPPPPn1P/1B1GG2+r1/LNS1K3L w RG3Psnp 54", // mate1
 		"l1r3bn1/3k1g1sl/2G1pp3/p2p1Pp1p/4P4/PP1P2PRP/1g1S5/4+b4/LNK3sNL w Pgsn4p 104", // mate3 王手をかけられている局面から
 		"l4k1nl/7B1/p2sgpgp1/2pp2p1p/P6P1/G4PPs1/2N3n1P/5R3/L3+rNK1L w BS2Pgs4p 78", // mate5
+		"l1l5l/7g1/2GK2+b2/1k1s+R4/p8/2sNP+r3/PP+pP4+p/2G6/LN5+p1 b GS2N3Pbs7p 147", // mate3
+		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3*/
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7
 	};
 
 	auto start0 = std::chrono::system_clock::now();
