@@ -372,7 +372,10 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 			Move mate_move;
 			std::tie(mate_pv, mate_depth, mate_move) = dfpn.get_pv(pos);
 			// PV表示
-			std::cout << "info score mate "<< mate_depth << " pv " << mate_pv;
+			if (mate_depth > 0)
+				std::cout << "info score mate "<< mate_depth << " pv " << mate_pv;
+			else
+				std::cout << "info score mate + pv " << mate_pv;
 			std::cout << std::endl;
 			std::cout << "bestmove " << mate_move.toUSI() << std::endl;
 			return;
