@@ -482,8 +482,9 @@ int main()
 		"l1r3bn1/3k1g1sl/2G1pp3/p2p1Pp1p/4P4/PP1P2PRP/1g1S5/4+b4/LNK3sNL w Pgsn4p 104", // mate3 王手をかけられている局面から
 		"l4k1nl/7B1/p2sgpgp1/2pp2p1p/P6P1/G4PPs1/2N3n1P/5R3/L3+rNK1L w BS2Pgs4p 78", // mate5
 		"l1l5l/7g1/2GK2+b2/1k1s+R4/p8/2sNP+r3/PP+pP4+p/2G6/LN5+p1 b GS2N3Pbs7p 147", // mate3
-		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3*/
-		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7
+		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7*/
+		"ln2+B1gnl/2R1G1k2/p2p1p+bp1/2p3p1p/9/2P1S3P/P2P1PPP1/4s4/2+r2GKNL b GSL3Psnp 1", // mate27
 	};
 
 	auto start0 = std::chrono::system_clock::now();
@@ -1001,7 +1002,7 @@ int main(int argc, char* argv[])
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 
-			if (i == hcpe3.moveNum - 1 && (hcpe3.result & 3) != Draw) {
+			if (i == hcpe3.moveNum - 1 && (hcpe3.result == BlackWin || hcpe3.result == WhiteWin)) {
 				std::cout << pos.toSFEN(1).substr(5) << std::endl;
 				break;
 			}
