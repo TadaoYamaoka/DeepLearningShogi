@@ -1001,7 +1001,7 @@ int main(int argc, char* argv[])
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 
-			if (i == hcpe3.moveNum - 1) {
+			if (i == hcpe3.moveNum - 1 && (hcpe3.result & 3) != Draw) {
 				std::cout << pos.toSFEN(1).substr(5) << std::endl;
 				break;
 			}
