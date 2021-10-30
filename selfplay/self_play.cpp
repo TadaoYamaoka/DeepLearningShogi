@@ -557,19 +557,20 @@ void UCTSearcherGroup::MateSearch()
 			Position pos_copy(*mate_search_slot[id].pos);
 
 			// 詰み探索
-			if (!pos_copy.inCheck()) {
-				bool mate = dfpn.dfpn(pos_copy);
-				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-				if (mate)
-					mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
-				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
+			const bool mate = dfpn.dfpn(pos_copy);
+			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
+			if (mate) {
+				mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
+				mate_search_slot[id].status = MateSearchEntry::WIN;
 			}
-			else {
+			else if (pos_copy.inCheck()) {
 				// 自玉に王手がかかっている
-				bool mate = dfpn.dfpn_andnode(pos_copy);
-				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-				mate_search_slot[id].status = mate ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
+				const bool mated = dfpn.dfpn_andnode(pos_copy);
+				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mated, dfpn.searchedNode);
+				mate_search_slot[id].status = mated ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
 			}
+			else
+				mate_search_slot[id].status = MateSearchEntry::NOMATE;
 		}
 		queue.clear();
 	}
