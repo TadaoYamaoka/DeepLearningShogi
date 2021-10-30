@@ -485,8 +485,10 @@ int main()
 		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3
 		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7
 		"ln2+B1gnl/2R1G1k2/p2p1p+bp1/2p3p1p/9/2P1S3P/P2P1PPP1/4s4/2+r2GKNL b GSL3Psnp 1", // mate27
-		"l4k2l/3+R5/p3pg3/1p6p/3n1p1N1/P2SP1PbP/1PPP1P1p1/2G1G4/LNK1+n2rL w GSPb2s3p 1", // mate13*/
+		"l4k2l/3+R5/p3pg3/1p6p/3n1p1N1/P2SP1PbP/1PPP1P1p1/2G1G4/LNK1+n2rL w GSPb2s3p 1", // mate13
 		"2s+R1+N3/1ks5+R/lpggp1+Pp1/p1pp5/2n2P1P1/P1Pn5/1PNPP3P/1K7/L1S5L b BS2Pb2glp 1", // mate15
+		"ln3+S2l/6k2/p2+Pp3p/1NP6/2g1Gp3/2pP1Pr1P/PP1K3p1/1S2G+p1s1/LN6+r b 2BGNLPs3p 1", // mate23*/
+		"+LR2R2n1/3g1lg2/3N2kp1/p2pp4/5S1Sp/1PP3SP1/P2PP2B1/1G1S2G2/LN2K4 b N6Pblp 121", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
 	};
 
 	auto start0 = std::chrono::system_clock::now();
@@ -1006,6 +1008,69 @@ int main(int argc, char* argv[])
 
 			if (i == hcpe3.moveNum - 1 && (hcpe3.result == BlackWin || hcpe3.result == WhiteWin)) {
 				std::cout << pos.toSFEN(1).substr(5) << std::endl;
+				break;
+			}
+
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3から最後の局面を検索
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	if (argc < 3) return 1;
+
+	const auto filepath = argv[1];
+	std::ifstream ifs(argv[1], std::ios::binary);
+
+	const auto sfen = argv[2];
+	pos.set(sfen);
+	const auto key = pos.getKey();
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 開始局面
+		if (!pos.set(hcpe3.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+			}
+
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+
+			if (i == hcpe3.moveNum - 1 && (hcpe3.result == BlackWin || hcpe3.result == WhiteWin)) {
+				if (pos.getKey() == key) {
+					std::cout << pos.toSFEN() << "\n";
+					std::cout << move.toUSI() << "\n";
+					std::cout << (int)moveInfo.candidateNum << "\n";
+					std::cout << (int)moveInfo.eval << "\n";
+					std::cout << (int)hcpe3.result << "\n";
+					std::cout << (int)hcpe3.opponent << "\n";
+				}
 				break;
 			}
 
