@@ -521,7 +521,7 @@ int main()
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnのPV表示テスト(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {
@@ -965,7 +965,7 @@ int main(int argc, char* argv[])
 }
 #endif
 
-#if 1
+#if 0
 // hcpe3から最後の局面を抽出
 int main(int argc, char* argv[])
 {

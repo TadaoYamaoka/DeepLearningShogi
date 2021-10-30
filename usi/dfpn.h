@@ -81,7 +81,7 @@ private:
 	int get_pv_inner(Position& pos, std::vector<Move>& pv);
 
 	ns_dfpn::TranspositionTable transposition_table;
-	std::atomic<bool> stop;
+	std::atomic<bool> stop = false;
 	int64_t maxSearchNode = 2097152;
 
 	int kMaxDepth = 31;
