@@ -429,7 +429,7 @@ int main()
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnのPV表示テスト
 int main()
@@ -483,8 +483,10 @@ int main()
 		"l4k1nl/7B1/p2sgpgp1/2pp2p1p/P6P1/G4PPs1/2N3n1P/5R3/L3+rNK1L w BS2Pgs4p 78", // mate5
 		"l1l5l/7g1/2GK2+b2/1k1s+R4/p8/2sNP+r3/PP+pP4+p/2G6/LN5+p1 b GS2N3Pbs7p 147", // mate3
 		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3
-		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7*/
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7
 		"ln2+B1gnl/2R1G1k2/p2p1p+bp1/2p3p1p/9/2P1S3P/P2P1PPP1/4s4/2+r2GKNL b GSL3Psnp 1", // mate27
+		"l4k2l/3+R5/p3pg3/1p6p/3n1p1N1/P2SP1PbP/1PPP1P1p1/2G1G4/LNK1+n2rL w GSPb2s3p 1", // mate13*/
+		"2s+R1+N3/1ks5+R/lpggp1+Pp1/p1pp5/2n2P1P1/P1Pn5/1PNPP3P/1K7/L1S5L b BS2Pb2glp 1", // mate15
 	};
 
 	auto start0 = std::chrono::system_clock::now();
@@ -521,7 +523,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnのPV表示テスト(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {

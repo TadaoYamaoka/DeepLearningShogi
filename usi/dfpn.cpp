@@ -541,26 +541,6 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		}
 		return;
 
-	case RepetitionSuperior:
-		// 優越局面になる手順を除外
-		if (!or_node) {
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
-			entry.num_searched = REPEAT;
-			return;
-		}
-		break;
-
-	case RepetitionInferior:
-		// 劣等局面になる手順を除外
-		if (or_node) {
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
-			entry.num_searched = REPEAT;
-			return;
-		}
-		break;
-
 	case RepetitionDraw:
 		//cout << "RepetitionDraw" << endl;
 		// 普通の千日手
