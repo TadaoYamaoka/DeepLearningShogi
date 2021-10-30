@@ -480,6 +480,7 @@ int main()
 		"l1g4ng/1k1s+R+P3/p2p2pP1/2s1B4/2bnp4/PR2P1P2/K1+p2PN2/3L4+l/Ls7 w 2GSPn6p 150", // mate1
 		"l3kgsnl/9/p1pS+Bp3/7pp/6PP1/9/PPPPPPn1P/1B1GG2+r1/LNS1K3L w RG3Psnp 54", // mate1
 		"l1r3bn1/3k1g1sl/2G1pp3/p2p1Pp1p/4P4/PP1P2PRP/1g1S5/4+b4/LNK3sNL w Pgsn4p 104", // mate3 王手をかけられている局面から
+		"l4k1nl/7B1/p2sgpgp1/2pp2p1p/P6P1/G4PPs1/2N3n1P/5R3/L3+rNK1L w BS2Pgs4p 78", // mate5
 	};
 
 	auto start0 = std::chrono::system_clock::now();
@@ -524,12 +525,14 @@ int main(int argc, char* argv[]) {
 	Position::initZobrist();
 	Position pos;
 
+	if (argc < 3) return 1;
+
+	std::ifstream ifs(argv[1]);
+
 	DfPn dfpn;
 	dfpn.init();
 	dfpn.set_max_search_node(400000);
-	dfpn.set_maxdepth(3);
-
-	std::ifstream ifs(argv[1]);
+	dfpn.set_maxdepth(std::atoi(argv[2]));
 
 	std::chrono::system_clock::duration total{};
 	string sfen;

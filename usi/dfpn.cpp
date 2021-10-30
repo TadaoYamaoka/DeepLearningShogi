@@ -589,6 +589,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			u32 bishop = UINT_MAX;
 			u32 rook = UINT_MAX;
 			bool first = true;
+			bool repeat = false; // 最大手数チェック用
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
 				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
@@ -650,6 +651,10 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				entry.pn = std::min(entry.pn, child_entry.pn);
 				entry.dn += child_entry.dn;
 
+				// 最大手数で不詰みの局面が優越関係で使用されないようにする
+				if (child_entry.dn == 0 && child_entry.num_searched == REPEAT)
+					repeat = true;
+
 				if (child_entry.pn < best_pn ||
 					child_entry.pn == best_pn && best_num_search > child_entry.num_searched) {
 					second_best_pn = best_pn;
@@ -666,17 +671,22 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			if (entry.dn == 0) {
 				// 不詰みの場合
 				//cout << n.hand(n.turn()).value() << "," << entry.hand.value() << ",";
-				// 先手が一枚も持っていない種類の先手の持ち駒を反証駒から削除する
-				u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
-				u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
-				u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
-				u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
-				u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
-				u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
-				u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
-				// 反証駒に子局面の証明駒の積集合を設定
-				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
-				//cout << entry.hand.value() << endl;
+				// 最大手数で不詰みの局面が優越関係で使用されないようにする
+				if (repeat)
+					entry.num_searched = REPEAT;
+				else {
+					// 先手が一枚も持っていない種類の先手の持ち駒を反証駒から削除する
+					u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
+					u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
+					u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
+					u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
+					u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
+					u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
+					u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
+					// 反証駒に子局面の証明駒の積集合を設定
+					entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
+					//cout << entry.hand.value() << endl;
+				}
 			}
 			else {
 				thpn_child = std::min(thpn, second_best_pn + 1);
@@ -736,24 +746,29 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					// 不詰みの場合
 					entry.pn = kInfinitePnDn;
 					entry.dn = 0;
-					// 子局面の反証駒を設定
-					// 打つ手ならば、反証駒から削除する
-					if (move.move.isDrop()) {
-						const HandPiece hp = move.move.handPieceDropped();
-						if (entry.hand.numOf(hp) < child_entry.hand.numOf(hp)) {
-							entry.hand = child_entry.hand;
-							entry.hand.minusOne(hp);
-						}
-					}
-					// 先手の駒を取る手ならば、反証駒に追加する
+					// 最大手数で不詰みの局面が優越関係で使用されないようにする
+					if (child_entry.num_searched == REPEAT)
+						entry.num_searched = REPEAT;
 					else {
-						const Piece to_pc = n.piece(move.move.to());
-						if (to_pc != Empty) {
-							const PieceType pt = pieceToPieceType(to_pc);
-							const HandPiece hp = pieceTypeToHandPiece(pt);
-							if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
+						// 子局面の反証駒を設定
+						// 打つ手ならば、反証駒から削除する
+						if (move.move.isDrop()) {
+							const HandPiece hp = move.move.handPieceDropped();
+							if (entry.hand.numOf(hp) < child_entry.hand.numOf(hp)) {
 								entry.hand = child_entry.hand;
-								entry.hand.plusOne(hp);
+								entry.hand.minusOne(hp);
+							}
+						}
+						// 先手の駒を取る手ならば、反証駒に追加する
+						else {
+							const Piece to_pc = n.piece(move.move.to());
+							if (to_pc != Empty) {
+								const PieceType pt = pieceToPieceType(to_pc);
+								const HandPiece hp = pieceTypeToHandPiece(pt);
+								if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
+									entry.hand = child_entry.hand;
+									entry.hand.plusOne(hp);
+								}
 							}
 						}
 					}
