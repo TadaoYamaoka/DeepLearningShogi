@@ -487,8 +487,16 @@ int main()
 		"ln2+B1gnl/2R1G1k2/p2p1p+bp1/2p3p1p/9/2P1S3P/P2P1PPP1/4s4/2+r2GKNL b GSL3Psnp 1", // mate27
 		"l4k2l/3+R5/p3pg3/1p6p/3n1p1N1/P2SP1PbP/1PPP1P1p1/2G1G4/LNK1+n2rL w GSPb2s3p 1", // mate13
 		"2s+R1+N3/1ks5+R/lpggp1+Pp1/p1pp5/2n2P1P1/P1Pn5/1PNPP3P/1K7/L1S5L b BS2Pb2glp 1", // mate15
-		"ln3+S2l/6k2/p2+Pp3p/1NP6/2g1Gp3/2pP1Pr1P/PP1K3p1/1S2G+p1s1/LN6+r b 2BGNLPs3p 1", // mate23*/
+		"ln3+S2l/6k2/p2+Pp3p/1NP6/2g1Gp3/2pP1Pr1P/PP1K3p1/1S2G+p1s1/LN6+r b 2BGNLPs3p 1", // mate23
 		"+LR2R2n1/3g1lg2/3N2kp1/p2pp4/5S1Sp/1PP3SP1/P2PP2B1/1G1S2G2/LN2K4 b N6Pblp 121", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"l4p2l/7g1/6n1b/P2g1kS1p/3p2p2/2S2N1p1/1PKP1S1NP/4g1G2/L1+B1+p1S1L b RN5Pr3p 171", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"lkB1s3+N/4bs3/2RL2pp1/p1pGpp2p/1n1p5/8P/PP1PPPP1N/1G1S2S+R1/LN2KG2L b Pg2p 89", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)*/
+		"1n1g4l/+B1s2+B2k/p1p2sr1p/4gl1SP/3p2p1G/5L3/PP1PPPP2/2G2S3/3R1K1NL b 2N4P2p 1", // mate7(9手になる)
+		"ln3+BR2/6n1k/2s1sppr1/p1g1p2P1/1p2B2p1/9/PPSPPPP2/2G2KS2/LN3G1N1 b 2Pg2l3p 81", // mate7(9手になる)
+		"9/3S1k3/3pg2+R1/4spP2/1p1PN3L/PP1nPP3/3l1SN2/K1g2G3/L3b+b3 w RGSL7Pn2p 126", // mate7(角成らず打ち歩詰めにならず最短で詰ますことができる)
+		"l8/2+P2+N1k1/4G2p1/2p2ps1G/p3s4/1pP1S4/PlN1gP+p2/1bGp5/L3K4 b R4Prbs2nl3p 193", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"l4ksRl/3+S5/p4pngp/2pp1bp2/9/P1PP1PP1P/1PNG1K3/1G4r2/L5bNL w G2SN2P3p 78", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"lR3p2l/2g1k1s2/ps1ppPn2/2pg2p1p/9/2PB1NP2/P1NPP1N1P/2S1KGS2/L2G4L b RPb3p 83" // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
 	};
 
 	auto start0 = std::chrono::system_clock::now();
