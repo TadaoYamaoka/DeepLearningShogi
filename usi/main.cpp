@@ -211,7 +211,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			std::cout << "readyok" << std::endl;
 		}
-		else if (token == "setoption") setOption(ssCmd);
+		else if (token == "setoption") {
+			setOption(ssCmd);
+			SetMultiPV(options["MultiPV"]);
+		}
 #ifdef MAKE_BOOK
 		else if (token == "make_book") make_book(ssCmd, options);
 #endif
