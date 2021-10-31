@@ -665,6 +665,8 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 		// 負けが確定しているノードは選択しない
 		if (rhs->IsWin()) {
 			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
 		return false;
@@ -673,10 +675,14 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 		// 子ノードに一つでも負けがあれば、勝ちなので選択する
 		if (rhs->IsLose()) {
 			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
 	}
+	if (lhs->move_count == rhs->move_count)
+		return lhs->nnrate > rhs->nnrate;
 	return lhs->move_count > rhs->move_count;
 }
 
@@ -773,7 +779,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 		// info文字列の共通部分
 		std::stringstream info_ss;
-		info_ss << " nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull << " score cp ";
+		info_ss << " nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull;
 		const std::string info_string = info_ss.str();
 
 		Move move_tmp;
@@ -786,7 +792,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 			const unsigned int best_root_child_index = static_cast<unsigned int>(best_root_uct_child - root_uct_child);
 
 			std::tie(pv, cp, depth, move_tmp, best_wp_tmp, ponderMove_tmp) = get_pv(current_root, best_root_child_index);
-			std::cout << "info multipv " << i + 1 << info_string << cp << " depth " << depth << " pv " << pv << "\n";
+			std::cout << "info multipv " << i + 1 << info_string;
+			if (best_root_uct_child->move_count > 0)
+				std::cout << " score cp " << cp;
+			std::cout << " depth " << depth << " pv " << pv << "\n";
 
 			if (i == 0) {
 				move = move_tmp;
