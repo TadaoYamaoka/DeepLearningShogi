@@ -92,14 +92,37 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
+	//pos.set("lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1"); // 直接王手 歩成
+	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1"); // 直接王手 桂馬成
+	//pos.set("lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1"); // 直接王手 角成
+	//pos.set("lnsgkgsnl/1r2p2b1/pppp1pppp/9/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1"); // 直接王手 飛車成
 	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 銀
 	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬
-	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車
+	//pos.set("lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車
+	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車成
+	//pos.set("lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1"); // 間接王手 香車成(後手)
+	//pos.set("lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車成(直接あり)
 	//pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
-	pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
+	//pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
+	//pos.set("lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1"); // 間接王手 歩成
+	//pos.set("lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1"); // 間接王手 歩成(直接あり)
+	//pos.set("lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1"); // 間接王手 歩成(直線上)
+	//pos.set("lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬成
+	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬成(直接あり)
+	//pos.set("lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1"); // 間接王手 金
+	//pos.set("lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1"); // 間接王手 金(直接あり)
+	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 成銀
+	//pos.set("lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 成銀(直接あり)
+	//pos.set("lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1"); // 間接王手 角成
+	//pos.set("lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1"); // 間接王手 飛車成
+	//pos.set("9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1"); // 合法手の数：65
+	//pos.set("5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1"); // 合法手の数：67
+	pos.set("+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1"); // 合法手の数：91
 
 	// 王手生成
-	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
+	MoveList<Check> ml(pos);
+	std::cout << ml.size() << std::endl;
+	for (; !ml.end(); ++ml) {
 		std::cout << ml.move().toUSI() << std::endl;
 	}
 
@@ -446,7 +469,7 @@ int main()
 
 	vector<string> sfens = {
 		// 詰み
-		/*"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
+		"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
 		"1n1g3+Pl/k1p1s4/1ng5p/pSP1p1pp1/1n3p3/P1K3P1P/1P7/9/L1G5L b 2R2BG2SL5Pn 161", // mate 15
 		"ln6K/9/1sp2+P3/pp4G1p/6P2/+rl+B+R5/k8/+b8/9 b 2G2SNL2Pgs2nl10p 1", // mate 15
 		"ln1s+R3K/2s6/p1pp1p3/kp+r4pp/N3p4/1Sg6/P2B2P1P/5g3/LL3g1NL b BGS2Pn5p 1", // mate 17
@@ -490,7 +513,7 @@ int main()
 		"ln3+S2l/6k2/p2+Pp3p/1NP6/2g1Gp3/2pP1Pr1P/PP1K3p1/1S2G+p1s1/LN6+r b 2BGNLPs3p 1", // mate23
 		"+LR2R2n1/3g1lg2/3N2kp1/p2pp4/5S1Sp/1PP3SP1/P2PP2B1/1G1S2G2/LN2K4 b N6Pblp 121", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
 		"l4p2l/7g1/6n1b/P2g1kS1p/3p2p2/2S2N1p1/1PKP1S1NP/4g1G2/L1+B1+p1S1L b RN5Pr3p 171", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
-		"lkB1s3+N/4bs3/2RL2pp1/p1pGpp2p/1n1p5/8P/PP1PPPP1N/1G1S2S+R1/LN2KG2L b Pg2p 89", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)*/
+		"lkB1s3+N/4bs3/2RL2pp1/p1pGpp2p/1n1p5/8P/PP1PPPP1N/1G1S2S+R1/LN2KG2L b Pg2p 89", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
 		"1n1g4l/+B1s2+B2k/p1p2sr1p/4gl1SP/3p2p1G/5L3/PP1PPPP2/2G2S3/3R1K1NL b 2N4P2p 1", // mate7(9手になる)
 		"ln3+BR2/6n1k/2s1sppr1/p1g1p2P1/1p2B2p1/9/PPSPPPP2/2G2KS2/LN3G1N1 b 2Pg2l3p 81", // mate7(9手になる)
 		"9/3S1k3/3pg2+R1/4spP2/1p1PN3L/PP1nPP3/3l1SN2/K1g2G3/L3b+b3 w RGSL7Pn2p 126", // mate7(角成らず打ち歩詰めにならず最短で詰ますことができる)

@@ -21,7 +21,7 @@ void DfPn::dfpn_stop(const bool stop)
 
 // 詰将棋エンジン用のMovePicker
 namespace ns_dfpn {
-	const constexpr size_t MaxCheckMoves = 73;
+	const constexpr size_t MaxCheckMoves = 91;
 
 	template <bool or_node>
 	class MovePicker {
@@ -856,11 +856,17 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				}
 				StateInfo state_info;
 				pos.doMove(move, state_info);
-				if (pos.isDraw(16) == NotRepetition) {
+				switch (pos.isDraw(16)) {
+				case NotRepetition:
+				case RepetitionSuperior:
+				{
 					pv.emplace_back(move);
 					const auto depth = get_pv_inner<false>(pos, pv);
 					pos.undoMove(move);
 					return depth + 1;
+				}
+				default:
+					break;
 				}
 				pos.undoMove(move);
 			}
