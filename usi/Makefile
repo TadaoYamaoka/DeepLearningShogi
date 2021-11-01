@@ -33,5 +33,5 @@ $(target_make_book): $(objects) $(cppshogi_objects)
 	@[ -d bin ] || mkdir -p bin
 	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
 
-make_book: CFLAGS += -DMAKE_BOOK -DWIN_TYPE_DOUBLE
+make_book: CFLAGS += -DMAKE_BOOK
 make_book: $(target_make_book)
