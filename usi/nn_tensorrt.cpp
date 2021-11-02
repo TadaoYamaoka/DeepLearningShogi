@@ -149,7 +149,7 @@ void NNTensorRT::load_model(const char* filename)
 		std::unique_ptr<char[]> blob(new char[modelSize]);
 		seriarizedFile.read(blob.get(), modelSize);
 		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize, nullptr));
+		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize));
 	}
 	else
 	{
