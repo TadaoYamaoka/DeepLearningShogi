@@ -28,7 +28,7 @@ namespace ns_dfpn {
 	public:
 		explicit MovePicker(const Position& pos) {
 			if (or_node) {
-				last_ = generateMoves<Check>(moveList_, pos);
+				last_ = generateMoves<CheckAll>(moveList_, pos);
 				if (pos.inCheck()) {
 					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 					ExtMove* curr = moveList_;

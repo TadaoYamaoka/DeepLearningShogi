@@ -92,38 +92,81 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
-	//pos.set("lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1"); // 直接王手 歩成
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1"); // 直接王手 桂馬成
-	//pos.set("lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1"); // 直接王手 角成
-	//pos.set("lnsgkgsnl/1r2p2b1/pppp1pppp/9/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1"); // 直接王手 飛車成
-	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 銀
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬
-	//pos.set("lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車
-	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車成
-	//pos.set("lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1"); // 間接王手 香車成(後手)
-	//pos.set("lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車成(直接あり)
-	//pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
-	//pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
-	//pos.set("lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1"); // 間接王手 歩成
-	//pos.set("lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1"); // 間接王手 歩成(直接あり)
-	//pos.set("lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1"); // 間接王手 歩成(直線上)
-	//pos.set("lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬成
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬成(直接あり)
-	//pos.set("lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1"); // 間接王手 金
-	//pos.set("lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1"); // 間接王手 金(直接あり)
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 成銀
-	//pos.set("lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 成銀(直接あり)
-	//pos.set("lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1"); // 間接王手 角成
-	//pos.set("lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1"); // 間接王手 飛車成
-	//pos.set("9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1"); // 合法手の数：65
-	//pos.set("5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1"); // 合法手の数：67
-	pos.set("+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1"); // 合法手の数：91
+
+	std::vector<std::string> sfens = {
+		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1", // 直接王手 歩成
+		"k1+B5l/l1gL2g2/2ng1pn2/2p1p1ppp/1pn2P3/LS1PP1S1P/1P1p5/1KG6/1N1s4B b 2RSP4p 1", // 直接王手 香車成
+		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1", // 直接王手 桂馬成
+		"lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成
+		"lnskggsnl/1r5b1/pp1pppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成(対角線外)
+		"lnsgkgsnl/4p2b1/pppp1Rppp/5p3/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1", // 直接王手 飛車成
+		"lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 銀
+		"lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬
+		"lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車
+		"lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成
+		"lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1", // 間接王手 香車成(後手)
+		"lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成(直接あり)
+		"lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
+		"lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
+		"lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成
+		"lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成(直接あり)
+		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1", // 間接王手 歩成(直線上)
+		"lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成
+		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成(直接あり)
+		"lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金
+		"lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金(直接あり)
+		"lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀
+		"lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀(直接あり)
+		"lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1", // 間接王手 角成
+		"lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1", // 間接王手 飛車成
+		"9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1", // 合法手の数：65
+		"5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1", // 合法手の数：67
+		"+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1", // 合法手の数：91
+	};
 
 	// 王手生成
-	MoveList<Check> ml(pos);
-	std::cout << ml.size() << std::endl;
-	for (; !ml.end(); ++ml) {
-		std::cout << ml.move().toUSI() << std::endl;
+	for (const auto sfen : sfens) {
+		pos.set(sfen);
+		MoveList<Check> ml(pos);
+		std::cout << sfen << "\t" << ml.size();
+		for (; !ml.end(); ++ml) {
+			std::cout << "\t" << ml.move().toUSI();
+		}
+		std::cout << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// 王手生成テスト(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position pos;
+
+	std::ifstream ifs(argv[1]);
+
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+		if (pos.inCheck()) continue;
+
+		MoveList<CheckAll> ml(pos);
+
+		std::cout << sfen << "\t" << ml.size();
+		std::vector<std::string> movelist;
+		movelist.reserve(ml.size());
+		for (; !ml.end(); ++ml) {
+			movelist.emplace_back(ml.move().toUSI());
+		}
+		std::sort(movelist.begin(), movelist.end());
+		for (const auto& move : movelist) {
+			std::cout << "\t" << move;
+		}
+		std::cout << std::endl;
 	}
 
 	return 0;
@@ -452,7 +495,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnのPV表示テスト
 int main()
