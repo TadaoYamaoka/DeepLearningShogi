@@ -38,6 +38,7 @@ private:
 	DType* y2_dev;
 	std::vector<void*> inputBindings;
 	InferUniquePtr<nvinfer1::IExecutionContext> context;
+	cudaStream_t stream;
 	nvinfer1::Dims inputDims1;
 	nvinfer1::Dims inputDims2;
 
