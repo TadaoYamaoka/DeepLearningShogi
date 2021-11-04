@@ -515,7 +515,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 					for (Move move : moves) {
 						std::cout << " " << move.toUSI();
 					}
-					std::cout << "\nentry.score:" << entry.score << std::endl;
+					std::cout << "\nentry.score: " << entry.score << std::endl;
 					return;
 				}
 
