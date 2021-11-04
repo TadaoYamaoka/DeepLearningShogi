@@ -17,12 +17,11 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
+#ifdef MAKE_BOOK
+	STATIC void make_book(std::istringstream& ssCmd);
+#endif
 };
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit);
-
-#ifdef MAKE_BOOK
-void make_book(std::istringstream& ssCmd, OptionsMap& options);
-#endif
 
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -216,7 +215,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMultiPV(options["MultiPV"]);
 		}
 #ifdef MAKE_BOOK
-		else if (token == "make_book") make_book(ssCmd, options);
+		else if (token == "make_book") make_book(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -609,7 +608,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡作成
-void make_book(std::istringstream& ssCmd, OptionsMap& options) {
+void MySearcher::make_book(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
 
 	std::string bookFileName;
@@ -655,10 +654,9 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 		}
 	}
 
-	Searcher s;
-	s.init();
-	Position pos(DefaultStartPositionSFEN, &s);
+	Position pos(DefaultStartPositionSFEN, thisptr);
 	book_starting_pos_key = pos.getKey();
+	std::cout << options["Save_Book_Interval"] << std::endl;
 
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
@@ -668,6 +666,7 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 
 	int black_num = 0;
 	int white_num = 0;
+	int prev_num = outMap.size();
 	std::vector<Move> moves;
 	for (int trial = 0; trial < limitTrialNum; trial += 2) {
 		// 進捗状況表示
@@ -690,8 +689,9 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 		white_num += count;
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg)
+		if (outMap.size() > prev_num && ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg))
 		{
+			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
 			for (auto& elem : outMap) {
 				for (auto& elel : elem.second)
