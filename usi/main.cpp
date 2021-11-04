@@ -435,7 +435,7 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 }
 
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
-	std::cout << "position startpos moves ";
+	std::cout << "position startpos moves";
 	for (Move move : moves) {
 		std::cout << " " << move.toUSI();
 	}
