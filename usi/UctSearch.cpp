@@ -62,6 +62,7 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 #ifdef MAKE_BOOK
 #include "book.hpp"
 extern std::map<Key, std::vector<BookEntry> > bookMap;
+extern bool use_book_policy;
 #endif
 
 // 持ち時間
@@ -1462,25 +1463,27 @@ void UCTSearcher::EvalNode() {
 		*policy_value_batch[i].value_win = *value;
 
 #ifdef MAKE_BOOK
-		// 定跡作成時は、事前確率に定跡の遷移確率も使用する
-		constexpr float alpha = 0.5f;
-		const Key& key = policy_value_book_key[i];
-		const auto itr = bookMap.find(key);
-		if (itr != bookMap.end()) {
-			const auto& entries = itr->second;
-			// countから分布を作成
-			std::map<u16, u16> count_map;
-			int sum = 0;
-			for (const auto& entry : entries) {
-				count_map.insert(std::make_pair(entry.fromToPro, entry.count));
-				sum += entry.count;
-			}
-			// policyと定跡から作成した分布の加重平均
-			for (int j = 0; j < child_num; ++j) {
-				const Move& move = uct_child[j].move;
-				const auto itr2 = count_map.find((u16)move.proFromAndTo());
-				const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
-				uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+		if (use_book_policy) {
+			// 定跡作成時は、事前確率に定跡の遷移確率も使用する
+			constexpr float alpha = 0.5f;
+			const Key& key = policy_value_book_key[i];
+			const auto itr = bookMap.find(key);
+			if (itr != bookMap.end()) {
+				const auto& entries = itr->second;
+				// countから分布を作成
+				std::map<u16, u16> count_map;
+				int sum = 0;
+				for (const auto& entry : entries) {
+					count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+					sum += entry.count;
+				}
+				// policyと定跡から作成した分布の加重平均
+				for (int j = 0; j < child_num; ++j) {
+					const Move& move = uct_child[j].move;
+					const auto itr2 = count_map.find((u16)move.proFromAndTo());
+					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+				}
 			}
 		}
 #endif
