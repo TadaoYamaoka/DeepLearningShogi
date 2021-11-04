@@ -427,6 +427,7 @@ Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_book_policy = true;
+int book_eval_threshold = INT_MAX;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
@@ -436,7 +437,7 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
 	std::cout << "position startpos moves ";
 	for (Move move : moves) {
-		std::cout << move.toUSI() << " ";
+		std::cout << " " << move.toUSI();
 	}
 	std::cout << std::endl;
 
@@ -506,9 +507,19 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			{
 				// 最上位の手を選択
 				// (定跡の幅を広げたい場合は確率的に選択するように変更する)
-				auto entry = outMap[key][0];
+				const auto entry = outMap[key][0];
 
-				Move move = move16toMove(Move(entry.fromToPro), pos);
+				// 評価値が閾値を超えた場合、探索終了
+				if (std::abs(entry.score) > book_eval_threshold) {
+					std::cout << "position startpos moves";
+					for (Move move : moves) {
+						std::cout << " " << move.toUSI();
+					}
+					std::cout << "\nentry.score:" << entry.score << std::endl;
+					return;
+				}
+
+				const Move move = move16toMove(Move(entry.fromToPro), pos);
 
 				StateInfo state;
 				pos.doMove(move, state);
@@ -555,13 +566,13 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 		// 確率的に手を選択
 		std::vector<double> probabilities;
-		for (auto& entry : *entries) {
+		for (const auto& entry : *entries) {
 			probabilities.emplace_back(entry.count);
 		}
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
 		size_t selected = dist(g_randomTimeSeed);
 
-		Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
+		const Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
 
 		StateInfo state;
 		pos.doMove(move, state);
@@ -623,6 +634,9 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
+
+	// 評価値の閾値
+	book_eval_threshold = options["Book_Eval_Threshold"];
 
 	SetReuseSubtree(options["ReuseSubtree"]);
 
