@@ -656,7 +656,6 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	book_starting_pos_key = pos.getKey();
-	std::cout << options["Save_Book_Interval"] << std::endl;
 
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
