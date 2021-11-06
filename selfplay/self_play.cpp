@@ -1493,6 +1493,11 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		usi_wins,
 		usi_draws,
 		static_cast<double>(usi_wins) / (usi_games - usi_draws) * 100);
+
+	logger->flush();
+
+	// リソースの破棄はOSに任せてすぐに終了する
+	std::quick_exit(0);
 }
 
 int main(int argc, char* argv[]) {
