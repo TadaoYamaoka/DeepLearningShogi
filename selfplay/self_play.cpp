@@ -1051,30 +1051,30 @@ void UCTSearcher::NextStep()
 {
 	// USIエンジン
 	if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
-		const Move move = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
-		if (move == Move::moveNone())
+		const auto& result = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
+		if (result.move == Move::moveNone())
 			return;
 
-		if (move == moveResign()) {
+		if (result.move == moveResign()) {
 			gameResult = (pos_root->turn() == Black) ? GameResult::WhiteWin : GameResult::BlackWin;
 			NextGame();
 			return;
 		}
-		else if (move == moveWin()) {
+		else if (result.move == moveWin()) {
 			gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
 			reason = GAMERESULT_NYUGYOKU;
 			NextGame();
 			return;
 		}
-		else if (move == moveAbort()) {
+		else if (result.move == moveAbort()) {
 			if (stopflg)
 				return;
 			throw std::runtime_error("usi engine abort");
 		}
-		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{} usi_score:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), result.move.toUSI(), result.score);
 
-		AddRecord(move, 0, false);
-		NextPly(move);
+		AddRecord(result.move, result.score, false);
+		NextPly(result.move);
 		return;
 	}
 
