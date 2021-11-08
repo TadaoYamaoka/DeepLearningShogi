@@ -92,15 +92,81 @@ int main() {
 int main() {
 	initTable();
 	Position pos;
-	//pos.set("lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1"); // 間接王手 銀
-	//pos.set("lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1"); // 間接王手 桂馬
-	//pos.set("lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1"); // 間接王手 香車
-	//pos.set("lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
-	pos.set("lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1"); // 歩が成って王手
+
+	std::vector<std::string> sfens = {
+		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1", // 直接王手 歩成
+		"k1+B5l/l1gL2g2/2ng1pn2/2p1p1ppp/1pn2P3/LS1PP1S1P/1P1p5/1KG6/1N1s4B b 2RSP4p 1", // 直接王手 香車成
+		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1", // 直接王手 桂馬成
+		"lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成
+		"lnskggsnl/1r5b1/pp1pppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成(対角線外)
+		"lnsgkgsnl/4p2b1/pppp1Rppp/5p3/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1", // 直接王手 飛車成
+		"lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 銀
+		"lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬
+		"lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車
+		"lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成
+		"lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1", // 間接王手 香車成(後手)
+		"lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成(直接あり)
+		"lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
+		"lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
+		"lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成
+		"lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成(直接あり)
+		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1", // 間接王手 歩成(直線上)
+		"lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成
+		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成(直接あり)
+		"lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金
+		"lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金(直接あり)
+		"lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀
+		"lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀(直接あり)
+		"lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1", // 間接王手 角成
+		"lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1", // 間接王手 飛車成
+		"9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1", // 合法手の数：65
+		"5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1", // 合法手の数：67
+		"+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1", // 合法手の数：91
+	};
 
 	// 王手生成
-	for (MoveList<Check> ml(pos); !ml.end(); ++ml) {
-		std::cout << ml.move().toUSI() << std::endl;
+	for (const auto sfen : sfens) {
+		pos.set(sfen);
+		MoveList<Check> ml(pos);
+		std::cout << sfen << "\t" << ml.size();
+		for (; !ml.end(); ++ml) {
+			std::cout << "\t" << ml.move().toUSI();
+		}
+		std::cout << std::endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// 王手生成テスト(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position pos;
+
+	std::ifstream ifs(argv[1]);
+
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+		if (pos.inCheck()) continue;
+
+		MoveList<CheckAll> ml(pos);
+
+		std::cout << sfen << "\t" << ml.size();
+		std::vector<std::string> movelist;
+		movelist.reserve(ml.size());
+		for (; !ml.end(); ++ml) {
+			movelist.emplace_back(ml.move().toUSI());
+		}
+		std::sort(movelist.begin(), movelist.end());
+		for (const auto& move : movelist) {
+			std::cout << "\t" << move;
+		}
+		std::cout << std::endl;
 	}
 
 	return 0;
@@ -278,7 +344,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -374,14 +440,15 @@ int main() {
 
 	// WCSCのルールでは、最大手数で詰ました場合は勝ちになる
 	vector<pair<string, int>> sfens = {
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 264 }, // 262手目で詰み → 詰み
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 264 }, // 262手目で詰み → 詰み
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 263 }, // 262手目で詰み → 持将棋
-		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 264 }, // 262手目で詰み → 詰み
-		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 11 }, // 11手で詰み → 持将棋
-		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 12 }, // 11手で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/1P6L/K1+p4+r1/LN3P1+r1 w SN2P2snl4p 258", 262 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/1+p5+r1/LN3P1+r1 w SN2P2snl4p 260", 262 }, // 262手目で詰み → 詰み
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 261 }, // 262手目で詰み → 持将棋
+		{ "2+Bl1k3/1p1p3+P1/5b1N1/1gp2gp2/1gPP5/P2GS1P2/KP6L/L6+r1/1N3P1+r1 w SN3P2snl4p 262", 262 }, // 262手目で詰み → 詰み
+		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 9 }, // 11手で詰み → 持将棋
+		{ "+P2+Rb1gnl/7k1/n1p1+Bp1pp/p5p2/1p1pP2P1/2+s6/PsNGSPP1P/3KG4/L5RNL b SL3Pg 83", 83 + 10 }, // 11手で詰み → 詰み
+		{ "l7l/4g4/4s3p/p3b1p2/1PS3n2/4P1g2/P5n1P/2+n+rSpK2/LN2k3L w 2GS3Prb7p 254", 256 }, // 256手で詰み → 詰み
 	};
 
 	for (auto& sfen_draw : sfens) {
@@ -390,6 +457,199 @@ int main() {
 		bool ret = dfpn.dfpn(pos);
 		cout << ret << endl;
 	}
+
+	return 0;
+}
+#endif
+
+#if 0
+#include "dfpn.h"
+// 最大深さチェック
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	DfPn dfpn;
+	dfpn.init();
+
+	Position pos;
+
+	vector<pair<string, int>> sfens = {
+		{ "lns3kn1/1r4g2/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G2Pl4p 53", 1 }, // mate 1
+		{ "lns3kn1/1r4g2/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G2Pl4p 53", 2 }, // mate 1
+		{ "lns3kn1/1r3g3/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G3Pl3p 51", 2 }, // mate 3
+		{ "lns3kn1/1r3g3/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G3Pl3p 51", 3 }, // mate 3
+		{ "knS5K/llGp3G1/pp2+R2S1/2n6/9/6S2/P3+n3P/2P2P2L/6GNb b RBGSL11P 1", 6 }, // mate 7
+		{ "knS5K/llGp3G1/pp2+R2S1/2n6/9/6S2/P3+n3P/2P2P2L/6GNb b RBGSL11P 1", 7 }, // mate 7
+	};
+
+	for (auto& sfen_depth : sfens) {
+		pos.set(sfen_depth.first);
+		dfpn.set_maxdepth(sfen_depth.second);
+		bool ret = dfpn.dfpn(pos);
+		cout << ret << endl;
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+#include "dfpn.h"
+// DfPnのPV表示テスト
+int main()
+{
+	initTable();
+	Position::initZobrist();
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(400000);
+	dfpn.set_maxdepth(33);
+
+	Position pos;
+
+	vector<string> sfens = {
+		// 詰み
+		"9/9/+N8/p1p4p1/6p1p/1P7/3k3PP/2+p5L/6+rGK w R2B2G3Sgs3n3l9p 1",
+		"1n1g3+Pl/k1p1s4/1ng5p/pSP1p1pp1/1n3p3/P1K3P1P/1P7/9/L1G5L b 2R2BG2SL5Pn 161", // mate 15
+		"ln6K/9/1sp2+P3/pp4G1p/6P2/+rl+B+R5/k8/+b8/9 b 2G2SNL2Pgs2nl10p 1", // mate 15
+		"ln1s+R3K/2s6/p1pp1p3/kp+r4pp/N3p4/1Sg6/P2B2P1P/5g3/LL3g1NL b BGS2Pn5p 1", // mate 17
+		"n1gg2+R2/l2l5/p1k1p3K/1ppp5/3PBp3/9/P4P2P/g8/8L b RG2S2NL6Pb2sn2p 1", // mate 33
+		"1+Rp4nl/3+b1+Rss1/7k1/p3p1p1p/1PBp1p1PP/4P1n1K/3S1PS2/4G2g1/5G1NL b NL4Pgl2p 1", // mate 37
+		"l1+R5K/4p2+P1/1pp6/p2+b4p/2k2G1p1/PL2+n3P/N5+s2/2+nP5/L4+R2L b B2G2S3Pgsn5p 1", // mate 13
+		"ln1gl1R2/ks1gn1R2/pp2pp2K/1PB3+P2/5P3/9/P7P/8p/+n4S2L b B2G2SNL3P5p 1", // mate 13
+		"7n1/+R5glK/n4s1p1/p4pkl1/2s3n2/P3PP2P/1P+pG5/2P6/9 b R2B2G2S2L8Pn 1", // mate 13
+		"ln6K/1ksPg1sG1/5s2p/ppp3p2/9/P1P3P2/4+p3P/1+r7/LN3L2L w RBSb2g2n7p 1", // mate 19
+		"l6n1/b+R4glK/n4s1p1/p5kl1/2sp2n2/P1p1P3P/1P3P3/2P1G4/2+b6 b R2G2SNL7Pp 1", // mate 15
+		"7+L1/1+B1nkg2+R/3p2s1K/1pp1g1p2/1n1P5/lSP4P1/1P7/1G7/1+l7 b RBG2S2NL9Pp 1", // mate 11
+		"ln6K/9/1sp2+P3/pp4G1p/6P2/+r8/9/9/k+l1+R5 b B2G2SNLPbgs2nl11p 1", // mate 13
+		"lnS1r4/GGs5K/2k5p/pppp5/9/PLPP5/1P+n1PS2P/4G4/g1+r3+p2 b BS2N2L6Pb 1", // mate 15
+		"7s1/k2g5/n1p1p1P+LK/s2P2n2/p5pP1/2P1P4/5+p3/8L/L3+b1sN1 w NL4P2rb3gs4p 1", // mate 13
+		"l7K/9/p6sp/1g1ppRpbk/7n1/1P2SP2P/P3P1P2/2+n1s2+p1/LN2+r2NL b B3GSL6P 1", // mate 9
+		"1n3G1nK/5+r1R1/p2L+P3p/2p2Gp2/9/3P2B2/P1P5+n/5S1p1/L1S1L1Ggk b 2SNL6Pb3p 1", // mate 7
+		"ln3+P1+PK/1r1k3+B1/3p1+L1+S1/p1p2p1+B1/3+r3s1/7s1/4p1+n+pp/+p3+n2p+p/1+p3+p+p+p+p b 2GN2L2gsp 1", // mate 15
+		"lR6K/4p2+P1/1p7/p7p/2k1+b2p1/Pg1n+n3P/N5+s2/1L1P5/L4+R2L b B2G2S3Pgsn6p 1", // mate 15
+		"lnp1+RS2K/1k5+P1/1pgps3p/4p4/6+Rp1/3+n5/+pP2n1P2/2+b1P4/8+p b B2G2SN2L2Pgl4p 1", // mate 23
+		"lns3kn1/1r4g2/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G2Pl4p 53", // mate 1
+		"lns3kn1/1r3g3/3Bp1s+R1/2pp1p3/pp2P4/2P1SP3/PPSP5/2GBG4/LN1K3N+l b G3Pl3p 51", // mate 3
+		"1n+S1l3n/2s6/1pp3pg1/3p2s2/1kP4PK/4p1n1P/+l1G2+B3/1+l1G1+R3/5P3 b RL6Pbgsn3p 1", // mate 3
+		"knS5+P/1g7/Pgp+B4+P/l1n1pp1+B1/7L1/pp2PPPPK/3P2+pR1/5g3/LR5S1 b GS2Ps2nl2p 1", // mate 15
+		"+B+R5n1/5gk2/p1pps1gp1/4ppnsK/6pP1/1PPSP3L/PR1P1PP2/6S2/L2G1G3 w B2N2LP2p 1", // mate 3(循環)
+		"lnl5l/2b6/ppk6/3p1p2p/Ps2p1bP1/1NP3g1K/LP6P/9/1N6+p b R3G2SN2Prs4p 1", // mate 25
+		"knS5K/llGp3G1/pp2+R2S1/2n6/9/6S2/P3+n3P/2P2P2L/6GNb b RBGSL11P 1", // mate 5
+		"ln5+LK/1rk1+B2S1/p1sp5/4p1pp1/1PPP1P3/2S1P3+l/P1B2S3/1R2G2+p1/LN3G3 b 2GN5Pnp", // mate 13
+		"1p+Bnn+R2K/3+R5/4ps1pp/3p2p2/1NG1s4/6kPP/P2PP4/3G1+s1G1/L8 b BSN3L6Pgp 1", // mate 11
+		"l2g2p1+P/1k2n4/ppns5/2pb2g1+L/4PP1pK/PP5S1/3+b1+s2P/7P1/8+r w 4Pr2gs2n2l2p 1", // mate 11
+		"+S5knl/R2g3g1/4sp1p1/2P1pNp2/Bp3P1Pp/p1pp2P1P/GP2P1N2/K1+n2G3/L7L b B2SLPrp 101", // mate 33(nodes 368571が必要)
+		"l1g4ng/1k1s+R+P3/p2p2pP1/2s1B4/2bnp4/PR2P1P2/K1+p2PN2/3L4+l/Ls7 w 2GSPn6p 150", // mate1
+		"l3kgsnl/9/p1pS+Bp3/7pp/6PP1/9/PPPPPPn1P/1B1GG2+r1/LNS1K3L w RG3Psnp 54", // mate1
+		"l1r3bn1/3k1g1sl/2G1pp3/p2p1Pp1p/4P4/PP1P2PRP/1g1S5/4+b4/LNK3sNL w Pgsn4p 104", // mate3 王手をかけられている局面から
+		"l4k1nl/7B1/p2sgpgp1/2pp2p1p/P6P1/G4PPs1/2N3n1P/5R3/L3+rNK1L w BS2Pgs4p 78", // mate5
+		"l1l5l/7g1/2GK2+b2/1k1s+R4/p8/2sNP+r3/PP+pP4+p/2G6/LN5+p1 b GS2N3Pbs7p 147", // mate3
+		"+R2+S5/2+R5S/pN4g1p/2p1N1ppk/3g3P1/1P1p1NSsP/P8/2K6/L7g b 2BGN3L8P 1", // mate3
+		"lnkg5/3bgs1p1/pG1p1p3/4P4/4+r1p2/PPPn1L3/4rPGSP/1S7/LNK4NL w BSP6p 88", // mate7
+		"ln2+B1gnl/2R1G1k2/p2p1p+bp1/2p3p1p/9/2P1S3P/P2P1PPP1/4s4/2+r2GKNL b GSL3Psnp 1", // mate27
+		"l4k2l/3+R5/p3pg3/1p6p/3n1p1N1/P2SP1PbP/1PPP1P1p1/2G1G4/LNK1+n2rL w GSPb2s3p 1", // mate13
+		"2s+R1+N3/1ks5+R/lpggp1+Pp1/p1pp5/2n2P1P1/P1Pn5/1PNPP3P/1K7/L1S5L b BS2Pb2glp 1", // mate15
+		"ln3+S2l/6k2/p2+Pp3p/1NP6/2g1Gp3/2pP1Pr1P/PP1K3p1/1S2G+p1s1/LN6+r b 2BGNLPs3p 1", // mate23
+		"+LR2R2n1/3g1lg2/3N2kp1/p2pp4/5S1Sp/1PP3SP1/P2PP2B1/1G1S2G2/LN2K4 b N6Pblp 121", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"l4p2l/7g1/6n1b/P2g1kS1p/3p2p2/2S2N1p1/1PKP1S1NP/4g1G2/L1+B1+p1S1L b RN5Pr3p 171", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"lkB1s3+N/4bs3/2RL2pp1/p1pGpp2p/1n1p5/8P/PP1PPPP1N/1G1S2S+R1/LN2KG2L b Pg2p 89", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"1n1g4l/+B1s2+B2k/p1p2sr1p/4gl1SP/3p2p1G/5L3/PP1PPPP2/2G2S3/3R1K1NL b 2N4P2p 1", // mate7(9手になる)
+		"ln3+BR2/6n1k/2s1sppr1/p1g1p2P1/1p2B2p1/9/PPSPPPP2/2G2KS2/LN3G1N1 b 2Pg2l3p 81", // mate7(9手になる)
+		"9/3S1k3/3pg2+R1/4spP2/1p1PN3L/PP1nPP3/3l1SN2/K1g2G3/L3b+b3 w RGSL7Pn2p 126", // mate7(角成らず打ち歩詰めにならず最短で詰ますことができる)
+		"l8/2+P2+N1k1/4G2p1/2p2ps1G/p3s4/1pP1S4/PlN1gP+p2/1bGp5/L3K4 b R4Prbs2nl3p 193", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"l4ksRl/3+S5/p4pngp/2pp1bp2/9/P1PP1PP1P/1PNG1K3/1G4r2/L5bNL w G2SN2P3p 78", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"lR3p2l/2g1k1s2/ps1ppPn2/2pg2p1p/9/2PB1NP2/P1NPP1N1P/2S1KGS2/L2G4L b RPb3p 83" // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+	};
+
+	auto start0 = std::chrono::system_clock::now();
+	auto total = start0 - start0;
+	for (string sfen : sfens) {
+		pos.set(sfen);
+		auto start = std::chrono::system_clock::now();
+		bool ret = dfpn.dfpn(pos);
+		auto end = std::chrono::system_clock::now();
+
+		auto time = end - start;
+		total += time;
+
+		auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
+
+		cout << ret << "\t" << dfpn.searchedNode << "\t";
+		cout << time_ms;
+
+		// pv
+		if (ret) {
+			std::string pv;
+			int depth;
+			Move move;
+			auto start_pv = std::chrono::system_clock::now();
+			std::tie(pv, depth, move) = dfpn.get_pv(pos);
+			auto end_pv = std::chrono::system_clock::now();
+
+			cout << "\t" << move.toUSI() << "\t" << pv << "\t" << depth << "\t" << std::chrono::duration_cast<std::chrono::milliseconds>(end_pv - start_pv).count();
+		}
+		cout << endl;
+	}
+	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
+	cout << total_ms << endl;
+}
+#endif
+
+#if 0
+#include "dfpn.h"
+// DfPnのPV表示テスト(ファイルからsfen読み込み)
+int main(int argc, char* argv[]) {
+	initTable();
+	Position::initZobrist();
+	Position pos;
+
+	if (argc < 3) return 1;
+
+	std::ifstream ifs(argv[1]);
+
+	DfPn dfpn;
+	dfpn.init();
+	dfpn.set_max_search_node(400000);
+	dfpn.set_maxdepth(std::atoi(argv[2]));
+
+	std::chrono::system_clock::duration total{};
+	string sfen;
+	while (ifs) {
+		std::getline(ifs, sfen);
+		if (sfen.size() == 0) break;
+		pos.set(sfen);
+
+		auto start = std::chrono::system_clock::now();
+		bool ret = dfpn.dfpn(pos);
+		auto end = std::chrono::system_clock::now();
+
+		auto time = end - start;
+		total += time;
+
+		auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
+
+		cout << ret << "\t" << dfpn.searchedNode << "\t";
+		cout << time_ms;
+
+		// pv
+		if (ret) {
+			std::string pv;
+			int depth;
+			Move move;
+			auto start_pv = std::chrono::system_clock::now();
+			std::tie(pv, depth, move) = dfpn.get_pv(pos);
+			auto end_pv = std::chrono::system_clock::now();
+
+			cout << "\t" << move.toUSI() << "\t" << pv << "\t" << depth << "\t" << std::chrono::duration_cast<std::chrono::milliseconds>(end_pv - start_pv).count();
+		}
+		cout << endl;
+	}
+	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
+	cout << total_ms << endl;
 
 	return 0;
 }
@@ -466,7 +726,7 @@ int main() {
 	}
 
 	// テスト
-	// make_hcpe_by_self_play --threashold 1 --threads 1 --usi_engine E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe --usi_engine_num 1 --usi_threads 1 --usi_options USI_Ponder:False,Threads:1,Byoyomi_Margin:0 F:\model\model_rl_val_wideresnet10_selfplay_236 R:\hcp\black_win.hcp R:\hcpe 1 800 0 1
+	// selfplay --threashold 1 --threads 1 --usi_engine E:\game\shogi\apery_wcsc28\bin\apery_wcsc28_bmi2.exe --usi_engine_num 1 --usi_threads 1 --usi_options USI_Ponder:False,Threads:1,Byoyomi_Margin:0 F:\model\model_rl_val_wideresnet10_selfplay_236 R:\hcp\black_win.hcp R:\hcpe 1 800 0 1
 
 	return 0;
 }
@@ -686,7 +946,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // 王手がかかっているときDfPnで不正な手を返すバグ修正
 int main()
@@ -726,5 +986,617 @@ int main()
 	}
 	auto total_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total).count();
 	cout << total_ns / 1000000.0 << endl;
+}
+#endif
+
+#if 0
+// hcpe3から最後の局面と指し手を抽出
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const auto filepath = argv[1];
+	std::ifstream ifs(argv[1], std::ios::binary);
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 開始局面
+		if (!pos.set(hcpe3.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+
+		std::stringstream sfen("sfen ");
+		sfen << pos.toSFEN() << " moves";
+
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+			}
+
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+
+			if (i == hcpe3.moveNum - 1) {
+				std::cout << sfen.str() << "\t" << move.toUSI() << "\t" << (int)hcpe3.result << std::endl;
+				break;
+			}
+
+			sfen << " " << move.toUSI();
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3から最後の局面を抽出
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const auto filepath = argv[1];
+	std::ifstream ifs(argv[1], std::ios::binary);
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 開始局面
+		if (!pos.set(hcpe3.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+			}
+
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+
+			if (i == hcpe3.moveNum - 1 && (hcpe3.result == BlackWin || hcpe3.result == WhiteWin)) {
+				std::cout << pos.toSFEN(1).substr(5) << std::endl;
+				break;
+			}
+
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3から最後の局面を検索
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	if (argc < 3) return 1;
+
+	const auto filepath = argv[1];
+	std::ifstream ifs(argv[1], std::ios::binary);
+
+	const auto sfen = argv[2];
+	pos.set(sfen);
+	const auto key = pos.getKey();
+
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		// 開始局面
+		if (!pos.set(hcpe3.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+			}
+
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+
+			if (i == hcpe3.moveNum - 1 && (hcpe3.result == BlackWin || hcpe3.result == WhiteWin)) {
+				if (pos.getKey() == key) {
+					std::cout << pos.toSFEN() << "\n";
+					std::cout << move.toUSI() << "\n";
+					std::cout << (int)moveInfo.candidateNum << "\n";
+					std::cout << (int)moveInfo.eval << "\n";
+					std::cout << (int)hcpe3.result << "\n";
+					std::cout << (int)hcpe3.opponent << "\n";
+				}
+				break;
+			}
+
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3をopponentで分割
+int main(int argc, char* argv[])
+{
+	if (argc < 2)
+		return 1;
+
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const std::string filepath{ argv[1] };
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::ofstream ofs[3];
+	MoveVisits moveVisits[593];
+
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		if (!ofs[hcpe3.opponent].is_open()) {
+			const auto ext_pos = filepath.rfind('.');
+			const std::string basepath = (ext_pos == std::string::npos) ? filepath : filepath.substr(0, ext_pos);
+			const std::string ext = (ext_pos == std::string::npos) ? "" : filepath.substr(ext_pos);
+
+			ofs[hcpe3.opponent].open(basepath + "_opp" + std::to_string(hcpe3.opponent) + ext, std::ios::binary);
+		}
+
+		ofs[hcpe3.opponent].write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			ofs[hcpe3.opponent].write((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				ifs.read((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
+				ofs[hcpe3.opponent].write((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3の同一局面の数
+int main(int argc, char* argv[])
+{
+	if (argc < 2)
+		return 1;
+
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+
+	const std::string filepath{ argv[1] };
+	std::ifstream ifs(argv[1], std::ios::binary);
+	MoveVisits moveVisits[593];
+
+	struct Data {
+		int black;
+		int white;
+		int draw;
+		int ply;
+		int count;
+
+		Data() : black(0), white(0), draw(0), ply(0), count(0) {}
+	};
+	std::vector<std::unordered_map<HuffmanCodedPos, Data>> map_counts(3);
+
+	Position position;
+	int position_num[3] = {};
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+		position.set(hcpe3.hcp);
+		if (!pos.set(hcpe3.hcp)) {
+			return 1;
+		}
+		StateListPtr states{ new std::deque<StateInfo>(1) };
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (moveInfo.candidateNum > 0) {
+				position_num[hcpe3.opponent]++;
+				auto& data = map_counts[hcpe3.opponent][pos.toHuffmanCodedPos()];
+				const auto result = hcpe3.result & 3;
+				if (result == BlackWin)
+					data.black++;
+				else if (result == WhiteWin)
+					data.white++;
+				else if (result == Draw)
+					data.draw++;
+				data.ply = i;
+				data.count++;
+				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
+				
+			}
+			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+			pos.doMove(move, states->emplace_back(StateInfo()));
+		}
+	}
+
+	for (int opp = 0; opp < 3; opp++) {
+		// サマリ
+		std::cout << "opponent\t" << opp << std::endl;
+		std::cout << "total position num\t" << position_num[opp] << std::endl;
+		std::cout << "unique position num\t" << map_counts[opp].size() << std::endl;
+
+		// ソート
+		const size_t num = std::min<size_t>(1000, map_counts[opp].size());
+		std::vector<std::pair<HuffmanCodedPos, Data>> counts;
+		for (auto v : map_counts[opp]) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			if (lhs.second.count == rhs.second.count)
+				return lhs.second.ply < rhs.second.ply;
+			return lhs.second.count > rhs.second.count;
+		});
+
+		for (int i = 0; i < num; i++) {
+			position.set(counts[i].first);
+			const auto& data = counts[i].second;
+			std::cout << position.toSFEN() << "\t" << data.ply << "\t" << data.count << "\t" << data.black << ":" << data.white << ":" << data.draw << std::endl;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3の同一手順の棋譜を削除
+#include <unordered_map>
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+		return 1;
+
+	initTable();
+	HuffmanCodedPos::init();
+
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::vector<char> buf;
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+
+	std::unordered_map<std::string, int> map;
+
+	int game_num = 0;
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		long long size = 0;
+		std::stringstream ss;
+
+		ss.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo moveInfo;
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				goto L_EXIT;
+			}
+			size += sizeof(MoveInfo);
+			ss.write((char*)&moveInfo.selectedMove16, sizeof(moveInfo.selectedMove16));
+			if (moveInfo.candidateNum > 0) {
+				const size_t move_visits_size = sizeof(MoveVisits) * moveInfo.candidateNum;
+				ifs.seekg(move_visits_size, std::ios_base::cur);
+				size += move_visits_size;
+			}
+		}
+
+		const auto ret = map.try_emplace(ss.str(), 1);
+		if (ret.second) {
+			// 書き出し
+			ifs.seekg(-size, std::ios_base::cur);
+			buf.resize(size);
+			ifs.read(buf.data(), size);
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				break;
+			}
+			ofs.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+			ofs.write(buf.data(), size);
+		}
+		else {
+			ret.first->second++;
+		}
+
+		game_num++;
+	}
+L_EXIT:
+
+	ofs.close();
+	ifs.close();
+
+	// サマリ
+	std::cout << "total game num\t" << game_num << std::endl;
+	std::cout << "unique game num\t" << map.size() << std::endl;
+
+	if (argc >= 4) {
+		size_t num = 0;
+		try {
+			num = std::stoi(argv[3]);
+		}
+		catch (std::invalid_argument&) {
+			return 0;
+		}
+
+		std::cout << "sfen\tmove num\tresult\topponent\tcount" << std::endl;
+
+		Position::initZobrist();
+		Position pos;
+
+		// ソート
+		num = std::min<size_t>(num, map.size());
+		std::vector<std::pair<std::string, int>> counts;
+		for (auto v : map) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			return lhs.second > rhs.second;
+			});
+
+		for (int i = 0; i < num; i++) {
+			const char* data = counts[i].first.data();
+			HuffmanCodedPosAndEval3* phcpe3 = (HuffmanCodedPosAndEval3*)data;
+			pos.set(phcpe3->hcp);
+			u16* moves = (u16*)(data + sizeof(HuffmanCodedPosAndEval3));
+			const auto move_num = (counts[i].first.size() - sizeof(HuffmanCodedPosAndEval3)) / sizeof(u16);
+			std::cout << pos.toSFEN() << " moves";
+			for (size_t j = 0; j < move_num; j++) {
+				const auto move = move16toMove((Move)moves[j], pos);
+				std::cout << " " << move.toUSI();
+			}
+			std::cout << "\t" << (int)phcpe3->moveNum;
+			std::cout << "\t" << (int)phcpe3->result;
+			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << counts[i].second << std::endl;
+		}
+	}
+
+	std::_Exit(0);
+	return 0;
+}
+#endif
+
+#if 0
+// hcpe3の同一手順の棋譜を平均化
+#include <unordered_map>
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+		return 1;
+
+	initTable();
+	HuffmanCodedPos::init();
+
+	std::ifstream ifs(argv[1], std::ios::binary);
+	std::vector<char> buf;
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+
+	struct MoveInfo2 {
+		u16 selectedMove16; // 指し手
+		int eval; // 評価値
+		int count;
+	};
+	struct Data {
+		int count;
+		HuffmanCodedPosAndEval3 hcpe3;
+		std::vector<MoveInfo2> vecMoveInfo;
+		std::vector<std::map<u16, unsigned int>> vecMoveVisits;
+	};
+	std::unordered_map<std::string, Data> map;
+
+	int game_num = 0;
+	while (ifs) {
+		HuffmanCodedPosAndEval3 hcpe3;
+		ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		if (ifs.eof()) {
+			break;
+		}
+
+		std::stringstream ss;
+		std::vector<MoveInfo> vecMoveInfo;
+		std::vector<std::vector<MoveVisits>> vecMoveVisits;
+
+		ss.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+
+		for (int i = 0; i < hcpe3.moveNum; ++i) {
+			MoveInfo& moveInfo = vecMoveInfo.emplace_back();
+			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+			if (ifs.eof()) {
+				std::cerr << "read error" << std::endl;
+				goto L_EXIT;
+			}
+			ss.write((char*)&moveInfo.selectedMove16, sizeof(moveInfo.selectedMove16));
+			std::vector<MoveVisits> moveVisits(moveInfo.candidateNum);
+			if (moveInfo.candidateNum > 0) {
+				ifs.read((char*)moveVisits.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+				if (ifs.eof()) {
+					std::cerr << "read error" << std::endl;
+					goto L_EXIT;
+				}
+			}
+			vecMoveVisits.emplace_back(std::move(moveVisits));
+		}
+
+		const auto ret = map.try_emplace(ss.str(), Data());
+		if (ret.second) {
+			auto& data = ret.first->second;
+			data.count = 1;
+			data.hcpe3 = hcpe3;
+			for (size_t i = 0; i < vecMoveVisits.size(); i++) {
+				const auto& moveInfo = vecMoveInfo[i];
+				auto& moveInfo2 = data.vecMoveInfo.emplace_back();
+				moveInfo2.selectedMove16 = moveInfo.selectedMove16;
+				moveInfo2.eval = moveInfo.eval;
+				auto& mapMoveVisits = data.vecMoveVisits.emplace_back();
+				if (moveInfo.candidateNum > 0) {
+					moveInfo2.count = 1;
+
+					const auto& moveVisits = vecMoveVisits[i];
+					for (const auto& v : moveVisits) {
+						mapMoveVisits.emplace(v.move16, v.visitNum);
+					}
+				}
+				else {
+					moveInfo2.count = 0;
+				}
+			}
+		}
+		else {
+			auto& data = ret.first->second;
+			data.count++;
+			for (size_t i = 0; i < vecMoveVisits.size(); i++) {
+				const auto& moveInfo = vecMoveInfo[i];
+				if (moveInfo.candidateNum > 0) {
+					data.vecMoveInfo[i].count++;
+					data.vecMoveInfo[i].eval += moveInfo.eval;
+
+					const auto& moveVisits = vecMoveVisits[i];
+					auto& mapMoveVisits = data.vecMoveVisits[i];
+					for (const auto& v : moveVisits) {
+						const auto ret2 = mapMoveVisits.try_emplace(v.move16, v.visitNum);
+						if (!ret2.second) {
+							ret2.first->second += v.visitNum;
+						}
+					}
+				}
+			}
+		}
+
+		game_num++;
+	}
+L_EXIT:
+
+	// 書き出し
+	for (const auto& v : map) {
+		const auto& data = v.second;
+		ofs.write((char*)&data.hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		for (size_t i = 0; i < data.vecMoveInfo.size(); i++) {
+			const auto& moveInfo2 = data.vecMoveInfo[i];
+			const auto& mapMoveVisits = data.vecMoveVisits[i];
+			MoveInfo moveInfoAvr{ moveInfo2.selectedMove16, moveInfo2.count > 0 ? (s16)(moveInfo2.eval / moveInfo2.count) : moveInfo2.eval, (u16)mapMoveVisits.size() };
+			ofs.write((char*)&moveInfoAvr, sizeof(MoveInfo));
+
+			for (const auto& moveVisits : mapMoveVisits) {
+				MoveVisits moveVisitsAvr{ moveVisits.first, (u16)(moveVisits.second / moveInfo2.count) };
+				ofs.write((char*)&moveVisitsAvr, sizeof(MoveVisits));
+			}
+		}
+	}
+	ofs.close();
+	ifs.close();
+
+	// サマリ
+	std::cout << "total game num\t" << game_num << std::endl;
+	std::cout << "unique game num\t" << map.size() << std::endl;
+
+	if (argc >= 4) {
+		size_t num = 0;
+		try {
+			num = std::stoi(argv[3]);
+		}
+		catch (std::invalid_argument&) {
+			return 0;
+		}
+
+		std::cout << "sfen\tmove num\tresult\topponent\tcount" << std::endl;
+
+		Position::initZobrist();
+		Position pos;
+
+		// ソート
+		num = std::min<size_t>(num, map.size());
+		std::vector<std::pair<std::string, Data>> counts;
+		for (auto v : map) {
+			counts.emplace_back(v.first, v.second);
+		}
+		std::partial_sort(counts.begin(), counts.begin() + num, counts.end(), [](const auto& lhs, const auto& rhs) {
+			return lhs.second.count > rhs.second.count;
+			});
+
+		for (int i = 0; i < num; i++) {
+			const char* data = counts[i].first.data();
+			HuffmanCodedPosAndEval3* phcpe3 = (HuffmanCodedPosAndEval3*)data;
+			pos.set(phcpe3->hcp);
+			u16* moves = (u16*)(data + sizeof(HuffmanCodedPosAndEval3));
+			const auto move_num = (counts[i].first.size() - sizeof(HuffmanCodedPosAndEval3)) / sizeof(u16);
+			std::cout << pos.toSFEN() << " moves";
+			for (size_t j = 0; j < move_num; j++) {
+				const auto move = move16toMove((Move)moves[j], pos);
+				std::cout << " " << move.toUSI();
+			}
+			std::cout << "\t" << (int)phcpe3->moveNum;
+			std::cout << "\t" << (int)phcpe3->result;
+			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << counts[i].second.count << std::endl;
+		}
+	}
+
+	std::_Exit(0);
+	return 0;
 }
 #endif

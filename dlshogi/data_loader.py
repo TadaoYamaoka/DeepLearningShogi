@@ -15,10 +15,10 @@ class DataLoader:
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.debug(path)
+                logging.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval))
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -45,12 +45,20 @@ class DataLoader:
     def mini_batch(self, hcpevec):
         cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
 
-        return (self.torch_features1.to(self.device),
-                self.torch_features2.to(self.device),
-                self.torch_move.to(self.device),
-                self.torch_result.to(self.device),
-                self.torch_value.to(self.device)
-                )
+        if self.device.type == 'cpu':
+            return (self.torch_features1.clone(),
+                    self.torch_features2.clone(),
+                    self.torch_move.clone(),
+                    self.torch_result.clone(),
+                    self.torch_value.clone()
+                    )
+        else:
+            return (self.torch_features1.to(self.device),
+                    self.torch_features2.to(self.device),
+                    self.torch_move.to(self.device),
+                    self.torch_result.to(self.device),
+                    self.torch_value.to(self.device)
+                    )
 
     def sample(self):
         return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
@@ -85,10 +93,10 @@ class Hcpe2DataLoader(DataLoader):
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.debug(path)
+                logging.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval2))
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -142,20 +150,20 @@ class Hcpe3DataLoader(DataLoader):
                     eval, result = cppshogi.hcpe3_prepare_evalfix(path)
                     if (eval == 0).all():
                         a = 0
-                        logging.debug('{}, skip evalfix'.format(path))
+                        logging.info('{}, skip evalfix'.format(path))
                     else:
                         popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
                         a = popt[0]
-                        logging.debug('{}, a={}'.format(path, a))
+                        logging.info('{}, a={}'.format(path, a))
                 else:
                     a = 0
-                    logging.debug(path)
+                    logging.info(path)
                 sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a, temperature)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
                 actual_len += len_
             else:
-                logging.debug('{} not found, skipping'.format(path))
+                logging.warn('{} not found, skipping'.format(path))
         return sum_len, actual_len
 
     def __init__(self, data, batch_size, device, shuffle=False):

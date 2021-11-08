@@ -1,4 +1,5 @@
-﻿#include "UctSearch.h"
+﻿#ifdef PV_MATE_SEARCH
+#include "UctSearch.h"
 #include "PvMateSearch.h"
 
 // ゲーム木
@@ -136,4 +137,5 @@ void PvMateSearcher::Term() {
 	th->join();
 	delete th;
 }
+#endif
 #endif

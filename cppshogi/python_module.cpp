@@ -1,25 +1,11 @@
-﻿#define BOOST_PYTHON_STATIC_LIB
-#define BOOST_NUMPY_STATIC_LIB
-#include <boost/python/numpy.hpp>
-
-#include <numeric>
+﻿#include <numeric>
 #include "cppshogi.h"
 
-namespace py = boost::python;
-namespace np = boost::python::numpy;
-
-class ReleaseGIL {
-public:
-	ReleaseGIL() {
-		save_state = PyEval_SaveThread();
-	}
-
-	~ReleaseGIL() {
-		PyEval_RestoreThread(save_state);
-	}
-private:
-	PyThreadState* save_state;
-};
+void init() {
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+}
 
 // make result
 inline float make_result(const uint8_t result, const Color color) {
@@ -27,8 +13,8 @@ inline float make_result(const uint8_t result, const Color color) {
 	if (gameResult == Draw)
 		return 0.5f;
 
-	if (color == Black && gameResult == BlackWin ||
-		color == White && gameResult == WhiteWin) {
+	if ((color == Black && gameResult == BlackWin) ||
+		(color == White && gameResult == WhiteWin)) {
 		return 1.0f;
 	}
 	else {
@@ -37,117 +23,27 @@ inline float make_result(const uint8_t result, const Color color) {
 }
 template<typename T>
 inline T is_sennichite(const uint8_t result) {
-	return result & GAMERESULT_SENNICHITE ? 1 : 0;
+	return static_cast<T>(result & GAMERESULT_SENNICHITE ? 1 : 0);
 }
 template<typename T>
 inline T is_nyugyoku(const uint8_t result) {
-	return result & GAMERESULT_NYUGYOKU ? 1 : 0;
+	return static_cast<T>(result & GAMERESULT_NYUGYOKU ? 1 : 0);
 }
 
-/*
-HuffmanCodedPosAndEvalの配列からpolicy networkの入力ミニバッチに変換する。
-ndhcpe : Python側で以下の構造体を定義して、その配列を入力する。
-HuffmanCodedPosAndEval = np.dtype([
-('hcp', np.uint8, 32),
-('eval', np.int16),
-('bestMove16', np.uint16),
-('gameResult', np.uint8),
-('dummy', np.uint8),
-])
-ndfeatures1, ndfeatures2, ndresult : 変換結果を受け取る。Python側でnp.emptyで事前に領域を確保する。
-*/
-void hcpe_decode_with_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndresult) {
-	const int len = (int)ndhcpe.shape(0);
-	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	float *result = reinterpret_cast<float *>(ndresult.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
+void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {
+	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe);
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
+	float *result = reinterpret_cast<float *>(ndresult);
+	float *value = reinterpret_cast<float *>(ndvalue);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, result++) {
-		position.set(hcpe->hcp);
-
-		// input features
-		make_input_features(position, features1, features2);
-
-		// game result
-		*result = make_result(hcpe->gameResult, position.turn());
-	}
-}
-
-void hcpe_decode_with_move(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove) {
-	const int len = (int)ndhcpe.shape(0);
-	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
-
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-
-	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, move++) {
-		position.set(hcpe->hcp);
-
-		// input features
-		make_input_features(position, features1, features2);
-
-		// move
-		*move = make_move_label(hcpe->bestMove16, position.turn());
-	}
-}
-
-void hcpe_decode_with_move_result(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult) {
-	const int len = (int)ndhcpe.shape(0);
-	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
-	float *result = reinterpret_cast<float *>(ndresult.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
-
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-
-	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, move++, result++) {
-		position.set(hcpe->hcp);
-
-		// input features
-		make_input_features(position, features1, features2);
-
-		// move
-		*move = make_move_label(hcpe->bestMove16, position.turn());
-
-		// game result
-		*result = make_result(hcpe->gameResult, position.turn());
-	}
-}
-
-void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue) {
-	const int len = (int)ndhcpe.shape(0);
-	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
-	float *result = reinterpret_cast<float *>(ndresult.get_data());
-	float *value = reinterpret_cast<float *>(ndvalue.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
-
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-
-	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
+	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
 		position.set(hcpe->hcp);
 
 		// input features
@@ -164,23 +60,21 @@ void hcpe_decode_with_value(np::ndarray ndhcpe, np::ndarray ndfeatures1, np::nda
 	}
 }
 
-void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndmove, np::ndarray ndresult, np::ndarray ndvalue, np::ndarray ndaux) {
-	const int len = (int)ndhcpe2.shape(0);
-	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	int64_t* move = reinterpret_cast<int64_t*>(ndmove.get_data());
-	float* result = reinterpret_cast<float*>(ndresult.get_data());
-	float* value = reinterpret_cast<float*>(ndvalue.get_data());
-	auto aux = reinterpret_cast<float(*)[2]>(ndaux.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
+void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndaux) {
+	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2);
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
+	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
+	float* result = reinterpret_cast<float*>(ndresult);
+	float* value = reinterpret_cast<float*>(ndvalue);
+	auto aux = reinterpret_cast<float(*)[2]>(ndaux);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
-	for (int i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
+	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
 		position.set(hcpe->hcp);
 
 		// input features
@@ -205,12 +99,10 @@ void hcpe2_decode_with_value(np::ndarray ndhcpe2, np::ndarray ndfeatures1, np::n
 
 std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
-std::unordered_map<HuffmanCodedPos, int> duplicates;
+std::unordered_map<HuffmanCodedPos, unsigned int> duplicates;
 
 // hcpe形式の指し手をone-hotの方策として読み込む
-py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale) {
-	int len = 0;
-
+size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, int& len) {
 	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval hcpe;
 		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
@@ -249,7 +141,7 @@ py::object load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_a
 		++len;
 	}
 
-	return py::make_tuple((int)trainingData.size(), len);
+	return trainingData.size();
 }
 
 template <bool add>
@@ -317,9 +209,9 @@ bool is_hcpe(std::ifstream& ifs) {
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-py::object load_hcpe3(std::string filepath, bool use_average, double a, double temperature) {
+size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
-	if (!ifs) return py::make_tuple((int)trainingData.size(), 0);
+	if (!ifs) return trainingData.size();
 
 	const double eval_scale = a == 0 ? 1 : 756.0864962951762 / a;
 
@@ -327,11 +219,10 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a, double t
 	// hcpeの場合は、指し手をone-hotの方策として読み込む
 	if (is_hcpe(ifs)) {
 		ifs.seekg(std::ios_base::beg);
-		return load_hcpe(filepath, ifs, use_average, eval_scale);
+		return load_hcpe(filepath, ifs, use_average, eval_scale, len);
 	}
 	ifs.seekg(std::ios_base::beg);
 
-	int len = 0;
 	std::vector<MoveVisits> candidates;
 
 	for (int p = 0; ifs; ++p) {
@@ -399,20 +290,18 @@ py::object load_hcpe3(std::string filepath, bool use_average, double a, double t
 		}
 	}
 
-	return py::make_tuple((int)trainingData.size(), len);
+	return trainingData.size();
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::ndarray ndfeatures2, np::ndarray ndprobability, np::ndarray ndresult, np::ndarray ndvalue) {
-	const size_t len = (size_t)ndindex.shape(0);
-	int* index = reinterpret_cast<int*>(ndindex.get_data());
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1.get_data());
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2.get_data());
-	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability.get_data());
-	float* result = reinterpret_cast<float*>(ndresult.get_data());
-	float* value = reinterpret_cast<float*>(ndvalue.get_data());
-	ReleaseGIL unlock = ReleaseGIL();
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
+	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
+	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
+	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
+	float* result = reinterpret_cast<float*>(ndresult);
+	float* value = reinterpret_cast<float*>(ndvalue);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -420,7 +309,7 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
 	Position position;
-	for (int i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
+	for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
 		auto& hcpe3 = trainingData[*index];
 
 		position.set(hcpe3.hcp);
@@ -444,12 +333,14 @@ void hcpe3_decode_with_value(np::ndarray ndindex, np::ndarray ndfeatures1, np::n
 }
 
 // evalの補正用データ準備
-py::object hcpe3_prepare_evalfix(std::string filepath) {
-	std::vector<int> eval;
-	std::vector<float> result;
+std::vector<int> eval;
+std::vector<float> result;
+size_t __load_evalfix(const std::string& filepath) {
+	eval.clear();
+	result.clear();
 
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
-	if (!ifs) return py::object();
+	if (!ifs) return 0;
 
 	// フォーマット自動判別
 	bool hcpe3 = !is_hcpe(ifs);
@@ -511,28 +402,10 @@ py::object hcpe3_prepare_evalfix(std::string filepath) {
 		}
 	}
 
-	Py_intptr_t size[]{ eval.size() };
-	auto ndeval = np::empty(1, size, np::dtype::get_builtin<int>());
-	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval.get_data()));
-	auto ndresult = np::empty(1, size, np::dtype::get_builtin<float>());
-	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult.get_data()));
-	return py::make_tuple(ndeval, ndresult);
+	return result.size();
 }
 
-BOOST_PYTHON_MODULE(cppshogi) {
-	Py_Initialize();
-	np::initialize();
-
-	initTable();
-	Position::initZobrist();
-	HuffmanCodedPos::init();
-
-	py::def("hcpe_decode_with_result", hcpe_decode_with_result);
-	py::def("hcpe_decode_with_move", hcpe_decode_with_move);
-	py::def("hcpe_decode_with_move_result", hcpe_decode_with_move_result);
-	py::def("hcpe_decode_with_value", hcpe_decode_with_value);
-	py::def("hcpe2_decode_with_value", hcpe2_decode_with_value);
-	py::def("load_hcpe3", load_hcpe3);
-	py::def("hcpe3_decode_with_value", hcpe3_decode_with_value);
-	py::def("hcpe3_prepare_evalfix", hcpe3_prepare_evalfix);
+void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult) {
+	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval));
+	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult));
 }

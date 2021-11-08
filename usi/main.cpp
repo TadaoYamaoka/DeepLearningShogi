@@ -17,12 +17,11 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
+#ifdef MAKE_BOOK
+	STATIC void make_book(std::istringstream& ssCmd);
+#endif
 };
 void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit);
-
-#ifdef MAKE_BOOK
-void make_book(std::istringstream& ssCmd, OptionsMap& options);
-#endif
 
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -131,6 +130,20 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						break;
 				}
 				SetModelPath(model_paths);
+				// モデルの.iniファイルにしたがってデフォルトパラメータ変更
+				std::ifstream is = std::ifstream(model_paths[0] + ".ini");
+				while (is) {
+					std::string line;
+					is >> line;
+					if (line != "") {
+						const auto pos = line.find_first_of('=');
+						const auto name = line.substr(0, pos);
+						if (options[name].isDefault()) {
+							options[name] = line.substr(pos + 1);
+							std::cout << "info string " << name << "=" << options[name] << std::endl;
+						}
+					}
+				}
 				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"], options["DNN_Batch_Size5"], options["DNN_Batch_Size6"], options["DNN_Batch_Size7"], options["DNN_Batch_Size8"] };
 				SetThread(new_thread, new_policy_value_batch_maxsize);
@@ -140,10 +153,12 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					dfpn.init();
 				}
 
+#ifdef PV_MATE_SEARCH
 				// PVの詰み探索の設定
 				if (options["PV_Mate_Search_Threads"] > 0) {
 					SetPvMateSearch(options["PV_Mate_Search_Threads"], options["PV_Mate_Search_Depth"], options["PV_Mate_Search_Nodes"]);
 				}
+#endif
 			}
 			initialized = true;
 
@@ -164,14 +179,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 			c_init = options["C_init"] / 100.0f;
-			c_base = options["C_base"];
+			c_base = (float)options["C_base"];
 			c_fpu_reduction = options["C_fpu_reduction"] / 100.0f;
 			c_init_root = options["C_init_root"] / 100.0f;
-			c_base_root = options["C_base_root"];
+			c_base_root = (float)options["C_base_root"];
 			c_fpu_reduction_root = options["C_fpu_reduction_root"] / 100.0f;
 			SetReuseSubtree(options["ReuseSubtree"]);
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);
+			SetEvalCoef(options["Eval_Coef"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -194,9 +210,12 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			std::cout << "readyok" << std::endl;
 		}
-		else if (token == "setoption") setOption(ssCmd);
+		else if (token == "setoption") {
+			setOption(ssCmd);
+			SetMultiPV(options["MultiPV"]);
+		}
 #ifdef MAKE_BOOK
-		else if (token == "make_book") make_book(ssCmd, options);
+		else if (token == "make_book") make_book(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -350,11 +369,17 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		t->join();
 		if (mate) {
 			// 詰み
-			Move move2 = dfpn.dfpn_move(pos);
+			std::string mate_pv;
+			int mate_depth;
+			Move mate_move;
+			std::tie(mate_pv, mate_depth, mate_move) = dfpn.get_pv(pos);
 			// PV表示
-			std::cout << "info score mate + pv " << move2.toUSI();
+			if (mate_depth > 0)
+				std::cout << "info score mate "<< mate_depth << " pv " << mate_pv;
+			else
+				std::cout << "info score mate + pv " << mate_pv;
 			std::cout << std::endl;
-			std::cout << "bestmove " << move2.toUSI() << std::endl;
+			std::cout << "bestmove " << mate_move.toUSI() << std::endl;
 			return;
 		}
 	}
@@ -365,7 +390,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	}
 	std::cout << "bestmove " << move.toUSI();
 	// 確率的なPonderの場合、ponderを返さない
-	if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+	if (!IsUctSearchStoped() && pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
 		std::cout << std::endl;
 
 		// 相手局面から探索を継続する
@@ -399,6 +424,9 @@ struct child_node_t_copy {
 std::map<Key, std::vector<BookEntry> > bookMap;
 Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
+int make_book_sleep = 0;
+bool use_book_policy = true;
+int book_eval_threshold = INT_MAX;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
@@ -406,9 +434,9 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 }
 
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
-	std::cout << "position startpos moves ";
+	std::cout << "position startpos moves";
 	for (Move move : moves) {
-		std::cout << move.toUSI() << " ";
+		std::cout << " " << move.toUSI();
 	}
 	std::cout << std::endl;
 
@@ -457,6 +485,9 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		count++;
 	}
 
+	if (make_book_sleep > 0)
+		std::this_thread::sleep_for(std::chrono::milliseconds(make_book_sleep));
+
 	return true;
 }
 
@@ -475,9 +506,19 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			{
 				// 最上位の手を選択
 				// (定跡の幅を広げたい場合は確率的に選択するように変更する)
-				auto entry = outMap[key][0];
+				const auto entry = outMap[key][0];
 
-				Move move = move16toMove(Move(entry.fromToPro), pos);
+				// 評価値が閾値を超えた場合、探索終了
+				if (std::abs(entry.score) > book_eval_threshold) {
+					std::cout << "position startpos moves";
+					for (Move move : moves) {
+						std::cout << " " << move.toUSI();
+					}
+					std::cout << "\nentry.score: " << entry.score << std::endl;
+					return;
+				}
+
+				const Move move = move16toMove(Move(entry.fromToPro), pos);
 
 				StateInfo state;
 				pos.doMove(move, state);
@@ -524,13 +565,13 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 		// 確率的に手を選択
 		std::vector<double> probabilities;
-		for (auto& entry : *entries) {
+		for (const auto& entry : *entries) {
 			probabilities.emplace_back(entry.count);
 		}
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
 		size_t selected = dist(g_randomTimeSeed);
 
-		Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
+		const Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
 
 		StateInfo state;
 		pos.doMove(move, state);
@@ -567,7 +608,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡作成
-void make_book(std::istringstream& ssCmd, OptionsMap& options) {
+void MySearcher::make_book(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
 
 	std::string bookFileName;
@@ -587,7 +628,16 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 	// 保存間隔
 	int save_book_interval = options["Save_Book_Interval"];
 
-	SetReuseSubtree(false);
+	// 1定跡作成ごとのスリープ時間(ガベージコレクションが間に合わない場合に設定する)
+	make_book_sleep = options["Make_Book_Sleep"];
+
+	// 事前確率に定跡の遷移確率も使用する
+	use_book_policy = options["Use_Book_Policy"];
+
+	// 評価値の閾値
+	book_eval_threshold = options["Book_Eval_Threshold"];
+
+	SetReuseSubtree(options["ReuseSubtree"]);
 
 	// outFileが存在するときは追加する
 	int input_num = 0;
@@ -604,9 +654,7 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 		}
 	}
 
-	Searcher s;
-	s.init();
-	Position pos(DefaultStartPositionSFEN, &s);
+	Position pos(DefaultStartPositionSFEN, thisptr);
 	book_starting_pos_key = pos.getKey();
 
 	// 定跡読み込み
@@ -617,6 +665,7 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 
 	int black_num = 0;
 	int white_num = 0;
+	int prev_num = outMap.size();
 	std::vector<Move> moves;
 	for (int trial = 0; trial < limitTrialNum; trial += 2) {
 		// 進捗状況表示
@@ -639,8 +688,9 @@ void make_book(std::istringstream& ssCmd, OptionsMap& options) {
 		white_num += count;
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg)
+		if (outMap.size() > prev_num && ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg))
 		{
+			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
 			for (auto& elem : outMap) {
 				for (auto& elel : elem.second)

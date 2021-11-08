@@ -17,7 +17,7 @@ constexpr int MAX_HGOLD_NUM = 4;
 constexpr int MAX_HBISHOP_NUM = 2;
 constexpr int MAX_HROOK_NUM = 2;
 
-const u32 MAX_PIECES_IN_HAND[] = {
+constexpr u32 MAX_PIECES_IN_HAND[] = {
 	MAX_HPAWN_NUM, // PAWN
 	MAX_HLANCE_NUM, // LANCE
 	MAX_HKNIGHT_NUM, // KNIGHT
@@ -41,10 +41,6 @@ enum MOVE_DIRECTION {
 	MOVE_DIRECTION_NUM
 };
 
-const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
-	UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE, UP2_LEFT_PROMOTE, UP2_RIGHT_PROMOTE
-};
-
 // 指し手を表すラベルの数
 constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
@@ -53,9 +49,6 @@ typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
 void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
 int make_move_label(const u16 move16, const Color color);
-void softmax_temperature(std::vector<float> &log_probabilities);
-void softmax_temperature_with_normalize(std::vector<float> &log_probabilities);
-void set_softmax_temperature(const float temperature);
 
 // 評価値から価値(勝率)に変換
 // スケールパラメータは、elmo_for_learnの勝率から調査した値

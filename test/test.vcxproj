@@ -17,6 +17,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_WinTypeDouble|x64">
+      <Configuration>Release_WinTypeDouble</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
@@ -36,6 +40,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -74,6 +85,9 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -90,6 +104,11 @@
     <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
@@ -127,6 +146,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>HAVE_SSE4;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
@@ -216,10 +258,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PreLinkEvent>
-      <Command>mkdir "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release_NoOpt"
-copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release\zlibstatic.lib" "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release_NoOpt\"</Command>
-    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cppshogi\bitboard.cpp" />
@@ -235,24 +273,11 @@ copy /y "$(SolutionDir)\packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
-    <ClCompile Include="..\make_hcpe_by_self_play\USIEngine.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
     <ClCompile Include="gpubenchmark.cpp" />
     <ClCompile Include="tensorrt_benchmark.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
-  </Target>
 </Project>

@@ -1,4 +1,4 @@
-#ifdef ONNXRUNTIME
+﻿#ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
 #include <dml_provider_factory.h>
 

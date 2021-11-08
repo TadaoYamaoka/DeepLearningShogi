@@ -6,7 +6,7 @@
 // make input features
 template <Color turn>
 inline void make_input_features(const Position& position, features1_t* features1, features2_t* features2) {
-	DType(*features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<DType(*)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
+	DType(* const features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<DType(* const)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
 
 	const Bitboard occupied_bb = position.occupiedBB();
 
@@ -143,7 +143,7 @@ int make_move_label(const u16 move16, const Color color) {
 
 		// promote
 		if ((move16 & 0b100000000000000) > 0) {
-			move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
+			move_direction = (MOVE_DIRECTION)(move_direction + 10);
 		}
 		return 9 * 9 * move_direction + to_sq;
 	}
@@ -156,48 +156,5 @@ int make_move_label(const u16 move16, const Color color) {
 		const int hand_piece = from_sq - (int)SquareNum;
 		const int move_direction_label = MOVE_DIRECTION_NUM + hand_piece;
 		return 9 * 9 * move_direction_label + to_sq;
-	}
-}
-
-// Boltzmann distribution
-// see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
-constexpr float default_softmax_temperature = 1.0f;
-float beta = 1.0f / default_softmax_temperature; 
-void set_softmax_temperature(const float temperature) {
-	beta = 1.0f / temperature;
-}
-void softmax_temperature(std::vector<float> &log_probabilities) {
-	// apply beta exponent to probabilities(in log space)
-	float max = 0.0f;
-	for (float& x : log_probabilities) {
-		x *= beta;
-		if (x > max) {
-			max = x;
-		}
-	}
-	// オーバーフローを防止するため最大値で引く
-	for (float& x : log_probabilities) {
-		x = expf(x - max);
-	}
-}
-
-void softmax_temperature_with_normalize(std::vector<float> &log_probabilities) {
-	// apply beta exponent to probabilities(in log space)
-	float max = 0.0f;
-	for (float& x : log_probabilities) {
-		x *= beta;
-		if (x > max) {
-			max = x;
-		}
-	}
-	// オーバーフローを防止するため最大値で引く
-	float sum = 0.0f;
-	for (float& x : log_probabilities) {
-		x = expf(x - max);
-		sum += x;
-	}
-	// normalize
-	for (float& x : log_probabilities) {
-		x /= sum;
 	}
 }
