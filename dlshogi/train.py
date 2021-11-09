@@ -50,6 +50,7 @@ def main(*argv):
     parser.add_argument('--swa_n_avr', type=int, default=10)
     parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
     parser.add_argument('--use_average', action='store_true')
+    parser.add_argument('--use_opponent', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
     args = parser.parse_args(argv)
@@ -99,6 +100,8 @@ def main(*argv):
         logging.info('use amp')
     scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
+    if args.use_opponent:
+        logging.info('use opponent')
     if args.use_evalfix:
         logging.info('use evalfix')
     logging.info('temperature={}'.format(args.temperature))
@@ -141,7 +144,7 @@ def main(*argv):
     logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 
     logging.info('Reading training data')
-    train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
+    train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_opponent, args.use_evalfix, args.temperature)
     train_data = np.arange(train_len, dtype=np.uint32)
     logging.info('Reading test data')
     test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)

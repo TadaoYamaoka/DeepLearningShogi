@@ -139,26 +139,31 @@ def score_to_value(score, a):
 
 class Hcpe3DataLoader(DataLoader):
     @staticmethod
-    def load_files(files, use_average=False, use_evalfix=False, temperature=1.0):
+    def load_files(files, use_average=False, use_opponent=False, use_evalfix=False, temperature=1.0):
         if use_evalfix:
             from scipy.optimize import curve_fit
 
         actual_len = 0
         for path in files:
             if os.path.exists(path):
+                a = [0, 0]
                 if use_evalfix:
-                    eval, result = cppshogi.hcpe3_prepare_evalfix(path)
-                    if (eval == 0).all():
-                        a = 0
-                        logging.info('{}, skip evalfix'.format(path))
+                    if use_opponent:
+                        eval_selfplay, result_selfplay, eval_opponent, result_opponent = cppshogi.hcpe3_prepare_evalfix(path, use_opponent=True)
+                        eval_result = [[eval_selfplay, result_selfplay], [eval_opponent, result_opponent]]
                     else:
-                        popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
-                        a = popt[0]
-                        logging.info('{}, a={}'.format(path, a))
+                        eval_selfplay, result_selfplay = cppshogi.hcpe3_prepare_evalfix(path)
+                        eval_result =  [[eval_selfplay, result_selfplay]]
+                    for i, (eval, result) in enumerate(eval_result):
+                        if (eval == 0).all():
+                            logging.info('{}, skip {}evalfix'.format(path, 'opponent ' if i == 1 else ''))
+                        else:
+                            popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
+                            a[i] = popt[0]
+                    logging.info('{}, a={}'.format(path, a[0]) + ', opponent a={}'.format(a[1]) if use_opponent else '')
                 else:
-                    a = 0
                     logging.info(path)
-                sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a, temperature)
+                sum_len, len_ = cppshogi.load_hcpe3(path, use_average, use_opponent, a[0], a[1], temperature)
                 if len_ == 0:
                     raise RuntimeError('read error {}'.format(path))
                 actual_len += len_

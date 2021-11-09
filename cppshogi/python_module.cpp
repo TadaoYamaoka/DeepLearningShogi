@@ -209,11 +209,12 @@ bool is_hcpe(std::ifstream& ifs) {
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len) {
+size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_opponent, double a, double a_opponent, double temperature, int& len) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return trainingData.size();
 
 	const double eval_scale = a == 0 ? 1 : 756.0864962951762 / a;
+	const double eval_scale_opponent = a_opponent == 0 ? 1 : 756.0864962951762 / a_opponent;
 
 	// フォーマット自動判別
 	// hcpeの場合は、指し手をone-hotの方策として読み込む
@@ -242,18 +243,33 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 		}
 		StateListPtr states{ new std::deque<StateInfo>(1) };
 
+		int opponent_turn = -1;
 		for (int i = 0; i < hcpe3.moveNum; ++i) {
 			MoveInfo moveInfo;
 			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
 			assert(moveInfo.candidateNum <= 593);
 
 			// candidateNum==0の手は読み飛ばす
-			if (moveInfo.candidateNum > 0) {
-				candidates.resize(moveInfo.candidateNum);
-				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+			if (moveInfo.candidateNum > 0 || opponent_turn >= 0) {
+				// opponentの場合、ランダムムーブを除外するため自分の教師局面現れた以降の局面対象とする
+				if (use_opponent && opponent_turn < 0 && hcpe3.opponent > 0)
+					opponent_turn = hcpe3.opponent - 1;
+
+				int eval;
+				if (moveInfo.candidateNum > 0) {
+					candidates.resize(moveInfo.candidateNum);
+					ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+					eval = (int)(moveInfo.eval * eval_scale);
+				}
+				else if (pos.turn() == opponent_turn) {
+					// opponentの場合、指し手のみを候補手にする
+					candidates.resize(1);
+					candidates[0].move16 = moveInfo.selectedMove16;
+					candidates[0].visitNum = 1;
+					eval = (int)(moveInfo.eval * eval_scale_opponent);
+				}
 
 				const auto hcp = pos.toHuffmanCodedPos();
-				const int eval = (int)(moveInfo.eval * eval_scale);
 				if (use_average) {
 					auto ret = duplicates.emplace(hcp, trainingData.size());
 					if (ret.second) {
@@ -335,12 +351,16 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 // evalの補正用データ準備
 std::vector<int> eval;
 std::vector<float> result;
-size_t __load_evalfix(const std::string& filepath) {
+std::vector<int> eval_opponent;
+std::vector<float> result_opponent;
+std::vector<size_t> __load_evalfix(const std::string& filepath) {
 	eval.clear();
 	result.clear();
+	eval_opponent.clear();
+	result_opponent.clear();
 
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
-	if (!ifs) return 0;
+	if (!ifs) return { 0, 0 };
 
 	// フォーマット自動判別
 	bool hcpe3 = !is_hcpe(ifs);
@@ -364,6 +384,7 @@ size_t __load_evalfix(const std::string& filepath) {
 			}
 			StateListPtr states{ new std::deque<StateInfo>(1) };
 
+			int opponent_turn = -1;
 			for (int i = 0; i < hcpe3.moveNum; ++i) {
 				MoveInfo moveInfo;
 				ifs.read((char*)&moveInfo, sizeof(MoveInfo));
@@ -371,11 +392,22 @@ size_t __load_evalfix(const std::string& filepath) {
 
 				// candidateNum==0の手は読み飛ばす
 				if (moveInfo.candidateNum > 0) {
+					// opponentの場合、ランダムムーブを除外するため自分の教師局面現れた以降の局面対象とする
+					if (opponent_turn < 0 && hcpe3.opponent > 0)
+						opponent_turn = hcpe3.opponent - 1;
+
 					ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
 					// 詰みは除く
 					if (std::abs(moveInfo.eval) < 30000) {
 						eval.emplace_back(moveInfo.eval);
 						result.emplace_back(make_result(hcpe3.result, pos.turn()));
+					}
+				}
+				else if (pos.turn() == opponent_turn) {
+					// 詰みは除く
+					if (std::abs(moveInfo.eval) < 30000) {
+						eval_opponent.emplace_back(moveInfo.eval);
+						result_opponent.emplace_back(make_result(hcpe3.result, pos.turn()));
 					}
 				}
 
@@ -402,10 +434,15 @@ size_t __load_evalfix(const std::string& filepath) {
 		}
 	}
 
-	return result.size();
+	return { result.size(), result_opponent.size() };
 }
 
 void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult) {
 	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval));
 	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult));
+}
+
+void __hcpe3_prepare_evalfix_opponent(char* ndeval, char* ndresult) {
+	std::copy(eval_opponent.begin(), eval_opponent.end(), reinterpret_cast<int*>(ndeval));
+	std::copy(result_opponent.begin(), result_opponent.end(), reinterpret_cast<float*>(ndresult));
 }
