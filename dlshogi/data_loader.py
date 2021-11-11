@@ -160,7 +160,7 @@ class Hcpe3DataLoader(DataLoader):
                         else:
                             popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
                             a[i] = popt[0]
-                    logging.info('{}, a={}'.format(path, a[0]) + ', opponent a={}'.format(a[1]) if use_opponent else '')
+                    logging.info('{}, a={}'.format(path, a[0]) + (', opponent a={}'.format(a[1]) if a[1] > 0 else ''))
                 else:
                     logging.info(path)
                 sum_len, len_ = cppshogi.load_hcpe3(path, use_average, use_opponent, a[0], a[1], temperature)

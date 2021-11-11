@@ -251,10 +251,6 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 
 			// candidateNum==0の手は読み飛ばす
 			if (moveInfo.candidateNum > 0 || opponent_turn >= 0) {
-				// opponentの場合、ランダムムーブを除外するため自分の教師局面現れた以降の局面対象とする
-				if (use_opponent && opponent_turn < 0 && hcpe3.opponent > 0)
-					opponent_turn = hcpe3.opponent - 1;
-
 				int eval;
 				if (moveInfo.candidateNum > 0) {
 					candidates.resize(moveInfo.candidateNum);
@@ -299,6 +295,11 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 					visits_to_proberbility<false>(data, candidates, temperature);
 				}
 				++len;
+			}
+			else if (use_opponent) {
+				// opponentの場合、評価値が0以外が現れた以降の局面対象とする
+				if (opponent_turn < 0 && moveInfo.eval != 0)
+					opponent_turn = hcpe3.opponent - 1;
 			}
 
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
@@ -392,10 +393,6 @@ std::vector<size_t> __load_evalfix(const std::string& filepath) {
 
 				// candidateNum==0の手は読み飛ばす
 				if (moveInfo.candidateNum > 0) {
-					// opponentの場合、ランダムムーブを除外するため自分の教師局面現れた以降の局面対象とする
-					if (opponent_turn < 0 && hcpe3.opponent > 0)
-						opponent_turn = hcpe3.opponent - 1;
-
 					ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
 					// 詰みは除く
 					if (std::abs(moveInfo.eval) < 30000) {
@@ -403,11 +400,17 @@ std::vector<size_t> __load_evalfix(const std::string& filepath) {
 						result.emplace_back(make_result(hcpe3.result, pos.turn()));
 					}
 				}
-				else if (pos.turn() == opponent_turn) {
-					// 詰みは除く
-					if (std::abs(moveInfo.eval) < 30000) {
-						eval_opponent.emplace_back(moveInfo.eval);
-						result_opponent.emplace_back(make_result(hcpe3.result, pos.turn()));
+				else {
+					// opponentの場合、評価値が0以外が現れた以降の局面対象とする
+					if (opponent_turn < 0 && moveInfo.eval != 0)
+						opponent_turn = hcpe3.opponent - 1;
+
+					if (pos.turn() == opponent_turn) {
+						// 詰みは除く
+						if (std::abs(moveInfo.eval) < 30000) {
+							eval_opponent.emplace_back(moveInfo.eval);
+							result_opponent.emplace_back(make_result(hcpe3.result, pos.turn()));
+						}
 					}
 				}
 
