@@ -788,27 +788,18 @@ namespace {
 				{
 					// 成って王手
 					Bitboard toBB = pawnAttack(US, from) & target;
-					if (ALL) {
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
-							if (canPromote(US, makeRank(to))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
-								// 成らない手を後に生成
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						if (canPromote(US, makeRank(to))) {
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							// 成らない手を後に生成
+							if (ALL) {
 								if (pawnAttack(opp, ksq).isSet(to))
 									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
-							else
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 						}
-					}
-					else {
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
-							// 歩は成れる場合は成る
-							(*moveList++).move = canPromote(US, makeRank(to)) ?
-								makePromoteMove<Capture>(pt, from, to, pos) :
-								makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
+						else
+							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 					}
 					break;
 				}
