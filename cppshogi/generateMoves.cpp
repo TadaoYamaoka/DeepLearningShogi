@@ -891,7 +891,7 @@ namespace {
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
-						Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
+						const Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
@@ -935,7 +935,7 @@ namespace {
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
-						Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
+						const Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
@@ -1008,7 +1008,7 @@ namespace {
 					else {
 						Bitboard toBB = kingAttack(ksq) & kingAttack(from) & target;
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 							toBB |= dstBB;
 						}
