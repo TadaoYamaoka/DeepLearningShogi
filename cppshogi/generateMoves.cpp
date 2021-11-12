@@ -793,12 +793,9 @@ namespace {
 							const Square to = toBB.firstOneFromSQ11();
 							if (canPromote(US, makeRank(to)))
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
-						}
-						// 成らない手を後に生成
-						toBB = pawnAttack(US, from) & pawnAttack(opp, ksq) & target;
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							// 成らない手を後に生成
+							if (pawnAttack(opp, ksq).isSet(to))
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 						}
 					}
 					else {
