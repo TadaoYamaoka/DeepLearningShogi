@@ -427,6 +427,7 @@ extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_book_policy = true;
 int book_eval_threshold = INT_MAX;
+double book_visit_threshold = 0.01;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
@@ -457,7 +458,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	const child_node_t *uct_child = current_root->child.get();
 	for (int i = 0; i < current_root->child_num; i++) {
 		movelist.emplace_back(uct_child[i]);
-		if (double(uct_child[i].move_count) / current_root->move_count > 0.1) { // 閾値
+		if (double(uct_child[i].move_count) / current_root->move_count > book_visit_threshold) { // 閾値
 			num++;
 		}
 	}
@@ -636,6 +637,9 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 
 	// 評価値の閾値
 	book_eval_threshold = options["Book_Eval_Threshold"];
+
+	// 訪問回数の閾値(100分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 100.0;
 
 	SetReuseSubtree(options["ReuseSubtree"]);
 
