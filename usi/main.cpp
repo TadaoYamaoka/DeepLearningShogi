@@ -638,8 +638,8 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	// 評価値の閾値
 	book_eval_threshold = options["Book_Eval_Threshold"];
 
-	// 訪問回数の閾値(100分率)
-	book_visit_threshold = options["Book_Visit_Threshold"] / 100.0;
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
 
 	SetReuseSubtree(options["ReuseSubtree"]);
 
