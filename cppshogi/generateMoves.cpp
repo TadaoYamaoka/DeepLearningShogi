@@ -571,8 +571,7 @@ namespace {
 
 	// 王手用
 	template <Color US, bool ALL>
-	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to) {
-		const PieceType pt = pieceToPieceType(pos.piece(from));
+	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const PieceType pt, const Position& pos, const Square from, const Square to) {
 		switch (pt) {
 		case Empty: assert(false); break; // 最適化の為のダミー
 		case Pawn:
@@ -660,7 +659,7 @@ namespace {
 			// yと、yを含まないxとに分けて処理する。
 			// すなわち、y と (x | y)^y
 
-			const Color opp = oppositeColor(US);
+			constexpr Color opp = oppositeColor(US);
 			const Square ksq = pos.kingSquare(opp);
 
 			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
@@ -696,7 +695,7 @@ namespace {
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
 					if (!isAligned<true>(from, to, ksq)) {
-						moveList = generatCheckMoves<US, ALL>(moveList, pos, from, to);
+						moveList = generatCheckMoves<US, ALL>(moveList, pt, pos, from, to);
 					}
 					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
 					else if (x.isSet(from)) {
@@ -1049,10 +1048,9 @@ namespace {
 				});
 
 				// 打ち歩詰めの回避
-				const Rank TRank9 = (US == Black ? Rank9 : Rank1);
-				const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
+				constexpr Rank TRank9 = (US == Black ? Rank9 : Rank1);
+				constexpr SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
 
-				const Square ksq = pos.kingSquare(oppositeColor(US));
 				// 相手玉が九段目なら、歩で王手出来ないので、打ち歩詰めを調べる必要はない。
 				if (makeRank(ksq) != TRank9) {
 					const Square pawnDropCheckSquare = ksq + TDeltaS;
