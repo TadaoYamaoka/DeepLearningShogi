@@ -547,6 +547,16 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		entry.dn = 0;
 		entry.num_searched = REPEAT;
 		return;
+
+	case RepetitionSuperior:
+		if (!or_node) {
+			// ANDノードで優越局面になっている場合、除外できる(ORノードで選択されなくなる)
+			entry.pn = kInfinitePnDn;
+			entry.dn = 0;
+			entry.num_searched = REPEAT;
+			return;
+		}
+		break;
 	}
 
 	// 子局面のハッシュエントリをキャッシュ
