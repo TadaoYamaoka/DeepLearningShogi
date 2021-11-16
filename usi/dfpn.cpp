@@ -39,6 +39,8 @@ namespace ns_dfpn {
 							++curr;
 					}
 				}
+
+				std::stable_sort(begin(), end(), [](const auto& lhs, const auto& rhs) { return (lhs.move.value() & 0xff000000) < (rhs.move.value() & 0xff000000); });
 			}
 			else {
 				last_ = generateMoves<Evasion>(moveList_, pos);
@@ -290,6 +292,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 	// if (n is a terminal node) { handle n and return; }
 	MovePicker<or_node> move_picker(n);
+	for (const auto& ml : move_picker)
+		std::cout << ml.move.toUSI() << "\t" << ml.move.value() << std::endl;
 	if (move_picker.empty()) {
 		// nが先端ノード
 

@@ -101,4 +101,31 @@ inline Move makeNonPromoteMove(const PieceType pt, const Square from, const Squa
     return selectedMakeMove<MT, NonPromote>(pt, from, to, pos);
 }
 
+template <Color US, bool NonPromote>
+inline u32 calculateMateMoveValue(const PieceType pt, const Square to, const Position& pos, const Square ksq) {
+    constexpr int pt_tbl[] = {
+        64, 63, 62, 62, 61, 59, 59, 59, 56, 59, 59, 59, 59, 56, 56, 56,
+    };
+    return (NonPromote ? 128u : 0u)
+        + pt_tbl[pt]
+        - 2 * pos.attackersTo(US, to).popCount() + pos.attackersTo(oppositeColor(US), to).popCount()
+        + squareDistance(ksq, to);
+}
+
+template <MoveType MT, Color US>
+inline Move makePromoteMoveWithValue(const PieceType pt, const Square from, const Square to, const Position& pos, const Square ksq) {
+    return Move(
+        makePromoteMove<MT>(pt, from, to, pos).value()
+        | (calculateMateMoveValue<US, false>(pt, to, pos, ksq) << 24)
+    );
+}
+
+template <MoveType MT, Color US, bool NonPromote>
+inline Move makeNonPromoteMoveWithValue(const PieceType pt, const Square from, const Square to, const Position& pos, const Square ksq) {
+    return Move(
+        makeNonPromoteMove<MT>(pt, from, to, pos).value()
+        | (calculateMateMoveValue<US, NonPromote>(pt, to, pos, ksq) << 24)
+    );
+}
+
 #endif // #ifndef APERY_GENERATEMOVES_HPP

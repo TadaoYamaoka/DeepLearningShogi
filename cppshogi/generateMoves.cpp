@@ -573,62 +573,64 @@ namespace {
 	template <Color US, bool ALL>
 	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to) {
 		const PieceType pt = pieceToPieceType(pos.piece(from));
+		constexpr Color opp = oppositeColor(US);
+		const Square ksq = pos.kingSquare(opp);
 		switch (pt) {
 		case Empty: assert(false); break; // 最適化の為のダミー
 		case Pawn:
 			if (canPromote(US, makeRank(to))) {
-				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 				// 不成で移動する升
 				if (ALL) {
 					if (isBehind<US, Rank1, Rank9>(makeRank(to))) // 1段目の不成は省く
-						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 				}
 			}
 			else
-				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		case Lance:
 			if (canPromote(US, makeRank(to))) {
-				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 				// 不成で移動する升
 				if (ALL) {
 					if (isBehind<US, Rank1, Rank9>(makeRank(to))) // 1段目の不成は省く
-						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 				} else if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 1, 2段目の不成を省く
-					(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			}
 			else
-				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		case Knight:
 			if (canPromote(US, makeRank(to))) {
-				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 				// 不成で移動する升
 				if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 1, 2段目の不成は省く
-					(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			}
 			else
-				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		case Silver:
 			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 			}
-			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		case Gold: case King: case ProPawn: case ProLance: case ProKnight: case ProSilver: case Horse: case Dragon:
-			(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+			(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		case Bishop: case Rook:
 			if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-				(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 				// 不成で移動する升
 				if (ALL) {
-					(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+					(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 				}
 			}
 			else
-				(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+				(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 			break;
 		default: UNREACHABLE;
 		}
@@ -660,7 +662,7 @@ namespace {
 			// yと、yを含まないxとに分けて処理する。
 			// すなわち、y と (x | y)^y
 
-			const Color opp = oppositeColor(US);
+			constexpr Color opp = oppositeColor(US);
 			const Square ksq = pos.kingSquare(opp);
 
 			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
@@ -707,14 +709,15 @@ namespace {
 							if (pawnAttack(US, from).isSet(to)) {
 								// 成って王手
 								if (canPromote(US, makeRank(to))) {
-									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+									(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 									// 成らない手を後に生成
 									if (ALL) {
-										(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+										// 成らない手を大きく減点
+										(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 									}
 								}
 								else
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							break;
 						}
@@ -722,12 +725,12 @@ namespace {
 						{
 							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							// 成って王手
 							if ((goldAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
 								if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+									(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								}
 							}
 							break;
@@ -739,7 +742,7 @@ namespace {
 						case ProSilver: // 成銀
 						{
 							if ((goldAttack(opp, ksq) & goldAttack(US, from)).isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							break;
 						}
@@ -748,7 +751,7 @@ namespace {
 							// 玉が対角上にない場合
 							assert(abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from)));
 							if ((horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB())).isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							break;
 						}
@@ -757,7 +760,7 @@ namespace {
 							// 玉が直線上にない場合
 							assert(makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from));
 							if ((dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB())).isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							break;
 						}
@@ -791,15 +794,16 @@ namespace {
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
 						if (canPromote(US, makeRank(to))) {
-							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 							// 成らない手を後に生成
 							if (ALL) {
 								if (pawnAttack(opp, ksq).isSet(to))
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									// 成らない手を大きく減点
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 							}
 						}
 						else
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 					}
 					break;
 				}
@@ -812,7 +816,7 @@ namespace {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
 							if (canPromote(US, makeRank(to))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -824,16 +828,16 @@ namespace {
 							const Square to = dstBB.firstOneFromSQ11();
 							// 成れる場合
 							if (pawnAttack(opp, ksq).isSet(to) && canPromote(US, makeRank(to))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								// 成らない手を後に生成
 								if (ALL) {
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 								}
 								else if (isBehind<US, Rank2, Rank8>(makeRank(to))) // 1, 2段目の不成を省く
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 							else {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -844,14 +848,14 @@ namespace {
 					Bitboard toBB = knightAttack(opp, ksq) & knightAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
-						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 					}
 					// 成って王手
 					toBB = goldAttack(opp, ksq) & knightAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
 						if (canPromote(US, makeRank(to))) {
-							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 						}
 					}
 					break;
@@ -861,14 +865,14 @@ namespace {
 					Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
-						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 					}
 					// 成って王手
 					toBB = goldAttack(opp, ksq) & silverAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
 						if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 						}
 					}
 					break;
@@ -882,7 +886,7 @@ namespace {
 					Bitboard toBB = goldAttack(opp, ksq) & goldAttack(US, from) & target;
 					while (toBB) {
 						const Square to = toBB.firstOneFromSQ11();
-						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+						(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 					}
 					break;
 				}
@@ -896,16 +900,17 @@ namespace {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								if (ALL) {
 									if (bishopBB.isSet(to)) {
-										(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+										// 成らない手を大きく減点
+										(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 									}
 
 								}
 							}
 							else if (bishopBB.isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -917,14 +922,15 @@ namespace {
 							const Square to = dstBB.firstOneFromSQ11();
 							// 成って王手
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								// 成らない手を後に生成
 								if (ALL) {
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									// 成らない手を大きく減点
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 								}
 							}
 							else {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -940,15 +946,16 @@ namespace {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								if (ALL) {
 									if (rookBB.isSet(to)) {
-										(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+										// 成らない手を大きく減点
+										(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 									}
 								}
 							}
 							else if (rookBB.isSet(to)) {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -960,14 +967,15 @@ namespace {
 							const Square to = dstBB.firstOneFromSQ11();
 							// 成って王手
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makePromoteMoveWithValue<Capture, US>(pt, from, to, pos, ksq);
 								// 成らない手を後に生成
 								if (ALL) {
-									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+									// 成らない手を大きく減点
+									(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, true>(pt, from, to, pos, ksq);
 								}
 							}
 							else {
-								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 							}
 						}
 					}
@@ -980,7 +988,7 @@ namespace {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB()) & target;
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 						}
 					}
 					// 対角上にある場合
@@ -989,7 +997,7 @@ namespace {
 						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 							const Square to = dstBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 						}
 					}
 					break;
@@ -1001,7 +1009,7 @@ namespace {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB()) & target;
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 						}
 					}
 					// 直線上にある場合
@@ -1014,7 +1022,7 @@ namespace {
 						}
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
-							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							(*moveList++).move = makeNonPromoteMoveWithValue<Capture, US, false>(pt, from, to, pos, ksq);
 						}
 					}
 					break;
