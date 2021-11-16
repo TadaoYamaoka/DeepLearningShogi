@@ -385,6 +385,7 @@ public:
     Key getKey() const          { return st_->key(); }
 	Key getKeyAfter(const Move m) const;
 	Key getBoardKeyAfter(const Move m) const;
+    std::pair<Key, Key> getBoardHandKeyAfter(const Move m) const;
     Key getKeyExcludeTurn() const {
         static_assert(zobTurn_ == 1, "");
         return getKey() >> 1;

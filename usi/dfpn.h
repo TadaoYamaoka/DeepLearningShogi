@@ -12,6 +12,7 @@ namespace ns_dfpn {
 		int dn;
 		uint16_t depth;
 		uint16_t generation;
+		Key path_key;
 		uint32_t num_searched;
 	};
 
@@ -22,20 +23,23 @@ namespace ns_dfpn {
 
 		~TranspositionTable();
 
-		TTEntry& LookUp(const Key key, const Hand hand, const uint16_t depth);
+		TTEntry* LookUp(const Key key, const Hand hand, const uint16_t depth, const Key path_key);
 
-		TTEntry& LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth);
+		TTEntry* LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth, const Key path_key);
 
 		template <bool or_node>
-		TTEntry& LookUp(const Position& n);
+		TTEntry* LookUp(const Position& n, const Key path_key = 0);
 
 		// moveを指した後の子ノードのキーを返す
 		template <bool or_node>
-		void GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand);
+		Key GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand, const Key path_key);
 
 		// moveを指した後の子ノードの置換表エントリを返す
 		template <bool or_node>
-		TTEntry& LookUpChildEntry(const Position& n, const Move move);
+		TTEntry* LookUpChildEntry(const Position& n, const Move move, const Key path_key = 0);
+
+		template <bool or_node>
+		TTEntry* SetRepeat(TTEntry* entry, const Position& n, const Key path_key);
 
 		void Resize(int64_t hash_size_mb);
 
@@ -76,9 +80,9 @@ public:
 	int64_t searchedNode = 0;
 private:
 	template <bool or_node>
-	void dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode);
+	void dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode, const Key path_key = 0);
 	template<bool or_node>
-	int get_pv_inner(Position& pos, std::vector<Move>& pv);
+	int get_pv_inner(Position& pos, std::vector<Move>& pv, const Key path_key = 0);
 
 	ns_dfpn::TranspositionTable transposition_table;
 	std::atomic<bool> stop = false;

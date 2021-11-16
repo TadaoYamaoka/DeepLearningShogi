@@ -65,6 +65,10 @@ namespace ns_dfpn {
 	};
 }
 
+inline Key next_path_key(const Key path_key, const Key key) {
+	return path_key/* * 1566083941ul*/ + key;
+}
+
 // 置換表
 TranspositionTable::~TranspositionTable() {
 	if (tt_raw) {
@@ -74,17 +78,31 @@ TranspositionTable::~TranspositionTable() {
 	}
 }
 
-TTEntry& TranspositionTable::LookUp(const Key key, const Hand hand, const uint16_t depth) {
+TTEntry* TranspositionTable::LookUp(const Key key, const Hand hand, const uint16_t depth, const Key path_key) {
 	auto& entries = tt[key & clusters_mask];
 	uint32_t hash_high = key >> 32;
-	return LookUpDirect(entries, hash_high, hand, depth);
+	return LookUpDirect(entries, hash_high, hand, depth, path_key);
 }
 
-TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth) {
+TTEntry* TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_high, const Hand hand, const uint16_t depth, const Key path_key) {
 	int max_pn = 1;
 	int max_dn = 1;
+	// はじめにREPEATにpath_keyが一致するエントリがないか探す
+	size_t i_repeat = sizeof(entries.entries) / sizeof(TTEntry) - 1;
+	for (; ; i_repeat--) {
+		TTEntry& entry = entries.entries[i_repeat];
+		if (generation != entry.generation || entry.num_searched != REPEAT)
+			break;
+		if (entry.path_key == path_key) {
+			if (!(hash_high == entry.hash_high && hand == entry.hand && depth == entry.depth)) __debugbreak();
+			return &entry;
+		}
+		if (i_repeat == 0)
+			break;
+	}
+
 	// 検索条件に合致するエントリを返す
-	for (size_t i = 0; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
+	for (size_t i = 0; i <= i_repeat; i++) {
 		TTEntry& entry = entries.entries[i];
 		if (generation != entry.generation) {
 			// 空のエントリが見つかった場合
@@ -94,41 +112,44 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 			entry.pn = max_pn;
 			entry.dn = max_dn;
 			entry.generation = generation;
+			entry.path_key = path_key;
 			entry.num_searched = 0;
-			return entry;
+			return &entry;
 		}
 
 		if (hash_high == entry.hash_high && generation == entry.generation) {
 			if (hand == entry.hand && depth == entry.depth) {
 				// keyが合致するエントリを見つけた場合
 				// 残りのエントリに優越関係を満たす局面があり証明済みの場合、それを返す
-				for (i++; i < sizeof(entries.entries) / sizeof(TTEntry); i++) {
+				for (i++; i <= i_repeat; i++) {
 					TTEntry& entry_rest = entries.entries[i];
 					if (generation != entry_rest.generation) break;
 					if (hash_high == entry_rest.hash_high) {
 						if (entry_rest.pn == 0) {
-							if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
-								return entry_rest;
+							if (hand.isEqualOrSuperior(entry_rest.hand)) {
+								entry_rest.generation = generation;
+								return &entry_rest;
 							}
 						}
 						else if (entry_rest.dn == 0) {
-							if (entry_rest.hand.isEqualOrSuperior(hand) && entry_rest.num_searched != REPEAT) {
-								return entry_rest;
+							if (entry_rest.hand.isEqualOrSuperior(hand)) {
+								entry_rest.generation = generation;
+								return &entry_rest;
 							}
 						}
 					}
 				}
-				return entry;
+				return &entry;
 			}
 			// 優越関係を満たす局面に証明済みの局面がある場合、それを返す
 			if (entry.pn == 0) {
-				if (hand.isEqualOrSuperior(entry.hand) && entry.num_searched != REPEAT) {
-					return entry;
+				if (hand.isEqualOrSuperior(entry.hand)) {
+					return &entry;
 				}
 			}
 			else if (entry.dn == 0) {
-				if (entry.hand.isEqualOrSuperior(hand) && entry.num_searched != REPEAT) {
-					return entry;
+				if (entry.hand.isEqualOrSuperior(hand)) {
+					return &entry;
 				}
 			}
 			else if (entry.hand.isEqualOrSuperior(hand)) {
@@ -170,18 +191,19 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 	best_entry->pn = 1;
 	best_entry->dn = 1;
 	best_entry->generation = generation;
+	best_entry->path_key = path_key;
 	best_entry->num_searched = 0;
-	return *best_entry;
+	return best_entry;
 }
 
 template <bool or_node>
-TTEntry& TranspositionTable::LookUp(const Position& n) {
-	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), n.gamePly());
+TTEntry* TranspositionTable::LookUp(const Position& n, const Key path_key) {
+	return LookUp(n.getBoardKey(), or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn())), n.gamePly(), path_key);
 }
 
 // moveを指した後の子ノードのキーを返す
 template <bool or_node>
-void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) {
+Key TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand, const Key path_key) {
 	// 手駒は常に先手の手駒で表す
 	if (or_node) {
 		hand = n.hand(n.turn());
@@ -199,19 +221,65 @@ void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, 
 	else {
 		hand = n.hand(oppositeColor(n.turn()));
 	}
-	Key key = n.getBoardKeyAfter(move);
-	entries = &tt[key & clusters_mask];
-	hash_high = key >> 32;
+	const auto keys = n.getBoardHandKeyAfter(move);
+	entries = &tt[keys.first & clusters_mask];
+	hash_high = keys.first >> 32;
+	return next_path_key(path_key, keys.first + keys.second);
 }
 
 // moveを指した後の子ノードの置換表エントリを返す
 template <bool or_node>
-TTEntry& TranspositionTable::LookUpChildEntry(const Position& n, const Move move) {
+TTEntry* TranspositionTable::LookUpChildEntry(const Position& n, const Move move, const Key path_key) {
 	Cluster* entries;
 	uint32_t hash_high;
 	Hand hand;
-	GetChildFirstEntry<or_node>(n, move, entries, hash_high, hand);
-	return LookUpDirect(*entries, hash_high, hand, n.gamePly() + 1);
+	const Key path_key_after = GetChildFirstEntry<or_node>(n, move, entries, hash_high, hand, path_key);
+	return LookUpDirect(*entries, hash_high, hand, n.gamePly() + 1, path_key_after);
+}
+
+template <bool or_node>
+TTEntry* TranspositionTable::SetRepeat(TTEntry* entry, const Position& n, const Key path_key) {
+	const Key key = n.getBoardKey();
+	auto& entries = tt[key & clusters_mask];
+
+	// REPEATは末尾から追加する
+	size_t i_repeat = sizeof(entries.entries) / sizeof(TTEntry) - 1;
+	for (; ; i_repeat--) {
+		TTEntry& entry = entries.entries[i_repeat];
+		if (generation != entry.generation || entry.num_searched != REPEAT)
+			break;
+		if (i_repeat == 0)
+			break;
+	}
+
+	TTEntry& entry_repeat = entries.entries[i_repeat];
+
+	if (entry->path_key == path_key) {
+		// エントリを移動する
+		entry_repeat = *entry;
+		TTEntry* entry_from = entry + 1;
+		for (; entry_from != &entry_repeat; entry_from++) {
+			if (generation != entry_from->generation) {
+				break;
+			}
+		}
+		entry_from--;
+		if (entry_from != entry) {
+			*entry = *entry_from;
+		}
+		entry_from->generation = 0;
+	}
+	else {
+		// path_keyが異なる場合、新規エントリとする
+		entry_repeat = *entry;
+		entry_repeat.hash_high = key >> 32;
+		entry_repeat.hand = or_node ? n.hand(n.turn()) : n.hand(oppositeColor(n.turn()));
+		entry_repeat.depth = n.gamePly();
+		entry_repeat.path_key = path_key;
+	}
+
+	entry_repeat.num_searched = REPEAT;
+	return &entry_repeat;
 }
 
 void TranspositionTable::Resize(int64_t hash_size_mb) {
@@ -276,14 +344,14 @@ FORCE_INLINE u32 dp(const Hand& us, const Hand& them) {
 }
 
 template <bool or_node>
-void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode) {
-	auto& entry = transposition_table.LookUp<or_node>(n);
+void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode, const Key path_key) {
+	auto entry = transposition_table.LookUp<or_node>(n, path_key);
 
 	if (or_node) {
 		if (n.gamePly() + 1 > maxDepth) {
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
-			entry.num_searched = REPEAT;
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
 			return;
 		}
 	}
@@ -295,25 +363,25 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 		if (or_node) {
 			// 自分の手番でここに到達した場合は王手の手が無かった、
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
 
 			// 反証駒
 			// 持っている持ち駒を最大数にする(後手の持ち駒を加える)
-			entry.hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
+			entry->hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
 		}
 		else {
 			// 相手の手番でここに到達した場合は王手回避の手が無かった、
 			// 1手詰めを行っているため、ここに到達することはない
-			entry.pn = 0;
-			entry.dn = kInfinitePnDn;
+			entry->pn = 0;
+			entry->dn = kInfinitePnDn;
 		}
 
 		return;
 	}
 
 	// 新規節点で固定深さの探索を併用
-	if (entry.num_searched == 0) {
+	if (entry->num_searched == 0) {
 		if (or_node) {
 			// 3手詰みチェック
 			Color us = n.turn();
@@ -336,7 +404,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					continue;
 				}
 
-				auto& entry2 = transposition_table.LookUp<false>(n);
+				const auto path_key2 = next_path_key(path_key, n.getKey());
+				auto entry2 = transposition_table.LookUp<false>(n, path_key2);
 
 				// この局面ですべてのevasionを試す
 				MovePicker<false> move_picker2(n);
@@ -345,32 +414,32 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					// 1手で詰んだ
 					n.undoMove(m);
 
-					entry2.pn = 0;
-					entry2.dn = kInfinitePnDn + 1;
+					entry2->pn = 0;
+					entry2->dn = kInfinitePnDn + 1;
 
-					entry.pn = 0;
-					entry.dn = kInfinitePnDn;
+					entry->pn = 0;
+					entry->dn = kInfinitePnDn;
 
 					// 証明駒を初期化
-					entry.hand.set(0);
+					entry->hand.set(0);
 
 					// 打つ手ならば証明駒に加える
 					if (m.isDrop()) {
-						entry.hand.plusOne(m.handPieceDropped());
+						entry->hand.plusOne(m.handPieceDropped());
 					}
 					// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
 					if (!moveGivesNeighborCheck(n, m))
-						entry.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
+						entry->hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 
 					return;
 				}
 
 				if (n.gamePly() + 2 > maxDepth) {
-					n.undoMove(m);
+					entry2 = transposition_table.SetRepeat<!or_node>(entry2, n, path_key2);
+					entry2->pn = kInfinitePnDn;
+					entry2->dn = 0;
 
-					entry2.pn = kInfinitePnDn;
-					entry2.dn = 0;
-					entry2.num_searched = REPEAT;
+					n.undoMove(m);
 
 					continue;
 				}
@@ -387,9 +456,9 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					n.doMove(m2, si2, ci2, false);
 
 					if (n.mateMoveIn1Ply()) {
-						auto& entry1 = transposition_table.LookUp<true>(n);
-						entry1.pn = 0;
-						entry1.dn = kInfinitePnDn + 2;
+						auto entry1 = transposition_table.LookUp<true>(n, next_path_key(path_key2, n.getKey()));
+						entry1->pn = 0;
+						entry1->dn = kInfinitePnDn + 2;
 					}
 					else {
 						// 詰んでないので、m2で詰みを逃れている。
@@ -403,21 +472,21 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				// すべて詰んだ
 				n.undoMove(m);
 
-				entry2.pn = 0;
-				entry2.dn = kInfinitePnDn;
+				entry2->pn = 0;
+				entry2->dn = kInfinitePnDn;
 
-				entry.pn = 0;
-				entry.dn = kInfinitePnDn;
+				entry->pn = 0;
+				entry->dn = kInfinitePnDn;
 
 				return;
 
 			NEXT_CHECK:;
 				n.undoMove(m);
 
-				if (entry2.num_searched == 0) {
-					entry2.num_searched = 1;
-					entry2.pn = static_cast<int>(move_picker2.size());
-					entry2.dn = static_cast<int>(move_picker2.size());
+				if (entry2->num_searched == 0) {
+					entry2->num_searched = 1;
+					entry2->pn = static_cast<int>(move_picker2.size());
+					entry2->dn = static_cast<int>(move_picker2.size());
 				}
 			}
 		}
@@ -437,20 +506,20 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				n.doMove(m2, si2, ci2, false);
 
 				if (const Move move = n.mateMoveIn1Ply()) {
-					auto& entry1 = transposition_table.LookUp<true>(n);
-					entry1.pn = 0;
-					entry1.dn = kInfinitePnDn + 2;
+					auto entry1 = transposition_table.LookUp<true>(n, next_path_key(path_key, n.getKey()));
+					entry1->pn = 0;
+					entry1->dn = kInfinitePnDn + 2;
 
 					// 証明駒を初期化
-					entry1.hand.set(0);
+					entry1->hand.set(0);
 
 					// 打つ手ならば証明駒に加える
 					if (move.isDrop()) {
-						entry1.hand.plusOne(move.handPieceDropped());
+						entry1->hand.plusOne(move.handPieceDropped());
 					}
 					// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
 					if (!moveGivesNeighborCheck(n, move))
-						entry1.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
+						entry1->hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 				}
 				else {
 					// 詰んでないので、m2で詰みを逃れている。
@@ -458,22 +527,22 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					// 王手がない場合
 					MovePicker<true> move_picker2(n);
 					if (move_picker2.empty()) {
-						auto& entry1 = transposition_table.LookUp<true>(n);
-						entry1.pn = kInfinitePnDn;
-						entry1.dn = 0;
+						auto entry1 = transposition_table.LookUp<true>(n, next_path_key(path_key, n.getKey()));
+						entry1->pn = kInfinitePnDn;
+						entry1->dn = 0;
 						// 反証駒
 						// 持っている持ち駒を最大数にする(後手の持ち駒を加える)
-						entry1.hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
+						entry1->hand.set(dp(n.hand(n.turn()), n.hand(oppositeColor(n.turn()))));
 
 						n.undoMove(m2);
 
-						entry.pn = kInfinitePnDn;
-						entry.dn = 0;
+						entry->pn = kInfinitePnDn;
+						entry->dn = 0;
 						// 子局面の反証駒を設定
 						// 打つ手ならば、反証駒から削除する
 						if (m2.isDrop()) {
-							entry.hand = entry1.hand;
-							entry.hand.minusOne(m2.handPieceDropped());
+							entry->hand = entry1->hand;
+							entry->hand.minusOne(m2.handPieceDropped());
 						}
 						// 先手の駒を取る手ならば、反証駒に追加する
 						else {
@@ -481,9 +550,9 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 							if (to_pc != Empty) {
 								const PieceType pt = pieceToPieceType(to_pc);
 								const HandPiece hp = pieceTypeToHandPiece(pt);
-								if (entry.hand.numOf(hp) > entry1.hand.numOf(hp)) {
-									entry.hand = entry1.hand;
-									entry.hand.plusOne(hp);
+								if (entry->hand.numOf(hp) > entry1->hand.numOf(hp)) {
+									entry->hand = entry1->hand;
+									entry->hand.plusOne(hp);
 								}
 							}
 						}
@@ -497,8 +566,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			}
 
 			// すべて詰んだ
-			entry.pn = 0;
-			entry.dn = kInfinitePnDn;
+			entry->pn = 0;
+			entry->dn = kInfinitePnDn;
 			return;
 
 		NO_MATE:;
@@ -512,14 +581,14 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		// 連続王手の千日手による勝ち
 		if (or_node) {
 			// ここは通らないはず
-			entry.pn = 0;
-			entry.dn = kInfinitePnDn;
-			entry.num_searched = REPEAT;
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = 0;
+			entry->dn = kInfinitePnDn;
 		}
 		else {
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
-			entry.num_searched = REPEAT;
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
 		}
 		return;
 
@@ -527,15 +596,15 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		//cout << "RepetitionLose" << endl;
 		// 連続王手の千日手による負け
 		if (or_node) {
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
-			entry.num_searched = REPEAT;
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
 		}
 		else {
 			// ここは通らないはず
-			entry.pn = 0;
-			entry.dn = kInfinitePnDn;
-			entry.num_searched = REPEAT;
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = 0;
+			entry->dn = kInfinitePnDn;
 		}
 		return;
 
@@ -543,10 +612,20 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		//cout << "RepetitionDraw" << endl;
 		// 普通の千日手
 		// ここは通らないはず
-		entry.pn = kInfinitePnDn;
-		entry.dn = 0;
-		entry.num_searched = REPEAT;
+		entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+		entry->pn = kInfinitePnDn;
+		entry->dn = 0;
 		return;
+
+	case RepetitionSuperior:
+		if (!or_node) {
+			// ANDノードで優越局面になっている場合、除外できる(ORノードで選択されなくなる)
+			entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
+			return;
+		}
+		break;
 	}
 
 	// 子局面のハッシュエントリをキャッシュ
@@ -554,17 +633,18 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		TranspositionTable::Cluster* entries;
 		uint32_t hash_high;
 		Hand hand;
+		Key path_key;
 	} ttkeys[MaxCheckMoves];
 
 	for (const auto& move : move_picker) {
 		auto& ttkey = ttkeys[&move - move_picker.begin()];
-		transposition_table.GetChildFirstEntry<or_node>(n, move, ttkey.entries, ttkey.hash_high, ttkey.hand);
+		ttkey.path_key = transposition_table.GetChildFirstEntry<or_node>(n, move, ttkey.entries, ttkey.hash_high, ttkey.hand, path_key);
 	}
 
 	while (searchedNode < maxSearchNode && !stop) {
-		++entry.num_searched;
+		++entry->num_searched;
 
-		Move best_move;
+		const ExtMove* best_move;
 		int thpn_child;
 		int thdn_child;
 
@@ -576,8 +656,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			int best_dn = 0;
 			uint32_t best_num_search = UINT_MAX;
 
-			entry.pn = kInfinitePnDn;
-			entry.dn = 0;
+			entry->pn = kInfinitePnDn;
+			entry->dn = 0;
 			// 子局面の反証駒の積集合
 			u32 pawn = UINT_MAX;
 			u32 lance = UINT_MAX;
@@ -590,39 +670,39 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			bool repeat = false; // 最大手数チェック用
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
-				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
-				if (child_entry.pn == 0) {
+				const auto child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1, ttkey.path_key);
+				if (child_entry->pn == 0) {
 					// 詰みの場合
 					//cout << n.toSFEN() << " or" << endl;
-					//cout << bitset<32>(entry.hand.value()) << endl;
-					entry.pn = 0;
-					entry.dn = kInfinitePnDn;
+					//cout << bitset<32>(entry->hand.value()) << endl;
+					entry->pn = 0;
+					entry->dn = kInfinitePnDn;
 					// 子局面の証明駒を設定
 					// 打つ手ならば、証明駒に追加する
 					if (move.move.isDrop()) {
 						const HandPiece hp = move.move.handPieceDropped();
-						if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
-							entry.hand = child_entry.hand;
-							entry.hand.plusOne(move.move.handPieceDropped());
+						if (entry->hand.numOf(hp) > child_entry->hand.numOf(hp)) {
+							entry->hand = child_entry->hand;
+							entry->hand.plusOne(move.move.handPieceDropped());
 						}
 					}
 					// 後手の駒を取る手ならば、証明駒から削除する
 					else {
 						const Piece to_pc = n.piece(move.move.to());
 						if (to_pc != Empty) {
-							entry.hand = child_entry.hand;
+							entry->hand = child_entry->hand;
 							const PieceType pt = pieceToPieceType(to_pc);
 							const HandPiece hp = pieceTypeToHandPiece(pt);
-							if (entry.hand.exists(hp))
-								entry.hand.minusOne(hp);
+							if (entry->hand.exists(hp))
+								entry->hand.minusOne(hp);
 						}
 					}
-					//cout << bitset<32>(entry.hand.value()) << endl;
+					//cout << bitset<32>(entry->hand.value()) << endl;
 					break;
 				}
-				else if (entry.dn == 0) {
-					if (child_entry.dn == 0) {
-						const Hand& child_dp = child_entry.hand;
+				else if (entry->dn == 0) {
+					if (child_entry->dn == 0) {
+						const Hand& child_dp = child_entry->hand;
 						// 歩
 						const u32 child_pawn = child_dp.exists<HPawn>();
 						if (child_pawn < pawn) pawn = child_pawn;
@@ -646,49 +726,50 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						if (child_rook < rook) rook = child_rook;
 					}
 				}
-				entry.pn = std::min(entry.pn, child_entry.pn);
-				entry.dn += child_entry.dn;
+				entry->pn = std::min(entry->pn, child_entry->pn);
+				entry->dn += child_entry->dn;
 
 				// 最大手数で不詰みの局面が優越関係で使用されないようにする
-				if (child_entry.dn == 0 && child_entry.num_searched == REPEAT)
+				if (child_entry->dn == 0 && child_entry->num_searched == REPEAT)
 					repeat = true;
 
-				if (child_entry.pn < best_pn ||
-					child_entry.pn == best_pn && best_num_search > child_entry.num_searched) {
+				if (child_entry->pn < best_pn ||
+					child_entry->pn == best_pn && best_num_search > child_entry->num_searched) {
 					second_best_pn = best_pn;
-					best_pn = child_entry.pn;
-					best_dn = child_entry.dn;
-					best_move = move;
-					best_num_search = child_entry.num_searched;
+					best_pn = child_entry->pn;
+					best_dn = child_entry->dn;
+					best_move = &move;
+					best_num_search = child_entry->num_searched;
 				}
-				else if (child_entry.pn < second_best_pn) {
-					second_best_pn = child_entry.pn;
+				else if (child_entry->pn < second_best_pn) {
+					second_best_pn = child_entry->pn;
 				}
 			}
-			entry.dn = std::min(entry.dn, kInfinitePnDn);
-			if (entry.dn == 0) {
+			entry->dn = std::min(entry->dn, kInfinitePnDn);
+			if (entry->dn == 0) {
 				// 不詰みの場合
-				//cout << n.hand(n.turn()).value() << "," << entry.hand.value() << ",";
+				//cout << n.hand(n.turn()).value() << "," << entry->hand.value() << ",";
 				// 最大手数で不詰みの局面が優越関係で使用されないようにする
-				if (repeat)
-					entry.num_searched = REPEAT;
+				if (repeat) {
+					entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+				}
 				else {
 					// 先手が一枚も持っていない種類の先手の持ち駒を反証駒から削除する
-					u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
-					u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
-					u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
-					u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
-					u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
-					u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
-					u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
+					u32 curr_pawn = entry->hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
+					u32 curr_lance = entry->hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
+					u32 curr_knight = entry->hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
+					u32 curr_silver = entry->hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
+					u32 curr_gold = entry->hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
+					u32 curr_bishop = entry->hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
+					u32 curr_rook = entry->hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
 					// 反証駒に子局面の証明駒の積集合を設定
-					entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
-					//cout << entry.hand.value() << endl;
+					entry->hand.set(pawn | lance | knight | silver | gold | bishop | rook);
+					//cout << entry->hand.value() << endl;
 				}
 			}
 			else {
 				thpn_child = std::min(thpn, second_best_pn + 1);
-				thdn_child = std::min(thdn - entry.dn + best_dn, kInfinitePnDn);
+				thdn_child = std::min(thdn - entry->dn + best_dn, kInfinitePnDn);
 			}
 		}
 		else {
@@ -698,8 +779,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			int best_pn = 0;
 			uint32_t best_num_search = UINT_MAX;
 
-			entry.pn = 0;
-			entry.dn = kInfinitePnDn;
+			entry->pn = 0;
+			entry->dn = kInfinitePnDn;
 			// 子局面の証明駒の和集合
 			u32 pawn = 0;
 			u32 lance = 0;
@@ -711,10 +792,10 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			bool all_mate = true;
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
-				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
+				const auto child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1, ttkey.path_key);
 				if (all_mate) {
-					if (child_entry.pn == 0) {
-						const Hand& child_pp = child_entry.hand;
+					if (child_entry->pn == 0) {
+						const Hand& child_pp = child_entry->hand;
 						// 歩
 						const u32 child_pawn = child_pp.exists<HPawn>();
 						if (child_pawn > pawn) pawn = child_pawn;
@@ -740,21 +821,22 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					else
 						all_mate = false;
 				}
-				if (child_entry.dn == 0) {
+				if (child_entry->dn == 0) {
 					// 不詰みの場合
-					entry.pn = kInfinitePnDn;
-					entry.dn = 0;
+					entry->pn = kInfinitePnDn;
+					entry->dn = 0;
 					// 最大手数で不詰みの局面が優越関係で使用されないようにする
-					if (child_entry.num_searched == REPEAT)
-						entry.num_searched = REPEAT;
+					if (child_entry->num_searched == REPEAT) {
+						entry = transposition_table.SetRepeat<or_node>(entry, n, path_key);
+					}
 					else {
 						// 子局面の反証駒を設定
 						// 打つ手ならば、反証駒から削除する
 						if (move.move.isDrop()) {
 							const HandPiece hp = move.move.handPieceDropped();
-							if (entry.hand.numOf(hp) < child_entry.hand.numOf(hp)) {
-								entry.hand = child_entry.hand;
-								entry.hand.minusOne(hp);
+							if (entry->hand.numOf(hp) < child_entry->hand.numOf(hp)) {
+								entry->hand = child_entry->hand;
+								entry->hand.minusOne(hp);
 							}
 						}
 						// 先手の駒を取る手ならば、反証駒に追加する
@@ -763,67 +845,68 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 							if (to_pc != Empty) {
 								const PieceType pt = pieceToPieceType(to_pc);
 								const HandPiece hp = pieceTypeToHandPiece(pt);
-								if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
-									entry.hand = child_entry.hand;
-									entry.hand.plusOne(hp);
+								if (entry->hand.numOf(hp) > child_entry->hand.numOf(hp)) {
+									entry->hand = child_entry->hand;
+									entry->hand.plusOne(hp);
 								}
 							}
 						}
 					}
 					break;
 				}
-				entry.pn += child_entry.pn;
-				entry.dn = std::min(entry.dn, child_entry.dn);
+				entry->pn += child_entry->pn;
+				entry->dn = std::min(entry->dn, child_entry->dn);
 
-				if (child_entry.dn < best_dn ||
-					child_entry.dn == best_dn && best_num_search > child_entry.num_searched) {
+				if (child_entry->dn < best_dn ||
+					child_entry->dn == best_dn && best_num_search > child_entry->num_searched) {
 					second_best_dn = best_dn;
-					best_dn = child_entry.dn;
-					best_pn = child_entry.pn;
-					best_move = move;
+					best_dn = child_entry->dn;
+					best_pn = child_entry->pn;
+					best_move = &move;
 				}
-				else if (child_entry.dn < second_best_dn) {
-					second_best_dn = child_entry.dn;
+				else if (child_entry->dn < second_best_dn) {
+					second_best_dn = child_entry->dn;
 				}
 			}
-			entry.pn = std::min(entry.pn, kInfinitePnDn);
-			if (entry.pn == 0) {
+			entry->pn = std::min(entry->pn, kInfinitePnDn);
+			if (entry->pn == 0) {
 				// 詰みの場合
 				//cout << n.toSFEN() << " and" << endl;
-				//cout << bitset<32>(entry.hand.value()) << endl;
+				//cout << bitset<32>(entry->hand.value()) << endl;
 				// 証明駒に子局面の証明駒の和集合を設定
-				u32 curr_pawn = entry.hand.template exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
-				u32 curr_lance = entry.hand.template exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
-				u32 curr_knight = entry.hand.template exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
-				u32 curr_silver = entry.hand.template exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
-				u32 curr_gold = entry.hand.template exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
-				u32 curr_bishop = entry.hand.template exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
-				u32 curr_rook = entry.hand.template exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
-				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
-				//cout << bitset<32>(entry.hand.value()) << endl;
+				u32 curr_pawn = entry->hand.template exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
+				u32 curr_lance = entry->hand.template exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
+				u32 curr_knight = entry->hand.template exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
+				u32 curr_silver = entry->hand.template exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
+				u32 curr_gold = entry->hand.template exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
+				u32 curr_bishop = entry->hand.template exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
+				u32 curr_rook = entry->hand.template exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
+				entry->hand.set(pawn | lance | knight | silver | gold | bishop | rook);
+				//cout << bitset<32>(entry->hand.value()) << endl;
 				// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
 				if (!(n.checkersBB() & n.attacksFrom<King>(n.kingSquare(n.turn())) || n.checkersBB() & n.attacksFrom<Knight>(n.turn(), n.kingSquare(n.turn()))))
-					entry.hand.setPP(n.hand(oppositeColor(n.turn())), n.hand(n.turn()));
-				//cout << bitset<32>(entry.hand.value()) << endl;
+					entry->hand.setPP(n.hand(oppositeColor(n.turn())), n.hand(n.turn()));
+				//cout << bitset<32>(entry->hand.value()) << endl;
 			}
 			else {
-				thpn_child = std::min(thpn - entry.pn + best_pn, kInfinitePnDn);
+				thpn_child = std::min(thpn - entry->pn + best_pn, kInfinitePnDn);
 				thdn_child = std::min(thdn, second_best_dn + 1);
 			}
 		}
 
 		// if (pn(n) >= thpn || dn(n) >= thdn)
 		//   break; // termination condition is satisfied
-		if (entry.pn >= thpn || entry.dn >= thdn) {
+		if (entry->pn >= thpn || entry->dn >= thdn) {
 			break;
 		}
 
 		StateInfo state_info;
-		//cout << n.toSFEN() << "," << best_move.toUSI() << endl;
-		n.doMove(best_move, state_info);
+		//cout << n.toSFEN() << "," << best_move->move.toUSI() << endl;
+		n.doMove(best_move->move, state_info);
 		++searchedNode;
-		dfpn_inner<!or_node>(n, thpn_child, thdn_child/*, inc_flag*/, maxDepth, searchedNode);
-		n.undoMove(best_move);
+		const auto& best_ttkey = ttkeys[best_move - move_picker.begin()];
+		dfpn_inner<!or_node>(n, thpn_child, thdn_child/*, inc_flag*/, maxDepth, searchedNode, best_ttkey.path_key);
+		n.undoMove(best_move->move);
 	}
 }
 
@@ -831,8 +914,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 Move DfPn::dfpn_move(Position& pos) {
 	MovePicker<true> move_picker(pos);
 	for (const auto& move : move_picker) {
-		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
-		if (child_entry.pn == 0) {
+		const auto child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
+		if (child_entry->pn == 0) {
 			return move;
 		}
 	}
@@ -841,14 +924,14 @@ Move DfPn::dfpn_move(Position& pos) {
 }
 
 template<bool or_node>
-int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
+int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv, const Key path_key) {
 	if (or_node) {
 		// ORノードで詰みが見つかったらその手を選ぶ
 		MovePicker<true> move_picker(pos);
 		for (const auto& move : move_picker) {
-			const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
-			if (child_entry.pn == 0) {
-				if (child_entry.dn == kInfinitePnDn + 1) {
+			const auto child_entry = transposition_table.LookUpChildEntry<true>(pos, move, path_key);
+			if (child_entry->pn == 0) {
+				if (child_entry->dn == kInfinitePnDn + 1) {
 					pv.emplace_back(move);
 					return 1;
 				}
@@ -859,7 +942,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				case RepetitionSuperior:
 				{
 					pv.emplace_back(move);
-					const auto depth = get_pv_inner<false>(pos, pv);
+					const auto depth = get_pv_inner<false>(pos, pv, next_path_key(path_key, pos.getKey()));
 					pos.undoMove(move);
 					return depth + 1;
 				}
@@ -876,13 +959,13 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 		std::vector<Move> max_pv;
 		MovePicker<false> move_picker(pos);
 		for (const auto& move : move_picker) {
-			const auto& child_entry = transposition_table.LookUpChildEntry<false>(pos, move);
-			if (child_entry.pn == 0) {
+			const auto child_entry = transposition_table.LookUpChildEntry<false>(pos, move, path_key);
+			if (child_entry->pn == 0) {
 				std::vector<Move> tmp_pv{ move };
 				StateInfo state_info;
 				pos.doMove(move, state_info);
 				int depth = -kInfinitePnDn;
-				if (child_entry.dn == kInfinitePnDn + 2) {
+				if (child_entry->dn == kInfinitePnDn + 2) {
 					depth = 1;
 					if (!pos.inCheck()) {
 						// 1手詰みチェック
@@ -892,10 +975,10 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 						}
 					}
 					else
-						get_pv_inner<true>(pos, tmp_pv);
+						get_pv_inner<true>(pos, tmp_pv, next_path_key(path_key, pos.getKey()));
 				}
 				else {
-					depth = get_pv_inner<true>(pos, tmp_pv);
+					depth = get_pv_inner<true>(pos, tmp_pv, next_path_key(path_key, pos.getKey()));
 				}
 				pos.undoMove(move);
 
@@ -941,14 +1024,14 @@ bool DfPn::dfpn(Position& r) {
 		// 1手詰みチェック
 		Move mate1ply = r.mateMoveIn1Ply();
 		if (mate1ply) {
-			auto& child_entry = transposition_table.LookUpChildEntry<true>(r, mate1ply);
-			child_entry.pn = 0;
-			child_entry.dn = kInfinitePnDn + 1;
+			auto child_entry = transposition_table.LookUpChildEntry<true>(r, mate1ply);
+			child_entry->pn = 0;
+			child_entry->dn = kInfinitePnDn + 1;
 			return true;
 		}
 	}
 	dfpn_inner<true>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);
-	const auto& entry = transposition_table.LookUp<true>(r);
+	const auto entry = transposition_table.LookUp<true>(r);
 
 	//cout << searchedNode << endl;
 
@@ -959,7 +1042,7 @@ bool DfPn::dfpn(Position& r) {
 	cout << move.toUSI() << " ";
 	cout << endl;*/
 
-	return entry.pn == 0;
+	return entry->pn == 0;
 }
 
 // 詰将棋探索のエントリポイント
@@ -971,7 +1054,7 @@ bool DfPn::dfpn_andnode(Position& r) {
 
 	searchedNode = 0;
 	dfpn_inner<false>(r, kInfinitePnDn, kInfinitePnDn/*, false*/, std::min(r.gamePly() + kMaxDepth, draw_ply), searchedNode);
-	const auto& entry = transposition_table.LookUp<false>(r);
+	const auto entry = transposition_table.LookUp<false>(r);
 
-	return entry.pn == 0;
+	return entry->pn == 0;
 }
