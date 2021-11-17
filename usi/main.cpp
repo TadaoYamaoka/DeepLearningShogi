@@ -41,6 +41,9 @@ int main(int argc, char* argv[]) {
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
+
+	// リソースの破棄はOSに任せてすぐに終了する
+	std::quick_exit(0);
 }
 
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
