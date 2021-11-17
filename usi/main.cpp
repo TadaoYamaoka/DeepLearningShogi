@@ -641,6 +641,9 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	// 訪問回数の閾値(1000分率)
 	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
 
+	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
+
 	SetReuseSubtree(options["ReuseSubtree"]);
 
 	// outFileが存在するときは追加する
@@ -676,20 +679,24 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
 		// 先手番
-		int count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
-		black_num += count;
+		if (make_book_color == Black || make_book_color == ColorNum) {
+			int count = 0;
+			moves.clear();
+			// 探索
+			pos.set(DefaultStartPositionSFEN);
+			make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
+			black_num += count;
+		}
 
 		// 後手番
-		count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
-		white_num += count;
+		if (make_book_color == White || make_book_color == ColorNum) {
+			int count = 0;
+			moves.clear();
+			// 探索
+			pos.set(DefaultStartPositionSFEN);
+			make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
+			white_num += count;
+		}
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
 		if (outMap.size() > prev_num && ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg))
