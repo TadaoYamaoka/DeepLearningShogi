@@ -426,6 +426,7 @@ Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_book_policy = true;
+bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.01;
 
@@ -634,6 +635,9 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
+
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
 
 	// 評価値の閾値
 	book_eval_threshold = options["Book_Eval_Threshold"];

@@ -63,6 +63,7 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 #include "book.hpp"
 extern std::map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_book_policy;
+extern bool use_interruption;
 #endif
 
 // 持ち時間
@@ -958,6 +959,27 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	current_policy_value_batch_index++;
 }
 
+// 探索回数が最も多い手と次に多い手を求める
+inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
+{
+	int max_searched = 0, second_searched = 0;
+	int max_index = 0, second_index = 0;
+
+	const int child_num = current_root->child_num;
+	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].move_count > max_searched) {
+			second_searched = max_searched;
+			max_searched = uct_child[i].move_count;
+			max_index = i;
+		}
+		else if (uct_child[i].move_count > second_searched) {
+			second_searched = uct_child[i].move_count;
+			second_index = i;
+		}
+	}
+
+	return std::make_tuple(max_searched, second_searched, max_index, second_index);
+}
 
 //////////////////////////
 //  探索打ち止めの確認  //
@@ -971,24 +993,13 @@ InterruptionCheck(void)
 		return false;
 	}
 
-	int max_searched = 0, second_searched = 0;
-	int max_index = 0, second_index = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
-	const int child_num = current_root->child_num;
-	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max_searched) {
-			second_searched = max_searched;
-			max_searched = uct_child[i].move_count;
-			max_index = i;
-		}
-		else if (uct_child[i].move_count > second_searched) {
-			second_searched = uct_child[i].move_count;
-			second_index = i;
-		}
-	}
+	int max_searched, second_searched;
+	int max_index, second_index;
+	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
 	// 詰みが見つかった場合は探索を打ち切る
 	if (uct_child[max_index].IsLose())
@@ -1132,15 +1143,32 @@ UCTSearcher::ParallelUctSearch()
 						cout << "info string interrupt_node_limit" << endl;*/
 					break;
 				}
+#ifdef MAKE_BOOK
+				if (use_interruption && monitoring_thread) {
+					const child_node_t* uct_child = current_root->child.get();
+
+					// 探索回数が最も多い手と次に多い手を求める
+					int max_searched, second_searched;
+					int max_index, second_index;
+					std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+
+
+					// 残りの探索で次善手が最善手を超える可能性がない場合は打ち切る
+					const int rest_po = po_info.halt - po_info.count;
+					if (max_searched - second_searched > rest_po) {
+						interruption = true;
+					}
+				}
+#endif
 			}
 			else {
 				// 探索を打ち切るか確認
 				if (monitoring_thread)
 					interruption = InterruptionCheck();
-				// 探索打ち切り
-				if (interruption) {
-					break;
-				}
+			}
+			// 探索打ち切り
+			if (interruption) {
+				break;
 			}
 		}
 
