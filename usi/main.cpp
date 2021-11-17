@@ -674,7 +674,7 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	int white_num = 0;
 	int prev_num = outMap.size();
 	std::vector<Move> moves;
-	for (int trial = 0; trial < limitTrialNum; trial += 2) {
+	for (int trial = 0; trial < limitTrialNum;) {
 		// 進捗状況表示
 		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
@@ -686,6 +686,7 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 			pos.set(DefaultStartPositionSFEN);
 			make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
 			black_num += count;
+			trial++;
 		}
 
 		// 後手番
@@ -696,10 +697,11 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 			pos.set(DefaultStartPositionSFEN);
 			make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
 			white_num += count;
+			trial++;
 		}
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if (outMap.size() > prev_num && ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg))
+		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum || stopflg))
 		{
 			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
