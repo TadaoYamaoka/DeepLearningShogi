@@ -26,13 +26,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
 
-volatile sig_atomic_t stopflg = false;
-
-void sigint_handler(int signum)
-{
-	stopflg = true;
-}
-
 int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
@@ -674,9 +667,6 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
 
-	// シグナル設定
-	signal(SIGINT, sigint_handler);
-
 	int black_num = 0;
 	int white_num = 0;
 	int prev_num = outMap.size();
@@ -708,7 +698,7 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 		}
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum || stopflg))
+		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 		{
 			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
@@ -717,9 +707,6 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
 			}
 		}
-
-		if (stopflg)
-			break;
 	}
 
 	// 結果表示
