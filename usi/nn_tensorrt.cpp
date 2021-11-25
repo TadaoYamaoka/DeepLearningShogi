@@ -189,12 +189,9 @@ void NNTensorRT::load_model(const char* filename)
 	{
 		throw std::runtime_error("createExecutionContext");
 	}
-
-	inputDims1 = engine->getBindingDimensions(0);
-	inputDims2 = engine->getBindingDimensions(1);
 }
 
-void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream)
+void NNTensorRT::forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream)
 {
 	inputDims1.d[0] = batch_size;
 	inputDims2.d[0] = batch_size;

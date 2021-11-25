@@ -220,15 +220,22 @@ public:
 	}
 
 	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
-	void InitGPU() {
-		mutex_gpu.lock();
-		if (nn == nullptr) {
 #ifdef ONNXRUNTIME
-			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+	void InitGPU() {
 #else
-			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+	void InitGPU(nvinfer1::Dims & inputDims1, nvinfer1::Dims & inputDims2) {
 #endif
+		mutex_gpu.lock();
+#ifdef ONNXRUNTIME
+		if (nn == nullptr) {
+			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 		}
+#else
+		if (nn == nullptr) {
+			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+		}
+		nn->get_input_dims(inputDims1, inputDims2);
+#endif
 		mutex_gpu.unlock();
 	}
 #ifdef ONNXRUNTIME
@@ -238,8 +245,8 @@ public:
 		mutex_gpu.unlock();
 	}
 #else
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream) {
-		nn->forward(batch_size, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+	void nn_forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream) {
+		nn->forward(batch_size, inputDims1, inputDims2, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
 	}
 #endif
 	void Run();
@@ -360,11 +367,13 @@ public:
 		}
 #else
 		handle = new thread([this]() {
-#ifndef ONNXRUNTIME
+#ifdef ONNXRUNTIME
+			grp->InitGPU();
+#else
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
+			grp->InitGPU(inputDims1, inputDims2);
 #endif
-			grp->InitGPU();
 
 			this->ParallelUctSearch();
 		});
@@ -436,6 +445,8 @@ private:
 	DType* y2_dev;
 	std::vector<void*> inputBindings;
 	cudaStream_t stream;
+	nvinfer1::Dims inputDims1;
+	nvinfer1::Dims inputDims2;
 #endif
 
 #ifdef MAKE_BOOK
@@ -1501,7 +1512,7 @@ void UCTSearcher::EvalNode() {
 #ifdef ONNXRUNTIME
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 #else
-	grp->nn_forward(policy_value_batch_size, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+	grp->nn_forward(policy_value_batch_size, inputDims1, inputDims2, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
 #endif
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
