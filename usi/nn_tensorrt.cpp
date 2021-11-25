@@ -195,7 +195,6 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	context->setBindingDimensions(0, inputDims1);
 	context->setBindingDimensions(1, inputDims2);
 
-#if 1
 	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream));
 	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream));
 	const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
@@ -203,12 +202,4 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaStreamSynchronize(stream));
-#else
-	checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice));
-	const bool status = context->executeV2(inputBindings.data());
-	assert(status);
-	checkCudaErrors(cudaMemcpy(y1, y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
-	checkCudaErrors(cudaMemcpy(y2, y2_dev, batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
-#endif
 }
