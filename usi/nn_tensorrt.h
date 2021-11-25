@@ -45,6 +45,7 @@ private:
 	const int max_batch_size;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
 	InferUniquePtr<nvinfer1::IExecutionContext> context;
+	std::mutex context_mutex;
 
 	void load_model(const char* filename);
 	void build(const std::string& onnx_filename);

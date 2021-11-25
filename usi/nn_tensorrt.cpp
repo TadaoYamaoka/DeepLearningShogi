@@ -195,13 +195,16 @@ void NNTensorRT::forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinf
 {
 	inputDims1.d[0] = batch_size;
 	inputDims2.d[0] = batch_size;
-	context->setBindingDimensions(0, inputDims1);
-	context->setBindingDimensions(1, inputDims2);
 
 	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream));
 	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
-	assert(status);
+	{
+		std::lock_guard<std::mutex> lock(context_mutex);
+		context->setBindingDimensions(0, inputDims1);
+		context->setBindingDimensions(1, inputDims2);
+		const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+		assert(status);
+	}
 	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaStreamSynchronize(stream));
