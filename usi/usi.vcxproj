@@ -304,7 +304,6 @@
     <ClInclude Include="fastmath.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
-    <ClInclude Include="nn.h" />
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="Node.h" />

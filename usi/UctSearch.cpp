@@ -231,11 +231,17 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
+#ifdef ONNXRUNTIME
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
+#else
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream) {
+		nn->forward(batch_size, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+	}
+#endif
 	void Run();
 	void Join();
 #ifdef THREAD_POOL
@@ -279,10 +285,22 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
+		// Create host buffers
 		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+
+		// Create stream
+		checkCudaErrors(cudaStreamCreate(&stream));
+
+		// Create device buffers
+		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
+		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
+		checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
+		checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
+
+		inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
@@ -305,6 +323,11 @@ public:
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
+		checkCudaErrors(cudaStreamDestroy(stream));
+		checkCudaErrors(cudaFree(x1_dev));
+		checkCudaErrors(cudaFree(x2_dev));
+		checkCudaErrors(cudaFree(y1_dev));
+		checkCudaErrors(cudaFree(y2_dev));
 #endif
 		delete[] policy_value_batch;
 	}
@@ -405,6 +428,16 @@ private:
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
+
+#ifndef ONNXRUNTIME
+	features1_t* x1_dev;
+	features2_t* x2_dev;
+	DType* y1_dev;
+	DType* y2_dev;
+	std::vector<void*> inputBindings;
+	cudaStream_t stream;
+#endif
+
 #ifdef MAKE_BOOK
 	Key* policy_value_book_key;
 #endif
@@ -1465,7 +1498,11 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
+#ifdef ONNXRUNTIME
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
+#else
+	grp->nn_forward(policy_value_batch_size, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+#endif
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
