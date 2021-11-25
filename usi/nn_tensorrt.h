@@ -9,12 +9,22 @@
 
 struct InferDeleter
 {
+	// Deprecated And Removed Features
+	// The following features are deprecated in TensorRT 8.0.0:
+	// - Interface functions that provided a destroy function are deprecated in TensorRT 8.0. The destructors will be exposed publicly in order for the delete operator to work as expected on these classes.
+	// - Destructors for classes with destroy() methods were previously protected. They are now public, enabling use of smart pointers for these classes. The destroy() methods are deprecated.
+	// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+	// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
 	template <typename T>
 	void operator()(T* obj) const
 	{
 		if (obj)
 		{
+#if NV_TENSORRT_MAJOR >= 8
+			delete obj;
+#else
 			obj->destroy();
+#endif
 		}
 	}
 };
