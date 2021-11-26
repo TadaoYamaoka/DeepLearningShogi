@@ -41,8 +41,6 @@ public:
 			throw std::runtime_error("createExecutionContext");
 		}
 
-		context->setOptimizationProfile(0);
-
 		inputDims1 = engine->getBindingDimensions(0);
 		inputDims2 = engine->getBindingDimensions(1);
 
