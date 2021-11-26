@@ -220,21 +220,27 @@ public:
 	}
 
 	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
+#ifdef ONNXRUNTIME
 	void InitGPU() {
 		std::lock_guard<std::mutex> lock(mutex_gpu);
 		if (nn == nullptr) {
 			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 		}
 	}
-#ifdef ONNXRUNTIME
+
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
 	}
 #else
-	nvinfer1::IExecutionContext* CreateContext(nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
-		return nn->create_context(inputDims1, inputDims2);
+	void InitGPU(nvinfer1::IExecutionContext** context, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
+		std::lock_guard<std::mutex> lock(mutex_gpu);
+		if (nn == nullptr) {
+			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+		}
+		if (*context == nullptr)
+			*context = nn->create_context(inputDims1, inputDims2);
 	}
 
 	void nn_forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream) {
@@ -338,9 +344,7 @@ public:
 			handle = new thread([this]() {
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
-				grp->InitGPU();
-				if (!context)
-					context = grp->CreateContext(inputDims1, inputDims2);
+				grp->InitGPU(&context, inputDims1, inputDims2);
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -367,9 +371,7 @@ public:
 #else
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
-			grp->InitGPU();
-			if (!context)
-				context = grp->CreateContext(inputDims1, inputDims2);
+			grp->InitGPU(&context, inputDims1, inputDims2);
 #endif
 
 			this->ParallelUctSearch();
