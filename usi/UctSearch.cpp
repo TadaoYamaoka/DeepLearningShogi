@@ -215,13 +215,15 @@ class UCTSearcher;
 class UCTSearcherGroup {
 public:
 	UCTSearcherGroup() : threads(0), nn(nullptr) {}
-	~UCTSearcherGroup() {}
+	~UCTSearcherGroup() {
+		delete nn;
+	}
 
 	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
 	void InitGPU() {
 		std::lock_guard<std::mutex> lock(mutex_gpu);
-		if (!nn) {
-			nn.reset(new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize));
+		if (nn == nullptr) {
+			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 		}
 	}
 #ifdef ONNXRUNTIME
@@ -255,7 +257,7 @@ private:
 	vector<UCTSearcher> searchers;
 
 	// neural network
-	std::unique_ptr<NN> nn;
+	NN* nn;
 	int policy_value_batch_maxsize;
 
 	// mutex for gpu
