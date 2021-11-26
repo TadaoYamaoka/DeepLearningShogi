@@ -215,28 +215,14 @@ class UCTSearcher;
 class UCTSearcherGroup {
 public:
 	UCTSearcherGroup() : threads(0), nn(nullptr) {}
-	~UCTSearcherGroup() {
-		delete nn;
-	}
+	~UCTSearcherGroup() {}
 
 	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
-#ifdef ONNXRUNTIME
 	void InitGPU() {
-#else
-	void InitGPU(nvinfer1::Dims & inputDims1, nvinfer1::Dims & inputDims2) {
-#endif
-		mutex_gpu.lock();
-#ifdef ONNXRUNTIME
-		if (nn == nullptr) {
-			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+		std::lock_guard<std::mutex> lock(mutex_gpu);
+		if (!nn) {
+			nn.reset(new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize));
 		}
-#else
-		if (nn == nullptr) {
-			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
-		}
-		nn->get_input_dims(inputDims1, inputDims2);
-#endif
-		mutex_gpu.unlock();
 	}
 #ifdef ONNXRUNTIME
 	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
@@ -245,8 +231,12 @@ public:
 		mutex_gpu.unlock();
 	}
 #else
-	void nn_forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream) {
-		nn->forward(batch_size, inputDims1, inputDims2, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+	nvinfer1::IExecutionContext* CreateContext(nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
+		return nn->create_context(inputDims1, inputDims2);
+	}
+
+	void nn_forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream) {
+		nn->forward(batch_size, inputDims1, inputDims2, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, context, inputBindings, stream);
 	}
 #endif
 	void Run();
@@ -265,7 +255,7 @@ private:
 	vector<UCTSearcher> searchers;
 
 	// neural network
-	NN* nn;
+	std::unique_ptr<NN> nn;
 	int policy_value_batch_maxsize;
 
 	// mutex for gpu
@@ -284,7 +274,8 @@ public:
 		ready_th(true),
 		term_th(false),
 #endif
-		policy_value_batch_maxsize(policy_value_batch_maxsize) {
+		policy_value_batch_maxsize(policy_value_batch_maxsize),
+		context(nullptr) {
 		// キューを動的に確保する
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
@@ -346,6 +337,8 @@ public:
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
 				grp->InitGPU();
+				if (!context)
+					context = grp->CreateContext(inputDims1, inputDims2);
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -372,7 +365,9 @@ public:
 #else
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
-			grp->InitGPU(inputDims1, inputDims2);
+			grp->InitGPU();
+			if (!context)
+				context = grp->CreateContext(inputDims1, inputDims2);
 #endif
 
 			this->ParallelUctSearch();
@@ -443,6 +438,7 @@ private:
 	features2_t* x2_dev;
 	DType* y1_dev;
 	DType* y2_dev;
+	nvinfer1::IExecutionContext* context;
 	std::vector<void*> inputBindings;
 	cudaStream_t stream;
 	nvinfer1::Dims inputDims1;
@@ -1512,7 +1508,7 @@ void UCTSearcher::EvalNode() {
 #ifdef ONNXRUNTIME
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
 #else
-	grp->nn_forward(policy_value_batch_size, inputDims1, inputDims2, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, inputBindings, stream);
+	grp->nn_forward(policy_value_batch_size, inputDims1, inputDims2, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, context, inputBindings, stream);
 #endif
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);

@@ -34,18 +34,26 @@ class NNTensorRT {
 public:
 	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
-	void get_input_dims(nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
+	nvinfer1::IExecutionContext* create_context(nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
+		auto context = engine->createExecutionContext();
+		if (!context)
+		{
+			throw std::runtime_error("createExecutionContext");
+		}
+
+		context->setOptimizationProfile(0);
+
 		inputDims1 = engine->getBindingDimensions(0);
 		inputDims2 = engine->getBindingDimensions(1);
+
+		return context;
 	}
-	void forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream);
+	void forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream);
 
 private:
 	const int gpu_id;
 	const int max_batch_size;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
-	InferUniquePtr<nvinfer1::IExecutionContext> context;
-	std::mutex context_mutex;
 
 	void load_model(const char* filename);
 	void build(const std::string& onnx_filename);

@@ -183,28 +183,19 @@ void NNTensorRT::load_model(const char* filename)
 			throw std::runtime_error("Cannot open engine file");
 		}
 	}
-
-	context = InferUniquePtr<nvinfer1::IExecutionContext>(engine->createExecutionContext());
-	if (!context)
-	{
-		throw std::runtime_error("createExecutionContext");
-	}
 }
 
-void NNTensorRT::forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, std::vector<void*>& inputBindings, cudaStream_t& stream)
+void NNTensorRT::forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream)
 {
 	inputDims1.d[0] = batch_size;
 	inputDims2.d[0] = batch_size;
 
 	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream));
 	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	{
-		std::lock_guard<std::mutex> lock(context_mutex);
-		context->setBindingDimensions(0, inputDims1);
-		context->setBindingDimensions(1, inputDims2);
-		const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
-		assert(status);
-	}
+	context->setBindingDimensions(0, inputDims1);
+	context->setBindingDimensions(1, inputDims2);
+	const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+	assert(status);
 	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream));
 	checkCudaErrors(cudaStreamSynchronize(stream));
