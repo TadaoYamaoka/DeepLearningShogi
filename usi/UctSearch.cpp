@@ -240,8 +240,8 @@ public:
 			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
 		}
 		if (*context == nullptr) {
-			checkCudaErrors(cudaStreamCreate(stream));
 			*context = nn->create_context(inputDims1, inputDims2);
+			checkCudaErrors(cudaStreamCreate(stream));
 		}
 	}
 
@@ -298,14 +298,6 @@ public:
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-
-		// Create device buffers
-		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
-		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
-		checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
-		checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
-
-		inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
@@ -328,11 +320,6 @@ public:
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
-		checkCudaErrors(cudaStreamDestroy(stream));
-		checkCudaErrors(cudaFree(x1_dev));
-		checkCudaErrors(cudaFree(x2_dev));
-		checkCudaErrors(cudaFree(y1_dev));
-		checkCudaErrors(cudaFree(y2_dev));
 #endif
 		delete[] policy_value_batch;
 	}
@@ -344,6 +331,13 @@ public:
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
 				grp->InitGPU(&context, &stream, inputDims1, inputDims2);
+				// Create device buffers
+				checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
+				checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
+				checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
+				checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
+
+				inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -370,6 +364,15 @@ public:
 #else
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
+			if (context == nullptr) {
+				// Create device buffers
+				checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
+				checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
+				checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
+				checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
+
+				inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+			}
 			grp->InitGPU(&context, &stream, inputDims1, inputDims2);
 #endif
 
