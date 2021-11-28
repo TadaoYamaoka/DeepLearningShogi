@@ -31,8 +31,6 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 
 NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
 {
-	// Create stream
-	checkCudaErrors(cudaStreamCreate(&stream));
 	// Create host and device buffers
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
 	checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * max_batch_size));
@@ -46,7 +44,6 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 
 NNTensorRT::~NNTensorRT()
 {
-	checkCudaErrors(cudaStreamDestroy(stream));
 	checkCudaErrors(cudaFree(x1_dev));
 	checkCudaErrors(cudaFree(x2_dev));
 	checkCudaErrors(cudaFree(y1_dev));
@@ -216,11 +213,11 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	context->setBindingDimensions(0, inputDims1);
 	context->setBindingDimensions(1, inputDims2);
 
-	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+	const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
 	assert(status);
-	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream));
-	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream));
-	checkCudaErrors(cudaStreamSynchronize(stream));
+	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 }
