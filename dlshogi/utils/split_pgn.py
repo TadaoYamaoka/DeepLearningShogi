@@ -55,6 +55,7 @@ for key, pgntext in pgns.items():
         with open(args.outprefix + key + '.pgn', 'w') as f:
             f.writelines(pgntext)
 
+    print()
     players = key.split('+')
     stat = stats[key]
     engine1_won = stat[players[0]]
