@@ -129,6 +129,9 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
     (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
+    (*this)["Random_Move_Ply"]             = USIOption(0, 0, 1000);
+    (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
+    (*this)["Random_Cutoff"]               = USIOption(20, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);

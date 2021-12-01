@@ -142,6 +142,12 @@ float draw_value_white = 0.5f;
 // 引き分けとする手数（この手数に達した場合引き分けとする）
 int draw_ply = INT_MAX;
 
+// ランダムムーブ設定
+int random_move_ply = 0;
+float random_reciprocal_temperature = 1.0f / 10.0f;
+float random_cutoff = 0.020f;
+std::unique_ptr<std::mt19937_64> random_mt_64;
+
 #ifdef PV_MATE_SEARCH
 // PVの詰み探索
 std::vector<PvMateSearcher> pv_mate_searchers;
@@ -564,6 +570,18 @@ void SetEvalCoef(const int eval_coef)
 	::eval_coef = (float)eval_coef;
 }
 
+// ランダムムーブの設定
+void SetRandomMove(const int ply, const int random_temperature, const int cutoff)
+{
+	random_move_ply = ply;
+	random_reciprocal_temperature = 1000.0f / random_temperature;
+	random_cutoff = cutoff / 1000.0f;
+	if (ply > 0 && !random_mt_64) {
+		std::random_device seed_gen;
+		random_mt_64.reset(new std::mt19937_64(seed_gen()));
+	}
+}
+
 /////////////////////////
 //  UCT探索の初期設定  //
 /////////////////////////
@@ -742,7 +760,45 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 	return std::make_tuple(pv, cp, depth, move, best_wp, ponderMove);
 }
 
-std::tuple<Move, float, Move> get_and_print_pv()
+// 訪問回数に応じてランダムに子ノードを選択
+inline unsigned int select_random_child_node(const uct_node_t* uct_node)
+{
+	const child_node_t* uct_child = uct_node->child.get();
+	const auto child_num = uct_node->child_num;
+
+	// 訪問回数順にソート
+	std::vector<const child_node_t*> sorted_uct_childs;
+	sorted_uct_childs.reserve(child_num);
+	for (int i = 0; i < child_num; i++)
+		sorted_uct_childs.emplace_back(&uct_node->child[i]);
+	std::stable_sort(sorted_uct_childs.begin(), sorted_uct_childs.end(), compare_child_node_ptr_descending);
+
+	// 訪問数が最大のノードの価値の一定以下は除外
+	const auto max_move_count_child = sorted_uct_childs[0];
+	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
+	vector<double> probabilities;
+	probabilities.reserve(child_num);
+	for (int i = 0; i < child_num; i++) {
+		if (sorted_uct_childs[i]->move_count == 0) break;
+
+		const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
+		if (win < cutoff_threshold) break;
+
+		const auto probability = std::pow(sorted_uct_childs[i]->move_count, random_reciprocal_temperature);
+		probabilities.emplace_back(probability);
+		if (debug_message)
+			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
+			<< " nnrate:" << sorted_uct_childs[i]->nnrate << " win_rate:" << sorted_uct_childs[i]->win / (sorted_uct_childs[i]->move_count)
+			<< " probability:" << probability << std::endl;
+	}
+
+	// 訪問回数に応じた確率で選択
+	discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
+	const auto selected_index = dist(*random_mt_64);
+	return static_cast<unsigned int>(sorted_uct_childs[selected_index] - uct_child);
+}
+
+std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 {
 	const uct_node_t* current_root = tree->GetCurrentHead();
 
@@ -762,7 +818,10 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 	if (multi_pv == 1) {
 		// 最大の子ノードを取得
-		const unsigned int best_root_child_index = select_max_child_node(current_root);
+		const unsigned int best_root_child_index =
+			(use_random && pos_root->gamePly() <= random_move_ply)
+			? select_random_child_node(current_root)
+			: select_max_child_node(current_root);
 
 		// PV表示
 		std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(current_root, best_root_child_index);
@@ -892,7 +951,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// PV取得と表示
 	Move move;
 	float best_wp;
-	std::tie(move, best_wp, ponderMove) = get_and_print_pv();
+	std::tie(move, best_wp, ponderMove) = get_and_print_pv(random_move_ply > 0);
 
 	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();

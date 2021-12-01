@@ -87,6 +87,9 @@ void SetMultiPV(const int multipv);
 // 勝率から評価値に変換する際の係数設定
 void SetEvalCoef(const int eval_coef);
 
+// ランダムムーブ設定（1000分率）
+void SetRandomMove(const int ply, const int random_temperature, const int cutoff);
+
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
 
