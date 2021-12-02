@@ -143,7 +143,7 @@ float draw_value_white = 0.5f;
 int draw_ply = INT_MAX;
 
 // ランダムムーブ設定
-int random_move_ply = 0;
+int random_ply = 0;
 float random_reciprocal_temperature = 1.0f / 10.0f;
 float random_cutoff = 0.020f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
@@ -573,7 +573,7 @@ void SetEvalCoef(const int eval_coef)
 // ランダムムーブの設定
 void SetRandomMove(const int ply, const int random_temperature, const int cutoff)
 {
-	random_move_ply = ply;
+	random_ply = ply;
 	random_reciprocal_temperature = 1000.0f / random_temperature;
 	random_cutoff = cutoff / 1000.0f;
 	if (ply > 0 && !random_mt_64) {
@@ -819,7 +819,7 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 	if (multi_pv == 1) {
 		// 最大の子ノードを取得
 		const unsigned int best_root_child_index =
-			(use_random && pos_root->gamePly() <= random_move_ply)
+			(use_random && pos_root->gamePly() <= random_ply)
 			? select_random_child_node(current_root)
 			: select_max_child_node(current_root);
 
@@ -951,7 +951,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// PV取得と表示
 	Move move;
 	float best_wp;
-	std::tie(move, best_wp, ponderMove) = get_and_print_pv(random_move_ply > 0);
+	std::tie(move, best_wp, ponderMove) = get_and_print_pv(random_ply > 0);
 
 	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();
