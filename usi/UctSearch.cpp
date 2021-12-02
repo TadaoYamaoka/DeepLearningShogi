@@ -865,6 +865,12 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 			}
 		}
 		std::cout << std::flush;
+
+		// 訪問回数に応じた確率で選択する場合
+		if (use_random && pos_root->gamePly() <= random_ply) {
+			const unsigned int best_root_child_index = select_random_child_node(current_root);
+			std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(current_root, best_root_child_index);
+		}
 	}
 
 	return std::make_tuple(move, best_wp, ponderMove);
