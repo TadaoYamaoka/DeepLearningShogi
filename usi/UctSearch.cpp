@@ -144,7 +144,8 @@ int draw_ply = INT_MAX;
 
 // ランダムムーブ設定
 int random_ply = 0;
-float random_reciprocal_temperature = 1.0f / 10.0f;
+float random_temperature = 10.0f;
+float random_temperature_drop = 1.0f;
 float random_cutoff = 0.020f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
 
@@ -571,10 +572,11 @@ void SetEvalCoef(const int eval_coef)
 }
 
 // ランダムムーブの設定
-void SetRandomMove(const int ply, const int random_temperature, const int cutoff)
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff)
 {
 	random_ply = ply;
-	random_reciprocal_temperature = 1000.0f / random_temperature;
+	random_temperature = temperature / 1000.0f;
+	random_temperature_drop = temperature_drop / 1000.0f;
 	random_cutoff = cutoff / 1000.0f;
 	if (ply > 0 && !random_mt_64) {
 		std::random_device seed_gen;
@@ -778,13 +780,16 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
 	vector<double> probabilities;
 	probabilities.reserve(child_num);
+	const int step = (pos_root->gamePly() - 1) / 2;
+	const float temperature = std::max(0.1f, random_temperature - random_temperature_drop * step);
+	const float reciprocal_temperature = 1.0f / temperature;
 	for (int i = 0; i < child_num; i++) {
 		if (sorted_uct_childs[i]->move_count == 0) break;
 
 		const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
 		if (win < cutoff_threshold) break;
 
-		const auto probability = std::pow(sorted_uct_childs[i]->move_count, random_reciprocal_temperature);
+		const auto probability = std::pow(sorted_uct_childs[i]->move_count, reciprocal_temperature);
 		probabilities.emplace_back(probability);
 		if (debug_message)
 			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count

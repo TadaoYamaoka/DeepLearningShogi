@@ -131,6 +131,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
     (*this)["Random_Ply"]                  = USIOption(0, 0, 1000);
     (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
+    (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(20, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
