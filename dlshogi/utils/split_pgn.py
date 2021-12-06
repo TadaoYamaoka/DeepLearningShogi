@@ -5,6 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('pgn', type=str, nargs='+')
 parser.add_argument('outprefix')
 parser.add_argument('--uniq', action='store_true')
+parser.add_argument('--no_output', action='store_true')
 args = parser.parse_args()
 
 pgns = defaultdict(list)
@@ -50,8 +51,9 @@ for file in args.pgn:
     append(players, pgntext, result)
 
 for key, pgntext in pgns.items():
-    with open(args.outprefix + key + '.pgn', 'w') as f:
-        f.writelines(pgntext)
+    if not args.no_output:
+        with open(args.outprefix + key + '.pgn', 'w') as f:
+            f.writelines(pgntext)
 
     print()
     players = key.split('+')

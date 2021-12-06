@@ -108,13 +108,11 @@ TTEntry& TranspositionTable::LookUpDirect(Cluster& entries, const uint32_t hash_
 					if (hash_high == entry_rest.hash_high) {
 						if (entry_rest.pn == 0) {
 							if (hand.isEqualOrSuperior(entry_rest.hand) && entry_rest.num_searched != REPEAT) {
-								entry_rest.generation = generation;
 								return entry_rest;
 							}
 						}
 						else if (entry_rest.dn == 0) {
 							if (entry_rest.hand.isEqualOrSuperior(hand) && entry_rest.num_searched != REPEAT) {
-								entry_rest.generation = generation;
 								return entry_rest;
 							}
 						}
@@ -549,6 +547,16 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		entry.dn = 0;
 		entry.num_searched = REPEAT;
 		return;
+
+	case RepetitionSuperior:
+		if (!or_node) {
+			// ANDノードで優越局面になっている場合、除外できる(ORノードで選択されなくなる)
+			entry.pn = kInfinitePnDn;
+			entry.dn = 0;
+			entry.num_searched = REPEAT;
+			return;
+		}
+		break;
 	}
 
 	// 子局面のハッシュエントリをキャッシュ

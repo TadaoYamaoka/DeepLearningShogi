@@ -26,13 +26,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
 
-volatile sig_atomic_t stopflg = false;
-
-void sigint_handler(int signum)
-{
-	stopflg = true;
-}
-
 int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
@@ -41,6 +34,9 @@ int main(int argc, char* argv[]) {
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
+
+	// リソースの破棄はOSに任せてすぐに終了する
+	std::quick_exit(0);
 }
 
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
@@ -188,6 +184,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);
 			SetEvalCoef(options["Eval_Coef"]);
+			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -426,7 +423,9 @@ Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_book_policy = true;
+bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
+double book_visit_threshold = 0.01;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
@@ -457,7 +456,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	const child_node_t *uct_child = current_root->child.get();
 	for (int i = 0; i < current_root->child_num; i++) {
 		movelist.emplace_back(uct_child[i]);
-		if (double(uct_child[i].move_count) / current_root->move_count > 0.1) { // 閾値
+		if (double(uct_child[i].move_count) / current_root->move_count > book_visit_threshold) { // 閾値
 			num++;
 		}
 	}
@@ -634,8 +633,17 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
 
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
+
 	// 評価値の閾値
 	book_eval_threshold = options["Book_Eval_Threshold"];
+
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
 
 	SetReuseSubtree(options["ReuseSubtree"]);
 
@@ -660,35 +668,38 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
 
-	// シグナル設定
-	signal(SIGINT, sigint_handler);
-
 	int black_num = 0;
 	int white_num = 0;
 	int prev_num = outMap.size();
 	std::vector<Move> moves;
-	for (int trial = 0; trial < limitTrialNum; trial += 2) {
+	for (int trial = 0; trial < limitTrialNum;) {
 		// 進捗状況表示
 		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
 		// 先手番
-		int count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
-		black_num += count;
+		if (make_book_color == Black || make_book_color == ColorNum) {
+			int count = 0;
+			moves.clear();
+			// 探索
+			pos.set(DefaultStartPositionSFEN);
+			make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
+			black_num += count;
+			trial++;
+		}
 
 		// 後手番
-		count = 0;
-		moves.clear();
-		// 探索
-		pos.set(DefaultStartPositionSFEN);
-		make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
-		white_num += count;
+		if (make_book_color == White || make_book_color == ColorNum) {
+			int count = 0;
+			moves.clear();
+			// 探索
+			pos.set(DefaultStartPositionSFEN);
+			make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
+			white_num += count;
+			trial++;
+		}
 
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if (outMap.size() > prev_num && ((trial + 2) % save_book_interval == 0 || (trial + 2) >= limitTrialNum || stopflg))
+		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 		{
 			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
@@ -697,9 +708,6 @@ void MySearcher::make_book(std::istringstream& ssCmd) {
 					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
 			}
 		}
-
-		if (stopflg)
-			break;
 	}
 
 	// 結果表示

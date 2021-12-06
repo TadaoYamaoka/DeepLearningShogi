@@ -571,8 +571,7 @@ namespace {
 
 	// 王手用
 	template <Color US, bool ALL>
-	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const Position& pos, const Square from, const Square to) {
-		const PieceType pt = pieceToPieceType(pos.piece(from));
+	FORCE_INLINE ExtMove* generatCheckMoves(ExtMove* moveList, const PieceType pt, const Position& pos, const Square from, const Square to) {
 		switch (pt) {
 		case Empty: assert(false); break; // 最適化の為のダミー
 		case Pawn:
@@ -660,7 +659,7 @@ namespace {
 			// yと、yを含まないxとに分けて処理する。
 			// すなわち、y と (x | y)^y
 
-			const Color opp = oppositeColor(US);
+			constexpr Color opp = oppositeColor(US);
 			const Square ksq = pos.kingSquare(opp);
 
 			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
@@ -696,7 +695,7 @@ namespace {
 				while (toBB) {
 					const Square to = toBB.firstOneFromSQ11();
 					if (!isAligned<true>(from, to, ksq)) {
-						moveList = generatCheckMoves<US, ALL>(moveList, pos, from, to);
+						moveList = generatCheckMoves<US, ALL>(moveList, pt, pos, from, to);
 					}
 					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
 					else if (x.isSet(from)) {
@@ -788,27 +787,18 @@ namespace {
 				{
 					// 成って王手
 					Bitboard toBB = pawnAttack(US, from) & target;
-					if (ALL) {
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
-							if (canPromote(US, makeRank(to)))
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+					while (toBB) {
+						const Square to = toBB.firstOneFromSQ11();
+						if (canPromote(US, makeRank(to))) {
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							// 成らない手を後に生成
+							if (ALL) {
+								if (pawnAttack(opp, ksq).isSet(to))
+									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+							}
 						}
-						// 成らない手を後に生成
-						toBB = pawnAttack(US, from) & pawnAttack(opp, ksq) & target;
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						else
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
-					}
-					else {
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
-							// 歩は成れる場合は成る
-							(*moveList++).move = canPromote(US, makeRank(to)) ?
-								makePromoteMove<Capture>(pt, from, to, pos) :
-								makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
 					}
 					break;
 				}
@@ -900,7 +890,7 @@ namespace {
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
-						Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
+						const Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
@@ -944,7 +934,7 @@ namespace {
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
-						Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
+						const Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
@@ -1017,7 +1007,7 @@ namespace {
 					else {
 						Bitboard toBB = kingAttack(ksq) & kingAttack(from) & target;
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
 						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 							toBB |= dstBB;
 						}
@@ -1058,10 +1048,9 @@ namespace {
 				});
 
 				// 打ち歩詰めの回避
-				const Rank TRank9 = (US == Black ? Rank9 : Rank1);
-				const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
+				constexpr Rank TRank9 = (US == Black ? Rank9 : Rank1);
+				constexpr SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
 
-				const Square ksq = pos.kingSquare(oppositeColor(US));
 				// 相手玉が九段目なら、歩で王手出来ないので、打ち歩詰めを調べる必要はない。
 				if (makeRank(ksq) != TRank9) {
 					const Square pawnDropCheckSquare = ksq + TDeltaS;

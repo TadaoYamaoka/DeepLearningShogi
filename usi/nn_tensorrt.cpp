@@ -129,11 +129,32 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
 	config->addOptimizationProfile(profile);
 
+	// TensorRT 8 より nvinfer1::IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
+	// nvinfer1::IBuilder::buildEngineWithConfig() は TensorRT 10.0 にて削除される見込み。
+	// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+	// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
+#if NV_TENSORRT_MAJOR >= 8
+	auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
+	if (!serializedEngine)
+	{
+		throw std::runtime_error("buildSerializedNetwork");
+	}
+	auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
+	engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
+	if (!engine)
+	{
+		throw std::runtime_error("deserializeCudaEngine");
+	}
+	// 一旦シリアライズ化されたエンジンはデシリアライズを行った上で捨てているが、
+	// この後またすぐにファイル書き出し用にシリアライズを行っているので、手順改善の余地あり。
+	// // auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
+#else
 	engine.reset(builder->buildEngineWithConfig(*network, *config));
 	if (!engine)
 	{
 		throw std::runtime_error("buildEngineWithConfig");
 	}
+#endif
 }
 
 void NNTensorRT::load_model(const char* filename)
@@ -149,7 +170,7 @@ void NNTensorRT::load_model(const char* filename)
 		std::unique_ptr<char[]> blob(new char[modelSize]);
 		seriarizedFile.read(blob.get(), modelSize);
 		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize, nullptr));
+		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize));
 	}
 	else
 	{
@@ -192,10 +213,11 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	context->setBindingDimensions(0, inputDims1);
 	context->setBindingDimensions(1, inputDims2);
 
-	checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice));
-	const bool status = context->executeV2(inputBindings.data());
+	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+	const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
 	assert(status);
-	checkCudaErrors(cudaMemcpy(y1, y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
-	checkCudaErrors(cudaMemcpy(y2, y2_dev, batch_size * sizeof(DType), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 }

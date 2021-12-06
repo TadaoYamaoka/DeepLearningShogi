@@ -139,7 +139,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 王手生成テスト(ファイルからsfen読み込み)
 int main(int argc, char* argv[]) {
 	initTable();
@@ -495,7 +495,7 @@ int main()
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnのPV表示テスト
 int main()
@@ -562,7 +562,11 @@ int main()
 		"9/3S1k3/3pg2+R1/4spP2/1p1PN3L/PP1nPP3/3l1SN2/K1g2G3/L3b+b3 w RGSL7Pn2p 126", // mate7(角成らず打ち歩詰めにならず最短で詰ますことができる)
 		"l8/2+P2+N1k1/4G2p1/2p2ps1G/p3s4/1pP1S4/PlN1gP+p2/1bGp5/L3K4 b R4Prbs2nl3p 193", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
 		"l4ksRl/3+S5/p4pngp/2pp1bp2/9/P1PP1PP1P/1PNG1K3/1G4r2/L5bNL w G2SN2P3p 78", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
-		"lR3p2l/2g1k1s2/ps1ppPn2/2pg2p1p/9/2PB1NP2/P1NPP1N1P/2S1KGS2/L2G4L b RPb3p 83" // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"lR3p2l/2g1k1s2/ps1ppPn2/2pg2p1p/9/2PB1NP2/P1NPP1N1P/2S1KGS2/L2G4L b RPb3p 83", // mate7(飛車成らずにより打ち歩詰めにならず最短で詰ますことができる)
+		"5pG+Rl/2S6/1SS1g4/pB2k3P/3p1Lp2/PR3PS2/1P1+p2K2/9/L7L b N5Pb2g3n4p 205", // 手順に劣等局面を含む
+		"lnGS5/k4p+R2/1ppp4p/1+b2p1p2/3P5/SP2P3P/K5P2/4gP3/+b1P4NL b RG2SNL2Pgnl2p 1", // mate9
+		"4p2pl/1+N7/l3k2P1/8p/3gsn3/1GP3P1P/P2K1p3/9/3g4L b 2BGSNL6P2r2sn3p 1", // mate19
+		"2g5l/+S8/3kp1ppp/Npp6/p1sp1rP2/5p2P/2P2P1B1/1K7/9 w B3GSN3L2Prs2n3p 1", // mate9
 	};
 
 	auto start0 = std::chrono::system_clock::now();
