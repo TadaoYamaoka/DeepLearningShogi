@@ -146,7 +146,7 @@ int draw_ply = INT_MAX;
 int random_ply = 0;
 float random_temperature = 10.0f;
 float random_temperature_drop = 1.0f;
-float random_cutoff = 0.020f;
+float random_cutoff = 0.015f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
 
 #ifdef PV_MATE_SEARCH
