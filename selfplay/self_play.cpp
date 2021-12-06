@@ -55,6 +55,8 @@ float RANDOM_CUTOFF = 0.015f;
 float RANDOM_TEMPERATURE = 10.0f;
 // 1手ごとに低下する温度
 float RANDOM_TEMPERATURE_DROP = 1.0f;
+// ランダムムーブした局面を学習する
+bool TRAIN_RANDOM = false;
 // 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
 float RANDOM2 = 0;
 // 出力する最低手数
@@ -193,6 +195,16 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
 	return lhs->move_count > rhs->move_count;
+}
+
+// 価値(勝率)から評価値に変換
+inline s16 value_to_score(const float value) {
+	if (value == 1.0f)
+		return 30000;
+	else if (value == 0.0f)
+		return -30000;
+	else
+		return s16(-logf(1.0f / value - 1.0f) * 756.0864962951762f);
 }
 
 // 詰み探索スロット
@@ -1170,6 +1182,7 @@ void UCTSearcher::NextStep()
 		}
 
 		const child_node_t* uct_child = root_node->child.get();
+		float best_wp;
 		Move best_move;
 		if (ply <= RANDOM_MOVE) {
 			// N手までは訪問数に応じた確率で選択する
@@ -1204,10 +1217,16 @@ void UCTSearcher::NextStep()
 			}
 
 			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
-			const auto select_index = dist(*mt_64);
-			best_move = sorted_uct_childs[select_index]->move;
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
-			AddRecord(best_move, 0, false);
+			const auto sorted_select_index = dist(*mt_64);
+			best_move = sorted_uct_childs[sorted_select_index]->move;
+			best_wp = sorted_uct_childs[sorted_select_index]->win / sorted_uct_childs[sorted_select_index]->move_count;
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
+
+			// 局面追加
+			if (TRAIN_RANDOM)
+				AddRecord(best_move, value_to_score(best_wp), true);
+			else
+				AddRecord(best_move, 0, false);
 		}
 		else {
 			// 探索回数最大の手を見つける
@@ -1261,7 +1280,7 @@ void UCTSearcher::NextStep()
 			}
 
 			// 選択した着手の勝率の算出
-			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+			best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 			// 勝ちの場合
 			if (child_lose_count > 0) {
 				best_wp = 1.0f;
@@ -1288,14 +1307,7 @@ void UCTSearcher::NextStep()
 			}
 
 			// 局面追加
-			s16 eval;
-			if (best_wp == 1.0f)
-				eval = 30000;
-			else if (best_wp == 0.0f)
-				eval = -30000;
-			else
-				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			AddRecord(best_move, eval, true);
+			AddRecord(best_move, value_to_score(best_wp), true);
 		}
 
 		NextPly(best_move);
@@ -1564,6 +1576,7 @@ int main(int argc, char* argv[]) {
 			("random_cutoff", "random cutoff value", cxxopts::value<float>(RANDOM_CUTOFF)->default_value("0.015"))
 			("random_temperature", "random temperature", cxxopts::value<float>(RANDOM_TEMPERATURE)->default_value("10.0"))
 			("random_temperature_drop", "random temperature drop", cxxopts::value<float>(RANDOM_TEMPERATURE_DROP)->default_value("1.0"))
+			("train_random", "train random move", cxxopts::value<bool>(TRAIN_RANDOM)->default_value("false"))
 			("random2", "random2", cxxopts::value<float>(RANDOM2)->default_value("0"))
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
@@ -1687,6 +1700,7 @@ int main(int argc, char* argv[]) {
 	logger->info("random_cutoff:{}", RANDOM_CUTOFF);
 	logger->info("random_temperature:{}", RANDOM_TEMPERATURE);
 	logger->info("random_temperature_drop:{}", RANDOM_TEMPERATURE_DROP);
+	logger->info("train_random:{}", TRAIN_RANDOM);
 	logger->info("random2:{}", RANDOM2);
 	logger->info("min_move:{}", MIN_MOVE);
 	logger->info("max_move:{}", MAX_MOVE);
