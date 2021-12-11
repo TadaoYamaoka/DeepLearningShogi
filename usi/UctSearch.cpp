@@ -1018,8 +1018,8 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
@@ -1551,14 +1551,22 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+#ifdef FP16
+			const float logit = __half2float((*logits)[move_label]);
+#else
 			const float logit = (*logits)[move_label];
+#endif
 			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
 
+#ifdef FP16
+		*policy_value_batch[i].value_win = __half2float(*value);
+#else
 		*policy_value_batch[i].value_win = *value;
+#endif
 
 #ifdef MAKE_BOOK
 		if (use_book_policy) {
