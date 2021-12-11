@@ -29,13 +29,30 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 	return val * (1 << 20);
 }
 
-NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size)
+NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size), semaphore_stream(MULTI_STREAM)
 {
+	// Create host and device buffers
+	for (size_t i = 0; i < MULTI_STREAM; i++) {
+		checkCudaErrors(cudaMalloc((void**)&x1_dev[i], sizeof(features1_t) * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&x2_dev[i], sizeof(features2_t) * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&y1_dev[i], MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
+		checkCudaErrors(cudaMalloc((void**)&y2_dev[i], max_batch_size * sizeof(DType)));
+
+		inputBindings[i] = { x1_dev[i], x2_dev[i], y1_dev[i], y2_dev[i] };
+	}
+
 	load_model(filename);
 }
 
 NNTensorRT::~NNTensorRT()
 {
+	for (size_t i = 0; i < MULTI_STREAM; i++) {
+		checkCudaErrors(cudaFree(x1_dev[i]));
+		checkCudaErrors(cudaFree(x2_dev[i]));
+		checkCudaErrors(cudaFree(y1_dev[i]));
+		checkCudaErrors(cudaFree(y2_dev[i]));
+		checkCudaErrors(cudaStreamDestroy(stream[i]));
+	}
 }
 
 void NNTensorRT::build(const std::string& onnx_filename)
@@ -183,20 +200,48 @@ void NNTensorRT::load_model(const char* filename)
 			throw std::runtime_error("Cannot open engine file");
 		}
 	}
+
+	for (size_t i = 0; i < MULTI_STREAM; i++) {
+		context[i] = InferUniquePtr<nvinfer1::IExecutionContext>(engine->createExecutionContext());
+		if (!context[i])
+		{
+			throw std::runtime_error("createExecutionContext");
+		}
+		checkCudaErrors(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
+
+		inputDims1[i] = engine->getBindingDimensions(0);
+		inputDims2[i] = engine->getBindingDimensions(1);
+
+		stream_index.push(i);
+	}
 }
 
-void NNTensorRT::forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream)
+void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
-	inputDims1.d[0] = batch_size;
-	inputDims2.d[0] = batch_size;
+	size_t i;
+	semaphore_stream.acquire();
+	{
+		std::lock_guard<std::mutex> lock(mutex_stream_index);
+		i = stream_index.front();
+		stream_index.pop();
+	}
 
-	checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream));
-	context->setBindingDimensions(0, inputDims1);
-	context->setBindingDimensions(1, inputDims2);
-	const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+	inputDims1[i].d[0] = batch_size;
+	inputDims2[i].d[0] = batch_size;
+	context[i]->setBindingDimensions(0, inputDims1[i]);
+	context[i]->setBindingDimensions(1, inputDims2[i]);
+
+	checkCudaErrors(cudaMemcpyAsync(x1_dev[i], x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
+	checkCudaErrors(cudaMemcpyAsync(x2_dev[i], x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
+	const bool status = context[i]->enqueue(batch_size, inputBindings[i].data(), stream[i], nullptr);
 	assert(status);
-	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream));
-	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream));
-	checkCudaErrors(cudaStreamSynchronize(stream));
+	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev[i], sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream[i]));
+	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev[i], sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream[i]));
+	checkCudaErrors(cudaStreamSynchronize(stream[i]));
+
+	{
+		std::lock_guard<std::mutex> lock(mutex_stream_index);
+		stream_index.push(i);
+	}
+	semaphore_stream.release();
 }

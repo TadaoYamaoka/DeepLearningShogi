@@ -1,9 +1,15 @@
 ﻿#pragma once
 
+#include "nn.h"
+
 #include "NvInferRuntimeCommon.h"
 #include "NvInfer.h"
 #include "NvOnnxParser.h"
 #include "int8_calibrator.h"
+
+#include <queue>
+
+#define MULTI_STREAM 2
 
 struct InferDeleter
 {
@@ -27,34 +33,58 @@ struct InferDeleter
 	}
 };
 
+class semaphore {
+private:
+	std::mutex mutex_;
+	std::condition_variable condition_;
+	size_t count_;
+
+public:
+	semaphore(const unsigned long count) : count_(count) {}
+
+	void release() {
+		std::lock_guard<decltype(mutex_)> lock(mutex_);
+		++count_;
+		condition_.notify_one();
+	}
+
+	size_t acquire() {
+		std::unique_lock<decltype(mutex_)> lock(mutex_);
+		while (!count_) // Handle spurious wake-ups.
+			condition_.wait(lock);
+		--count_;
+		return count_;
+	}
+};
+
 template <typename T>
 using InferUniquePtr = std::unique_ptr<T, InferDeleter>;
 
-class NNTensorRT {
+class NNTensorRT : NN {
 public:
 	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
-	nvinfer1::IExecutionContext* create_context(nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
-		auto context = engine->createExecutionContext();
-		if (!context)
-		{
-			throw std::runtime_error("createExecutionContext");
-		}
-
-		inputDims1 = engine->getBindingDimensions(0);
-		inputDims2 = engine->getBindingDimensions(1);
-
-		return context;
-	}
-	void forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream);
+	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
 
 private:
 	const int gpu_id;
 	const int max_batch_size;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
+	std::array<features1_t*, MULTI_STREAM> x1_dev;
+	std::array<features2_t*, MULTI_STREAM> x2_dev;
+	std::array<DType*, MULTI_STREAM> y1_dev;
+	std::array<DType*, MULTI_STREAM> y2_dev;
+	std::array<std::vector<void*>, MULTI_STREAM> inputBindings;
+	std::array<InferUniquePtr<nvinfer1::IExecutionContext>, MULTI_STREAM> context;
+	std::array<nvinfer1::Dims, MULTI_STREAM> inputDims1;
+	std::array<nvinfer1::Dims, MULTI_STREAM> inputDims2;
+	std::array<cudaStream_t, MULTI_STREAM> stream;
+	std::queue<size_t> stream_index;
+	std::mutex mutex_stream_index;
 
 	void load_model(const char* filename);
 	void build(const std::string& onnx_filename);
-};
 
-typedef NNTensorRT NN;
+	// semaphore for stream
+	semaphore semaphore_stream;
+};

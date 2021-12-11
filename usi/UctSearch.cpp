@@ -227,35 +227,22 @@ public:
 	}
 
 	void Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
-#ifdef ONNXRUNTIME
 	void InitGPU() {
-		std::lock_guard<std::mutex> lock(mutex_gpu);
-		if (nn == nullptr) {
-			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
-		}
-	}
-
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->forward(batch_size, x1, x2, y1, y2);
+		if (nn == nullptr) {
+#ifdef ONNXRUNTIME
+			nn = (NN*)new NNOnnxRuntime(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+#else
+			nn = (NN*)new NNTensorRT(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
+#endif
+		}
 		mutex_gpu.unlock();
 	}
-#else
-	void InitGPU(nvinfer1::IExecutionContext** context, cudaStream_t* stream, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2) {
-		std::lock_guard<std::mutex> lock(mutex_gpu);
-		if (nn == nullptr) {
-			nn = new NN(model_path[gpu_id].c_str(), gpu_id, policy_value_batch_maxsize);
-		}
-		if (*context == nullptr) {
-			*context = nn->create_context(inputDims1, inputDims2);
-			checkCudaErrors(cudaStreamCreate(stream));
-		}
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+		//mutex_gpu.lock();
+		nn->forward(batch_size, x1, x2, y1, y2);
+		//mutex_gpu.unlock();
 	}
-
-	void nn_forward(const int batch_size, nvinfer1::Dims& inputDims1, nvinfer1::Dims& inputDims2, features1_t* x1, features2_t* x2, features1_t* x1_dev, features2_t* x2_dev, DType* y1, DType* y2, DType* y1_dev, DType* y2_dev, nvinfer1::IExecutionContext* context, std::vector<void*>& inputBindings, cudaStream_t& stream) {
-		nn->forward(batch_size, inputDims1, inputDims2, x1, x2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, context, inputBindings, stream);
-	}
-#endif
 	void Run();
 	void Join();
 #ifdef THREAD_POOL
@@ -291,8 +278,7 @@ public:
 		ready_th(true),
 		term_th(false),
 #endif
-		policy_value_batch_maxsize(policy_value_batch_maxsize),
-		context(nullptr) {
+		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
@@ -300,7 +286,6 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		// Create host buffers
 		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -337,14 +322,7 @@ public:
 			handle = new thread([this]() {
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
-				grp->InitGPU(&context, &stream, inputDims1, inputDims2);
-				// Create device buffers
-				checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
-				checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
-				checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
-				checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
-
-				inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+				grp->InitGPU();
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -366,22 +344,11 @@ public:
 		}
 #else
 		handle = new thread([this]() {
-#ifdef ONNXRUNTIME
-			grp->InitGPU();
-#else
+#ifndef ONNXRUNTIME
 			// スレッドにGPUIDを関連付けてから初期化する
 			cudaSetDevice(grp->gpu_id);
-			if (context == nullptr) {
-				// Create device buffers
-				checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * policy_value_batch_maxsize));
-				checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * policy_value_batch_maxsize));
-				checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType)));
-				checkCudaErrors(cudaMalloc((void**)&y2_dev, policy_value_batch_maxsize * sizeof(DType)));
-
-				inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
-			}
-			grp->InitGPU(&context, &stream, inputDims1, inputDims2);
 #endif
+			grp->InitGPU();
 
 			this->ParallelUctSearch();
 		});
@@ -445,19 +412,6 @@ private:
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
-
-#ifndef ONNXRUNTIME
-	features1_t* x1_dev;
-	features2_t* x2_dev;
-	DType* y1_dev;
-	DType* y2_dev;
-	nvinfer1::IExecutionContext* context;
-	std::vector<void*> inputBindings;
-	cudaStream_t stream;
-	nvinfer1::Dims inputDims1;
-	nvinfer1::Dims inputDims2;
-#endif
-
 #ifdef MAKE_BOOK
 	Key* policy_value_book_key;
 #endif
@@ -1581,11 +1535,7 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-#ifdef ONNXRUNTIME
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
-#else
-	grp->nn_forward(policy_value_batch_size, inputDims1, inputDims2, features1, features2, x1_dev, x2_dev, y1, y2, y1_dev, y2_dev, context, inputBindings, stream);
-#endif
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
