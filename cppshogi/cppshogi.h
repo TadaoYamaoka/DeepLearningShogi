@@ -4,10 +4,9 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "generateMoves.hpp"
+#include "../usi/cuda_dtype.h"
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
-
-typedef float DType;
 
 constexpr int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
 constexpr int MAX_HLANCE_NUM = 4;

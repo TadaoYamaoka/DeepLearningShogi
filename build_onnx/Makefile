@@ -6,7 +6,7 @@ LIB = -L/usr/local/cuda/lib64 -L$(CONDA_PREFIX)/lib
 
 target = bin/build_onnx
 sources = build_onnx.cpp
-usi_sources = nn_tensorrt.cpp
+usi_sources = nn_tensorrt.cpp cuda_dtype.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))

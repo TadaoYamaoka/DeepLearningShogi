@@ -42,19 +42,19 @@ inline void make_input_features(const Position& position, features1_t* features1
 			for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
 				// 駒の配置
 				if (bb[pt].isSet(sq)) {
-					(*features1)[c2][pt - 1][sq2] = 1;
+					(*features1)[c2][pt - 1][sq2] = _one;
 				}
 
 				// 駒の利き
 				if (attacks[c][pt].isSet(sq)) {
-					(*features1)[c2][PIECETYPE_NUM + pt - 1][sq2] = 1;
+					(*features1)[c2][PIECETYPE_NUM + pt - 1][sq2] = _one;
 				}
 			}
 
 			// 利き数
 			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
 			for (int k = 0; k < num; k++) {
-				(*features1)[c2][PIECETYPE_NUM + PIECETYPE_NUM + k][sq2] = 1;
+				(*features1)[c2][PIECETYPE_NUM + PIECETYPE_NUM + k][sq2] = _one;
 			}
 		}
 
@@ -66,14 +66,14 @@ inline void make_input_features(const Position& position, features1_t* features1
 			if (num >= MAX_PIECES_IN_HAND[hp]) {
 				num = MAX_PIECES_IN_HAND[hp];
 			}
-			std::fill_n((*features2_hand)[c2][p], (int)SquareNum * num, 1);
+			std::fill_n((*features2_hand)[c2][p], (int)SquareNum * num, _one);
 			p += MAX_PIECES_IN_HAND[hp];
 		}
 	}
 
 	// is check
 	if (position.inCheck()) {
-		std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SquareNum, 1);
+		std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SquareNum, _one);
 	}
 }
 
