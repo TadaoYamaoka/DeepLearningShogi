@@ -79,8 +79,7 @@ private:
 	std::array<nvinfer1::Dims, MULTI_STREAM> inputDims1;
 	std::array<nvinfer1::Dims, MULTI_STREAM> inputDims2;
 	std::array<cudaStream_t, MULTI_STREAM> stream;
-	std::queue<size_t> stream_index;
-	std::mutex mutex_stream_index;
+	std::array<std::atomic<bool>, MULTI_STREAM> using_stream_index;
 
 	void load_model(const char* filename);
 	void build(const std::string& onnx_filename);

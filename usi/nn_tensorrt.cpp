@@ -29,7 +29,8 @@ constexpr long long int operator"" _MiB(long long unsigned int val)
 	return val * (1 << 20);
 }
 
-NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size) : gpu_id(gpu_id), max_batch_size(max_batch_size), semaphore_stream(MULTI_STREAM)
+NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size)
+	: gpu_id(gpu_id), max_batch_size(max_batch_size), using_stream_index{}, semaphore_stream(MULTI_STREAM)
 {
 	// Create host and device buffers
 	for (size_t i = 0; i < MULTI_STREAM; i++) {
@@ -218,19 +219,16 @@ void NNTensorRT::load_model(const char* filename)
 
 		inputDims1[i] = engine->getBindingDimensions(0);
 		inputDims2[i] = engine->getBindingDimensions(1);
-
-		stream_index.push(i);
 	}
 }
 
 void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
-	size_t i;
 	semaphore_stream.acquire();
-	{
-		std::lock_guard<std::mutex> lock(mutex_stream_index);
-		i = stream_index.front();
-		stream_index.pop();
+	size_t i = 0;
+	for (; i < MULTI_STREAM - 1; i++) {
+		if (!using_stream_index[i].exchange(true))
+			break;
 	}
 
 	inputDims1[i].d[0] = batch_size;
@@ -246,9 +244,6 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev[i], sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, stream[i]));
 	checkCudaErrors(cudaStreamSynchronize(stream[i]));
 
-	{
-		std::lock_guard<std::mutex> lock(mutex_stream_index);
-		stream_index.push(i);
-	}
+	using_stream_index[i] = false;
 	semaphore_stream.release();
 }
