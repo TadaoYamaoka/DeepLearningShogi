@@ -676,7 +676,7 @@ inline void Position::xorBBs(const PieceType pt, const Square sq, const Color c)
 // 1手詰みでないなら、Move::moveNone() を返す。
 // Bitboard の状態を途中で更新する為、const 関数ではない。(更新後、元に戻すが。)
 template <Color US> Move Position::mateMoveIn1Ply() {
-    const Color Them = oppositeColor(US);
+    constexpr Color Them = oppositeColor(US);
     const Square ksq = kingSquare(Them);
     const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
 

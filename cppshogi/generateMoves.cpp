@@ -450,7 +450,7 @@ namespace {
 			assert(pos.inCheck());
 
 			const Square ksq = pos.kingSquare(US);
-			const Color Them = oppositeColor(US);
+			constexpr Color Them = oppositeColor(US);
 			const Bitboard checkers = pos.checkersBB();
 			Bitboard bb = checkers;
 			Bitboard bannedKingToBB = allZeroBB();
