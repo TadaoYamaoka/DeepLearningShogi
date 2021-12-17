@@ -36,7 +36,7 @@ for filepath in csa_file_list:
         # 30手までで最善手以外が指された手番を見つける
         start = -1
         for i, (move, comment) in enumerate(zip(kif.moves, kif.comments)):
-            comments = comment.decode('ascii').split(',')
+            comments = comment.split(',')
             if comments[0].startswith('v='):
                 candidates = comments[1:]
             else:
