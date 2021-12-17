@@ -257,20 +257,6 @@ extern const u64 RookMagic[SquareNum];
 extern const u64 BishopMagic[SquareNum];
 #endif
 
-// 指定した位置の属する file の bit を shift し、
-// index を求める為に使用する。
-const int Slide[SquareNum] = {
-    1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-    10, 10, 10, 10, 10, 10, 10, 10, 10,
-    19, 19, 19, 19, 19, 19, 19, 19, 19,
-    28, 28, 28, 28, 28, 28, 28, 28, 28,
-    37, 37, 37, 37, 37, 37, 37, 37, 37,
-    46, 46, 46, 46, 46, 46, 46, 46, 46,
-    55, 55, 55, 55, 55, 55, 55, 55, 55,
-    1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-    10, 10, 10, 10, 10, 10, 10, 10, 10
-};
-
 const Bitboard File1Mask = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
 const Bitboard File2Mask = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
 const Bitboard File3Mask = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
@@ -391,8 +377,6 @@ extern Bitboard BishopAttack[20224];
 extern int BishopAttackIndex[SquareNum];
 extern Bitboard RookBlockMask[SquareNum];
 extern Bitboard BishopBlockMask[SquareNum];
-// メモリ節約をせず、無駄なメモリを持っている。
-extern Bitboard LanceAttack[ColorNum][SquareNum][128];
 
 extern Bitboard KingAttack[SquareNum];
 extern Bitboard GoldAttack[ColorNum][SquareNum];
@@ -446,17 +430,49 @@ inline Bitboard bishopAttack(const Square sq, const Bitboard& occupied) {
     return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
 }
 #endif
-// todo: 香車の筋がどこにあるか先に分かっていれば、Bitboard の片方の変数だけを調べれば良くなる。
-inline Bitboard lanceAttack(const Color c, const Square sq, const Bitboard& occupied) {
-    const int part = Bitboard::part(sq);
-    const int index = (occupied.p(part) >> Slide[sq]) & 127;
-    return LanceAttack[c][sq][index];
+// 香車の利き
+// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+template <Color US>
+inline Bitboard lanceAttack(const Square sq, const Bitboard& occupied) {
+    if (US == Black) {
+        if (Bitboard::part(sq) == 0) {
+            const u64 se = lanceAttackToEdge(US, sq).p(0);
+            u64 mocc = se & occupied.p(0);
+            mocc |= mocc >> 1;
+            mocc |= mocc >> 2;
+            mocc |= mocc >> 4;
+            mocc >>= 1;
+            return Bitboard(~mocc & se, 0);
+        }
+        else {
+            const u64 se = lanceAttackToEdge(US, sq).p(1);
+            u64 mocc = se & occupied.p(1);
+            mocc |= mocc >> 1;
+            mocc |= mocc >> 2;
+            mocc |= mocc >> 4;
+            mocc >>= 1;
+            return Bitboard(0, ~mocc & se);
+        }
+    }
+    else {
+        if (Bitboard::part(sq) == 0) {
+            // 9段目が0、その他のマスが1になっているmask
+            constexpr u64 mask = 0x3fdfeff7fbfdfeffULL;
+            const u64 em = ~occupied.p(0) & mask;
+            const u64 t = em + pawnAttack(US, sq).p(0);
+            return Bitboard(t ^ em, 0);
+        }
+        else {
+            // 9段目が0、その他のマスが1になっているmask
+            constexpr u64 mask = 0x000000000001feffULL;
+            const u64 em = ~occupied.p(1) & mask;
+            const u64 t = em + pawnAttack(US, sq).p(1);
+            return Bitboard(0, t ^ em);
+        }
+    }
 }
-// 飛車の縦だけの利き。香車の利きを使い、index を共通化することで高速化している。
-inline Bitboard rookAttackFile(const Square sq, const Bitboard& occupied) {
-    const int part = Bitboard::part(sq);
-    const int index = (occupied.p(part) >> Slide[sq]) & 127;
-    return LanceAttack[Black][sq][index] | LanceAttack[White][sq][index];
+inline Bitboard lanceAttack(const Color c, const Square sq, const Bitboard& occupied) {
+    return c == Black ? lanceAttack<Black>(sq, occupied) : lanceAttack<White>(sq, occupied);
 }
 inline Bitboard goldAttack(const Color c, const Square sq) { return GoldAttack[c][sq]; }
 inline Bitboard silverAttack(const Color c, const Square sq) { return SilverAttack[c][sq]; }
@@ -487,6 +503,44 @@ inline Bitboard lanceCheckTable(const Color c, const Square sq) { return LanceCh
 inline Bitboard pawnCheckTable(const Color c, const Square sq) { return PawnCheckTable[c][sq]; }
 inline Bitboard bishopCheckTable(const Color c, const Square sq) { return BishopCheckTable[c][sq]; }
 inline Bitboard horseCheckTable(const Color c, const Square sq) { return HorseCheckTable[c][sq]; }
+
+// 飛車の縦だけの利き
+inline Bitboard rookAttackFile(const Square sq, const Bitboard& occupied) {
+    if (Bitboard::part(sq) == 0) {
+        // 先手の香の利き
+        const u64 se = lanceAttackToEdge(Black, sq).p(0);
+        u64 mocc = se & occupied.p(0);
+        mocc |= mocc >> 1;
+        mocc |= mocc >> 2;
+        mocc |= mocc >> 4;
+        mocc >>= 1;
+
+        // 後手の香車の利き
+        // 9段目が0、その他のマスが1になっているmask
+        constexpr u64 mask = 0x3fdfeff7fbfdfeffULL;
+        const u64 em = ~occupied.p(0) & mask;
+        const u64 t = em + pawnAttack(White, sq).p(0);
+
+        return Bitboard((~mocc & se) | (t ^ em), 0);
+    }
+    else {
+        // 先手の香の利き
+        const u64 se = lanceAttackToEdge(Black, sq).p(1);
+        u64 mocc = se & occupied.p(1);
+        mocc |= mocc >> 1;
+        mocc |= mocc >> 2;
+        mocc |= mocc >> 4;
+        mocc >>= 1;
+
+        // 後手の香車の利き
+        // 9段目が0、その他のマスが1になっているmask
+        constexpr u64 mask = 0x000000000001feffULL;
+        const u64 em = ~occupied.p(1) & mask;
+        const u64 t = em + pawnAttack(White, sq).p(1);
+
+        return Bitboard(0, (~mocc & se) | (t ^ em));
+    }
+}
 
 inline Bitboard neighbor5x5Table(const Square sq) { return Neighbor5x5Table[sq]; }
 // todo: テーブル引きを検討

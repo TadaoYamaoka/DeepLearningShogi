@@ -258,7 +258,6 @@ Bitboard RookBlockMask[SquareNum];
 Bitboard BishopAttack[20224];
 int BishopAttackIndex[SquareNum];
 Bitboard BishopBlockMask[SquareNum];
-Bitboard LanceAttack[ColorNum][SquareNum][128];
 
 Bitboard KingAttack[SquareNum];
 Bitboard GoldAttack[ColorNum][SquareNum];

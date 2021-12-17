@@ -806,7 +806,7 @@ namespace {
 				{
 					// 玉と筋が異なる場合
 					if (makeFile(ksq) != makeFile(from)) {
-						Bitboard toBB = goldAttack(opp, ksq) & lanceAttack(US, from, pos.occupiedBB()) & target;
+						Bitboard toBB = goldAttack(opp, ksq) & lanceAttack<US>(from, pos.occupiedBB()) & target;
 						while (toBB) {
 							const Square to = toBB.firstOneFromSQ11();
 							// 成る
@@ -1072,7 +1072,7 @@ namespace {
 
 			// 香車打ち
 			if (ourHand.exists<HLance>()) {
-				Bitboard toBB = dropTarget & lanceAttack(opp, ksq, pos.occupiedBB());
+				Bitboard toBB = dropTarget & lanceAttack<opp>(ksq, pos.occupiedBB());
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Lance, to);

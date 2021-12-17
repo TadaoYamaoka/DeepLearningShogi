@@ -131,22 +131,6 @@ namespace {
         }
     }
 
-    // LanceBlockMask, LanceAttack の値を設定する。
-    void initLanceAttacks() {
-        for (Color c = Black; c < ColorNum; ++c) {
-            for (Square sq = SQ11; sq < SquareNum; ++sq) {
-                const Bitboard blockMask = lanceBlockMask(sq);
-                //const int num1s = blockMask.popCount(); // 常に 7
-                const int num1s = 7;
-                assert(num1s == blockMask.popCount());
-                for (int i = 0; i < (1 << num1s); ++i) {
-                    Bitboard occupied = indexToOccupied(i, num1s, blockMask);
-                    LanceAttack[c][sq][i] = lanceAttackCalc(c, sq, occupied);
-                }
-            }
-        }
-    }
-
     void initKingAttacks() {
         for (Square sq = SQ11; sq < SquareNum; ++sq)
             KingAttack[sq] = rookAttack(sq, allOneBB()) | bishopAttack(sq, allOneBB());
@@ -209,8 +193,10 @@ namespace {
         for (Square sq = SQ11; sq < SquareNum; ++sq) {
             RookAttackToEdge[sq] = rookAttack(sq, allZeroBB());
             BishopAttackToEdge[sq] = bishopAttack(sq, allZeroBB());
-            LanceAttackToEdge[Black][sq] = lanceAttack(Black, sq, allZeroBB());
-            LanceAttackToEdge[White][sq] = lanceAttack(White, sq, allZeroBB());
+            const File file = makeFile(sq);
+            const Rank rank = makeRank(sq);
+            for (Color c = Black; c < ColorNum; ++c)
+                LanceAttackToEdge[c][sq] = fileMask(file) & inFrontMask(c, rank);
         }
     }
 
@@ -422,7 +408,6 @@ void initTable() {
     initSilverAttacks();
     initPawnAttacks();
     initKnightAttacks();
-    initLanceAttacks();
     initSquareRelation();
     initAttackToEdge();
     initBetweenBB();

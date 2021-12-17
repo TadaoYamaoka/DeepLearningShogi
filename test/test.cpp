@@ -495,7 +495,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnのPV表示テスト
 int main()
@@ -1602,5 +1602,34 @@ L_EXIT:
 
 	std::_Exit(0);
 	return 0;
+}
+#endif
+
+#if 1
+int main()
+{
+	initTable();
+	Position pos;
+	pos.set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+
+	const Bitboard occ = pos.occupiedBB();
+	occ.printBoard();
+
+	Bitboard bb = lanceAttack<Black>(SQ19, occ);
+	bb.printBoard();
+
+	bb = lanceAttack<White>(SQ91, occ);
+	bb.printBoard();
+
+	bb = pos.attacksFrom<Lance>(Black, SQ99);
+	bb.printBoard();
+
+	pos.set("lnsgkgsnl/1r5b1/p1ppppppp/9/7P1/9/PPPPPPP1P/1B5R1/LNSGKGSNL b p 1");
+
+	bb = pos.attacksFrom<Rook>(Black, SQ28);
+	bb.printBoard();
+
+	bb = pos.attacksFrom<Rook>(Black, SQ82);
+	bb.printBoard();
 }
 #endif
