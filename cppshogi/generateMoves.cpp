@@ -58,12 +58,22 @@ namespace {
 		// まず、歩に対して指し手を生成
 		if (hand.exists<HPawn>()) {
 			Bitboard toBB = target;
-			// 一段目には打てない
-			const Rank TRank1 = (US == Black ? Rank1 : Rank9);
-			toBB.andEqualNot(rankMask<TRank1>());
-
 			// 二歩の回避
+			// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
 			Bitboard pawnsBB = pos.bbOf(Pawn, US);
+			// 9段目が1のbitboard
+			const Bitboard left(0x4020100804020100ULL, 0x0000000000020100ULL);
+			Bitboard t = left - pawnsBB;
+			// 一段目には打てない
+			if (US == Black) {
+				t = (t & left) >> 7;
+				toBB &= left ^ (left - t);
+			}
+			else {
+				t = (t & left) >> 8;
+				toBB &= left.notThisAnd(left - t);
+			}
+
 			Square pawnsSquare;
 			foreachBB(pawnsBB, pawnsSquare, [&](const int part) {
 					toBB.set(part, toBB.p(part) & ~squareFileMask(pawnsSquare).p(part));

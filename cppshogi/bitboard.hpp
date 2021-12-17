@@ -100,6 +100,15 @@ public:
 #endif
         return *this;
     }
+    Bitboard operator -= (const Bitboard& rhs) {
+#if defined (HAVE_SSE2) || defined (HAVE_SSE4)
+        _mm_store_si128(&this->m_, _mm_sub_epi64(this->m_, rhs.m_));
+#else
+        this->p_[0] -= rhs.p(0);
+        this->p_[1] -= rhs.p(1);
+#endif
+        return *this;
+    }
     Bitboard operator <<= (const int i) {
 #if defined (HAVE_SSE2) || defined (HAVE_SSE4)
         _mm_store_si128(&this->m_, _mm_slli_epi64(this->m_, i));
@@ -121,6 +130,7 @@ public:
     Bitboard operator & (const Bitboard& rhs) const { return Bitboard(*this) &= rhs; }
     Bitboard operator | (const Bitboard& rhs) const { return Bitboard(*this) |= rhs; }
     Bitboard operator ^ (const Bitboard& rhs) const { return Bitboard(*this) ^= rhs; }
+    Bitboard operator - (const Bitboard& rhs) const { return Bitboard(*this) -= rhs; }
     Bitboard operator << (const int i) const { return Bitboard(*this) <<= i; }
     Bitboard operator >> (const int i) const { return Bitboard(*this) >>= i; }
     bool operator == (const Bitboard& rhs) const {

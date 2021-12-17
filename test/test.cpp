@@ -495,7 +495,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnのPV表示テスト
 int main()
@@ -1602,5 +1602,24 @@ L_EXIT:
 
 	std::_Exit(0);
 	return 0;
+}
+#endif
+
+#if 1
+int main()
+{
+	initTable();
+	Position pos;
+	pos.set("lns1kgsnl/1rg4b1/ppp+Pppppp/9/8P/P8/1PP2PPP1/1B5R1/LNSGKGSNL b 2P 1");
+	for (MoveList<Drop> ml(pos); !ml.end(); ++ml) {
+		std::cout << ml.move().toUSI() << "\n";
+	}
+	std::cout << std::endl;
+
+	pos.set("lnsgkgsnl/1r5b1/1ppp2pp1/8p/p8/9/PPPPP+pPPP/1B4GR1/LNSGK1SNL w 2p 1");
+	for (MoveList<Drop> ml(pos); !ml.end(); ++ml) {
+		std::cout << ml.move().toUSI() << "\n";
+	}
+	std::cout << std::endl;
 }
 #endif
