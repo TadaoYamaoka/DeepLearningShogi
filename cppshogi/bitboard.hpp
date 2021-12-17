@@ -430,6 +430,36 @@ inline Bitboard bishopAttack(const Square sq, const Bitboard& occupied) {
     return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
 }
 #endif
+inline Bitboard goldAttack(const Color c, const Square sq) { return GoldAttack[c][sq]; }
+inline Bitboard silverAttack(const Color c, const Square sq) { return SilverAttack[c][sq]; }
+inline Bitboard knightAttack(const Color c, const Square sq) { return KnightAttack[c][sq]; }
+inline Bitboard pawnAttack(const Color c, const Square sq) { return PawnAttack[c][sq]; }
+
+// Bitboard で直接利きを返す関数。
+// 1段目には歩は存在しないので、1bit シフトで別の筋に行くことはない。
+// ただし、from に歩以外の駒の Bitboard を入れると、別の筋のビットが立ってしまうことがあるので、
+// 別の筋のビットが立たないか、立っても問題ないかを確認して使用すること。
+template <Color US> inline Bitboard pawnAttack(const Bitboard& from) { return (US == Black ? (from >> 1) : (from << 1)); }
+inline Bitboard kingAttack(const Square sq) { return KingAttack[sq]; }
+inline Bitboard dragonAttack(const Square sq, const Bitboard& occupied) { return rookAttack(sq, occupied) | kingAttack(sq); }
+inline Bitboard horseAttack(const Square sq, const Bitboard& occupied) { return bishopAttack(sq, occupied) | kingAttack(sq); }
+inline Bitboard queenAttack(const Square sq, const Bitboard& occupied) { return rookAttack(sq, occupied) | bishopAttack(sq, occupied); }
+
+// sq1, sq2 の間(sq1, sq2 は含まない)のビットが立った Bitboard
+inline Bitboard betweenBB(const Square sq1, const Square sq2) { return BetweenBB[sq1][sq2]; }
+inline Bitboard rookAttackToEdge(const Square sq) { return RookAttackToEdge[sq]; }
+inline Bitboard bishopAttackToEdge(const Square sq) { return BishopAttackToEdge[sq]; }
+inline Bitboard lanceAttackToEdge(const Color c, const Square sq) { return LanceAttackToEdge[c][sq]; }
+inline Bitboard dragonAttackToEdge(const Square sq) { return rookAttackToEdge(sq) | kingAttack(sq); }
+inline Bitboard horseAttackToEdge(const Square sq) { return bishopAttackToEdge(sq) | kingAttack(sq); }
+inline Bitboard goldCheckTable(const Color c, const Square sq) { return GoldCheckTable[c][sq]; }
+inline Bitboard silverCheckTable(const Color c, const Square sq) { return SilverCheckTable[c][sq]; }
+inline Bitboard knightCheckTable(const Color c, const Square sq) { return KnightCheckTable[c][sq]; }
+inline Bitboard lanceCheckTable(const Color c, const Square sq) { return LanceCheckTable[c][sq]; }
+inline Bitboard pawnCheckTable(const Color c, const Square sq) { return PawnCheckTable[c][sq]; }
+inline Bitboard bishopCheckTable(const Color c, const Square sq) { return BishopCheckTable[c][sq]; }
+inline Bitboard horseCheckTable(const Color c, const Square sq) { return HorseCheckTable[c][sq]; }
+
 // 香車の利き
 // cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
 template <Color US>
@@ -474,36 +504,6 @@ inline Bitboard lanceAttack(const Square sq, const Bitboard& occupied) {
 inline Bitboard lanceAttack(const Color c, const Square sq, const Bitboard& occupied) {
     return c == Black ? lanceAttack<Black>(sq, occupied) : lanceAttack<White>(sq, occupied);
 }
-inline Bitboard goldAttack(const Color c, const Square sq) { return GoldAttack[c][sq]; }
-inline Bitboard silverAttack(const Color c, const Square sq) { return SilverAttack[c][sq]; }
-inline Bitboard knightAttack(const Color c, const Square sq) { return KnightAttack[c][sq]; }
-inline Bitboard pawnAttack(const Color c, const Square sq) { return PawnAttack[c][sq]; }
-
-// Bitboard で直接利きを返す関数。
-// 1段目には歩は存在しないので、1bit シフトで別の筋に行くことはない。
-// ただし、from に歩以外の駒の Bitboard を入れると、別の筋のビットが立ってしまうことがあるので、
-// 別の筋のビットが立たないか、立っても問題ないかを確認して使用すること。
-template <Color US> inline Bitboard pawnAttack(const Bitboard& from) { return (US == Black ? (from >> 1) : (from << 1)); }
-inline Bitboard kingAttack(const Square sq) { return KingAttack[sq]; }
-inline Bitboard dragonAttack(const Square sq, const Bitboard& occupied) { return rookAttack(sq, occupied) | kingAttack(sq); }
-inline Bitboard horseAttack(const Square sq, const Bitboard& occupied) { return bishopAttack(sq, occupied) | kingAttack(sq); }
-inline Bitboard queenAttack(const Square sq, const Bitboard& occupied) { return rookAttack(sq, occupied) | bishopAttack(sq, occupied); }
-
-// sq1, sq2 の間(sq1, sq2 は含まない)のビットが立った Bitboard
-inline Bitboard betweenBB(const Square sq1, const Square sq2) { return BetweenBB[sq1][sq2]; }
-inline Bitboard rookAttackToEdge(const Square sq) { return RookAttackToEdge[sq]; }
-inline Bitboard bishopAttackToEdge(const Square sq) { return BishopAttackToEdge[sq]; }
-inline Bitboard lanceAttackToEdge(const Color c, const Square sq) { return LanceAttackToEdge[c][sq]; }
-inline Bitboard dragonAttackToEdge(const Square sq) { return rookAttackToEdge(sq) | kingAttack(sq); }
-inline Bitboard horseAttackToEdge(const Square sq) { return bishopAttackToEdge(sq) | kingAttack(sq); }
-inline Bitboard goldCheckTable(const Color c, const Square sq) { return GoldCheckTable[c][sq]; }
-inline Bitboard silverCheckTable(const Color c, const Square sq) { return SilverCheckTable[c][sq]; }
-inline Bitboard knightCheckTable(const Color c, const Square sq) { return KnightCheckTable[c][sq]; }
-inline Bitboard lanceCheckTable(const Color c, const Square sq) { return LanceCheckTable[c][sq]; }
-inline Bitboard pawnCheckTable(const Color c, const Square sq) { return PawnCheckTable[c][sq]; }
-inline Bitboard bishopCheckTable(const Color c, const Square sq) { return BishopCheckTable[c][sq]; }
-inline Bitboard horseCheckTable(const Color c, const Square sq) { return HorseCheckTable[c][sq]; }
-
 // 飛車の縦だけの利き
 inline Bitboard rookAttackFile(const Square sq, const Bitboard& occupied) {
     if (Bitboard::part(sq) == 0) {
