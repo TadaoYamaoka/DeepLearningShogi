@@ -300,6 +300,7 @@ class Bitboard256 {
 public:
     Bitboard256() {}
 #if defined (HAVE_AVX2)
+    Bitboard256& operator = (const Bitboard256& rhs) { _mm256_store_si256(&this->m_, rhs.m_); return *this; }
     Bitboard256(const Bitboard256& bb) { _mm256_store_si256(&this->m_, bb.m_); }
 
     // 同じBitboardを2つに複製し、それをBitboard256とする。

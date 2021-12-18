@@ -55,7 +55,7 @@
 #include <cfloat>
 //#include <boost/align/aligned_alloc.hpp>
 
-#if defined HAVE_BMI2
+#if defined (HAVE_BMI2) || defined (HAVE_AVX2)
 #include <immintrin.h>
 #endif
 
@@ -162,7 +162,7 @@ FORCE_INLINE int msb(const u64 b) {
     return 63 - __builtin_clzll(b);
 }
 FORCE_INLINE u64 bswap64(const u64 b) {
-    return __builtin_bswap64(u);
+    return __builtin_bswap64(b);
 }
 #else
 // firstOneFromLSB() で使用する table
