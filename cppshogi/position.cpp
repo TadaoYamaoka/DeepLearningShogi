@@ -423,7 +423,7 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
                     st_->checkersBB |= rookAttackFile(from, occupiedBB()) & bbOf(us);
                     break;
                 case DirecRank:
-                    st_->checkersBB |= attacksFrom<Rook>(ksq) & bbOf(Rook, Dragon, us);
+                    st_->checkersBB |= rookAttackRank(ksq, occupiedBB()) & bbOf(Rook, Dragon, us);
                     break;
                 case DirecDiagNESW: case DirecDiagNWSE:
                     st_->checkersBB |= attacksFrom<Bishop>(ksq) & bbOf(Bishop, Horse, us);

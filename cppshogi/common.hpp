@@ -145,6 +145,9 @@ FORCE_INLINE int firstOneFromMSB(const u64 b) {
 FORCE_INLINE int msb(const u64 b) {
     return 63 - firstOneFromMSB(b);
 }
+FORCE_INLINE u64 bswap64(const u64 b) {
+    return _byteswap_uint64(b);
+}
 #elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) )
 FORCE_INLINE int firstOneFromLSB(const u64 b) {
     return __builtin_ctzll(b);
@@ -157,6 +160,9 @@ FORCE_INLINE int firstOneFromMSB(const u64 b) {
 }
 FORCE_INLINE int msb(const u64 b) {
     return 63 - __builtin_clzll(b);
+}
+FORCE_INLINE u64 bswap64(const u64 b) {
+    return __builtin_bswap64(u);
 }
 #else
 // firstOneFromLSB() で使用する table
