@@ -45,6 +45,12 @@
 
 using namespace std;
 
+
+std::atomic<int> collision{ 0 };
+std::mutex collision_mutex;
+std::vector<int> collisions;
+
+
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -909,6 +915,8 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	// 探索情報をクリア
 	po_info.count = 0;
+	collision = 0;
+	collisions.clear();
 
 	// UCTの初期化
 	ExpandRoot(pos);
@@ -986,6 +994,12 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		// 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
 		PrintPlayoutInformation(current_root, &po_info, finish_time, pre_simulated);
 	}
+
+	std::cout << "collisions";
+	for (auto c : collisions) {
+		std::cout << " " << c;
+	}
+	std::cout << std::endl;
 
 	return move;
 }
@@ -1157,6 +1171,7 @@ UCTSearcher::ParallelUctSearch()
 			else {
 				// 破棄した探索経路を保存
 				trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
+				collision++;
 			}
 
 			if (result == DISCARDED || result != QUEUING) {
@@ -1166,11 +1181,16 @@ UCTSearcher::ParallelUctSearch()
 				visitor_batch.emplace_back(&visitor_pool[i]);
 			}
 		}
+		{
+			std::lock_guard<std::mutex> lock(collision_mutex);
+			collisions.emplace_back(collision.load());
+		}
 
 		// 評価
 		EvalNode();
 
 		// 破棄した探索経路のVirtual Lossを戻す
+		collision -= trajectories_batch_discarded.size();
 		for (auto trajectories : trajectories_batch_discarded) {
 			for (int i = static_cast<int>(trajectories->size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories->at(i);
