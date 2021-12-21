@@ -47,9 +47,9 @@ using namespace std;
 
 
 std::atomic<int> collision{ 0 };
-std::mutex collision_mutex;
-std::vector<int> collisions;
-
+//std::mutex collision_mutex;
+//std::vector<int> collisions;
+int collision_limit = 10000;
 
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
@@ -494,6 +494,11 @@ void SetPvMateSearch(const int threads, const int depth, const int nodes)
 }
 #endif
 
+void SetCollisionLimit(const int limit)
+{
+	collision_limit = limit;
+}
+
 void
 UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize)
 {
@@ -916,7 +921,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// 探索情報をクリア
 	po_info.count = 0;
 	collision = 0;
-	collisions.clear();
+	//collisions.clear();
 
 	// UCTの初期化
 	ExpandRoot(pos);
@@ -995,11 +1000,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		PrintPlayoutInformation(current_root, &po_info, finish_time, pre_simulated);
 	}
 
-	std::cout << "collisions";
+	/*std::cout << "collisions";
 	for (auto c : collisions) {
 		std::cout << " " << c;
 	}
-	std::cout << std::endl;
+	std::cout << std::endl;*/
 
 	return move;
 }
@@ -1156,7 +1161,7 @@ UCTSearcher::ParallelUctSearch()
 		current_policy_value_batch_index = 0;
 
 		// バッチサイズ分探索を繰り返す
-		for (int i = 0; i < policy_value_batch_maxsize; i++) {
+		for (int i = 0; i < policy_value_batch_maxsize && collision < collision_limit; i++) {
 			// 盤面のコピー
 			Position pos(*pos_root);
 			
@@ -1181,10 +1186,10 @@ UCTSearcher::ParallelUctSearch()
 				visitor_batch.emplace_back(&visitor_pool[i]);
 			}
 		}
-		{
+		/*{
 			std::lock_guard<std::mutex> lock(collision_mutex);
 			collisions.emplace_back(collision.load());
-		}
+		}*/
 
 		// 評価
 		EvalNode();
