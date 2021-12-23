@@ -51,6 +51,8 @@ void sigint_handler(int signum)
 int RANDOM_MOVE;
 // 訪問数が最大のノードの価値の一定以下は除外
 float RANDOM_CUTOFF = 0.015f;
+// 1手ごとに低下する価値の閾値
+float RANDOM_CUTOFF_DROP = 0.001f;
 // 訪問数に応じてランダムに選択する際の温度パラメータ
 float RANDOM_TEMPERATURE = 10.0f;
 // 1手ごとに低下する温度
@@ -1197,10 +1199,11 @@ void UCTSearcher::NextStep()
 
 			// 訪問数が最大のノードの価値の一定割合以下は除外
 			const auto max_move_count_child = sorted_uct_childs[0];
-			const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - RANDOM_CUTOFF;
+			const int step = (ply - 1) / 2;
+			const float random_cutoff = std::max(0.0f, RANDOM_CUTOFF - RANDOM_CUTOFF_DROP * step);
+			const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
 			vector<double> probabilities;
 			probabilities.reserve(child_num);
-			const int step = (ply - 1) / 2;
 			const float temperature = std::max(0.1f, RANDOM_TEMPERATURE - RANDOM_TEMPERATURE_DROP * step);
 			const float reciprocal_temperature = 1.0f / temperature;
 			for (int i = 0; i < child_num; i++) {
@@ -1574,6 +1577,7 @@ int main(int argc, char* argv[]) {
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
 			("random_cutoff", "random cutoff value", cxxopts::value<float>(RANDOM_CUTOFF)->default_value("0.015"))
+			("random_cutoff_drop", "random cutoff drop", cxxopts::value<float>(RANDOM_CUTOFF_DROP)->default_value("0.001"))
 			("random_temperature", "random temperature", cxxopts::value<float>(RANDOM_TEMPERATURE)->default_value("10.0"))
 			("random_temperature_drop", "random temperature drop", cxxopts::value<float>(RANDOM_TEMPERATURE_DROP)->default_value("1.0"))
 			("train_random", "train random move", cxxopts::value<bool>(TRAIN_RANDOM)->default_value("false"))
@@ -1698,6 +1702,7 @@ int main(int argc, char* argv[]) {
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("random_cutoff:{}", RANDOM_CUTOFF);
+	logger->info("random_cutoff_drop:{}", RANDOM_CUTOFF_DROP);
 	logger->info("random_temperature:{}", RANDOM_TEMPERATURE);
 	logger->info("random_temperature_drop:{}", RANDOM_TEMPERATURE_DROP);
 	logger->info("train_random:{}", TRAIN_RANDOM);
