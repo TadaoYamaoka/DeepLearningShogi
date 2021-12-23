@@ -1009,13 +1009,13 @@ void UCTSearcher::Playout(visitor_t& visitor)
 					else
 						usi_engine_turn = rnd(*mt) % 2;
 
-					if (usi_engine_turn == 1 && RANDOM_MOVE == 0) {
+					if (usi_engine_turn == 1) {
 						grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 						return;
 					}
 				}
 			}
-			else if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
+			else if (ply % 2 == usi_engine_turn) {
 				return;
 			}
 
@@ -1093,7 +1093,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 void UCTSearcher::NextStep()
 {
 	// USIエンジン
-	if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
+	if (ply % 2 == usi_engine_turn) {
 		const auto& result = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
 		if (result.move == Move::moveNone())
 			return;
