@@ -298,8 +298,8 @@ public:
 
 	}
 	UCTSearcher(UCTSearcher&& o) :
-		grp(grp),
-		thread_id(thread_id),
+		grp(o.grp),
+		thread_id(o.thread_id),
 		mt(move(o.mt)) {}
 	~UCTSearcher() {
 #ifdef ONNXRUNTIME
@@ -789,7 +789,7 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 		const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
 		if (win < cutoff_threshold) break;
 
-		const auto probability = std::pow(sorted_uct_childs[i]->move_count, reciprocal_temperature);
+		const auto probability = std::pow((float)sorted_uct_childs[i]->move_count, reciprocal_temperature);
 		probabilities.emplace_back(probability);
 		if (debug_message)
 			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
@@ -1018,8 +1018,8 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0.0f);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
