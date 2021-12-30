@@ -212,6 +212,55 @@ public:
         return !(this->p(1) & (this->p(1) - 1));
 #endif
     }
+    // byte単位で入れ替えたBitboardを返す。
+    // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+    Bitboard byteReverse() const {
+#if defined (HAVE_SSE4)
+        const __m128i shuffle = _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        Bitboard b0;
+        b0.m_ = _mm_shuffle_epi8(m_, shuffle);
+        return b0;
+#else
+        Bitboard b0;
+        b0.p_[0] = bswap64(p_[1]);
+        b0.p_[1] = bswap64(p_[0]);
+        return b0;
+#endif
+    }
+    // SSE2のunpackを実行して返す。
+    static void unpack(const Bitboard hiIn, const Bitboard loIn, Bitboard& hiOut, Bitboard& loOut) {
+#if defined (HAVE_SSE2) || defined (HAVE_SSE4)
+        hiOut.m_ = _mm_unpackhi_epi64(loIn.m_, hiIn.m_);
+        loOut.m_ = _mm_unpacklo_epi64(loIn.m_, hiIn.m_);
+#else
+        hiOut.p_[0] = loIn.p_[1];
+        hiOut.p_[1] = hiIn.p_[1];
+
+        loOut.p_[0] = loIn.p_[0];
+        loOut.p_[1] = hiIn.p_[0];
+#endif
+    }
+    // 2組のBitboardを、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
+    // 128bit整数とみなして1引き算したBitboardを返す。
+    static void decrement(const Bitboard hiIn, const Bitboard loIn, Bitboard& hiOut, Bitboard& loOut)
+    {
+#if defined (HAVE_SSE42)
+        // loが0の時だけ1減算するときにhiからの桁借りが生じるので、
+        // hi += (lo == 0) ? -1 : 0;
+        // みたいな処理で良い。
+        hiOut.m_ = _mm_add_epi64(hiIn.m_, _mm_cmpeq_epi64(loIn.m_, _mm_setzero_si128()));
+
+        //  1減算する
+        loOut.m_ = _mm_add_epi64(loIn.m_, _mm_set1_epi64x(-1LL));
+#else
+        // bool型はtrueだと(暗黙の型変換で)1だとみなされる。
+        hiOut.p_[0] = hiIn.p_[0] - (loIn.p_[0] == 0);
+        hiOut.p_[1] = hiIn.p_[1] - (loIn.p_[1] == 0);
+
+        loOut.p_[0] = loIn.p_[0] - 1;
+        loOut.p_[1] = loIn.p_[1] - 1;
+#endif
+    }
 
     // for debug
     void printBoard() const {
@@ -239,6 +288,156 @@ private:
     u64 p_[2];  // p_[0] : 先手から見て、1一から7九までを縦に並べたbit. 63bit使用. right と呼ぶ。
                 // p_[1] : 先手から見て、8一から1九までを縦に並べたbit. 18bit使用. left  と呼ぶ。
 #endif
+
+    friend class Bitboard256;
+};
+
+// Bitboard 2つを256bit registerで扱う。
+// Qugiyの角の利きに使用する。
+// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal_210518.pdf
+// やねうら王の実装を参考にした
+class Bitboard256 {
+public:
+    Bitboard256() {}
+#if defined (HAVE_AVX2)
+    Bitboard256& operator = (const Bitboard256& rhs) { _mm256_store_si256(&this->m_, rhs.m_); return *this; }
+    Bitboard256(const Bitboard256& bb) { _mm256_store_si256(&this->m_, bb.m_); }
+
+    // 同じBitboardを2つに複製し、それをBitboard256とする。
+    Bitboard256(const Bitboard& b1) { m_ = _mm256_broadcastsi128_si256(b1.m_); }
+
+    // 2つのBitboardを合わせたBitboard256を作る。
+    Bitboard256(const Bitboard& b1, const Bitboard& b2) {
+        // m = _mm256_set_epi64x(b2.p[1],b2.p[0],b1.p[1],b1.p[0]);
+        m_ = _mm256_castsi128_si256(b1.m_);        // 256bitにcast(上位は0)。これはcompiler向けの命令。
+        m_ = _mm256_inserti128_si256(m_, b2.m_, 1); // 上位128bitにb2.mを代入
+    }
+#else
+    Bitboard256(const Bitboard& b1, const Bitboard& b2) { p_[0] = b1.p_[0]; p_[1] = b1.p_[1]; p_[2] = b2.p_[0]; p_[3] = b2.p_[1]; }
+    Bitboard256(const Bitboard& b1) { p_[0] = p_[2] = b1.p_[0]; p_[1] = p_[3] = b1.p_[1]; }
+#endif
+    Bitboard256 operator &= (const Bitboard256& rhs) {
+#if defined (HAVE_AVX2)
+        _mm256_store_si256(&this->m_, _mm256_and_si256(this->m_, rhs.m_));
+#else
+        this->p_[0] &= rhs.p_[0];
+        this->p_[1] &= rhs.p_[1];
+        this->p_[2] &= rhs.p_[2];
+        this->p_[3] &= rhs.p_[3];
+#endif
+        return *this;
+    }
+    Bitboard256 operator |= (const Bitboard256& rhs) {
+#if defined (HAVE_AVX2)
+        _mm256_store_si256(&this->m_, _mm256_or_si256(this->m_, rhs.m_));
+#else
+        this->p_[0] |= rhs.p_[0];
+        this->p_[1] |= rhs.p_[1];
+        this->p_[2] |= rhs.p_[2];
+        this->p_[3] |= rhs.p_[3];
+#endif
+        return *this;
+    }
+    Bitboard256 operator ^= (const Bitboard256& rhs) {
+#if defined (HAVE_AVX2)
+        _mm256_store_si256(&this->m_, _mm256_xor_si256(this->m_, rhs.m_));
+#else
+        this->p_[0] ^= rhs.p_[0];
+        this->p_[1] ^= rhs.p_[1];
+        this->p_[2] ^= rhs.p_[2];
+        this->p_[3] ^= rhs.p_[3];
+#endif
+        return *this;
+    }
+    Bitboard256 operator & (const Bitboard256& rhs) const { return Bitboard256(*this) &= rhs; }
+    Bitboard256 operator | (const Bitboard256& rhs) const { return Bitboard256(*this) |= rhs; }
+    Bitboard256 operator ^ (const Bitboard256& rhs) const { return Bitboard256(*this) ^= rhs; }
+    // byte単位で入れ替えたBitboardを返す。
+    // 角の利きの右上、右下方向を求める時に使う。
+    Bitboard256 byteReverse() const {
+#if defined (HAVE_AVX2)
+        const __m256i shuffle = _mm256_set_epi8
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        Bitboard256 b0;
+        b0.m_ = _mm256_shuffle_epi8(m_, shuffle);
+        return b0;
+#else
+        Bitboard256 b0;
+        b0.p_[0] = bswap64(p_[3]);
+        b0.p_[1] = bswap64(p_[2]);
+        b0.p_[2] = bswap64(p_[1]);
+        b0.p_[3] = bswap64(p_[0]);
+        return b0;
+#endif
+    }
+    // 保持している2つの盤面を重ね合わせた(OR)Bitboardを返す。
+    Bitboard merge() const
+    {
+#if defined (HAVE_AVX2)
+        Bitboard b;
+        b.m_ = _mm_or_si128(_mm256_castsi256_si128(m_), _mm256_extracti128_si256(m_, 1));
+        return b;
+#else
+        Bitboard b;
+        b.p_[0] = p_[0] | p_[2];
+        b.p_[1] = p_[1] | p_[3];
+        return b;
+#endif
+    }
+    // SSE2のunpackを実行して返す。
+    static void unpack(const Bitboard256 hiIn, const Bitboard256 loIn, Bitboard256& hiOut, Bitboard256& loOut) {
+#if defined (HAVE_AVX2)
+        hiOut.m_ = _mm256_unpackhi_epi64(loIn.m_, hiIn.m_);
+        loOut.m_ = _mm256_unpacklo_epi64(loIn.m_, hiIn.m_);
+#else
+        hiOut.p_[0] = loIn.p_[1];
+        hiOut.p_[1] = hiIn.p_[1];
+        hiOut.p_[2] = loIn.p_[3];
+        hiOut.p_[3] = hiIn.p_[3];
+
+        loOut.p_[0] = loIn.p_[0];
+        loOut.p_[1] = hiIn.p_[0];
+        loOut.p_[2] = loIn.p_[2];
+        loOut.p_[3] = hiIn.p_[2];
+#endif
+    }
+    // 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
+    // 128bit整数とみなして1引き算したBitboardを返す。
+    static void decrement(const Bitboard256 hiIn, const Bitboard256 loIn, Bitboard256& hiOut, Bitboard256& loOut)
+    {
+#if defined (HAVE_AVX2)
+
+        // loが0の時だけ1減算するときにhiからの桁借りが生じるので、
+        // hi += (lo == 0) ? -1 : 0;
+        // みたいな処理で良い。
+        hiOut.m_ = _mm256_add_epi64(hiIn.m_, _mm256_cmpeq_epi64(loIn.m_, _mm256_setzero_si256()));
+
+        //  1減算する
+        loOut.m_ = _mm256_add_epi64(loIn.m_, _mm256_set1_epi64x(-1LL));
+#else
+        // bool型はtrueだと(暗黙の型変換で)1だとみなされる。
+        hiOut.p_[0] = hiIn.p_[0] - (loIn.p_[0] == 0);
+        hiOut.p_[1] = hiIn.p_[1] - (loIn.p_[1] == 0);
+        hiOut.p_[2] = hiIn.p_[2] - (loIn.p_[2] == 0);
+        hiOut.p_[3] = hiIn.p_[3] - (loIn.p_[3] == 0);
+
+        loOut.p_[0] = loIn.p_[0] - 1;
+        loOut.p_[1] = loIn.p_[1] - 1;
+        loOut.p_[2] = loIn.p_[2] - 1;
+        loOut.p_[3] = loIn.p_[3] - 1;
+#endif
+    }
+
+private:
+#if defined (HAVE_SSE2) || defined (HAVE_SSE4)
+    union {
+        u64 p_[4];
+        __m256i m_;
+    };
+#else
+    u64 p_[4];
+#endif
 };
 
 inline Bitboard setMaskBB(const Square sq) { return SetMaskBB[sq]; }
@@ -246,16 +445,6 @@ inline Bitboard setMaskBB(const Square sq) { return SetMaskBB[sq]; }
 // 実際に使用する部分の全て bit が立っている Bitboard
 inline Bitboard allOneBB() { return Bitboard(UINT64_C(0x7fffffffffffffff), UINT64_C(0x000000000003ffff)); }
 inline Bitboard allZeroBB() { return Bitboard(0, 0); }
-
-extern const int RookBlockBits[SquareNum];
-extern const int BishopBlockBits[SquareNum];
-extern const int RookShiftBits[SquareNum];
-extern const int BishopShiftBits[SquareNum];
-#if defined HAVE_BMI2
-#else
-extern const u64 RookMagic[SquareNum];
-extern const u64 BishopMagic[SquareNum];
-#endif
 
 // 指定した位置の属する file の bit を shift し、
 // index を求める為に使用する。
@@ -379,20 +568,10 @@ template <Color C, Rank R> inline Bitboard inFrontMask() {
                : /*R == Rank9 ?*/ InFrontOfRank9White));
 }
 
-// メモリ節約の為、1次元配列にして無駄が無いようにしている。
-#if defined HAVE_BMI2
-extern Bitboard RookAttack[495616];
-#else
-extern Bitboard RookAttack[512000];
-#endif
-extern int RookAttackIndex[SquareNum];
-// メモリ節約の為、1次元配列にして無駄が無いようにしている。
-extern Bitboard BishopAttack[20224];
-extern int BishopAttackIndex[SquareNum];
-extern Bitboard RookBlockMask[SquareNum];
-extern Bitboard BishopBlockMask[SquareNum];
 // メモリ節約をせず、無駄なメモリを持っている。
 extern Bitboard LanceAttack[ColorNum][SquareNum][128];
+extern Bitboard RookAttackRankToMask[SquareNum][2];
+extern Bitboard256 BishopAttackToMask[SquareNum][2];
 
 extern Bitboard KingAttack[SquareNum];
 extern Bitboard GoldAttack[ColorNum][SquareNum];
@@ -416,36 +595,6 @@ extern Bitboard HorseCheckTable[ColorNum][SquareNum];
 
 extern Bitboard Neighbor5x5Table[SquareNum]; // 25 近傍
 
-#if defined HAVE_BMI2
-// PEXT bitboard.
-inline u64 occupiedToIndex(const Bitboard& block, const Bitboard& mask) {
-    return _pext_u64(block.merge(), mask.merge());
-}
-
-inline Bitboard rookAttack(const Square sq, const Bitboard& occupied) {
-    const Bitboard block(occupied & RookBlockMask[sq]);
-    return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookBlockMask[sq])];
-}
-inline Bitboard bishopAttack(const Square sq, const Bitboard& occupied) {
-    const Bitboard block(occupied & BishopBlockMask[sq]);
-    return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopBlockMask[sq])];
-}
-#else
-// magic bitboard.
-// magic number を使って block の模様から利きのテーブルへのインデックスを算出
-inline u64 occupiedToIndex(const Bitboard& block, const u64 magic, const int shiftBits) {
-    return (block.merge() * magic) >> shiftBits;
-}
-
-inline Bitboard rookAttack(const Square sq, const Bitboard& occupied) {
-    const Bitboard block(occupied & RookBlockMask[sq]);
-    return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookMagic[sq], RookShiftBits[sq])];
-}
-inline Bitboard bishopAttack(const Square sq, const Bitboard& occupied) {
-    const Bitboard block(occupied & BishopBlockMask[sq]);
-    return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
-}
-#endif
 // todo: 香車の筋がどこにあるか先に分かっていれば、Bitboard の片方の変数だけを調べれば良くなる。
 inline Bitboard lanceAttack(const Color c, const Square sq, const Bitboard& occupied) {
     const int part = Bitboard::part(sq);
@@ -457,6 +606,73 @@ inline Bitboard rookAttackFile(const Square sq, const Bitboard& occupied) {
     const int part = Bitboard::part(sq);
     const int index = (occupied.p(part) >> Slide[sq]) & 127;
     return LanceAttack[Black][sq][index] | LanceAttack[White][sq][index];
+}
+// 飛車の横だけの利き
+// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal_210518.pdf
+inline Bitboard rookAttackRank(const Square sq, const Bitboard& occupied) {
+    Bitboard hi, lo, t1, t0;
+
+    const Bitboard mask_lo = RookAttackRankToMask[sq][0];
+    const Bitboard mask_hi = RookAttackRankToMask[sq][1];
+
+    // occupiedを逆順にする
+    Bitboard rocc = occupied.byteReverse();
+
+    // roccとoccを2枚並べて、その上位u64をhi、下位u64をloに集める。
+    // occ側は(先手から見て)左方向への利き、roccは右方向への利き。
+    Bitboard::unpack(rocc, occupied, hi, lo);
+
+    // 飛車の横方向の利きでmask
+    hi &= mask_hi;
+    lo &= mask_lo;
+
+    // 1減算することにより、利きが通るマスまでが変化する。
+    Bitboard::decrement(hi, lo, t1, t0);
+
+    // 減算して変化したマスを抽出してmask
+    t1 = (t1 ^ hi) & mask_hi;
+    t0 = (t0 ^ lo) & mask_lo;
+
+    // unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
+    Bitboard::unpack(t1, t0, hi, lo);
+
+    // byte_reverseして元の状態に戻して、重ね合わせる。
+    // hiの方には、右方向の利き、loは左方向の利きが得られている。
+    return hi.byteReverse() | lo;
+}
+inline Bitboard rookAttack(const Square sq, const Bitboard& occupied) {
+    return rookAttackRank(sq, occupied) | rookAttackFile(sq, occupied);
+}
+// 角の利き
+// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal_210518.pdf
+inline Bitboard bishopAttack(const Square sq, const Bitboard& occupied) {
+    const Bitboard256 mask_lo = BishopAttackToMask[sq][0];
+    const Bitboard256 mask_hi = BishopAttackToMask[sq][1];
+
+    // occupiedを2枚並べたBitboard256を用意する。
+    const Bitboard256 occ2(occupied);
+
+    // occupiedを(byte単位で)左右反転させたBitboardを2枚並べたBitboard256を用意する。
+    const Bitboard256 rocc2(occupied.byteReverse());
+
+    Bitboard256 hi, lo, t1, t0;
+    Bitboard256::unpack(rocc2, occ2, hi, lo);
+
+    hi &= mask_hi;
+    lo &= mask_lo;
+
+    Bitboard256::decrement(hi, lo, t1, t0);
+
+    // xorで変化した升を抽出して、step effectでmaskすれば完成
+    t1 = (t1 ^ hi) & mask_hi;
+    t0 = (t0 ^ lo) & mask_lo;
+
+    // unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
+    Bitboard256::unpack(t1, t0, hi, lo);
+
+    // byte_reverseして元の状態に戻して、重ね合わせる。
+    // hiの方には、右方向の利き、loは左方向の利きが得られている。
+    return (hi.byteReverse() | lo).merge();
 }
 inline Bitboard goldAttack(const Color c, const Square sq) { return GoldAttack[c][sq]; }
 inline Bitboard silverAttack(const Color c, const Square sq) { return SilverAttack[c][sq]; }

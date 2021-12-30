@@ -26,33 +26,6 @@
 #include "search.hpp"
 
 namespace {
-    // square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
-    Bitboard rookBlockMaskCalc(const Square square) {
-        Bitboard result = squareFileMask(square) ^ squareRankMask(square);
-        if (makeFile(square) != File9) result &= ~fileMask<File9>();
-        if (makeFile(square) != File1) result &= ~fileMask<File1>();
-        if (makeRank(square) != Rank9) result &= ~rankMask<Rank9>();
-        if (makeRank(square) != Rank1) result &= ~rankMask<Rank1>();
-        return result;
-    }
-
-    // square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
-    Bitboard bishopBlockMaskCalc(const Square square) {
-        const Rank rank = makeRank(square);
-        const File file = makeFile(square);
-        Bitboard result = allZeroBB();
-        for (Square sq = SQ11; sq < SquareNum; ++sq) {
-            const Rank r = makeRank(sq);
-            const File f = makeFile(sq);
-            if (abs(rank - r) == abs(file - f))
-                result.setBit(sq);
-        }
-        result &= ~(rankMask<Rank9>() | rankMask<Rank1>() | fileMask<File9>() | fileMask<File1>());
-        result.clearBit(square);
-
-        return result;
-    }
-
     // square のマスにおける、障害物を調べる必要がある場所を Bitboard で返す。
     // lance の前方だけを調べれば良さそうだけど、Rank2 ~ Rank8 の状態をそのまま index に使いたいので、
     // 縦方向全て(端を除く)の occupied を全て調べる。
@@ -60,30 +33,29 @@ namespace {
         return squareFileMask(square) & ~(rankMask<Rank9>() | rankMask<Rank1>());
     }
 
-    // Rook or Bishop の利きの範囲を調べて bitboard で返す。
-    // occupied  障害物があるマスが 1 の bitboard
-    Bitboard attackCalc(const Square square, const Bitboard& occupied, const bool isBishop) {
-        const SquareDelta deltaArray[2][4] = {{DeltaN, DeltaS, DeltaE, DeltaW}, {DeltaNE, DeltaSE, DeltaSW, DeltaNW}};
-        Bitboard result = allZeroBB();
-        for (SquareDelta delta : deltaArray[isBishop]) {
-            for (Square sq = square + delta;
-                 isInSquare(sq) && abs(makeRank(sq - delta) - makeRank(sq)) <= 1;
-                 sq += delta)
-            {
-                result.setBit(sq);
-                if (occupied.isSet(sq))
-                    break;
-            }
-        }
-
-        return result;
-    }
-
     // lance の利きを返す。
-    // 香車の利きは常にこれを使っても良いけど、もう少し速くする為に、テーブル化する為だけに使う。
     // occupied  障害物があるマスが 1 の bitboard
     Bitboard lanceAttackCalc(const Color c, const Square square, const Bitboard& occupied) {
-        return rookAttack(square, occupied) & inFrontMask(c, makeRank(square));
+        File file = makeFile(square);
+        Bitboard bb{ 0, 0 };
+        // 上方向
+        for (Rank rank = makeRank(square); rank > Rank1;) {
+            rank += DeltaN;
+            const Square sq = makeSquare(file, rank);
+            bb |= setMaskBB(sq);
+            if (occupied.isSet(sq))
+                break;
+        }
+        // 下方向
+        for (Rank rank = makeRank(square); rank < Rank9;) {
+            rank += DeltaS;
+            const Square sq = makeSquare(file, rank);
+            bb |= setMaskBB(sq);
+            if (occupied.isSet(sq))
+                break;
+        }
+
+        return bb & inFrontMask(c, makeRank(square));
     }
 
     // index, bits の情報を元にして、occupied の 1 のbit を いくつか 0 にする。
@@ -103,34 +75,6 @@ namespace {
         return result;
     }
 
-    void initAttacks(const bool isBishop)
-    {
-        auto* attacks     = (isBishop ? BishopAttack      : RookAttack     );
-        auto* attackIndex = (isBishop ? BishopAttackIndex : RookAttackIndex);
-        auto* blockMask   = (isBishop ? BishopBlockMask   : RookBlockMask  );
-        auto* shift       = (isBishop ? BishopShiftBits   : RookShiftBits  );
-#if defined HAVE_BMI2
-#else
-        auto* magic       = (isBishop ? BishopMagic       : RookMagic      );
-#endif
-        int index = 0;
-        for (Square sq = SQ11; sq < SquareNum; ++sq) {
-            blockMask[sq] = (isBishop ? bishopBlockMaskCalc(sq) : rookBlockMaskCalc(sq));
-            attackIndex[sq] = index;
-
-            const int num1s = (isBishop ? BishopBlockBits[sq] : RookBlockBits[sq]);
-            for (int i = 0; i < (1 << num1s); ++i) {
-                const Bitboard occupied = indexToOccupied(i, num1s, blockMask[sq]);
-#if defined HAVE_BMI2
-                attacks[index + occupiedToIndex(occupied & blockMask[sq], blockMask[sq])] = attackCalc(sq, occupied, isBishop);
-#else
-                attacks[index + occupiedToIndex(occupied, magic[sq], shift[sq])] = attackCalc(sq, occupied, isBishop);
-#endif
-            }
-            index += 1 << (64 - shift[sq]);
-        }
-    }
-
     // LanceBlockMask, LanceAttack の値を設定する。
     void initLanceAttacks() {
         for (Color c = Black; c < ColorNum; ++c) {
@@ -143,6 +87,80 @@ namespace {
                     Bitboard occupied = indexToOccupied(i, num1s, blockMask);
                     LanceAttack[c][sq][i] = lanceAttackCalc(c, sq, occupied);
                 }
+            }
+        }
+    }
+
+    void initRookAttacks() {
+        for (File file = File1; file < FileNum; ++file) {
+            for (Rank rank = Rank1; rank < RankNum; ++rank) {
+                Bitboard left{ 0, 0 }, right{ 0, 0 };
+
+                // SQのマスから左方向
+                for (File file2 = (File)(file + 1); file2 < FileNum; ++file2)
+                    left |= setMaskBB(makeSquare(file2, rank));
+
+                // SQのマスから右方向
+                for (File file2 = (File)(file - 1); file2 >= File1; --file2)
+                    right |= setMaskBB(makeSquare(file2, rank));
+
+                Bitboard rightRev = right.byteReverse();
+
+                Bitboard hi, lo;
+                Bitboard::unpack(rightRev, left, hi, lo);
+
+                RookAttackRankToMask[makeSquare(file, rank)][0] = lo;
+                RookAttackRankToMask[makeSquare(file, rank)][1] = hi;
+            }
+        }
+    }
+
+    void initBishopAttacks() {
+        // 4方向
+        constexpr SquareDelta bishopDelta[4] = {
+            DeltaNW, // 左上
+            DeltaSW, // 左下
+            DeltaNE, // 右上
+            DeltaSE, // 右下
+        };
+        for (File file = File1; file < FileNum; ++file) {
+            for (Rank rank = Rank1; rank < RankNum; ++rank) {
+                // 対象升から
+                const Square sq = makeSquare(file, rank);
+
+                // 角の左上、左下、右上、右下それぞれへのstep effect
+                Bitboard bishopToBB[4];
+
+                // 4方向の利きをループで求める
+                for (int i = 0; i < 4; ++i)
+                {
+                    Bitboard bb{ 0, 0 };
+
+                    const auto delta = bishopDelta[i];
+                    // 壁に突き当たるまで進む
+                    Square sq2 = sq;
+                    while (true) {
+                        if ((delta == DeltaNW || delta == DeltaNE) && makeRank(sq2) == Rank1) break;
+                        if ((delta == DeltaSW || delta == DeltaSE) && makeRank(sq2) == Rank9) break;
+                        if ((delta == DeltaNW || delta == DeltaSW) && makeFile(sq2) == File9) break;
+                        if ((delta == DeltaNE || delta == DeltaSE) && makeFile(sq2) == File1) break;
+                        sq2 += delta;
+                        bb |= setMaskBB(sq2);
+                    }
+
+                    bishopToBB[i] = bb;
+                }
+
+                // 右上、右下はbyte reverseしておかないとうまく求められない。(先手の香の利きがうまく求められないのと同様)
+
+                bishopToBB[2] = bishopToBB[2].byteReverse();
+                bishopToBB[3] = bishopToBB[3].byteReverse();
+
+                for (int i = 0; i < 2; ++i)
+                    BishopAttackToMask[sq][i] = Bitboard256(
+                        Bitboard(bishopToBB[0].p(i), bishopToBB[2].p(i)),
+                        Bitboard(bishopToBB[1].p(i), bishopToBB[3].p(i))
+                    );
             }
         }
     }
@@ -415,14 +433,14 @@ namespace {
 }
 
 void initTable() {
-    initAttacks(false);
-    initAttacks(true);
+    initLanceAttacks();
+    initRookAttacks();
+    initBishopAttacks();
     initKingAttacks();
     initGoldAttacks();
     initSilverAttacks();
     initPawnAttacks();
     initKnightAttacks();
-    initLanceAttacks();
     initSquareRelation();
     initAttackToEdge();
     initBetweenBB();
@@ -432,46 +450,3 @@ void initTable() {
 
     Book::init();
 }
-
-#if defined FIND_MAGIC
-// square の位置の rook, bishop それぞれのMagic Bitboard に使用するマジックナンバーを見つける。
-// isBishop  : true なら bishop, false なら rook のマジックナンバーを見つける。
-u64 findMagic(const Square square, const bool isBishop) {
-    Bitboard occupied[1<<14];
-    Bitboard attack[1<<14];
-    Bitboard attackUsed[1<<14];
-    Bitboard mask = (isBishop ? bishopBlockMaskCalc(square) : rookBlockMaskCalc(square));
-    int num1s = (isBishop ? BishopBlockBits[square] : RookBlockBits[square]);
-
-    // n bit の全ての数字 (利きのあるマスの全ての 0 or 1 の組み合わせ)
-    for (int i = 0; i < (1 << num1s); ++i) {
-        occupied[i] = indexToOccupied(i, num1s, mask);
-        attack[i] = attackCalc(square, occupied[i], isBishop);
-    }
-
-    for (u64 k = 0; k < UINT64_C(100000000); ++k) {
-        const u64 magic = g_mt64bit.randomFewBits();
-        bool fail = false;
-
-        // これは無くても良いけど、少しマジックナンバーが見つかるのが早くなるはず。
-        if (count1s((mask.merge() * magic) & UINT64_C(0xfff0000000000000)) < 6)
-            continue;
-
-        std::fill(std::begin(attackUsed), std::end(attackUsed), allZeroBB());
-
-        for (int i = 0; !fail && i < (1 << num1s); ++i) {
-            const int shiftBits = (isBishop ? BishopShiftBits[square] : RookShiftBits[square]);
-            const u64 index = occupiedToIndex(occupied[i], magic, shiftBits);
-            if      (attackUsed[index] == allZeroBB())
-                attackUsed[index] = attack[i];
-            else if (attackUsed[index] != attack[i])
-                fail = true;
-        }
-        if (!fail)
-            return magic;
-    }
-
-    std::cout << "/***Failed***/\t";
-    return 0;
-}
-#endif // #if defined FIND_MAGIC

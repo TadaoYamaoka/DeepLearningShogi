@@ -396,7 +396,8 @@ private:
 		if (trainning) {
 			const auto child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
-			for (size_t i = 0; i < root_node->child_num; ++i) {
+			const size_t child_num = root_node->child_num;
+			for (size_t i = 0; i < child_num; ++i) {
 				// ノイズにより選んだ回数を除く
 				const auto move_count = child[i].move_count - noise_count[i];
 				if (move_count > 0) {
@@ -871,8 +872,8 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0.0f);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
