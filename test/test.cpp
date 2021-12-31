@@ -1605,7 +1605,7 @@ L_EXIT:
 }
 #endif
 
-#if 1
+#if 0
 int main()
 {
 	initTable();
@@ -1625,5 +1625,52 @@ int main()
 
 	bb = lanceAttack(Black, SQ19, occ);
 	bb.printBoard();
+}
+#endif
+
+#if 1
+// 入力特徴量
+int main()
+{
+	initTable();
+	Position pos;
+
+	vector<string> sfens = {
+		"lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1",
+		"l+R1g2g1l/2pk5/3ps1n1p/p5pp1/2P1p4/5SP2/PP1PPP2P/2GKG4/L2s2rNL b BSNPbn2p 93",
+		"l1R2pk1l/6g2/4pgnp1/ps3Pp1p/3p2S2/P3S2nP/1PSP2+B2/2GKG4/LN3r2L w BPn5p 98",
+	};
+
+	features1_t* features1 = new features1_t[1];
+	features2_t* features2 = new features2_t[1];
+
+	for (string sfen : sfens) {
+		pos.set(sfen);
+
+		std::fill_n((DType*)features1, sizeof(features1_t) / sizeof(DType), 0.0f);
+		std::fill_n((DType*)features2, sizeof(features2_t) / sizeof(DType), 0.0f);
+
+		make_input_features(pos, features1, features2);
+
+		std::cout << sfen << "\n";
+		std::cout << "features1\n";
+		for (Color c = Black; c < ColorNum; ++c) {
+			for (int f1 = 0; f1 < MAX_FEATURES1_NUM; f1++) {
+				for (Square sq = SQ11; sq < SquareNum; sq++) {
+					std::cout << features1[0][c][f1][sq] << ",";
+				}
+				std::cout << "\n";
+			}
+		}
+		std::cout << "features2\n";
+		for (int f2 = 0; f2 < MAX_FEATURES2_NUM; f2++) {
+			for (Square sq = SQ11; sq < SquareNum; sq++) {
+				std::cout << features2[0][f2][sq] << ",";
+			}
+			std::cout << "\n";
+		}
+	}
+
+	return 0;
 }
 #endif
