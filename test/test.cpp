@@ -1628,7 +1628,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 // 入力特徴量
 int main()
 {
@@ -1670,6 +1670,62 @@ int main()
 			std::cout << "\n";
 		}
 	}
+
+	return 0;
+}
+#endif
+
+#if 1
+// 入力特徴量作成速度測定
+int main(int argc, char* argv[])
+{
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+	Position pos;
+	std::string filepath = argv[1];
+
+	features1_t* features1 = new features1_t[1];
+	features2_t* features2 = new features2_t[1];
+
+	std::ifstream ifs(filepath, std::ifstream::binary);
+	if (!ifs) {
+		std::cerr << "read error" << std::endl;
+		return 1;
+	}
+	std::chrono::high_resolution_clock::duration total{};
+	int sum = 0;
+	for (int p = 0; ifs; ++p) {
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (ifs.eof()) {
+			std::cout << p << std::endl;
+			break;
+		}
+
+		// 局面
+		Position pos;
+		if (!pos.set(hcpe.hcp)) {
+			std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+			ss << filepath << "(" << p << ")";
+			throw std::runtime_error(ss.str());
+		}
+		std::fill_n((DType*)features1, sizeof(features1_t) / sizeof(DType), 0.0f);
+		std::fill_n((DType*)features2, sizeof(features2_t) / sizeof(DType), 0.0f);
+
+		const auto start = std::chrono::high_resolution_clock::now();
+
+		make_input_features(pos, features1, features2);
+
+		total += std::chrono::high_resolution_clock::now() - start;
+
+		for (size_t i = 0; i < sizeof(features1_t) / sizeof(float); i++)
+			sum += (int)((float*)features1)[i];
+		for (size_t i = 0; i < sizeof(features2_t) / sizeof(float); i++)
+			sum += (int)((float*)features2)[i];
+	}
+	cout << sum << endl;
+	cout << std::chrono::duration_cast<std::chrono::nanoseconds>(total).count() / 1000000.0 << endl;
 
 	return 0;
 }
