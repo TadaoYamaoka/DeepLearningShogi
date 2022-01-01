@@ -18,7 +18,7 @@ inline void make_input_features(const Position& position, features1_t* features1
 	int attack_num[ColorNum][SquareNum] = {};
 
 	// 歩以外
-	FOREACH_BB (without_pawns_bb, Square sq, {
+	FOREACH_BB(without_pawns_bb, Square sq, {
 		const Piece pc = position.piece(sq);
 		const PieceType pt = pieceToPieceType(pc);
 		Color c = pieceToColor(pc);
@@ -33,7 +33,7 @@ inline void make_input_features(const Position& position, features1_t* features1
 		// 駒の配置
 		(*features1)[c][pt - 1][sq] = 1.0f;
 
-		FOREACH_BB (attacks, Square to, {
+		FOREACH_BB(attacks, Square to, {
 			// 後手の場合、盤面を180度回転
 			if (turn == White) to = SQ99 - to;
 
@@ -56,7 +56,7 @@ inline void make_input_features(const Position& position, features1_t* features1
 		// 歩
 		Bitboard pawns_bb2 = pawns_bb & position.bbOf(c2);
 		const SquareDelta pawnDelta = c == Black ? DeltaN : DeltaS;
-		FOREACH_BB (pawns_bb2, Square sq, {
+		FOREACH_BB(pawns_bb2, Square sq, {
 			// 後手の場合、盤面を180度回転
 			if (turn == White) sq = SQ99 - sq;
 

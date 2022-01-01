@@ -1628,7 +1628,7 @@ int main()
 }
 #endif
 
-#if 0
+#if 1
 // 入力特徴量
 int main()
 {
@@ -1639,6 +1639,12 @@ int main()
 		"lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1",
 		"l+R1g2g1l/2pk5/3ps1n1p/p5pp1/2P1p4/5SP2/PP1PPP2P/2GKG4/L2s2rNL b BSNPbn2p 93",
 		"l1R2pk1l/6g2/4pgnp1/ps3Pp1p/3p2S2/P3S2nP/1PSP2+B2/2GKG4/LN3r2L w BPn5p 98",
+		"l6nl/1P1g2gkP/2n1p1sp1/2p1sp1P1/pr1p2p2/P1P1SPP2/N+pSPP1N2/2G1KG3/L6RL b Bbp 55",
+		"l6nl/1P1g2gkP/2n1p1sp1/2p1sp1P1/pr1p2P2/P1P1SP3/N+pSPP1N2/2G1KG3/L6RL w BPbp 56",
+		"lp5nl/1P1g2gkP/2n1p2p1/2p1spsP1/pr1p5/P1P1SP3/N1SPP1N2/1+pG1KG3/L5PRL b Bbp 61",
+		"lp5n+P/1P1g3k1/2n1p2g1/2p1sps2/1r1p3R1/2P1SP3/+p1SPP1N2/p+pG1KG2L/L5P1P w BLbn2p 70",
+		"l5gkl/b5rp1/5+BS+R1/p3n3p/6GN1/Pp1Pp1P1P/2PK1P3/1PG6/L7L b 6Pg3s2n 147",
+		"l5gkl/b5+Bp1/6S+R1/p3n3p/6GN1/Pp1Pp1P1P/2PK1P3/1PG6/L7L w R6Pg3s2n 148",
 	};
 
 	features1_t* features1 = new features1_t[1];
@@ -1675,7 +1681,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 // 入力特徴量作成速度測定
 int main(int argc, char* argv[])
 {
