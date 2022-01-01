@@ -10,55 +10,71 @@ inline void make_input_features(const Position& position, features1_t* features1
 
 	const Bitboard occupied_bb = position.occupiedBB();
 
-	// 駒の利き(駒種でマージ)
-	Bitboard attacks[ColorNum][PieceTypeNum] = {
-		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
-		{ { 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 },{ 0, 0 } },
-	};
-	for (Square sq = SQ11; sq < SquareNum; sq++) {
-		const Piece p = position.piece(sq);
-		if (p != Empty) {
-			const Color pc = pieceToColor(p);
-			const PieceType pt = pieceToPieceType(p);
-			const Bitboard bb = position.attacksFrom(pt, pc, sq, occupied_bb);
-			attacks[pc][pt] |= bb;
-		}
-	}
+	// 歩と歩以外に分ける
+	Bitboard pawns_bb = position.bbOf(Pawn);
+	Bitboard without_pawns_bb = occupied_bb & ~pawns_bb;
+	// 利き数集計用
+	int attack_num[ColorNum][SquareNum] = {};
 
-	for (Color c = Black; c < ColorNum; ++c) {
-		// 白の場合、色を反転
-		const Color c2 = turn == Black ? c : oppositeColor(c);
+	// 歩以外
+	FOREACH_BB(without_pawns_bb, Square sq, {
+		const Piece pc = position.piece(sq);
+		const PieceType pt = pieceToPieceType(pc);
+		Color c = pieceToColor(pc);
+		Bitboard attacks = Position::attacksFrom(pt, c, sq, occupied_bb);
+
+		// 後手の場合、色を反転し、盤面を180度回転
+		if (turn == White) {
+			c = oppositeColor(c);
+			sq = SQ99 - sq;
+		}
 
 		// 駒の配置
-		Bitboard bb[PieceTypeNum];
-		for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
-			bb[pt] = position.bbOf(pt, c);
-		}
+		(*features1)[c][pt - 1][sq] = 1.0f;
 
-		for (Square sq = SQ11; sq < SquareNum; ++sq) {
-			// 白の場合、盤面を180度回転
-			const Square sq2 = turn == Black ? sq : SQ99 - sq;
+		FOREACH_BB(attacks, Square to, {
+			// 後手の場合、盤面を180度回転
+			if (turn == White) to = SQ99 - to;
 
-			for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
-				// 駒の配置
-				if (bb[pt].isSet(sq)) {
-					(*features1)[c2][pt - 1][sq2] = 1;
-				}
-
-				// 駒の利き
-				if (attacks[c][pt].isSet(sq)) {
-					(*features1)[c2][PIECETYPE_NUM + pt - 1][sq2] = 1;
-				}
-			}
+			// 駒の利き
+			(*features1)[c][PIECETYPE_NUM + pt - 1][to] = 1.0f;
 
 			// 利き数
-			const int num = std::min(MAX_ATTACK_NUM, position.attackersTo(c, sq, occupied_bb).popCount());
-			for (int k = 0; k < num; k++) {
-				(*features1)[c2][PIECETYPE_NUM + PIECETYPE_NUM + k][sq2] = 1;
+			auto& num = attack_num[c][to];
+			if (num < MAX_ATTACK_NUM) {
+				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = 1.0f;
+				num++;
 			}
-		}
+		});
+	});
 
-		// hand
+	for (Color c = Black; c < ColorNum; ++c) {
+		// 後手の場合、色を反転
+		const Color c2 = turn == Black ? c : oppositeColor(c);
+
+		// 歩
+		Bitboard pawns_bb2 = pawns_bb & position.bbOf(c2);
+		const SquareDelta pawnDelta = c == Black ? DeltaN : DeltaS;
+		FOREACH_BB(pawns_bb2, Square sq, {
+			// 後手の場合、盤面を180度回転
+			if (turn == White) sq = SQ99 - sq;
+
+			// 駒の配置
+			(*features1)[c][Pawn - 1][sq] = 1.0f;
+
+			// 駒の利き
+			const Square to = sq + pawnDelta; // 1マス先
+			(*features1)[c][PIECETYPE_NUM + Pawn - 1][to] = 1.0f;
+
+			// 利き数
+			auto& num = attack_num[c][to];
+			if (num < MAX_ATTACK_NUM) {
+				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = 1.0f;
+				num++;
+			}
+		});
+
+		// 持ち駒
 		const Hand hand = position.hand(c);
 		int p = 0;
 		for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
