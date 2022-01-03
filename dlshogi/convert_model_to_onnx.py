@@ -39,8 +39,9 @@ def main(*argv):
         move = np.empty((len(hcpevec)), dtype=np.int64)
         result = np.empty((len(hcpevec)), dtype=np.float32)
         value = np.empty((len(hcpevec)), dtype=np.float32)
+        draw = np.empty((len(hcpevec)), dtype=np.float32)
 
-        cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value)
+        cppshogi.hcpe_decode_with_value(hcpevec, features1, features2, move, result, value, draw)
 
         z = result.astype(np.float32) - value + 0.5
 
@@ -49,31 +50,33 @@ def main(*argv):
                 torch.tensor(move.astype(np.int64)).to(device),
                 torch.tensor(result.reshape((len(hcpevec), 1))).to(device),
                 torch.tensor(z).to(device),
-                torch.tensor(value.reshape((len(value), 1))).to(device)
+                torch.tensor(value.reshape((len(value), 1))).to(device),
+                torch.tensor(draw.reshape((len(draw), 1))).to(device)
                 )
 
     batchsize = 1 if args.fixed_batchsize is None else args.fixed_batchsize
     hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)] * batchsize, HuffmanCodedPosAndEval)
-    x1, x2, t1, t2, z, value = mini_batch(hcpevec)
+    x1, x2, t1, t2, z, value, draw = mini_batch(hcpevec)
 
     if args.fixed_batchsize is None:
         torch.onnx.export(model, (x1, x2), args.onnx,
             verbose = True,
             do_constant_folding = True,
             input_names = ['input1', 'input2'],
-            output_names = ['output_policy', 'output_value'],
+            output_names = ['output_policy', 'output_value', 'output_draw'],
             dynamic_axes={
                 'input1' : {0 : 'batch_size'},
                 'input2' : {0 : 'batch_size'},
                 'output_policy' : {0 : 'batch_size'},
                 'output_value' : {0 : 'batch_size'},
+                'output_draw' : {0 : 'batch_size'},
                 })
     else:
         torch.onnx.export(model, (x1, x2), args.onnx,
             verbose = True,
             do_constant_folding = True,
             input_names = ['input1', 'input2'],
-            output_names = ['output_policy', 'output_value'])
+            output_names = ['output_policy', 'output_value', 'output_draw'])
 
 if __name__ == '__main__':
     main(*sys.argv[1:])

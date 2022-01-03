@@ -22,6 +22,10 @@ inline float make_result(const uint8_t result, const Color color) {
 	}
 }
 template<typename T>
+inline T is_draw(const uint8_t result) {
+	return static_cast<T>((result & 0x3) == Draw ? 1 : 0);
+}
+template<typename T>
 inline T is_sennichite(const uint8_t result) {
 	return static_cast<T>(result & GAMERESULT_SENNICHITE ? 1 : 0);
 }
@@ -30,20 +34,21 @@ inline T is_nyugyoku(const uint8_t result) {
 	return static_cast<T>(result & GAMERESULT_NYUGYOKU ? 1 : 0);
 }
 
-void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {
+void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* nddraw) {
 	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
 	float *result = reinterpret_cast<float *>(ndresult);
 	float *value = reinterpret_cast<float *>(ndvalue);
+	float* draw = reinterpret_cast<float*>(nddraw);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 
 	Position position;
-	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
+	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, draw++) {
 		position.set(hcpe->hcp);
 
 		// input features
@@ -57,6 +62,9 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 
 		// eval
 		*value = score_to_value((Score)hcpe->eval);
+
+		// is draw
+		*draw = is_draw<float>(hcpe->gameResult);
 	}
 }
 
@@ -117,7 +125,8 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 				auto& data = trainingData.emplace_back(
 					hcpe.hcp,
 					eval,
-					make_result(hcpe.gameResult, hcpe.hcp.color())
+					make_result(hcpe.gameResult, hcpe.hcp.color()),
+					is_draw<float>(hcpe.gameResult)
 				);
 				data.candidates[hcpe.bestMove16] = 1;
 			}
@@ -126,6 +135,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 				auto& data = trainingData[ret.first->second];
 				data.eval += eval;
 				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
+				data.draw += is_draw<float>(hcpe.gameResult);
 				data.candidates[hcpe.bestMove16] += 1;
 				data.count++;
 			}
@@ -134,7 +144,8 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
 				eval,
-				make_result(hcpe.gameResult, hcpe.hcp.color())
+				make_result(hcpe.gameResult, hcpe.hcp.color()),
+				is_draw<float>(hcpe.gameResult)
 			);
 			data.candidates[hcpe.bestMove16] = 1;
 		}
@@ -272,7 +283,8 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 						auto& data = trainingData.emplace_back(
 							hcp,
 							eval,
-							make_result(hcpe3.result, pos.turn())
+							make_result(hcpe3.result, pos.turn()),
+							is_draw<float>(hcpe3.result)
 						);
 						visits_to_proberbility<false>(data, candidates, temperature);
 					}
@@ -281,6 +293,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 						auto& data = trainingData[ret.first->second];
 						data.eval += eval;
 						data.result += make_result(hcpe3.result, pos.turn());
+						data.draw += is_draw<float>(hcpe3.result);
 						visits_to_proberbility<true>(data, candidates, temperature);
 						data.count++;
 
@@ -290,7 +303,8 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 					auto& data = trainingData.emplace_back(
 						hcp,
 						eval,
-						make_result(hcpe3.result, pos.turn())
+						make_result(hcpe3.result, pos.turn()),
+						is_draw<float>(hcpe3.result)
 					);
 					visits_to_proberbility<false>(data, candidates, temperature);
 				}
@@ -312,13 +326,14 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, bool use_oppo
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, char* nddraw) {
 	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
+	float* draw = reinterpret_cast<float*>(nddraw);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -326,7 +341,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
 	Position position;
-	for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
+	for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++, draw++) {
 		auto& hcpe3 = trainingData[*index];
 
 		position.set(hcpe3.hcp);
@@ -346,6 +361,9 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 
 		// eval
 		*value = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+
+		// is draw
+		*draw = hcpe3.draw / hcpe3.count;
 	}
 }
 

@@ -175,27 +175,32 @@ def main(*argv):
         sum_test_loss1 = 0
         sum_test_loss2 = 0
         sum_test_loss3 = 0
+        sum_test_loss4 = 0
         sum_test_loss = 0
         sum_test_accuracy1 = 0
         sum_test_accuracy2 = 0
+        sum_test_accuracy3 = 0
         sum_test_entropy1 = 0
         sum_test_entropy2 = 0
         model.eval()
         with torch.no_grad():
-            for x1, x2, t1, t2, value in test_dataloader:
-                y1, y2 = model(x1, x2)
+            for x1, x2, t1, t2, value, draw in test_dataloader:
+                y1, y2, y3 = model(x1, x2)
 
                 steps += 1
                 loss1 = cross_entropy_loss(y1, t1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss4 = bce_with_logits_loss(y3, draw)
+                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + loss4
                 sum_test_loss1 += loss1.item()
                 sum_test_loss2 += loss2.item()
                 sum_test_loss3 += loss3.item()
+                sum_test_loss4 += loss4.item()
                 sum_test_loss += loss.item()
                 sum_test_accuracy1 += accuracy(y1, t1)
                 sum_test_accuracy2 += binary_accuracy(y2, t2)
+                sum_test_accuracy3 += binary_accuracy(y3, draw)
 
                 entropy1 = (- F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1)
                 sum_test_entropy1 += entropy1.mean().item()
@@ -209,9 +214,11 @@ def main(*argv):
         return (sum_test_loss1 / steps,
                 sum_test_loss2 / steps,
                 sum_test_loss3 / steps,
+                sum_test_loss4 / steps,
                 sum_test_loss / steps,
                 sum_test_accuracy1 / steps,
                 sum_test_accuracy2 / steps,
+                sum_test_accuracy3 / steps,
                 sum_test_entropy1 / steps,
                 sum_test_entropy2 / steps)
 
@@ -236,6 +243,7 @@ def main(*argv):
     sum_loss1 = 0
     sum_loss2 = 0
     sum_loss3 = 0
+    sum_loss4 = 0
     sum_loss = 0
     eval_interval = args.eval_interval
     for e in range(args.epoch):
@@ -246,14 +254,15 @@ def main(*argv):
         sum_loss1_epoch = 0
         sum_loss2_epoch = 0
         sum_loss3_epoch = 0
+        sum_loss4_epoch = 0
         sum_loss_epoch = 0
-        for x1, x2, t1, t2, value in train_dataloader:
+        for x1, x2, t1, t2, value, draw in train_dataloader:
             t += 1
             steps += 1
             with torch.cuda.amp.autocast(enabled=args.use_amp):
                 model.train()
 
-                y1, y2 = model(x1, x2)
+                y1, y2, y3 = model(x1, x2)
 
                 model.zero_grad()
                 loss1 = cross_entropy_loss_with_soft_target(y1, t1)
@@ -266,7 +275,8 @@ def main(*argv):
                     loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss4 = bce_with_logits_loss(y3, draw)
+                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3 + loss4
 
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
@@ -281,53 +291,58 @@ def main(*argv):
             sum_loss1 += loss1.item()
             sum_loss2 += loss2.item()
             sum_loss3 += loss3.item()
+            sum_loss4 += loss4.item()
             sum_loss += loss.item()
 
             # print train loss
             if t % eval_interval == 0:
                 model.eval()
 
-                x1, x2, t1, t2, value = test_dataloader.sample()
+                x1, x2, t1, t2, value, draw = test_dataloader.sample()
                 with torch.no_grad():
-                    y1, y2 = model(x1, x2)
+                    y1, y2, y3 = model(x1, x2)
 
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)
                     loss3 = bce_with_logits_loss(y2, value)
+                    loss4 = bce_with_logits_loss(y3, draw)
                     loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                    logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
+                    logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, {:.07f}'.format(
                         epoch, t,
-                        sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
-                        loss1.item(), loss2.item(), loss3.item(), loss.item(),
-                        accuracy(y1, t1), binary_accuracy(y2, t2)))
+                        sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss4 / steps, sum_loss / steps,
+                        loss1.item(), loss2.item(), loss3.item(), loss4.item(), loss.item(),
+                        accuracy(y1, t1), binary_accuracy(y2, t2), binary_accuracy(y3, draw)))
 
                 steps_epoch += steps
                 sum_loss1_epoch += sum_loss1
                 sum_loss2_epoch += sum_loss2
                 sum_loss3_epoch += sum_loss3
+                sum_loss4_epoch += sum_loss4
                 sum_loss_epoch += sum_loss
 
                 steps = 0
                 sum_loss1 = 0
                 sum_loss2 = 0
                 sum_loss3 = 0
+                sum_loss4 = 0
                 sum_loss = 0
 
         steps_epoch += steps
         sum_loss1_epoch += sum_loss1
         sum_loss2_epoch += sum_loss2
         sum_loss3_epoch += sum_loss3
+        sum_loss4_epoch += sum_loss4
         sum_loss_epoch += sum_loss
 
         # print train loss and test loss for each epoch
-        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
+        test_loss1, test_loss2, test_loss3, test_loss4, test_loss, test_accuracy1, test_accuracy2, test_accuracy3, test_entropy1, test_entropy2 = test(model)
 
-        logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
+        logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
             epoch, t,
-            sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
-            test_loss1, test_loss2, test_loss3, test_loss,
-            test_accuracy1, test_accuracy2,
+            sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss4_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
+            test_loss1, test_loss2, test_loss3, test_loss4, test_loss,
+            test_accuracy1, test_accuracy2, test_accuracy3,
             test_entropy1, test_entropy2))
 
         if args.lr_scheduler:
@@ -348,12 +363,12 @@ def main(*argv):
             del swa_model.forward
 
             # print test loss with swa model
-            test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(swa_model)
+            test_loss1, test_loss2, test_loss3, test_loss4, test_loss, test_accuracy1, test_accuracy2, test_accuracy3, test_entropy1, test_entropy2 = test(swa_model)
 
-            logging.info('epoch = {}, steps = {}, swa test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, swa test accuracy = {:.07f}, {:.07f}, swa test entropy = {:.07f}, {:.07f}'.format(
+            logging.info('epoch = {}, steps = {}, swa test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, swa test accuracy = {:.07f}, {:.07f}, {:.07f}, swa test entropy = {:.07f}, {:.07f}'.format(
                 epoch, t,
-                test_loss1, test_loss2, test_loss3, test_loss,
-                test_accuracy1, test_accuracy2,
+                test_loss1, test_loss2, test_loss3, test_loss4, test_loss,
+                test_accuracy1, test_accuracy2, test_accuracy3,
                 test_entropy1, test_entropy2))
 
         model_path = args.model.format(**{'epoch':epoch, 'step':t})

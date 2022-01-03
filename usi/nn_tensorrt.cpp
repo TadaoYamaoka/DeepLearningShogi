@@ -36,8 +36,9 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 	checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * max_batch_size));
 	checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
+	checkCudaErrors(cudaMalloc((void**)&y3_dev, max_batch_size * sizeof(DType)));
 
-	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev, y3_dev };
 
 	load_model(filename);
 }
@@ -48,6 +49,7 @@ NNTensorRT::~NNTensorRT()
 	checkCudaErrors(cudaFree(x2_dev));
 	checkCudaErrors(cudaFree(y1_dev));
 	checkCudaErrors(cudaFree(y2_dev));
+	checkCudaErrors(cudaFree(y3_dev));
 }
 
 void NNTensorRT::build(const std::string& onnx_filename)
@@ -115,7 +117,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	assert(inputDims[0].nbDims == 4);
 	assert(inputDims[1].nbDims == 4);
 
-	assert(network->getNbOutputs() == 2);
+	assert(network->getNbOutputs() == 3);
 
 	// Optimization Profiles
 	auto profile = builder->createOptimizationProfile();
@@ -206,7 +208,7 @@ void NNTensorRT::load_model(const char* filename)
 	inputDims2 = engine->getBindingDimensions(1);
 }
 
-void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
+void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2, DType* y3)
 {
 	inputDims1.d[0] = batch_size;
 	inputDims2.d[0] = batch_size;
@@ -219,5 +221,6 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	assert(status);
 	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, cudaStreamPerThread));
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(y3, y3_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 	checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 }

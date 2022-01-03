@@ -56,6 +56,7 @@ class PolicyValueNetwork(nn.Module):
         self.value_norm1 = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
         self.value_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.value_fc2 = nn.Linear(fcl, 1)
+        self.value_draw = nn.Linear(fcl, 1)
 
     def forward(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
@@ -73,9 +74,8 @@ class PolicyValueNetwork(nn.Module):
         # value network
         h_value = self.act(self.value_norm1(self.value_conv1(h)))
         h_value = self.act(self.value_fc1(torch.flatten(h_value, 1)))
-        h_value = self.value_fc2(h_value)
 
-        return h_policy, h_value
+        return h_policy, self.value_fc2(h_value), self.value_draw(h_value)
 
     def set_swish(self, memory_efficient=True):
         """Sets swish function as memory efficient (for training) or standard (for export).

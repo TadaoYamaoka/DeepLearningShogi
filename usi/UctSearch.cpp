@@ -192,11 +192,13 @@ SubVirtualLoss(child_node_t* child, uct_node_t* current)
 
 // 探索結果の更新
 inline void
-UpdateResult(child_node_t* child, float result, uct_node_t* current)
+UpdateResult(child_node_t* child, float result, float draw, uct_node_t* current)
 {
 	atomic_fetch_add(&current->win, (WinType)result);
+	atomic_fetch_add(&current->draw, (WinType)draw);
 	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
 	atomic_fetch_add(&child->win, (WinType)result);
+	atomic_fetch_add(&child->draw, (WinType)draw);
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
 }
 
@@ -209,6 +211,7 @@ struct visitor_t {
 	}
 	trajectories_t trajectories;
 	float value_win;
+	float draw;
 };
 
 // バッチの要素
@@ -216,6 +219,7 @@ struct batch_element_t {
 	uct_node_t* node;
 	Color color;
 	float* value_win;
+	float* draw;
 };
 
 class UCTSearcher;
@@ -238,9 +242,9 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2, DType* y3) {
 		mutex_gpu.lock();
-		nn->forward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2, y3);
 		mutex_gpu.unlock();
 	}
 	void Run();
@@ -290,6 +294,7 @@ public:
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y3, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
@@ -312,6 +317,7 @@ public:
 		checkCudaErrors(cudaFreeHost(features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
+		checkCudaErrors(cudaFreeHost(y3));
 #endif
 		delete[] policy_value_batch;
 	}
@@ -387,7 +393,7 @@ private:
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
-	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
+	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win, float* draw);
 	// ノードを評価
 	void EvalNode();
 
@@ -411,6 +417,7 @@ private:
 	features2_t* features2;
 	DType* y1;
 	DType* y2;
+	DType* y3;
 	batch_element_t* policy_value_batch;
 #ifdef MAKE_BOOK
 	Key* policy_value_book_key;
@@ -980,6 +987,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 			const auto& child = current_root->child[i];
 			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
 				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0)
+				<< " draw:" << (child.move_count > 0 ? child.draw / child.move_count : 0)
 				<< (child.IsLose() ? " win" : "") << (child.IsWin() ? " lose" : "") << endl;
 		}
 
@@ -1009,7 +1017,7 @@ ExpandRoot(const Position *pos)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
+UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win, float* draw)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 	//cout << pos->toSFEN() << endl;
@@ -1022,7 +1030,7 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0.0f);
 
 	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
+	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win, draw };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
@@ -1115,7 +1123,8 @@ UCTSearcher::ParallelUctSearch()
 	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
 		float value_win;
-		QueuingNode(pos_root, current_root, &value_win);
+		float draw;
+		QueuingNode(pos_root, current_root, &value_win, &draw);
 		EvalNode();
 	}
 	UNLOCK_EXPAND;
@@ -1185,12 +1194,13 @@ UCTSearcher::ParallelUctSearch()
 		for (auto& visitor : visitor_batch) {
 			auto& trajectories = visitor->trajectories;
 			float result = 1.0f - visitor->value_win;
+			const float draw = visitor->draw;
 			for (int i = static_cast<int>(trajectories.size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				const unsigned int next_index = current_next.second;
 				child_node_t* uct_child = current->child.get();
-				UpdateResult(&uct_child[next_index], result, current);
+				UpdateResult(&uct_child[next_index], result, draw, current);
 				result = 1.0f - result;
 			}
 		}
@@ -1379,7 +1389,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 				else
 				{
 					// ノードをキューに追加
-					QueuingNode(pos, child_node, &visitor.value_win);
+					QueuingNode(pos, child_node, &visitor.value_win, &visitor.draw);
 					return QUEUING;
 				}
 			}
@@ -1436,7 +1446,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	}
 
 	// 探索結果の反映
-	UpdateResult(&uct_child[next_index], result, current);
+	UpdateResult(&uct_child[next_index], result, 0.0f, current);
 
 	return 1.0f - result;
 }
@@ -1535,12 +1545,13 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
+	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2, y3);
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-	const DType *value = y2;
+	const DType* value = y2;
+	const DType* draw = y3;
 
-	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++, draw++) {
 		uct_node_t* node = policy_value_batch[i].node;
 		const Color color = policy_value_batch[i].color;
 
@@ -1559,6 +1570,7 @@ void UCTSearcher::EvalNode() {
 		softmax_temperature_with_normalize(uct_child, child_num);
 
 		*policy_value_batch[i].value_win = *value;
+		*policy_value_batch[i].draw = *draw;
 
 #ifdef MAKE_BOOK
 		if (use_book_policy) {

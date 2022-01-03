@@ -31,17 +31,17 @@ constexpr int NOT_EXPANDED = -1;
 
 struct uct_node_t;
 struct child_node_t {
-	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
+	child_node_t() : move_count(0), win((WinType)0), draw((WinType)0), nnrate(0.0f) {}
 	child_node_t(const Move move)
-		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
+		: move(move), move_count(0), win((WinType)0), draw((WinType)0), nnrate(0.0f) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count((int)o.move_count), win((float)o.win), nnrate(o.nnrate) {}
+		: move(o.move), move_count((int)o.move_count), win((WinType)o.win), nnrate(o.nnrate) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
 		move_count = (int)o.move_count;
-		win = (float)o.win;
+		win = (WinType)o.win;
 		nnrate = (float)o.nnrate;
 		return *this;
 	}
@@ -58,6 +58,7 @@ struct child_node_t {
 	float nnrate;                // ニューラルネットワークでのレート
 	atomic_t<int> move_count; // 探索回数
 	atomic_t<WinType> win;    // 勝った回数
+	atomic_t<WinType> draw;    // 勝った回数
 };
 
 struct uct_node_t {
@@ -97,6 +98,7 @@ struct uct_node_t {
 
 	atomic_t<int> move_count;
 	atomic_t<WinType> win;
+	atomic_t<WinType> draw;
 	atomic_t<float> visited_nnrate;
 	short child_num;                       // 子ノードの数
 	std::unique_ptr<child_node_t[]> child; // 子ノードの情報

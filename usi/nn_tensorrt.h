@@ -36,7 +36,7 @@ class NNTensorRT : NN {
 public:
 	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
-	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
+	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2, DType* y3);
 
 private:
 	const int gpu_id;
@@ -46,6 +46,7 @@ private:
 	features2_t* x2_dev;
 	DType* y1_dev;
 	DType* y2_dev;
+	DType* y3_dev;
 	std::vector<void*> inputBindings;
 	InferUniquePtr<nvinfer1::IExecutionContext> context;
 	nvinfer1::Dims inputDims1;

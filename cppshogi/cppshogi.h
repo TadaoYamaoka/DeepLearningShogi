@@ -89,12 +89,13 @@ struct MoveVisits {
 static_assert(sizeof(MoveVisits) == 4, "");
 
 struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const int eval, const float result)
-		: hcp(hcp), eval(eval), result(result), count(1) {};
+	TrainingData(const HuffmanCodedPos& hcp, const int eval, const float result, const float draw)
+		: hcp(hcp), eval(eval), result(result), draw(draw), count(1) {};
 
 	HuffmanCodedPos hcp;
 	int eval;
 	float result;
+	float draw;
 	std::map<u16, float> candidates;
 	int count; // 重複カウント
 };
