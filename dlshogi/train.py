@@ -159,7 +159,7 @@ def main(*argv):
 
     # for SWA update_bn
     def hcpe_loader(data, batchsize):
-        for x1, x2, t1, t2, value, draw in Hcpe3DataLoader(data, batchsize, device):
+        for x1, x2, t1, t2, value, draw in Hcpe3DataLoader(data, batchsize, device, shuffle=True):
             yield { 'x1':x1, 'x2':x2 }
 
     def accuracy(y, t):
