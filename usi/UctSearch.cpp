@@ -391,7 +391,7 @@ private:
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
 	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor);
 	// UCB値が最大の子ノードを返す
-	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
+	int SelectMaxUcbChild(const Position* pos, child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
 	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win, float* draw);
 	// ノードを評価
@@ -1285,7 +1285,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
 	if (!current->child_nodes) current->InitChildNodes();
 	// UCB値最大の手を求める
-	const unsigned int next_index = SelectMaxUcbChild(parent, current);
+	const unsigned int next_index = SelectMaxUcbChild(pos, parent, current);
 	// 選んだ手を着手
 	StateInfo st;
 	pos->doMove(uct_child[next_index].move, st);
@@ -1456,7 +1456,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 int
-UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
+UCTSearcher::SelectMaxUcbChild(const Position* pos, child_node_t* parent, uct_node_t* current)
 {
 	const child_node_t *uct_child = current->child.get();
 	const int child_num = current->child_num;
@@ -1473,7 +1473,10 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
 	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(current->visited_nnrate);
-	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
+	const float draw_ratio = 1.0f - (pos->turn() == Black ? draw_value_black : draw_value_white) / 0.5f;
+	const float parent_q = sum_win > 0 ?
+		std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) * (1.0f - draw_ratio * (float)(current->draw / sum)) :
+		0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 	// UCB値最大の手を求める
@@ -1492,6 +1495,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		}
 
 		const WinType win = uct_child[i].win;
+		const WinType draw = uct_child[i].draw;
 		const int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
@@ -1500,7 +1504,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			u = init_u;
 		}
 		else {
-			q = (float)(win / move_count);
+			q = (float)(win / move_count) * (1.0f - draw_ratio * (float)(draw / move_count));
 			u = sqrt_sum / (1 + move_count);
 		}
 
