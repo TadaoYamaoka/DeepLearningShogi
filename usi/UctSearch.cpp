@@ -1551,14 +1551,14 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = dtype_to_float((*logits)[move_label]);
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
 
-		*policy_value_batch[i].value_win = dtype_to_float(*value);
+		*policy_value_batch[i].value_win = (float)*value;
 
 #ifdef MAKE_BOOK
 		if (use_book_policy) {

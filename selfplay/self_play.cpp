@@ -906,7 +906,7 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = dtype_to_float((*logits)[move_label]);
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
@@ -918,7 +918,7 @@ void UCTSearcherGroup::EvalNode() {
 			req->nnrate[j] = uct_child[j].nnrate;
 		}
 
-		const float value_win = dtype_to_float(*value);
+		const float value_win = (float)*value;
 
 		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));
