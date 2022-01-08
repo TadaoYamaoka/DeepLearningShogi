@@ -110,6 +110,13 @@ void NNTensorRT::build(const std::string& onnx_filename)
 		config->setFlag(nvinfer1::BuilderFlag::kFP16);
 	}
 
+#ifdef FP16
+	network->getInput(0)->setType(nvinfer1::DataType::kHALF);
+	network->getInput(1)->setType(nvinfer1::DataType::kHALF);
+	network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
+	network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
+#endif
+
 	assert(network->getNbInputs() == 2);
 	nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
 	assert(inputDims[0].nbDims == 4);

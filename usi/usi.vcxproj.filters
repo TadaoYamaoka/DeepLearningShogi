@@ -78,6 +78,9 @@
     <ClCompile Include="PvMateSearch.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\dtype.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UctSearch.h">

@@ -72,6 +72,9 @@
     <ClCompile Include="..\usi\Node.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\dtype.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />

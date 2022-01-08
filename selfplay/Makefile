@@ -7,7 +7,7 @@ LIB = -L/usr/local/cuda/lib64 -L$(CONDA_PREFIX)/lib
 target = bin/selfplay
 sources = self_play.cpp Node.cpp USIEngine.cpp
 usi_sources = dfpn.cpp nn_tensorrt.cpp
-cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp
+cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp dtype.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))
 cppshogi_objects = $(addprefix obj/, $(cppshogi_sources:.cpp=.o))

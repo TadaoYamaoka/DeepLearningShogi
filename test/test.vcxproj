@@ -264,6 +264,7 @@
     <ClCompile Include="..\cppshogi\book.cpp" />
     <ClCompile Include="..\cppshogi\common.cpp" />
     <ClCompile Include="..\cppshogi\cppshogi.cpp" />
+    <ClCompile Include="..\cppshogi\dtype.cpp" />
     <ClCompile Include="..\cppshogi\generateMoves.cpp" />
     <ClCompile Include="..\cppshogi\hand.cpp" />
     <ClCompile Include="..\cppshogi\init.cpp" />

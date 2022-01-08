@@ -75,5 +75,8 @@
     <ClCompile Include="..\usi\nn_tensorrt.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\dtype.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

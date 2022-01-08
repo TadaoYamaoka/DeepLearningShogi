@@ -30,19 +30,19 @@ inline void make_input_features(const Position& position, features1_t* features1
 		}
 
 		// 駒の配置
-		(*features1)[c][pt - 1][sq] = 1.0f;
+		(*features1)[c][pt - 1][sq] = _one;
 
 		FOREACH_BB(attacks, Square to, {
 			// 後手の場合、盤面を180度回転
 			if (turn == White) to = SQ99 - to;
 
 			// 駒の利き
-			(*features1)[c][PIECETYPE_NUM + pt - 1][to] = 1.0f;
+			(*features1)[c][PIECETYPE_NUM + pt - 1][to] = _one;
 
 			// 利き数
 			auto& num = attack_num[c][to];
 			if (num < MAX_ATTACK_NUM) {
-				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = 1.0f;
+				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = _one;
 				num++;
 			}
 		});
@@ -60,16 +60,16 @@ inline void make_input_features(const Position& position, features1_t* features1
 			if (turn == White) sq = SQ99 - sq;
 
 			// 駒の配置
-			(*features1)[c][Pawn - 1][sq] = 1.0f;
+			(*features1)[c][Pawn - 1][sq] = _one;
 
 			// 駒の利き
 			const Square to = sq + pawnDelta; // 1マス先
-			(*features1)[c][PIECETYPE_NUM + Pawn - 1][to] = 1.0f;
+			(*features1)[c][PIECETYPE_NUM + Pawn - 1][to] = _one;
 
 			// 利き数
 			auto& num = attack_num[c][to];
 			if (num < MAX_ATTACK_NUM) {
-				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = 1.0f;
+				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = _one;
 				num++;
 			}
 		});
@@ -82,14 +82,14 @@ inline void make_input_features(const Position& position, features1_t* features1
 			if (num >= MAX_PIECES_IN_HAND[hp]) {
 				num = MAX_PIECES_IN_HAND[hp];
 			}
-			std::fill_n((*features2_hand)[c2][p], (int)SquareNum * num, 1.0f);
+			std::fill_n((*features2_hand)[c2][p], (int)SquareNum * num, _one);
 			p += MAX_PIECES_IN_HAND[hp];
 		}
 	}
 
 	// is check
 	if (position.inCheck()) {
-		std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SquareNum, 1.0f);
+		std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SquareNum, _one);
 	}
 }
 

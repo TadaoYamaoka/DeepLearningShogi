@@ -58,8 +58,8 @@ public:
 			return false;
 		}
 
-		std::fill_n((float*)features1.get(), sizeof(features1_t) / sizeof(float) * batch_size, 0.0f);
-		std::fill_n((float*)features2.get(), sizeof(features2_t) / sizeof(float) * batch_size, 0.0f);
+		std::fill_n((DType*)features1.get(), sizeof(features1_t) / sizeof(DType) * batch_size, _zero);
+		std::fill_n((DType*)features2.get(), sizeof(features2_t) / sizeof(DType) * batch_size, _zero);
 
 		for (int i = 0; i < batch_size; ++i, ++current_pos)
 		{
