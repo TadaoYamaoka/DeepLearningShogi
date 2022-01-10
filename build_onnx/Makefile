@@ -12,7 +12,7 @@ objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))
 cppshogi_objects = $(addprefix obj/, $(cppshogi_sources:.cpp=.o))
 
-$(target): $(objects) $(usi_objects) $(cppshogi_objects)
+$(target): $(objects) $(usi_objects) $(cppshogi_objects) obj/unpack.cu.o
 	@[ -d bin ] || mkdir -p bin
 	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
 
@@ -28,7 +28,10 @@ obj/%.o: ../cppshogi/%.cpp
 	@[ -d obj ] || mkdir -p obj
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
+obj/unpack.cu.o: ../usi/unpack.cu
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DFP16 -DNDEBUG -Xcompiler "-Ofast" -o obj/unpack.cu.o ../usi/unpack.cu
+
 all: $(target)
 
 clean:
-	rm -f $(objects) $(usi_objects) $(cppshogi_objects) $(target)
+	rm -f $(objects) $(usi_objects) $(cppshogi_objects) $(target) obj/unpack.cu.o
