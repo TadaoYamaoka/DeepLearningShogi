@@ -166,7 +166,11 @@ void NNTensorRT::build(const std::string& onnx_filename)
 
 void NNTensorRT::load_model(const char* filename)
 {
-	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
+	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size)
+#ifdef FP16
+		+ ".fp16"
+#endif
+		+ ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 	if (seriarizedFile.is_open())
 	{
