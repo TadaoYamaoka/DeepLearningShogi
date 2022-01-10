@@ -116,8 +116,16 @@
     <ClInclude Include="PvMateSearch.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="unpack.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="unpack.cu">
+      <Filter>ソース ファイル</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

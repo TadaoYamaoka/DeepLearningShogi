@@ -238,9 +238,9 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, packed_features1_t* p1, packed_features2_t* p2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
-		nn->forward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, p1, p2, y1, y2);
 		mutex_gpu.unlock();
 	}
 	void Run();
@@ -286,8 +286,8 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&packed_features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&packed_features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
@@ -308,8 +308,8 @@ public:
 		delete[] y1;
 		delete[] y2;
 #else
-		checkCudaErrors(cudaFreeHost(features1));
-		checkCudaErrors(cudaFreeHost(features2));
+		checkCudaErrors(cudaFreeHost(packed_features1));
+		checkCudaErrors(cudaFreeHost(packed_features2));
 		checkCudaErrors(cudaFreeHost(y1));
 		checkCudaErrors(cudaFreeHost(y2));
 #endif
@@ -407,8 +407,8 @@ private:
 #endif
 
 	int policy_value_batch_maxsize;
-	features1_t* features1;
-	features2_t* features2;
+	packed_features1_t* packed_features1;
+	packed_features2_t* packed_features2;
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
@@ -1018,10 +1018,10 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+	std::fill_n(packed_features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(packed_features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, packed_features1[current_policy_value_batch_index], packed_features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -1535,7 +1535,7 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
+	grp->nn_forward(policy_value_batch_size, packed_features1, packed_features2, y1, y2);
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
