@@ -1709,7 +1709,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "unpack.h"
 int main()
 {
@@ -1837,6 +1837,78 @@ int main()
 	for (int i = 0; i < batch_size; ++i) {
 		std::cout << "batch:" << i << "\n";
 		print_features(x1[i], x2[i]);
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+#include "unpack.h"
+#include "UctSearch.h"
+int main()
+{
+	initTable();
+	Position pos;
+	std::vector<std::string> sfens = {
+		"l6nl/6gk1/p6pp/4s1s2/1pB1pp1P1/2PP5/PPS1P+b2P/1KG6/LN5NL b RGN3Prgs2p 85",
+		"l1S4nl/3R2gP1/2P1ppbsp/2gpk1Np1/1p3PP2/p5K1P/1PB1P1N2/3G1Sg2/L1SR4L w Pn3p 116",
+	};
+	const int batch_size = sfens.size();
+
+	packed_legal_moves_t* packed_legal_moves = new packed_legal_moves_t[batch_size];
+	std::fill_n((unsigned int*)packed_legal_moves, sizeof(packed_legal_moves_t) / sizeof(unsigned int) * batch_size, 0);
+	packed_legal_moves_t* packed_legal_moves_dev;
+	cudaMalloc((void**)&packed_legal_moves_dev, sizeof(packed_legal_moves_t) * batch_size);
+	DType* t1 = new DType[MAX_MOVE_LABEL_NUM * SquareNum * batch_size];
+	for (int i = 0; i < batch_size; ++i) {
+		for (int j = 0; j < MAX_MOVE_LABEL_NUM * SquareNum; ++j) {
+#ifdef FP16
+			const DType v = __float2half((float)j + 10000 * i);
+#else
+			const DType v = (float)j + 10000 * i;
+#endif
+			t1[MAX_MOVE_LABEL_NUM * SquareNum * i + j] = v;
+		}
+	}
+	DType* t1_dev;
+	cudaMalloc((void**)&t1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (int)SquareNum * batch_size);
+	DType* y1_dev;
+	cudaMalloc((void**)&y1_dev, sizeof(DType) * UCT_CHILD_MAX * batch_size);
+	DType* y1 = new DType[(size_t)UCT_CHILD_MAX * batch_size];
+	std::fill_n(y1, UCT_CHILD_MAX * batch_size, _zero);
+
+	int legal_moves_num = 0;
+	for (int i = 0; i < batch_size; ++i) {
+		pos.set(sfens[i]);
+		MoveList<Legal> ml(pos);
+		legal_moves_num += ml.size();
+		for (; !ml.end(); ++ml) {
+			const int move_label = make_move_label((u16)ml.move().proFromAndTo(), pos.turn());
+			packed_legal_moves[i][move_label >> 5] |= (1u << (move_label & 31));
+			std::cout << move_label << ",";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+
+	cudaMemcpyAsync(packed_legal_moves_dev, packed_legal_moves, sizeof(packed_legal_moves_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread);
+	cudaMemcpyAsync(t1_dev, t1, sizeof(DType) * MAX_MOVE_LABEL_NUM * (int)SquareNum * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread);
+	gather_legal_moves(batch_size, packed_legal_moves_dev, t1_dev, y1_dev, cudaStreamPerThread);
+	cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * legal_moves_num, cudaMemcpyDeviceToHost, cudaStreamPerThread);
+	cudaStreamSynchronize(cudaStreamPerThread);
+
+	int idx = 0;
+	for (int i = 0; i < batch_size; ++i) {
+		pos.set(sfens[i]);
+		MoveList<Legal> ml(pos);
+		for (; !ml.end(); ++ml) {
+			const int move_label = make_move_label((u16)ml.move().proFromAndTo(), pos.turn());
+			const float v = (float)y1[idx++];
+			std::cout << v << ",";
+		}
+		std::cout << "\n";
 	}
 
 	return 0;

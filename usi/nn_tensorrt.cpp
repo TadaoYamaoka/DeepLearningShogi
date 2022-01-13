@@ -1,8 +1,5 @@
 ﻿#include "nn_tensorrt.h"
 
-#include "cppshogi.h"
-#include "unpack.h"
-
 class Logger : public nvinfer1::ILogger
 {
 	const char* error_type(Severity severity)
@@ -37,10 +34,12 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 	checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(packed_features2_t) * max_batch_size));
 	checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(features1_t) * max_batch_size));
 	checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(features2_t) * max_batch_size));
-	checkCudaErrors(cudaMalloc((void**)&y1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
+	cudaMalloc((void**)&packed_legal_moves_dev, sizeof(packed_legal_moves_t) * max_batch_size);
+	checkCudaErrors(cudaMalloc((void**)&t1_dev, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
+	cudaMalloc((void**)&y1_dev, sizeof(DType) * (MaxLegalMoves - 1) * max_batch_size);
 	checkCudaErrors(cudaMalloc((void**)&y2_dev, max_batch_size * sizeof(DType)));
 
-	inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+	inputBindings = { x1_dev, x2_dev, t1_dev, y2_dev };
 
 	load_model(filename);
 }
@@ -51,6 +50,8 @@ NNTensorRT::~NNTensorRT()
 	checkCudaErrors(cudaFree(p2_dev));
 	checkCudaErrors(cudaFree(x1_dev));
 	checkCudaErrors(cudaFree(x2_dev));
+	checkCudaErrors(cudaFree(packed_legal_moves_dev));
+	checkCudaErrors(cudaFree(t1_dev));
 	checkCudaErrors(cudaFree(y1_dev));
 	checkCudaErrors(cudaFree(y2_dev));
 }
@@ -222,7 +223,7 @@ void NNTensorRT::load_model(const char* filename)
 	inputDims2 = engine->getBindingDimensions(1);
 }
 
-void NNTensorRT::forward(const int batch_size, packed_features1_t* p1, packed_features2_t* p2, DType* y1, DType* y2)
+void NNTensorRT::forward(const int batch_size, packed_features1_t* p1, packed_features2_t* p2, DType* y1, DType* y2, packed_legal_moves_t* packed_legal_moves, const int sum_legal_moves_num)
 {
 	inputDims1.d[0] = batch_size;
 	inputDims2.d[0] = batch_size;
@@ -231,11 +232,13 @@ void NNTensorRT::forward(const int batch_size, packed_features1_t* p1, packed_fe
 
 	checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(packed_features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 	checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(packed_features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+	checkCudaErrors(cudaMemcpyAsync(packed_legal_moves_dev, packed_legal_moves, sizeof(packed_legal_moves_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 	unpack_features1(batch_size, p1_dev, x1_dev, cudaStreamPerThread);
 	unpack_features2(batch_size, p2_dev, x2_dev, cudaStreamPerThread);
 	const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
 	assert(status);
-	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, cudaStreamPerThread));
+	gather_legal_moves(batch_size, packed_legal_moves_dev, t1_dev, y1_dev, cudaStreamPerThread);
+	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * sum_legal_moves_num, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 	checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 }

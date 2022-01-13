@@ -247,9 +247,17 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2
+#ifndef ONNXRUNTIME
+		, packed_legal_moves_t* packed_legal_moves, const int sum_legal_moves_num
+#endif
+	) {
 		mutex_gpu.lock();
-		nn->forward(batch_size, x1, x2, y1, y2);
+		nn->forward(batch_size, x1, x2, y1, y2
+#ifndef ONNXRUNTIME
+			, packed_legal_moves, sum_legal_moves_num
+#endif
+		);
 		mutex_gpu.unlock();
 	}
 	void Run();
@@ -299,6 +307,10 @@ public:
 		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&packed_legal_moves, sizeof(packed_legal_moves_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		std::fill_n((unsigned int*)packed_legal_moves, sizeof(packed_legal_moves_t) / sizeof(unsigned int) * policy_value_batch_maxsize, 0);
+		move_label_index = new move_label_index_t[policy_value_batch_maxsize];
+		sum_legal_moves_num = 0;
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef MAKE_BOOK
@@ -420,6 +432,9 @@ private:
 	Features2* features2;
 	DType* y1;
 	DType* y2;
+	packed_legal_moves_t* packed_legal_moves;
+	move_label_index_t* move_label_index;
+	int sum_legal_moves_num;
 	batch_element_t* policy_value_batch;
 #ifdef MAKE_BOOK
 	Key* policy_value_book_key;
@@ -1035,6 +1050,13 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 #else
 	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
 	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+	const int child_num = node->child_num;
+	sum_legal_moves_num += child_num;
+	for (int i = 0; i < child_num; ++i) {
+		const int move_label = make_move_label((u16)node->child[i].move.proFromAndTo(), pos->turn());
+		packed_legal_moves[current_policy_value_batch_index][move_label >> 5] |= (1 << (move_label & 31));
+		move_label_index[current_policy_value_batch_index][move_label] = i;
+	}
 #endif
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
@@ -1156,6 +1178,7 @@ UCTSearcher::ParallelUctSearch()
 		visitor_batch.clear();
 		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
+		sum_legal_moves_num = 0;
 
 		// バッチサイズ分探索を繰り返す
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
@@ -1551,12 +1574,17 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
+#ifdef ONNXRUTIME
 	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
-
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+#else
+	grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2, packed_legal_moves, sum_legal_moves_num);
+	const DType* logits = y1;
+#endif
 	const DType *value = y2;
 
-	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+
+	for (int i = 0; i < policy_value_batch_size; i++, value++) {
 		uct_node_t* node = policy_value_batch[i].node;
 		const Color color = policy_value_batch[i].color;
 
@@ -1564,12 +1592,28 @@ void UCTSearcher::EvalNode() {
 		child_node_t *uct_child = node->child.get();
 
 		// 合法手一覧
+#ifdef ONNXRUTIME
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
+		logits++;
+#else
+		for (int j = 0; j < PACKED_LEGAL_MOVE_NUM; ++j) {
+			unsigned int& x = packed_legal_moves[i][j];
+			const int offset = 32 * j;
+			while (x) {
+				const int move_label = offset + firstOneFromLSB(x);
+				const int index = move_label_index[i][move_label];
+				const float logit = (float)(*logits);
+				uct_child[index].nnrate = logit;
+				x &= x - 1;
+				logits++;
+			}
+		}
+#endif
 
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
