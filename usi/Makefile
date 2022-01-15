@@ -9,10 +9,12 @@ target = bin/usi
 target_make_book = bin/make_book
 sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp PvMateSearch.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp dtype.cpp
+cuda_sources = unpack.cu
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 cppshogi_objects = $(addprefix obj/, $(cppshogi_sources:.cpp=.o))
+cuda_objects = $(addprefix obj/, $(cuda_sources:.cu=.o))
 
-$(target): $(objects) $(cppshogi_objects) obj/unpack.cu.o
+$(target): $(objects) $(cppshogi_objects) $(cuda_objects)
 	@[ -d bin ] || mkdir -p bin
 	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
 
@@ -24,8 +26,8 @@ obj/%.o: ../cppshogi/%.cpp
 	@[ -d obj ] || mkdir -p obj
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
-obj/unpack.cu.o: unpack.cu
-	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o obj/unpack.cu.o unpack.cu
+obj/%.o: ../usi/%.cu
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
 
 all: $(target)
 
