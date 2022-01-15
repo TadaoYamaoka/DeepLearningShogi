@@ -36,4 +36,4 @@ obj/%.o: ../usi/%.cu
 all: $(target)
 
 clean:
-	rm -f $(objects) $(usi_objects) $(cppshogi_objects) $(target) obj/unpack.cu.o
+	rm -f $(objects) $(usi_objects) $(cppshogi_objects) $(target) $(cuda_objects)
