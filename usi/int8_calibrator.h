@@ -16,7 +16,7 @@ public:
 		std::ifstream calibcache(calibration_cache_filename);
 		if (!calibcache.is_open())
 		{
-			if (hcpe_filename != "")
+			if (hcpe_filename != nullptr)
 			{
 				// hcpeからランダムに選ぶ
 				std::ifstream ifs;
@@ -40,7 +40,7 @@ public:
 			}
 		}
 	}
-	Int8EntropyCalibrator2(const char* model_filename, const int batch_size) : Int8EntropyCalibrator2(model_filename, batch_size, "", 0) {}
+	Int8EntropyCalibrator2(const char* model_filename, const int batch_size) : Int8EntropyCalibrator2(model_filename, batch_size, nullptr, 0) {}
 
 	~Int8EntropyCalibrator2() {
 		checkCudaErrors(cudaFree(input1));
@@ -58,13 +58,13 @@ public:
 			return false;
 		}
 
-		std::fill_n((float*)features1.get(), sizeof(features1_t) / sizeof(float) * batch_size, 0);
-		std::fill_n((float*)features2.get(), sizeof(features2_t) / sizeof(float) * batch_size, 0);
+		std::fill_n((DType*)features1.get(), sizeof(features1_t) / sizeof(DType) * batch_size, _zero);
+		std::fill_n((DType*)features2.get(), sizeof(features2_t) / sizeof(DType) * batch_size, _zero);
 
 		for (int i = 0; i < batch_size; ++i, ++current_pos)
 		{
 			pos.set(int8_calibration_data[current_pos]);
-			make_input_features(pos, features1.get() + i, features2.get() + i);
+			make_input_features(pos, features1.get()[i], features2.get()[i]);
 		}
 
 		checkCudaErrors(cudaMemcpy(input1, features1.get(), sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice));

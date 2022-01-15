@@ -72,6 +72,9 @@
     <ClCompile Include="..\usi\Node.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\cppshogi\dtype.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
@@ -89,5 +92,10 @@
     <ClInclude Include="..\usi\Node.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\usi\unpack.cu">
+      <Filter>ソース ファイル</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "nn.h"
+#include "cppshogi.h"
 
 #include "NvInferRuntimeCommon.h"
 #include "NvInfer.h"
@@ -60,16 +60,18 @@ public:
 template <typename T>
 using InferUniquePtr = std::unique_ptr<T, InferDeleter>;
 
-class NNTensorRT : NN {
+class NNTensorRT {
 public:
 	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
-	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
+	void forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2);
 
 private:
 	const int gpu_id;
 	const int max_batch_size;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
+	std::array<packed_features1_t*, MULTI_STREAM> p1_dev;
+	std::array<packed_features2_t*, MULTI_STREAM> p2_dev;
 	std::array<features1_t*, MULTI_STREAM> x1_dev;
 	std::array<features2_t*, MULTI_STREAM> x2_dev;
 	std::array<DType*, MULTI_STREAM> y1_dev;
@@ -87,3 +89,5 @@ private:
 	// semaphore for stream
 	semaphore semaphore_stream;
 };
+
+typedef NNTensorRT NN;

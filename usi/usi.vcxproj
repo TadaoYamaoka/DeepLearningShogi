@@ -281,6 +281,7 @@
     <ClCompile Include="..\cppshogi\book.cpp" />
     <ClCompile Include="..\cppshogi\common.cpp" />
     <ClCompile Include="..\cppshogi\cppshogi.cpp" />
+    <ClCompile Include="..\cppshogi\dtype.cpp" />
     <ClCompile Include="..\cppshogi\generateMoves.cpp" />
     <ClCompile Include="..\cppshogi\hand.cpp" />
     <ClCompile Include="..\cppshogi\init.cpp" />
@@ -306,15 +307,32 @@
     <ClInclude Include="fastmath.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
-    <ClInclude Include="nn.h" />
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="PvMateSearch.h" />
     <ClInclude Include="UctSearch.h" />
+    <ClInclude Include="unpack.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="unpack.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

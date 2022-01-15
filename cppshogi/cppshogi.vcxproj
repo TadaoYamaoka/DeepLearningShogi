@@ -281,6 +281,7 @@
     <ClCompile Include="book.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="cppshogi.cpp" />
+    <ClCompile Include="dtype.cpp" />
     <ClCompile Include="generateMoves.cpp" />
     <ClCompile Include="hand.cpp" />
     <ClCompile Include="init.cpp" />
@@ -298,6 +299,7 @@
     <ClInclude Include="color.hpp" />
     <ClInclude Include="common.hpp" />
     <ClInclude Include="cppshogi.h" />
+    <ClInclude Include="dtype.h" />
     <ClInclude Include="generateMoves.hpp" />
     <ClInclude Include="hand.hpp" />
     <ClInclude Include="ifdef.hpp" />

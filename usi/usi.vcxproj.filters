@@ -78,8 +78,8 @@
     <ClCompile Include="PvMateSearch.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="cuda_dtype.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="..\cppshogi\dtype.cpp">
+      <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -98,9 +98,6 @@
     <ClInclude Include="dfpn.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="nn.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="fastmath.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -116,11 +113,16 @@
     <ClInclude Include="PvMateSearch.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="cuda_dtype.h">
+    <ClInclude Include="unpack.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="unpack.cu">
+      <Filter>ソース ファイル</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

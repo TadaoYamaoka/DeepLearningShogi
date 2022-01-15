@@ -321,8 +321,8 @@ int main(int argc, char* argv[]) {
 
 	for (int n = 0; n < num / batchsize; n++) {
 		// set all zero
-		std::fill_n((DType*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, 0);
-		std::fill_n((DType*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, 0);
+		std::fill_n((DType*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, _zero);
+		std::fill_n((DType*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, _zero);
 
 		// hcpeをデコードして入力特徴作成
 		for (int i = 0; i < batchsize; i++) {
