@@ -291,7 +291,6 @@
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
-    <ClCompile Include="cuda_dtype.cpp" />
     <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Message.cpp" />
@@ -301,7 +300,6 @@
     <ClCompile Include="UctSearch.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cuda_dtype.h" />
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="fastmath.h" />
