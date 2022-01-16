@@ -1,6 +1,6 @@
 ﻿CC = g++
 MATE_SEARCH_DEPTH = 5
-CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DFP16 -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64
@@ -27,7 +27,7 @@ obj/%.o: ../cppshogi/%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 obj/%.o: ../usi/%.cu
-	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DFP16 -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
 
 all: $(target)
 
