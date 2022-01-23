@@ -31,7 +31,7 @@ obj/%.o: ../cppshogi/%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 obj/%.o: ../usi/%.cu
-	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DFP16 -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
 
 all: $(target)
 
