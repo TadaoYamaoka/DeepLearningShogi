@@ -64,7 +64,7 @@ public:
 		for (int i = 0; i < batch_size; ++i, ++current_pos)
 		{
 			pos.set(int8_calibration_data[current_pos]);
-			make_input_features(pos, features1.get() + i, features2.get() + i);
+			make_input_features(pos, features1.get()[i], features2.get()[i]);
 		}
 
 		checkCudaErrors(cudaMemcpy(input1, features1.get(), sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice));

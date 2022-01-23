@@ -79,4 +79,9 @@
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\usi\unpack.cu">
+      <Filter>ソース ファイル\usi</Filter>
+    </CustomBuild>
+  </ItemGroup>
 </Project>

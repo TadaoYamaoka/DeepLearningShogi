@@ -45,6 +45,14 @@
 
 using namespace std;
 
+#ifdef ONNXRUNTIME
+typedef features1_t Features1;
+typedef features2_t Features2;
+#else
+typedef packed_features1_t Features1;
+typedef packed_features2_t Features2;
+#endif
+
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -239,7 +247,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -287,8 +295,8 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
@@ -408,8 +416,8 @@ private:
 #endif
 
 	int policy_value_batch_maxsize;
-	features1_t* features1;
-	features2_t* features2;
+	Features1* features1;
+	Features2* features2;
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
@@ -1021,10 +1029,15 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
+#ifdef ONNXRUNTIME
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+#else
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+#endif
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);

@@ -3,11 +3,40 @@
 
 #include "cppshogi.h"
 
-// make input features
-template <Color turn>
-inline void make_input_features(const Position& position, features1_t* features1, features2_t* features2) {
-	DType(* const features2_hand)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum] = reinterpret_cast<DType(* const)[ColorNum][MAX_PIECES_IN_HAND_SUM][SquareNum]>(features2);
+inline void set_features1(features1_t features1, const Color c, const int f1idx, const Square sq)
+{
+	features1[c][f1idx][sq] = _one;
+}
+inline void set_features1(packed_features1_t packed_features1, const Color c, const int f1idx, const Square sq)
+{
+	const int idx = MAX_FEATURES1_NUM * (int)SquareNum * (int)c + (int)SquareNum * f1idx + sq;
+	packed_features1[idx >> 3] |= (1 << (idx & 7));
+}
 
+inline void set_features2(features2_t features2, const Color c, const int f2idx, const u32 num)
+{
+	std::fill_n(features2[MAX_PIECES_IN_HAND_SUM * (int)c + f2idx], (int)SquareNum * num, _one);
+}
+inline void set_features2(packed_features2_t packed_features2, const Color c, const int f2idx, const u32 num)
+{
+	for (u32 i = 0; i < num; ++i) {
+		const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx + i;
+		packed_features2[idx >> 3] |= (1 << (idx & 7));
+	}
+}
+
+inline void set_features2(features2_t features2, const int f2idx)
+{
+	std::fill_n(features2[f2idx], SquareNum, _one);
+}
+inline void set_features2(packed_features2_t packed_features2, const int f2idx)
+{
+	packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
+}
+
+// make input features
+template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
+inline void make_input_features(const Position& position, T1 features1, T2 features2) {
 	const Bitboard occupied_bb = position.occupiedBB();
 
 	// 歩と歩以外に分ける
@@ -30,19 +59,19 @@ inline void make_input_features(const Position& position, features1_t* features1
 		}
 
 		// 駒の配置
-		(*features1)[c][pt - 1][sq] = _one;
+		set_features1(features1, c, pt - 1, sq);
 
 		FOREACH_BB(attacks, Square to, {
 			// 後手の場合、盤面を180度回転
 			if (turn == White) to = SQ99 - to;
 
 			// 駒の利き
-			(*features1)[c][PIECETYPE_NUM + pt - 1][to] = _one;
+			set_features1(features1, c, PIECETYPE_NUM + pt - 1, to);
 
 			// 利き数
 			auto& num = attack_num[c][to];
 			if (num < MAX_ATTACK_NUM) {
-				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = _one;
+				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + num, to);
 				num++;
 			}
 		});
@@ -60,16 +89,16 @@ inline void make_input_features(const Position& position, features1_t* features1
 			if (turn == White) sq = SQ99 - sq;
 
 			// 駒の配置
-			(*features1)[c][Pawn - 1][sq] = _one;
+			set_features1(features1, c, Pawn - 1, sq);
 
 			// 駒の利き
 			const Square to = sq + pawnDelta; // 1マス先
-			(*features1)[c][PIECETYPE_NUM + Pawn - 1][to] = _one;
+			set_features1(features1, c, PIECETYPE_NUM + Pawn - 1, to);
 
 			// 利き数
 			auto& num = attack_num[c][to];
 			if (num < MAX_ATTACK_NUM) {
-				(*features1)[c][PIECETYPE_NUM + PIECETYPE_NUM + num][to] = _one;
+				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + num, to);
 				num++;
 			}
 		});
@@ -82,19 +111,25 @@ inline void make_input_features(const Position& position, features1_t* features1
 			if (num >= MAX_PIECES_IN_HAND[hp]) {
 				num = MAX_PIECES_IN_HAND[hp];
 			}
-			std::fill_n((*features2_hand)[c2][p], (int)SquareNum * num, _one);
+			set_features2(features2, c2, p, num);
 			p += MAX_PIECES_IN_HAND[hp];
 		}
 	}
 
 	// is check
 	if (position.inCheck()) {
-		std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SquareNum, _one);
+		set_features2(features2, MAX_FEATURES2_HAND_NUM);
 	}
 }
 
-void make_input_features(const Position& position, features1_t* features1, features2_t* features2) {
+void make_input_features(const Position& position, features1_t features1, features2_t features2) {
 	position.turn() == Black ? make_input_features<Black>(position, features1, features2) : make_input_features<White>(position, features1, features2);
+}
+
+void make_input_features(const Position& position, packed_features1_t packed_features1, packed_features2_t packed_features2) {
+	position.turn() == Black ?
+		make_input_features<Black, packed_features1_t, packed_features2_t>(position, packed_features1, packed_features2) :
+		make_input_features<White, packed_features1_t, packed_features2_t>(position, packed_features1, packed_features2);
 }
 
 inline MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {

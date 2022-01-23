@@ -72,4 +72,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\usi\unpack.cu">
+      <Filter>ソース ファイル</Filter>
+    </CustomBuild>
+  </ItemGroup>
 </Project>
