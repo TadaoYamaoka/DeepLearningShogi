@@ -231,8 +231,8 @@ private:
 
 	// キュー
 	int policy_value_batch_maxsize; // 最大バッチサイズ
-	features1_t* features1;
-	features2_t* features2;
+	packed_features1_t* features1;
+	packed_features2_t* features2;
 	batch_element_t* policy_value_batch;
 	int current_policy_value_batch_index;
 
@@ -353,7 +353,8 @@ private:
 		if (trainning) {
 			const auto child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
-			for (size_t i = 0; i < root_node->child_num; ++i) {
+			const size_t child_num = root_node->child_num;
+			for (size_t i = 0; i < child_num; ++i) {
 				// ノイズにより選んだ回数を除く
 				const auto move_count = child[i].move_count - noise_count[i];
 				if (move_count > 0) {
@@ -386,10 +387,10 @@ public:
 		}
 		mutex_all_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
-		mutex_gpu.lock();
+	void nn_forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
+		//mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
-		mutex_gpu.unlock();
+		//mutex_gpu.unlock();
 	}
 	int Running() {
 		int running = 0;
@@ -437,8 +438,8 @@ UCTSearcherGroup::Initialize()
 	}
 
 	// キューを動的に確保する
-	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 
 	// UCTSearcher
@@ -828,10 +829,10 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
 	current_policy_value_batch_index++;
 }
@@ -905,7 +906,7 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (*logits)[move_label];
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
@@ -917,7 +918,7 @@ void UCTSearcherGroup::EvalNode() {
 			req->nnrate[j] = uct_child[j].nnrate;
 		}
 
-		const float value_win = *value;
+		const float value_win = (float)*value;
 
 		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));

@@ -47,7 +47,7 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 		position.set(hcpe->hcp);
 
 		// input features
-		make_input_features(position, features1, features2);
+		make_input_features(position, *features1, *features2);
 
 		// move
 		*move = make_move_label(hcpe->bestMove16, position.turn());
@@ -78,7 +78,7 @@ void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures
 		position.set(hcpe->hcp);
 
 		// input features
-		make_input_features(position, features1, features2);
+		make_input_features(position, *features1, *features2);
 
 		// move
 		*move = make_move_label(hcpe->bestMove16, position.turn());
@@ -315,7 +315,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 		position.set(hcpe3.hcp);
 
 		// input features
-		make_input_features(position, features1, features2);
+		make_input_features(position, *features1, *features2);
 
 		// move probability
 		for (const auto kv : hcpe3.candidates) {

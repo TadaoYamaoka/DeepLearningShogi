@@ -1,6 +1,7 @@
 ﻿#include "nn_tensorrt.h"
 
 #include "cppshogi.h"
+#include "unpack.h"
 
 class Logger : public nvinfer1::ILogger
 {
@@ -34,6 +35,8 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 {
 	// Create host and device buffers
 	for (size_t i = 0; i < MULTI_STREAM; i++) {
+		checkCudaErrors(cudaMalloc((void**)&p1_dev[i], sizeof(packed_features1_t) * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&p2_dev[i], sizeof(packed_features2_t) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x1_dev[i], sizeof(features1_t) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev[i], sizeof(features2_t) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev[i], MAX_MOVE_LABEL_NUM * (size_t)SquareNum * max_batch_size * sizeof(DType)));
@@ -48,6 +51,8 @@ NNTensorRT::NNTensorRT(const char* filename, const int gpu_id, const int max_bat
 NNTensorRT::~NNTensorRT()
 {
 	for (size_t i = 0; i < MULTI_STREAM; i++) {
+		checkCudaErrors(cudaFree(p1_dev[i]));
+		checkCudaErrors(cudaFree(p2_dev[i]));
 		checkCudaErrors(cudaFree(x1_dev[i]));
 		checkCudaErrors(cudaFree(x2_dev[i]));
 		checkCudaErrors(cudaFree(y1_dev[i]));
@@ -172,7 +177,11 @@ void NNTensorRT::build(const std::string& onnx_filename)
 
 void NNTensorRT::load_model(const char* filename)
 {
-	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
+	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size)
+#ifdef FP16
+		+ ".fp16"
+#endif
+		+ ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 	if (seriarizedFile.is_open())
 	{
@@ -222,7 +231,7 @@ void NNTensorRT::load_model(const char* filename)
 	}
 }
 
-void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
+void NNTensorRT::forward(const int batch_size, packed_features1_t* p1, packed_features2_t* p2, DType* y1, DType* y2)
 {
 	semaphore_stream.acquire();
 	size_t i = 0;
@@ -236,8 +245,10 @@ void NNTensorRT::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	context[i]->setBindingDimensions(0, inputDims1[i]);
 	context[i]->setBindingDimensions(1, inputDims2[i]);
 
-	checkCudaErrors(cudaMemcpyAsync(x1_dev[i], x1, sizeof(features1_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
-	checkCudaErrors(cudaMemcpyAsync(x2_dev[i], x2, sizeof(features2_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
+	checkCudaErrors(cudaMemcpyAsync(p1_dev[i], p1, sizeof(packed_features1_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
+	checkCudaErrors(cudaMemcpyAsync(p2_dev[i], p2, sizeof(packed_features2_t) * batch_size, cudaMemcpyHostToDevice, stream[i]));
+	unpack_features1(batch_size, p1_dev[i], x1_dev[i], stream[i]);
+	unpack_features2(batch_size, p2_dev[i], x2_dev[i], stream[i]);
 	const bool status = context[i]->enqueue(batch_size, inputBindings[i].data(), stream[i], nullptr);
 	assert(status);
 	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev[i], sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, stream[i]));

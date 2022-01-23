@@ -8,6 +8,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('hcp')
+parser.add_argument('--min_moves', type=int, default=0)
 parser.add_argument('--moves', type=int, default=16)
 parser.add_argument('--filter_moves', type=int)
 parser.add_argument('--filter_rating', type=int)
@@ -48,12 +49,13 @@ for filepath in csa_file_list:
             break
 
         # hcp
-        board.to_hcp(hcp)
-        key = hcp.tobytes()
-        if not key in dic:
-            dic[key] = { 'count': 1, 'ply': board.move_number }
-        else:
-            dic[key]['count'] += 1
+        if i >= args.min_moves:
+            board.to_hcp(hcp)
+            key = hcp.tobytes()
+            if not key in dic:
+                dic[key] = { 'count': 1, 'ply': board.move_number }
+            else:
+                dic[key]['count'] += 1
 
         board.push(move)
 

@@ -31,17 +31,17 @@ constexpr int NOT_EXPANDED = -1;
 
 struct uct_node_t;
 struct child_node_t {
-	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
+	child_node_t() : move_count(0), win((WinType)0), nnrate(0.0f) {}
 	child_node_t(const Move move)
-		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
+		: move(move), move_count(0), win((WinType)0), nnrate(0.0f) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count((int)o.move_count), win((float)o.win), nnrate(o.nnrate) {}
+		: move(o.move), move_count((int)o.move_count), win((WinType)o.win), nnrate(o.nnrate) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
 		move_count = (int)o.move_count;
-		win = (float)o.win;
+		win = (WinType)o.win;
 		nnrate = (float)o.nnrate;
 		return *this;
 	}

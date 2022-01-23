@@ -45,6 +45,13 @@
 
 using namespace std;
 
+#ifdef ONNXRUNTIME
+typedef features1_t Features1;
+typedef features2_t Features2;
+#else
+typedef packed_features1_t Features1;
+typedef packed_features2_t Features2;
+#endif
 
 std::atomic<int> collision{ 0 };
 //std::mutex collision_mutex;
@@ -153,6 +160,7 @@ int random_ply = 0;
 float random_temperature = 10.0f;
 float random_temperature_drop = 1.0f;
 float random_cutoff = 0.015f;
+float random_cutoff_drop = 0.0f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
 
 #ifdef PV_MATE_SEARCH
@@ -244,7 +252,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2) {
 		//mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		//mutex_gpu.unlock();
@@ -292,8 +300,8 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
@@ -304,8 +312,8 @@ public:
 
 	}
 	UCTSearcher(UCTSearcher&& o) :
-		grp(grp),
-		thread_id(thread_id),
+		grp(o.grp),
+		thread_id(o.thread_id),
 		mt(move(o.mt)) {}
 	~UCTSearcher() {
 #ifdef ONNXRUNTIME
@@ -413,8 +421,8 @@ private:
 #endif
 
 	int policy_value_batch_maxsize;
-	features1_t* features1;
-	features2_t* features2;
+	Features1* features1;
+	Features2* features2;
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
@@ -583,12 +591,13 @@ void SetEvalCoef(const int eval_coef)
 }
 
 // ランダムムーブの設定
-void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff)
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop)
 {
 	random_ply = ply;
 	random_temperature = temperature / 1000.0f;
 	random_temperature_drop = temperature_drop / 1000.0f;
 	random_cutoff = cutoff / 1000.0f;
+	random_cutoff_drop = cutoff_drop / 1000.0f;
 	if (ply > 0 && !random_mt_64) {
 		std::random_device seed_gen;
 		random_mt_64.reset(new std::mt19937_64(seed_gen()));
@@ -788,10 +797,11 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 
 	// 訪問数が最大のノードの価値の一定以下は除外
 	const auto max_move_count_child = sorted_uct_childs[0];
-	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
+	const int step = (pos_root->gamePly() - 1) / 2;
+	const float cutoff = std::max(0.0f, random_cutoff - random_cutoff_drop * step);
+	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - cutoff;
 	vector<double> probabilities;
 	probabilities.reserve(child_num);
-	const int step = (pos_root->gamePly() - 1) / 2;
 	const float temperature = std::max(0.1f, random_temperature - random_temperature_drop * step);
 	const float reciprocal_temperature = 1.0f / temperature;
 	for (int i = 0; i < child_num; i++) {
@@ -800,7 +810,7 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 		const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
 		if (win < cutoff_threshold) break;
 
-		const auto probability = std::pow(sorted_uct_childs[i]->move_count, reciprocal_temperature);
+		const auto probability = std::pow((float)sorted_uct_childs[i]->move_count, reciprocal_temperature);
 		probabilities.emplace_back(probability);
 		if (debug_message)
 			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
@@ -1037,10 +1047,15 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
+#ifdef ONNXRUNTIME
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
 	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+#else
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+#endif
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -1576,22 +1591,14 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-#ifdef FP16
-			const float logit = __half2float((*logits)[move_label]);
-#else
-			const float logit = (*logits)[move_label];
-#endif
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
 
-#ifdef FP16
-		*policy_value_batch[i].value_win = __half2float(*value);
-#else
-		*policy_value_batch[i].value_win = *value;
-#endif
+		*policy_value_batch[i].value_win = (float)*value;
 
 #ifdef MAKE_BOOK
 		if (use_book_policy) {
