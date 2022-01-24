@@ -121,6 +121,8 @@ std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
+bool SPLIT_OPPONENT = false;
+ofstream ofs_opponent;
 bool OUT_MIN_HCP = false;
 ofstream ofs_minhcp;
 mutex imutex;
@@ -1474,6 +1476,15 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		cerr << "Error: cannot open " << outputFileName << endl;
 		exit(EXIT_FAILURE);
 	}
+	// USIエンジンの教師局面を別ファイルに出力
+	if (SPLIT_OPPONENT) {
+		std::string filepath{ outputFileName };
+		if (filepath.size() >= 6 && filepath.substr(filepath.size() - 6) == ".hcpe3")
+			filepath = filepath.substr(0, filepath.size() - 6) + "_opp.hcpe3";
+		else
+			filepath += "_opp";
+		ofs_opponent.open(filepath, ios::binary);
+	}
 	// 削除候補の初期局面を出力するファイル
 	if (OUT_MIN_HCP) ofs_minhcp.open(string(outputFileName) + "_min.hcp", ios::binary);
 
@@ -1539,6 +1550,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
+	if (SPLIT_OPPONENT) ofs_opponent.close();
 	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
@@ -1597,8 +1609,9 @@ int main(int argc, char* argv[]) {
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("reuse", "reuse sub tree", cxxopts::value<bool>(REUSE_SUBTREE)->default_value("false"))
-			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
+			("split_opponent", "split opponent's hcpe3", cxxopts::value<bool>(SPLIT_OPPONENT)->default_value("false"))
+			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
 			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
@@ -1723,6 +1736,7 @@ int main(int argc, char* argv[]) {
 	logger->info("temperature:{}", temperature);
 	logger->info("reuse:{}", REUSE_SUBTREE);
 	logger->info("nn_cache_size:{}", nn_cache_size);
+	if (SPLIT_OPPONENT) logger->info("split_opponent");
 	if (OUT_MIN_HCP) logger->info("out_min_hcp");
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
