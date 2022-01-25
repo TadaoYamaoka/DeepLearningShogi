@@ -412,6 +412,19 @@ private:
 			idx++;
 		}
 	}
+	// 局面出力
+	void WriteRecords(std::ofstream& ofs, HuffmanCodedPosAndEval3& hcpe3) {
+		std::unique_lock<Mutex> lock(omutex);
+		ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+		for (auto& record : records) {
+			MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
+			ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
+			if (record.candidates.size() > 0) {
+				ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
+				madeTeacherNodes++;
+			}
+		}
+	}
 };
 
 class UCTSearcherGroupPair {
@@ -1410,18 +1423,7 @@ void UCTSearcher::NextGame()
 			static_cast<u8>(gameResult | reason),
 			opponent
 		};
-		{
-			std::unique_lock<Mutex> lock(omutex);
-			ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
-			for (auto& record : records) {
-				MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
-				ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
-				if (record.candidates.size() > 0) {
-					ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
-					madeTeacherNodes++;
-				}
-			}
-		}
+		WriteRecords((!SPLIT_OPPONENT || opponent == 0) ? ofs : ofs_opponent, hcpe3);
 		++games;
 
 		if (gameResult == Draw) {
