@@ -970,6 +970,17 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		searcher.Join();
 #endif
 
+	// KLD
+	float kld = 0;
+	for (int i = 0; i < child_num; i++) {
+		const int move_count = current_root->child[i].move_count;
+		if (move_count > 0) {
+			const float p = (float)move_count / current_root->move_count;
+			kld += p * std::log(p / (current_root->child[i].nnrate + FLT_EPSILON));
+		}
+	}
+	std::cout << "info string ply " << pos->gamePly() <<  " kld " << kld << std::endl;
+
 	// PV取得と表示
 	Move move;
 	float best_wp;
