@@ -100,6 +100,7 @@ bool pondering = false;
 atomic<bool> uct_search_stop(false);
 
 int time_limit;
+int time_limit_base;
 int minimum_time = 0;
 
 int last_pv_print; // 最後にpvが表示された時刻
@@ -626,7 +627,8 @@ void TerminateUctSearch()
 void SetLimits(const LimitsType& limits)
 {
 	begin_time = limits.startTime;
-	time_limit = limits.moveTime;
+	time_limit  = limits.moveTime;
+	time_limit_base = time_limit;
 	po_info.halt = static_cast<int>(limits.nodes);
 	minimum_time = limits.moveTime;
 }
@@ -651,6 +653,7 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	if (time_limit < limits.moveTime) {
 		time_limit = limits.moveTime;
 	}
+	time_limit_base = time_limit;
 	if (limits.infinite)
 		po_info.halt = INT_MAX;
 	else
@@ -1094,13 +1097,36 @@ InterruptionCheck(void)
 	const child_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
-	int max_searched, second_searched;
-	int max_index, second_index;
-	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+	int max_searched = 0, second_searched = 0;
+	int max_index = 0, second_index = 0;
+	float kld = 0;
+	const int root_move_count = current_root->move_count;
+
+	const int child_num = current_root->child_num;
+	for (int i = 0; i < child_num; i++) {
+		const int move_count = uct_child[i].move_count;
+		if (move_count > max_searched) {
+			second_searched = max_searched;
+			max_searched = move_count;
+			max_index = i;
+		}
+		else if (move_count > second_searched) {
+			second_searched = move_count;
+			second_index = i;
+		}
+		// KLDを計算
+		if (move_count > 0) {
+			const float p = (float)move_count / root_move_count;
+			kld += p * std::log(p / (current_root->child[i].nnrate + FLT_EPSILON));
+		}
+	}
 
 	// 詰みが見つかった場合は探索を打ち切る
 	if (uct_child[max_index].IsLose())
 		return true;
+
+	// KLDに応じて時間制御
+	time_limit = time_limit_base * std::clamp(kld * 4.0f, 0.5f, 4.0f);
 
 	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
@@ -1118,8 +1144,8 @@ InterruptionCheck(void)
 		// 最善手の探索回数が次善手の探索回数の1.5倍未満
 		// もしくは、勝率が逆なら探索延長
 		(max_searched < second_searched * 1.5 ||
-		 uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
-		time_limit *= 2;
+			uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
+		time_limit_base *= 2;
 		extend_time = false; // 探索延長は1回のみ
 		cout << "ExtendTime" << endl;
 		return false;
