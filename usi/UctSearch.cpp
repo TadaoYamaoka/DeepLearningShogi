@@ -1126,28 +1126,11 @@ InterruptionCheck(void)
 		return true;
 
 	// KLDに応じて時間制御
-	time_limit = time_limit_base * std::clamp(kld * 4.0f, 0.5f, 4.0f);
+	time_limit = std::min(remaining_time[pos_root->turn()], (int)(time_limit_base * std::clamp(kld * 4.0f, 0.5f, 4.0f)));
 
 	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
 	if (max_searched - second_searched <= rest_po) {
-		return false;
-	}
-
-	// 着手が21手以降で,
-	// 時間延長を行う設定になっていて,
-	// 探索時間延長をすべきときは
-	// 探索回数を2倍に増やす
-	if (extend_time &&
-		pos_root->gamePly() > 20 &&
-		remaining_time[pos_root->turn()] > time_limit * 2 &&
-		// 最善手の探索回数が次善手の探索回数の1.5倍未満
-		// もしくは、勝率が逆なら探索延長
-		(max_searched < second_searched * 1.5 ||
-			uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
-		time_limit_base *= 2;
-		extend_time = false; // 探索延長は1回のみ
-		cout << "ExtendTime" << endl;
 		return false;
 	}
 
