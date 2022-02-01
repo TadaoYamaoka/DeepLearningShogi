@@ -1069,6 +1069,7 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
 			second_searched = max_searched;
+			second_index = max_index;
 			max_searched = uct_child[i].move_count;
 			max_index = i;
 		}
