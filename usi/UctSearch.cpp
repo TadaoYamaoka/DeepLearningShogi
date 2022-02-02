@@ -1060,26 +1060,24 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 }
 
 // 探索回数が最も多い手と次に多い手を求める
-inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
+inline std::tuple<int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
 {
 	int max_searched = 0, second_searched = 0;
-	int max_index = 0, second_index = 0;
+	int max_index = 0;
 
 	const int child_num = current_root->child_num;
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
 			second_searched = max_searched;
-			second_index = max_index;
 			max_searched = uct_child[i].move_count;
 			max_index = i;
 		}
 		else if (uct_child[i].move_count > second_searched) {
 			second_searched = uct_child[i].move_count;
-			second_index = i;
 		}
 	}
 
-	return std::make_tuple(max_searched, second_searched, max_index, second_index);
+	return std::make_tuple(max_searched, second_searched, max_index);
 }
 
 //////////////////////////
@@ -1099,7 +1097,7 @@ InterruptionCheck(void)
 
 	// 探索回数が最も多い手と次に多い手を求める
 	int max_searched = 0, second_searched = 0;
-	int max_index = 0, second_index = 0;
+	int max_index = 0;
 	float kld = 0;
 	const int root_move_count = current_root->move_count;
 
@@ -1113,7 +1111,6 @@ InterruptionCheck(void)
 		}
 		else if (move_count > second_searched) {
 			second_searched = move_count;
-			second_index = i;
 		}
 		// KLDを計算
 		if (move_count > 0) {
@@ -1256,8 +1253,8 @@ UCTSearcher::ParallelUctSearch()
 
 					// 探索回数が最も多い手と次に多い手を求める
 					int max_searched, second_searched;
-					int max_index, second_index;
-					std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+					int max_index;
+					std::tie(max_searched, second_searched, max_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
 
 					// 残りの探索で次善手が最善手を超える可能性がない場合は打ち切る
