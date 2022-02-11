@@ -386,7 +386,7 @@ public:
 #endif
     }
     // SSE2のunpackを実行して返す。
-    static void unpack(const Bitboard256 hiIn, const Bitboard256 loIn, Bitboard256& hiOut, Bitboard256& loOut) {
+    static void unpack(const Bitboard256& hiIn, const Bitboard256& loIn, Bitboard256& hiOut, Bitboard256& loOut) {
 #if defined (HAVE_AVX2)
         hiOut.m_ = _mm256_unpackhi_epi64(loIn.m_, hiIn.m_);
         loOut.m_ = _mm256_unpacklo_epi64(loIn.m_, hiIn.m_);
@@ -404,7 +404,7 @@ public:
     }
     // 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
     // 128bit整数とみなして1引き算したBitboardを返す。
-    static void decrement(const Bitboard256 hiIn, const Bitboard256 loIn, Bitboard256& hiOut, Bitboard256& loOut)
+    static void decrement(const Bitboard256& hiIn, const Bitboard256& loIn, Bitboard256& hiOut, Bitboard256& loOut)
     {
 #if defined (HAVE_AVX2)
 
