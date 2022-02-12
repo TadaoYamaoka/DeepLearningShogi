@@ -228,7 +228,7 @@ public:
 #endif
     }
     // SSE2のunpackを実行して返す。
-    static void unpack(const Bitboard hiIn, const Bitboard loIn, Bitboard& hiOut, Bitboard& loOut) {
+    static void unpack(const Bitboard& hiIn, const Bitboard& loIn, Bitboard& hiOut, Bitboard& loOut) {
 #if defined (HAVE_SSE2) || defined (HAVE_SSE4)
         hiOut.m_ = _mm_unpackhi_epi64(loIn.m_, hiIn.m_);
         loOut.m_ = _mm_unpacklo_epi64(loIn.m_, hiIn.m_);
@@ -242,7 +242,7 @@ public:
     }
     // 2組のBitboardを、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
     // 128bit整数とみなして1引き算したBitboardを返す。
-    static void decrement(const Bitboard hiIn, const Bitboard loIn, Bitboard& hiOut, Bitboard& loOut)
+    static void decrement(const Bitboard& hiIn, const Bitboard& loIn, Bitboard& hiOut, Bitboard& loOut)
     {
 #if defined (HAVE_SSE42)
         // loが0の時だけ1減算するときにhiからの桁借りが生じるので、
