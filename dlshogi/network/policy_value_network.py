@@ -12,6 +12,8 @@ def policy_value_network(network, add_sigmoid=False):
         from dlshogi.network.policy_value_network_resnet import PolicyValueNetwork
     elif network[:5] == 'senet':
         from dlshogi.network.policy_value_network_senet import PolicyValueNetwork
+    elif network == 'mobile':
+        from dlshogi.network.policy_value_network_mobile import PolicyValueNetwork
     else:
         # user defined network
         names = network.split('.')
@@ -32,7 +34,7 @@ def policy_value_network(network, add_sigmoid=False):
 
         PolicyValueNetwork = PolicyValueNetworkAddSigmoid
 
-    if network in [ 'wideresnet10', 'resnet10_swish' ]:
+    if network in [ 'wideresnet10', 'resnet10_swish', 'mobile' ]:
         return PolicyValueNetwork()
     elif network[:6] == 'resnet' or network[:5] == 'senet':
         m = re.match('^(resnet|senet)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_.+){0,1}$', network)
