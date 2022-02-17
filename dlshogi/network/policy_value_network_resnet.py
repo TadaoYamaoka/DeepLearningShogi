@@ -68,11 +68,11 @@ class PolicyValueNetwork(nn.Module):
 
         # policy network
         h_policy = self.policy(h)
-        h_policy = self.policy_bias(torch.flatten(h_policy, 1))
+        h_policy = self.policy_bias(h_policy.view(-1, 2187)) # 9*9*MAX_MOVE_LABEL_NUM
 
         # value network
         h_value = self.act(self.value_norm1(self.value_conv1(h)))
-        h_value = self.act(self.value_fc1(torch.flatten(h_value, 1)))
+        h_value = self.act(self.value_fc1(h_value.view((-1, 2187)))) # 9*9*MAX_MOVE_LABEL_NUM
         h_value = self.value_fc2(h_value)
 
         return h_policy, h_value
