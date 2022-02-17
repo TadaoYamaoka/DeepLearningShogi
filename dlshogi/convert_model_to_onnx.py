@@ -56,6 +56,9 @@ def main(*argv):
     hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)] * batchsize, HuffmanCodedPosAndEval)
     x1, x2, t1, t2, z, value = mini_batch(hcpevec)
 
+    #open('input1.bytes', 'wb').write(x1.cpu().numpy().transpose((0, 2, 3, 1)).tobytes())
+    #open('input2.bytes', 'wb').write(x2.cpu().numpy().transpose((0, 2, 3, 1)).tobytes())
+
     if args.fixed_batchsize is None:
         torch.onnx.export(model, (x1, x2), args.onnx,
             verbose = True,
