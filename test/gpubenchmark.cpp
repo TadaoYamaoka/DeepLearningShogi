@@ -1,4 +1,4 @@
-﻿#if 0
+﻿#if 1
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -8,11 +8,6 @@
 using namespace std;
 
 // GPUベンチマーク
-#include "nn.h"
-#include "nn_wideresnet10.h"
-#include "nn_fused_wideresnet10.h"
-#include "nn_wideresnet15.h"
-#include "nn_senet10.h"
 #include "nn_tensorrt.h"
 
 static void  showDevices(int i)
@@ -63,33 +58,17 @@ int main(int argc, char* argv[]) {
 	showDevices(gpu_id);
 	cudaSetDevice(gpu_id);
 	std::unique_ptr<NN> nn;
-	if (model_path.find("onnx") != string::npos) {
-		nn.reset((NN*)new NNTensorRT(gpu_id, batchsize));
-	}
-	else if (model_path.find("fused_wideresnet10") != std::string::npos) {
-		nn.reset((NN*)new NNFusedWideResnet10(batchsize));
-	}
-	else if (model_path.find("wideresnet15") != std::string::npos) {
-		nn.reset((NN*)new NNWideResnet15(batchsize));
-	}
-	else if (model_path.find("senet10") != std::string::npos) {
-		nn.reset((NN*)new NNSENet10(batchsize));
-	}
-	else {
-		nn.reset((NN*)new NNWideResnet10(batchsize));
-	}
-
-	nn->load_model(model_path.c_str());
+	nn.reset((NN*)new NNTensorRT(model_path.c_str(), gpu_id, batchsize));
 
 	features1_t* features1;
 	features2_t* features2;
-	checkCudaErrors(cudaHostAlloc(&features1, sizeof(features1_t) * batchsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&features2, sizeof(features2_t) * batchsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * batchsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * batchsize, cudaHostAllocPortable));
 
 	DType* y1;
 	DType* y2;
-	checkCudaErrors(cudaHostAlloc(&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * batchsize * sizeof(DType), cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc(&y2, batchsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (int)SquareNum * batchsize * sizeof(DType), cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&y2, batchsize * sizeof(DType), cudaHostAllocPortable));
 
 	Color* color = new Color[batchsize];
 
@@ -122,7 +101,7 @@ int main(int argc, char* argv[]) {
 
 			pos.set(hcpe[i].hcp);
 			color[i] = pos.turn();
-			make_input_features(pos, features1 + i, features2 + i);
+			make_input_features(pos, features1[i], features2[i]);
 		}
 
 		// 推論
@@ -131,7 +110,7 @@ int main(int argc, char* argv[]) {
 		auto end = std::chrono::system_clock::now();
 
 		// 時間集計
-		elapsed += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+		elapsed += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
 		// 評価
 		DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
@@ -173,7 +152,7 @@ int main(int argc, char* argv[]) {
 	// 結果表示
 	int num_actual = num / batchsize * batchsize;
 	cout << "num_actual = " << num_actual << endl;
-	cout << "elapsed = " << elapsed << " ns" << endl;
+	cout << "elapsed = " << elapsed << " ms" << endl;
 	cout << "move accuracy = " << (double)move_corrent / num_actual << endl;
 	cout << "value accuracy = " << (double)result_corrent / num_actual << endl;
 	cout << "value mse = " << (double)se_sum / num_actual << endl;

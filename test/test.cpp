@@ -1709,7 +1709,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "unpack.h"
 int main()
 {
@@ -1837,6 +1837,22 @@ int main()
 	for (int i = 0; i < batch_size; ++i) {
 		std::cout << "batch:" << i << "\n";
 		print_features(x1[i], x2[i]);
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+int main()
+{
+	initTable();
+	Position pos;
+	pos.set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+
+	MoveList<Legal> ml(pos);
+	for (; !ml.end(); ++ml) {
+		std::cout << ml.move().toUSI() << ", " << make_move_label((u16)(ml.move().value()), pos.turn()) << std::endl;
 	}
 
 	return 0;
