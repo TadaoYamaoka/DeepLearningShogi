@@ -713,7 +713,6 @@ namespace {
 						}
 						case Silver: // 銀
 						{
-							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
