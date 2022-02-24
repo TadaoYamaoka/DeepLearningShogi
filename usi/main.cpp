@@ -88,6 +88,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			if (th.joinable())
 				th.join();
 			const bool ponderhit = token == "ponderhit";
+			InitUctSearchStop();
 			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &posCmd, ponderhit] {
 				std::istringstream ssCmd(tmpCmd);
 				go_uct(pos, ssCmd, posCmd, ponderhit);
