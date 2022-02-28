@@ -83,8 +83,8 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves - 1);
     (*this)["Draw_Ply"]                    = USIOption(0, 0, INT_MAX);
-    (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
-    (*this)["UCT_Threads"]                 = USIOption(2, 0, 256);
+    (*this)["Const_Playout"]               = USIOption(16, 0, INT_MAX);
+    (*this)["UCT_Threads"]                 = USIOption(1, 0, 256);
     (*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
@@ -100,7 +100,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Model6"]                  = USIOption("");
     (*this)["DNN_Model7"]                  = USIOption("");
     (*this)["DNN_Model8"]                  = USIOption("");
-    (*this)["DNN_Batch_Size"]              = USIOption(128, 1, 256);
+    (*this)["DNN_Batch_Size"]              = USIOption(1, 1, 256);
     (*this)["DNN_Batch_Size2"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size3"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size4"]             = USIOption(0, 0, 256);
@@ -109,13 +109,13 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
     (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
-    (*this)["Mate_Root_Search"]            = USIOption(33, 0, 37);
+    (*this)["Mate_Root_Search"]            = USIOption(0, 0, 37);
 #ifdef PV_MATE_SEARCH
     (*this)["PV_Mate_Search_Threads"]      = USIOption(0, 0, 256);
     (*this)["PV_Mate_Search_Depth"]        = USIOption(33, 0, 37);
     (*this)["PV_Mate_Search_Nodes"]        = USIOption(500000, 0, 10000000);
 #endif
-    (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
+    (*this)["Resign_Threshold"]            = USIOption(0, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
     (*this)["C_init"]                      = USIOption(144, 0, 500);
@@ -129,9 +129,9 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
     (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
-    (*this)["Random_Ply"]                  = USIOption(0, 0, 1000);
-    (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
-    (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
+    (*this)["Random_Ply"]                  = USIOption(16, 0, 1000);
+    (*this)["Random_Temperature"]          = USIOption(80, 0, 100000);
+    (*this)["Random_Temperature_Drop"]     = USIOption(0, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
     (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
 #ifdef MAKE_BOOK
@@ -148,7 +148,7 @@ void OptionsMap::init(Searcher* s) {
 #endif // !MAKE_BOOK
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
-    (*this)["Engine_Name"]                 = USIOption("dlshogi");
+    (*this)["Engine_Name"]                 = USIOption("dlshogi-shogiwars");
 #else
     (*this)["Engine_Name"]                 = USIOption("dlshogi Debug Build");
 #endif

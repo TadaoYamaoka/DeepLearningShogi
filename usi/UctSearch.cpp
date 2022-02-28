@@ -329,8 +329,10 @@ public:
 #ifdef THREAD_POOL
 		if (handle == nullptr) {
 			handle = new thread([this]() {
-				// スレッドにGPUIDを関連付けてから初期化する
+#ifndef ONNXRUNTIME
+                // スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
+#endif
 				grp->InitGPU();
 
 				while (!term_th) {
