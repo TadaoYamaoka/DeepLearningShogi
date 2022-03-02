@@ -129,7 +129,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
     (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
-    (*this)["Random_Ply"]                  = USIOption(16, 0, 1000);
+    (*this)["Random_Ply"]                  = USIOption(8, 0, 1000);
     (*this)["Random_Temperature"]          = USIOption(5000, 0, 100000);
     (*this)["Random_Temperature_Drop"]     = USIOption(500, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(250, 0, 1000);
