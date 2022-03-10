@@ -95,6 +95,7 @@ public:
     bool isAny() const { return (value() != MoveNone); }
     // メンバ変数 value_ の取得
     u32 value() const { return value_; }
+    u32& value() { return value_; }
     Move operator |= (const Move rhs) {
         this->value_ |= rhs.value();
         return *this;

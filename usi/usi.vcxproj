@@ -292,6 +292,7 @@
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="dfpn.cpp" />
+    <ClCompile Include="LeafMateSearch.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
@@ -303,6 +304,7 @@
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="fastmath.h" />
+    <ClInclude Include="LeafMateSearch.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="int8_calibrator.h" />

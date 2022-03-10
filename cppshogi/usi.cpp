@@ -115,6 +115,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["PV_Mate_Search_Depth"]        = USIOption(33, 0, 37);
     (*this)["PV_Mate_Search_Nodes"]        = USIOption(500000, 0, 10000000);
 #endif
+    (*this)["Leaf_Mate_Search_Threads"]    = USIOption(3, 0, 256);
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);

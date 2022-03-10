@@ -17,6 +17,11 @@ constexpr int UCT_CHILD_MAX = 593;
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
 
+// 末端ノードでの詰み探索の深さ(奇数であること)
+#ifndef MATE_SEARCH_DEPTH
+constexpr int MATE_SEARCH_DEPTH = 5;
+#endif
+
 extern float c_init;
 extern float c_base;
 extern float c_fpu_reduction;
@@ -55,7 +60,7 @@ void SetPonderingMode(bool flag);
 
 // 使用するスレッド数の指定
 constexpr int max_gpu = 8;
-void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu]);
+void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu], const int leaf_mate_search_threads);
 
 
 // 投了の閾値設定（1000分率）
