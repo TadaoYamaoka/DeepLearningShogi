@@ -7,7 +7,7 @@ LIB = -L/usr/local/cuda/lib64
 
 target = bin/usi
 target_make_book = bin/make_book
-sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp PvMateSearch.cpp
+sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp PvMateSearch.cpp LeafMateSearch.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp dtype.cpp
 cuda_sources = unpack.cu
 objects = $(addprefix obj/, $(sources:.cpp=.o))
