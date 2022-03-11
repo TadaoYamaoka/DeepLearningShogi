@@ -167,7 +167,7 @@ void JoinLeafMateSearch()
 		searcher.Join();
 	}
 	// –¢Š®—¹‚Ìó‘Ô‚É‚·‚é
-	for (int i = 0; i < leaf_mate_requests.size(); i++)
+	for (size_t i = 0; i < leaf_mate_requests.size(); i++)
 	{
 		leaf_mate_requests[i].uct_child->SetQueuing();
 	}
