@@ -149,8 +149,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
             assert(prev_head->child_num == 1);
             auto& prev_uct_child_node = prev_head->child_nodes[0];
             gNodeGc.AddToGcQueue(std::move(prev_uct_child_node));
-            prev_uct_child_node = std::make_unique<uct_node_t>();
-            current_head_ = prev_uct_child_node.get();
+            current_head_ = new uct_node_t();
         }
         else {
             // 開始局面に戻った場合

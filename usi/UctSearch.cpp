@@ -677,6 +677,12 @@ FinalizeUctSearch(void)
 	delete[] search_groups;
 }
 
+// UCT探索の停止フラグ初期化
+void InitUctSearchStop()
+{
+	uct_search_stop = false;
+}
+
 void
 StopUctSearch(void)
 {
@@ -715,6 +721,26 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
+	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
 	}
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
@@ -902,7 +928,6 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 Move
 UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
 {
-	uct_search_stop = false;
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
 		searcher.Stop(false);
@@ -1069,6 +1094,7 @@ inline std::tuple<int, int, int> FindMaxAndSecondVisits(const uct_node_t* curren
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
 			second_searched = max_searched;
+			second_index = max_index;
 			max_searched = uct_child[i].move_count;
 			max_index = i;
 		}

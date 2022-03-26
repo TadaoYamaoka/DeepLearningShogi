@@ -405,9 +405,6 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         if (ptTo == King)
             kingSquare_[us] = to;
-        else {
-            const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
-        }
 
         if (moveIsCheck) {
             // Direct checks
