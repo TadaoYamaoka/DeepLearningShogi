@@ -134,6 +134,12 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
     (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
+#ifdef KLD_TIME_MANAGEMENT
+    (*this)["KLD_Coef"]                    = USIOption(400, 0, 10000);
+    (*this)["KLD_Min"]                     = USIOption(50, 0, 10000);
+    (*this)["KLD_Max"]                     = USIOption(400, 0, 10000);
+    (*this)["KLD_DebugMessage"]            = USIOption(false);
+#endif
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);

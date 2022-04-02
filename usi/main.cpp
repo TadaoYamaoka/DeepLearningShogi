@@ -186,6 +186,12 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMultiPV(options["MultiPV"]);
 			SetEvalCoef(options["Eval_Coef"]);
 			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"], options["Random_Cutoff_Drop"]);
+#ifdef KLD_TIME_MANAGEMENT
+			kld_coef = options["KLD_Coef"] / 100.0f;
+			kld_min = options["KLD_Min"] / 100.0f;
+			kld_max = options["KLD_Max"] / 100.0f;
+			kld_debug_message = options["KLD_DebugMessage"];
+#endif
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);

@@ -100,8 +100,14 @@ bool pondering = false;
 atomic<bool> uct_search_stop(false);
 
 int time_limit;
-int time_limit_base;
 int minimum_time = 0;
+#ifdef KLD_TIME_MANAGEMENT
+int time_limit_base;
+float kld_coef = 4.0f;
+float kld_min = 0.5f;
+float kld_max = 4.0f;
+bool kld_debug_message = false;
+#endif
 
 int last_pv_print; // 最後にpvが表示された時刻
 int pv_interval = 500; // pvを表示する周期(ms)
@@ -627,8 +633,10 @@ void TerminateUctSearch()
 void SetLimits(const LimitsType& limits)
 {
 	begin_time = limits.startTime;
-	time_limit  = limits.moveTime;
+	time_limit = limits.moveTime;
+#ifdef KLD_TIME_MANAGEMENT
 	time_limit_base = time_limit;
+#endif
 	po_info.halt = static_cast<int>(limits.nodes);
 	minimum_time = limits.moveTime;
 }
@@ -653,7 +661,9 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	if (time_limit < limits.moveTime) {
 		time_limit = limits.moveTime;
 	}
+#ifdef KLD_TIME_MANAGEMENT
 	time_limit_base = time_limit;
+#endif
 	if (limits.infinite)
 		po_info.halt = INT_MAX;
 	else
@@ -998,16 +1008,20 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		searcher.Join();
 #endif
 
-	// KLD
-	float kld = 0;
-	for (int i = 0; i < child_num; i++) {
-		const int move_count = current_root->child[i].move_count;
-		if (move_count > 0) {
-			const float p = (float)move_count / current_root->move_count;
-			kld += p * std::log(p / (current_root->child[i].nnrate + FLT_EPSILON));
+#ifdef KLD_TIME_MANAGEMENT
+	if (kld_debug_message) {
+		// KLDを表示
+		float kld = 0;
+		for (int i = 0; i < child_num; i++) {
+			const int move_count = current_root->child[i].move_count;
+			if (move_count > 0) {
+				const float p = (float)move_count / current_root->move_count;
+				kld += p * std::log(p / (current_root->child[i].nnrate + FLT_EPSILON));
+			}
 		}
+		std::cout << "info string ply " << pos->gamePly() << " kld " << kld << " time " << begin_time.elapsed() << std::endl;
 	}
-	std::cout << "info string ply " << pos->gamePly() <<  " kld " << kld << std::endl;
+#endif
 
 	// PV取得と表示
 	Move move;
@@ -1085,24 +1099,26 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 }
 
 // 探索回数が最も多い手と次に多い手を求める
-inline std::tuple<int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
+inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
 {
 	int max_searched = 0, second_searched = 0;
-	int max_index = 0;
+	int max_index = 0, second_index = 0;
 
 	const int child_num = current_root->child_num;
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
 			second_searched = max_searched;
+			second_index = max_index;
 			max_searched = uct_child[i].move_count;
 			max_index = i;
 		}
 		else if (uct_child[i].move_count > second_searched) {
 			second_searched = uct_child[i].move_count;
+			second_index = i;
 		}
 	}
 
-	return std::make_tuple(max_searched, second_searched, max_index);
+	return std::make_tuple(max_searched, second_searched, max_index, second_index);
 }
 
 //////////////////////////
@@ -1121,8 +1137,13 @@ InterruptionCheck(void)
 	const child_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
-	int max_searched = 0, second_searched = 0;
-	int max_index = 0;
+	int max_searched, second_searched;
+	int max_index, second_index;
+#ifndef KLD_TIME_MANAGEMENT
+	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+#else
+	max_searched = 0, second_searched = 0;
+	max_index = 0;
 	float kld = 0;
 	const int root_move_count = current_root->move_count;
 
@@ -1143,19 +1164,40 @@ InterruptionCheck(void)
 			kld += p * std::log(p / (current_root->child[i].nnrate + FLT_EPSILON));
 		}
 	}
+#endif
 
 	// 詰みが見つかった場合は探索を打ち切る
 	if (uct_child[max_index].IsLose())
 		return true;
 
+#ifdef KLD_TIME_MANAGEMENT
 	// KLDに応じて時間制御
-	time_limit = std::min(remaining_time[pos_root->turn()], (int)(time_limit_base * std::clamp(kld * 4.0f, 0.5f, 4.0f)));
-
+	time_limit = std::min(remaining_time[pos_root->turn()], (int)(time_limit_base * std::clamp(kld * kld_coef, kld_min, kld_max)));
+#endif
 	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
 	if (max_searched - second_searched <= rest_po) {
 		return false;
 	}
+
+#ifndef KLD_TIME_MANAGEMENT
+	// 着手が21手以降で,
+	// 時間延長を行う設定になっていて,
+	// 探索時間延長をすべきときは
+	// 探索回数を2倍に増やす
+	if (extend_time &&
+		pos_root->gamePly() > 20 &&
+		remaining_time[pos_root->turn()] > time_limit * 2 &&
+		// 最善手の探索回数が次善手の探索回数の1.5倍未満
+		// もしくは、勝率が逆なら探索延長
+		(max_searched < second_searched * 1.5 ||
+		 uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
+		time_limit *= 2;
+		extend_time = false; // 探索延長は1回のみ
+		cout << "ExtendTime" << endl;
+		return false;
+	}
+#endif
 
 	return true;
 }
@@ -1278,8 +1320,8 @@ UCTSearcher::ParallelUctSearch()
 
 					// 探索回数が最も多い手と次に多い手を求める
 					int max_searched, second_searched;
-					int max_index;
-					std::tie(max_searched, second_searched, max_index) = FindMaxAndSecondVisits(current_root, uct_child);
+					int max_index, second_index;
+					std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
 
 					// 残りの探索で次善手が最善手を超える可能性がない場合は打ち切る

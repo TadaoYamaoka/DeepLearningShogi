@@ -17,6 +17,13 @@ constexpr int UCT_CHILD_MAX = 593;
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
 
+#ifdef KLD_TIME_MANAGEMENT
+extern float kld_coef;
+extern float kld_min;
+extern float kld_max;
+extern bool kld_debug_message;
+#endif
+
 extern float c_init;
 extern float c_base;
 extern float c_fpu_reduction;
