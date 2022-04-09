@@ -321,7 +321,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 
 	// 入玉勝ちかどうかを判定
 	if (nyugyoku(pos)) {
-		std::cout << "bestmove win" << std::endl;
+		if (!limits.ponder)
+			std::cout << "bestmove win" << std::endl;
 		return;
 	}
 
