@@ -40,6 +40,8 @@ public:
     static const u32 PromoteFlag = 1 << 14;
     static const u32 MoveNone    = 0;
     static const u32 MoveNull    = 129;
+    static const u32 MoveResign  = (2 << 7) + 2; // 投了。移動元と移動先が同じ指し手は存在しない。
+    static const u32 MoveWin     = (3 << 7) + 3; // 入玉宣言勝ち
     static const u32 MovePVsEnd  = 1 << 15; // for learn
 
     Move() {}
@@ -113,6 +115,8 @@ public:
 
     static Move moveNone() { return Move(MoveNone); }
     static Move moveNull() { return Move(MoveNull); }
+    static Move moveResign() { return Move(MoveResign); }
+    static Move moveWin() { return Move(MoveWin); }
     // 学習時に、正解の手のPV、その他の手のPVを MoveNone で区切りながら 1 次元配列に格納していく。
     // 格納するその他のPVの最後に MovePVsEnd を格納する。それをフラグに次の指し手に遷移する。
     // 正解のPV, MoveNone, その他0のPV, MoveNone, その他1のPV, MoveNone, MovePVsEnd という感じに並ぶ。

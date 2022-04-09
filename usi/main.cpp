@@ -11,17 +11,29 @@
 #include "Message.h"
 #include "dfpn.h"
 
+#include <future>
 #include <signal.h>
 
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
-	STATIC void doUSICommandLoop(int argc, char* argv[]);
+	static void doUSICommandLoop(int argc, char* argv[]);
 #ifdef MAKE_BOOK
-	STATIC void make_book(std::istringstream& ssCmd);
+	static void makeBook(std::istringstream& ssCmd);
 #endif
+	static Key starting_pos_key;
+	static std::vector<Move> moves;
+	static std::promise<std::pair<Move, Move>> promise;
+	static std::future<std::pair<Move, Move>> future;
+	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
+	static void goUct(Position& pos);
+	static void getAndPrintBestMove();
 };
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit);
+
+Key MySearcher::starting_pos_key;
+std::vector<Move> MySearcher::moves;
+std::promise<std::pair<Move, Move>> MySearcher::promise;
+std::future<std::pair<Move, Move>> MySearcher::future;
 
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
@@ -77,22 +89,32 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			if (pos.searcher()->limits.ponder) {
+			if (limits.ponder) {
 				// 無視されるがbestmoveを返す
 				std::cout << "bestmove resign" << std::endl;
 			}
 		}
-		else if (token == "ponderhit" || token == "go") {
+		else if (token == "go") {
 			// ponderの探索を停止
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			const bool ponderhit = token == "ponderhit";
+			setPositionAndLimits(pos, ssCmd, posCmd);
 			InitUctSearchStop();
-			th = std::thread([&pos, tmpCmd = cmd.substr((size_t)ssCmd.tellg() + 1), &posCmd, ponderhit] {
-				std::istringstream ssCmd(tmpCmd);
-				go_uct(pos, ssCmd, posCmd, ponderhit);
+			// ponderhitで探索を継続するため、bestmoveはfutureで受け取る
+			promise = std::promise<std::pair<Move, Move>>();
+			future = promise.get_future();
+			th = std::thread([&pos] {
+				goUct(pos);
 			});
+			if (!limits.ponder) {
+				getAndPrintBestMove();
+			}
+		}
+		else if (token == "ponderhit") {
+			// go ponderの探索をそのまま継続し、ponderingの状態のみ変更する
+			SetPondering(false);
+			getAndPrintBestMove();
 		}
 		else if (token == "position") {
 			// 探索中にsetPositionを行うとStateInfoが壊れるため、探索を停止してから変更する必要があるため、
@@ -213,7 +235,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMultiPV(options["MultiPV"]);
 		}
 #ifdef MAKE_BOOK
-		else if (token == "make_book") make_book(ssCmd);
+		else if (token == "make_book") makeBook(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -221,7 +243,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		th.join();
 }
 
-void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const bool ponderhit) {
+void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
 	LimitsType& limits = pos.searcher()->limits;
 	std::string token;
 
@@ -229,8 +251,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 
 	// 探索開始局面設定
 	// 持ち時間設定よりも前に実行が必要
-	Key starting_pos_key;
-	std::vector<Move> moves;
+	moves.clear();
 	{
 		std::istringstream ssPosCmd(posCmd);
 		std::string token;
@@ -262,41 +283,39 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		}
 	}
 
-	if (ponderhit) {
-		// 前のlimitsの設定で探索する
-		limits.ponder = false;
+	// limitsをクリアして再設定
+	limits.nodes = limits.time[Black] = limits.time[White] = limits.inc[Black] = limits.inc[White] = limits.movesToGo = limits.moveTime = limits.mate = limits.infinite = limits.ponder = 0;
+	ssCmd >> token;
+	if (token == "ponder") {
+		limits.ponder = true;
 	}
-	else {
-		// limitsをクリアして再設定
-		limits.nodes = limits.time[Black] = limits.time[White] = limits.inc[Black] = limits.inc[White] = limits.movesToGo = limits.moveTime = limits.mate = limits.infinite = limits.ponder = 0;
-		ssCmd >> token;
-		if (token == "ponder") {
-			limits.ponder = true;
-		}
-		do {
-			if (token == "btime") ssCmd >> limits.time[Black];
-			else if (token == "wtime") ssCmd >> limits.time[White];
-			else if (token == "binc") ssCmd >> limits.inc[Black];
-			else if (token == "winc") ssCmd >> limits.inc[White];
-			else if (token == "infinite") limits.infinite = true;
-			else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
-			else if (token == "mate") ssCmd >> limits.mate;
-			else if (token == "nodes") ssCmd >> limits.nodes;
-		} while (ssCmd >> token);
-		if (limits.moveTime != 0) {
-			limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-		}
-		else if (pos.searcher()->options["Time_Margin"] != 0) {
-			limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
-		}
+	do {
+		if (token == "btime") ssCmd >> limits.time[Black];
+		else if (token == "wtime") ssCmd >> limits.time[White];
+		else if (token == "binc") ssCmd >> limits.inc[Black];
+		else if (token == "winc") ssCmd >> limits.inc[White];
+		else if (token == "infinite") limits.infinite = true;
+		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
+		else if (token == "mate") ssCmd >> limits.mate;
+		else if (token == "nodes") ssCmd >> limits.nodes;
+	} while (ssCmd >> token);
+	if (limits.moveTime != 0) {
+		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+	}
+	else if (pos.searcher()->options["Time_Margin"] != 0) {
+		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
 	}
 
 	SetLimits(&pos, limits);
+}
+
+void MySearcher::goUct(Position& pos) {
+	LimitsType& limits = pos.searcher()->limits;
 	Move ponderMove = Move::moveNone();
 
 	// Book使用
 	static Book book;
-	if (!limits.ponder && pos.searcher()->options["OwnBook"]) {
+	if (pos.searcher()->options["OwnBook"]) {
 		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, pos.searcher()->options["Book_File"], pos.searcher()->options["Best_Book_Move"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"
@@ -305,7 +324,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 				<< std::endl;
 
 			auto move = std::get<0>(bookMoveScore);
-			std::cout << "bestmove " << move.toUSI() << std::endl;
+			promise.set_value({ move, Move::moveNone() });
 
 			// 確率的なPonderの場合、相手局面から探索を継続する
 			if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
@@ -313,7 +332,8 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 				pos.doMove(move, st);
 
 				moves.emplace_back(move);
-				UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
+				SetPondering(true);
+				UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 			}
 			return;
 		}
@@ -321,8 +341,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 
 	// 入玉勝ちかどうかを判定
 	if (nyugyoku(pos)) {
-		if (!limits.ponder)
-			std::cout << "bestmove win" << std::endl;
+		promise.set_value({ Move::moveWin(), Move::moveNone() });
 		return;
 	}
 
@@ -333,7 +352,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	bool mate = false;
 	const uint32_t mate_depth = pos.searcher()->options["Mate_Root_Search"];
 	Position pos_copy(pos);
-	if (!limits.ponder && mate_depth > 0) {
+	if (mate_depth > 0) {
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
 			mate = dfpn.dfpn(pos_copy);
 			if (mate)
@@ -343,11 +362,7 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	}
 
 	// UCTによる探索
-	Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, limits.ponder);
-
-	// Ponderの場合、結果を返さない
-	if (limits.ponder)
-		return;
+	Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 
 	// 詰み探索待ち
 	if (mate_depth > 0) {
@@ -375,32 +390,48 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 			else
 				std::cout << "info score mate + pv " << mate_pv;
 			std::cout << std::endl;
-			std::cout << "bestmove " << mate_move.toUSI() << std::endl;
+			promise.set_value({ mate_move, Move::moveNone() });
 			return;
 		}
 	}
 
 	if (move == Move::moveNone()) {
-		std::cout << "bestmove resign" << std::endl;
+		promise.set_value({ Move::moveResign(), Move::moveNone() });
 		return;
 	}
-	std::cout << "bestmove " << move.toUSI();
 	// 確率的なPonderの場合、ponderを返さない
 	if (!IsUctSearchStoped() && pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
-		std::cout << std::endl;
+		promise.set_value({ move, Move::moveNone() });
 
 		// 相手局面から探索を継続する
 		StateInfo st;
 		pos.doMove(move, st);
 
 		moves.emplace_back(move);
-		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove, true);
+		SetPondering(true);
+		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 	}
-	else if (ponderMove != Move::moveNone()) {
-		std::cout << " ponder " << ponderMove.toUSI() << std::endl;
+	else {
+		promise.set_value({ move, ponderMove });
 	}
-	else
-		std::cout << std::endl;
+}
+
+void MySearcher::getAndPrintBestMove() {
+	auto bestMove = future.get();
+	std::cout << "bestmove ";
+	if (bestMove.first == Move::moveResign()) {
+		std::cout << "resign";
+	}
+	else if (bestMove.first == Move::moveWin()) {
+		std::cout << "win";
+	}
+	else {
+		std::cout << bestMove.first.toUSI();
+	}
+	if (bestMove.second != Move::moveNone()) {
+		std::cout << " ponder " << bestMove.second.toUSI();
+	}
+	std::cout << std::endl;
 }
 
 #ifdef MAKE_BOOK
@@ -605,7 +636,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡作成
-void MySearcher::make_book(std::istringstream& ssCmd) {
+void MySearcher::makeBook(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
 
 	std::string bookFileName;

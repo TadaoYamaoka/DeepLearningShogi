@@ -95,7 +95,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 bool pondering_mode = false;
 
-bool pondering = false;
+atomic<bool> pondering = false;
 
 atomic<bool> uct_search_stop(false);
 
@@ -635,6 +635,7 @@ void SetLimits(const LimitsType& limits)
 // go cmd前に呼ばれ、探索の条件を指定する
 void SetLimits(const Position* pos, const LimitsType& limits)
 {
+	pondering = limits.ponder;
 	begin_time = limits.startTime;
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
@@ -663,6 +664,11 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 void SetConstPlayout(const int playout)
 {
 	const_playout = playout;
+}
+
+void SetPondering(bool value)
+{
+	pondering = value;
 }
 
 ////////////
@@ -923,7 +929,7 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
+UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove)
 {
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
@@ -940,8 +946,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	pos_root = pos;
 	
 	const uct_node_t* current_root = tree->GetCurrentHead();
-
-	pondering = ponder;
 
 	// 探索情報をクリア
 	po_info.count = 0;
@@ -975,16 +979,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// 探索スレッド終了待機
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
-
-	if (pondering) {
-#ifdef PV_MATE_SEARCH
-		// PVの詰み探索スレッド終了待機
-		for (auto& searcher : pv_mate_searchers)
-			searcher.Join();
-#endif
-
-		return Move::moveNone();
-	}
 
 #ifdef PV_MATE_SEARCH
 	// PVの詰み探索スレッド停止
