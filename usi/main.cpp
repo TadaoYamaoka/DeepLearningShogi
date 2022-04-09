@@ -267,30 +267,27 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 		limits.ponder = false;
 	}
 	else {
+		// limitsをクリアして再設定
+		limits.nodes = limits.time[Black] = limits.time[White] = limits.inc[Black] = limits.inc[White] = limits.movesToGo = limits.moveTime = limits.mate = limits.infinite = limits.ponder = 0;
 		ssCmd >> token;
 		if (token == "ponder") {
-			// limitsを残す
 			limits.ponder = true;
 		}
-		else {
-			// limitsをクリアして再設定
-			limits.nodes = limits.time[Black] = limits.time[White] = limits.inc[Black] = limits.inc[White] = limits.movesToGo = limits.moveTime = limits.mate = limits.infinite = limits.ponder = 0;
-			do {
-				if (token == "btime") ssCmd >> limits.time[Black];
-				else if (token == "wtime") ssCmd >> limits.time[White];
-				else if (token == "binc") ssCmd >> limits.inc[Black];
-				else if (token == "winc") ssCmd >> limits.inc[White];
-				else if (token == "infinite") limits.infinite = true;
-				else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
-				else if (token == "mate") ssCmd >> limits.mate;
-				else if (token == "nodes") ssCmd >> limits.nodes;
-			} while (ssCmd >> token);
-			if (limits.moveTime != 0) {
-				limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
-			}
-			else if (pos.searcher()->options["Time_Margin"] != 0) {
-				limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
-			}
+		do {
+			if (token == "btime") ssCmd >> limits.time[Black];
+			else if (token == "wtime") ssCmd >> limits.time[White];
+			else if (token == "binc") ssCmd >> limits.inc[Black];
+			else if (token == "winc") ssCmd >> limits.inc[White];
+			else if (token == "infinite") limits.infinite = true;
+			else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
+			else if (token == "mate") ssCmd >> limits.mate;
+			else if (token == "nodes") ssCmd >> limits.nodes;
+		} while (ssCmd >> token);
+		if (limits.moveTime != 0) {
+			limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+		}
+		else if (pos.searcher()->options["Time_Margin"] != 0) {
+			limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
 		}
 	}
 
@@ -400,7 +397,6 @@ void go_uct(Position& pos, std::istringstream& ssCmd, const std::string& posCmd,
 	}
 	else if (ponderMove != Move::moveNone()) {
 		std::cout << " ponder " << ponderMove.toUSI() << std::endl;
-		limits.time[pos.turn()] -= limits.startTime.elapsed();
 	}
 	else
 		std::cout << std::endl;
