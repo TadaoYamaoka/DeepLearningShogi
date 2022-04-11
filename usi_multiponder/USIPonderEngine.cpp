@@ -13,7 +13,7 @@ USIPonderEngine::USIPonderEngine(const std::string path, const std::vector<std::
 #endif
 	proc(path, boost::process::std_in < ops, boost::process::std_out > ips, boost::process::start_dir(path.substr(0, path.find_last_of("\\/"))))
 {
-	th.reset(new std::thread([this, &options] { Init(options); }));
+	th.reset(new std::thread([this, options] { Init(options); }));
 }
 
 USIPonderEngine::~USIPonderEngine()
