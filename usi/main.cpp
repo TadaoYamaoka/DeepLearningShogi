@@ -268,6 +268,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				}
 #endif
 #ifdef MULTI_PONDER
+				// デストラクタが実行されないようにreserveする
+				usi_ponder_engines.reserve(options["Multi_Ponder"]);
 				for (int i = 0; i < options["Multi_Ponder"]; i++) {
 					std::vector<std::pair<std::string, std::string>> usi_engine_options;
 					std::istringstream ss((std::string)options["Multi_Ponder_Engine" + std::to_string(i + 1) + "_Options"]);
