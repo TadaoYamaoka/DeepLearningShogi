@@ -9,6 +9,13 @@
 #include "search.hpp"
 #include "Node.h"
 
+#ifdef MULTI_PONDER
+void ResetMultiPonder();
+void PrepareMultiPonder();
+void WaitPrepareMultiPonder();
+bool GetMultiPonderMove(std::vector<Move>& moves, int num);
+#endif
+
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.

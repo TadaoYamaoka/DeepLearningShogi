@@ -14,6 +14,11 @@
 #include <future>
 #include <signal.h>
 
+#ifdef MULTI_PONDER
+#include "../usi_multiponder/USIPonderEngine.h"
+std::atomic<bool> need_multi_ponder = false;
+#endif
+
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
@@ -27,7 +32,7 @@ struct MySearcher : Searcher {
 	static std::future<std::pair<Move, Move>> future;
 	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
 	static void goUct(Position& pos);
-	static void getAndPrintBestMove();
+	static std::pair<Move, Move> getAndPrintBestMove();
 };
 
 Key MySearcher::starting_pos_key;
@@ -59,6 +64,11 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	std::string cmd;
 	std::string token;
 	std::thread th;
+
+#ifdef MULTI_PONDER
+	std::vector<Move> multi_ponder_moves;
+	std::vector<USIPonderEngine> usi_ponder_engines;
+#endif
 
 	for (int i = 1; i < argc; ++i)
 		cmd += std::string(argv[i]) + " ";
@@ -95,6 +105,28 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 		}
 		else if (token == "go") {
+#ifdef MULTI_PONDER
+			USIPonderResult ponderResult;
+			if (need_multi_ponder) {
+				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
+					if (usi_ponder_engines[i].IsLiving()) {
+						if (posCmd == usi_ponder_engines[i].GetUsiPosition()) {
+							ponderResult = usi_ponder_engines[i].Ponderhit();
+						}
+						else
+							usi_ponder_engines[i].Stop();
+					}
+				}
+				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
+					if (usi_ponder_engines[i].IsLiving())
+						usi_ponder_engines[i].Join();
+				}
+			}
+
+			ResetMultiPonder();
+			need_multi_ponder = false;
+			multi_ponder_moves.clear();
+#endif
 			// ponderの探索を停止
 			StopUctSearch();
 			if (th.joinable())
@@ -104,11 +136,68 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// ponderhitで探索を継続するため、bestmoveはfutureで受け取る
 			promise = std::promise<std::pair<Move, Move>>();
 			future = promise.get_future();
+#ifdef MULTI_PONDER
+			if (ponderResult.bestMove != "") {
+				// multi ponderがponderhitの場合
+				std::cout << ponderResult.info << std::endl;
+				if (ponderResult.bestMove == "resign")
+					promise.set_value({ Move::moveResign(), Move::moveNone() });
+				else if (ponderResult.bestMove == "win")
+					promise.set_value({ Move::moveWin(), Move::moveNone() });
+				else {
+					// 相手局面から探索を継続する
+					Move move = usiToMove(pos, ponderResult.bestMove);
+					need_multi_ponder = true;
+					promise.set_value({ move, Move::moveNone() });
+					th = std::thread([&pos, move] {
+						StateInfo st;
+						pos.doMove(move, st);
+
+						Move ponderMove;
+						moves.emplace_back(move);
+						SetPondering(true);
+						UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+					});
+				}
+			}
+			else
+			{
+				th = std::thread([&pos] {
+					goUct(pos);
+					});
+			}
+#else
 			th = std::thread([&pos] {
 				goUct(pos);
 			});
+#endif
 			if (!limits.ponder) {
-				getAndPrintBestMove();
+				auto bestMove = getAndPrintBestMove();
+#ifdef MULTI_PONDER
+				if (need_multi_ponder) {
+					// ルートノードが展開されるのを待つ
+					WaitPrepareMultiPonder();
+
+					// 訪問回数・方策順にソートした指し手を取得
+					const bool ret = GetMultiPonderMove(multi_ponder_moves, options["Multi_Ponder"]);
+
+					if (ret && multi_ponder_moves.size() > 0) {
+						std::string pos_ss(posCmd);
+						if (posCmd.find("moves") == posCmd.npos) {
+							pos_ss += " moves";
+						}
+						pos_ss += " " + bestMove.first.toUSI();
+						// USIエンジンにgo ponderを送信
+						for (size_t i = 0, j = 0; i < multi_ponder_moves.size(); i++) {
+							if (usi_ponder_engines[i].IsLiving())
+								usi_ponder_engines[i].GoPonderAsync(pos_ss + " " + multi_ponder_moves[j++].toUSI(), limits);
+						}
+					}
+					else {
+						need_multi_ponder = false;
+					}
+				}
+#endif
 			}
 		}
 		else if (token == "ponderhit") {
@@ -178,15 +267,33 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					SetPvMateSearch(options["PV_Mate_Search_Threads"], options["PV_Mate_Search_Depth"], options["PV_Mate_Search_Nodes"]);
 				}
 #endif
+#ifdef MULTI_PONDER
+				for (int i = 0; i < options["Multi_Ponder"]; i++) {
+					std::vector<std::pair<std::string, std::string>> usi_engine_options;
+					std::istringstream ss((std::string)options["Multi_Ponder_Engine" + std::to_string(i + 1) + "_Options"]);
+					std::string field;
+					while (std::getline(ss, field, ',')) {
+						const auto p = field.find_first_of(":");
+						usi_engine_options.emplace_back(field.substr(0, p), field.substr(p + 1));
+					}
+					usi_ponder_engines.emplace_back((std::string)options["Multi_Ponder_Engine" + std::to_string(i + 1)], usi_engine_options);
+				}
+				for (size_t i = 0; i < usi_ponder_engines.size(); i++) {
+					usi_ponder_engines[i].WaitInit();
+				}
+#endif
 			}
 			initialized = true;
+#ifdef MULTI_PONDER
+			need_multi_ponder = false;
+#endif
 
 			NewGame();
 
 			// 詰み探索用
 			if (options["Mate_Root_Search"] > 0) {
 				dfpn.set_maxdepth(options["Mate_Root_Search"]);
-				const int draw_ply = pos.searcher()->options["Draw_Ply"];
+				const int draw_ply = options["Draw_Ply"];
 				if (draw_ply > 0)
 					DfPn::set_draw_ply(draw_ply);
 			}
@@ -244,7 +351,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 }
 
 void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
-	LimitsType& limits = pos.searcher()->limits;
 	std::string token;
 
 	limits.startTime.restart();
@@ -271,14 +377,14 @@ void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, 
 			return;
 
 		pos.set(sfen);
-		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+		states = StateListPtr(new std::deque<StateInfo>(1));
 
 		starting_pos_key = pos.getKey();
 
 		while (ssPosCmd >> token) {
 			const Move move = usiToMove(pos, token);
 			if (!move) break;
-			pos.doMove(move, pos.searcher()->states->emplace_back());
+			pos.doMove(move, states->emplace_back());
 			moves.emplace_back(move);
 		}
 	}
@@ -300,34 +406,37 @@ void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, 
 		else if (token == "nodes") ssCmd >> limits.nodes;
 	} while (ssCmd >> token);
 	if (limits.moveTime != 0) {
-		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+		limits.moveTime -= options["Byoyomi_Margin"];
 	}
-	else if (pos.searcher()->options["Time_Margin"] != 0) {
-		limits.time[pos.turn()] -= pos.searcher()->options["Time_Margin"];
+	else if (options["Time_Margin"] != 0) {
+		limits.time[pos.turn()] -= options["Time_Margin"];
 	}
 
 	SetLimits(&pos, limits);
 }
 
 void MySearcher::goUct(Position& pos) {
-	LimitsType& limits = pos.searcher()->limits;
 	Move ponderMove = Move::moveNone();
 
 	// Book使用
 	static Book book;
-	if (pos.searcher()->options["OwnBook"]) {
-		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, pos.searcher()->options["Book_File"], pos.searcher()->options["Best_Book_Move"]);
+	if (options["OwnBook"]) {
+		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"
 				<< " score cp " << std::get<1>(bookMoveScore)
 				<< " pv " << std::get<0>(bookMoveScore).toUSI()
 				<< std::endl;
 
+#ifdef MULTI_PONDER
+			if (options["USI_Ponder"] && options["Stochastic_Ponder"])
+				need_multi_ponder = true;
+#endif
 			auto move = std::get<0>(bookMoveScore);
 			promise.set_value({ move, Move::moveNone() });
 
 			// 確率的なPonderの場合、相手局面から探索を継続する
-			if (pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+			if (options["USI_Ponder"] && options["Stochastic_Ponder"]) {
 				StateInfo st;
 				pos.doMove(move, st);
 
@@ -350,7 +459,7 @@ void MySearcher::goUct(Position& pos) {
 	dfpn.dfpn_stop(false);
 	std::atomic<bool> dfpn_done(false);
 	bool mate = false;
-	const uint32_t mate_depth = pos.searcher()->options["Mate_Root_Search"];
+	const uint32_t mate_depth = options["Mate_Root_Search"];
 	Position pos_copy(pos);
 	if (mate_depth > 0) {
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
@@ -400,7 +509,11 @@ void MySearcher::goUct(Position& pos) {
 		return;
 	}
 	// 確率的なPonderの場合、ponderを返さない
-	if (!IsUctSearchStoped() && pos.searcher()->options["USI_Ponder"] && pos.searcher()->options["Stochastic_Ponder"]) {
+	if (!IsUctSearchStoped() && options["USI_Ponder"] && options["Stochastic_Ponder"]) {
+#ifdef MULTI_PONDER
+		need_multi_ponder = true;
+		limits.time[pos.turn()] -= std::min(limits.time[pos.turn()], (limits.startTime.elapsed() + 999) / 1000 * 1000);
+#endif
 		promise.set_value({ move, Move::moveNone() });
 
 		// 相手局面から探索を継続する
@@ -416,7 +529,7 @@ void MySearcher::goUct(Position& pos) {
 	}
 }
 
-void MySearcher::getAndPrintBestMove() {
+std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
 	auto bestMove = future.get();
 	std::cout << "bestmove ";
 	if (bestMove.first == Move::moveResign()) {
@@ -432,6 +545,8 @@ void MySearcher::getAndPrintBestMove() {
 		std::cout << " ponder " << bestMove.second.toUSI();
 	}
 	std::cout << std::endl;
+
+	return bestMove;
 }
 
 #ifdef MAKE_BOOK
