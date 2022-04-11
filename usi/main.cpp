@@ -272,7 +272,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				usi_ponder_engines.reserve(options["Multi_Ponder"]);
 				for (int i = 0; i < options["Multi_Ponder"]; i++) {
 					std::vector<std::pair<std::string, std::string>> usi_engine_options;
-					std::istringstream ss((std::string)options["Multi_Ponder_Engine" + std::to_string(i + 1) + "_Options"]);
+					std::string engine_options = options["Multi_Ponder_Engine" + std::to_string(i + 1) + "_Options"];
+					// usiToCsa.rbでは,が使えないため#でも区切ることができるようにする
+					std::replace(engine_options.begin(), engine_options.end(), '#', ',');
+					std::istringstream ss(engine_options);
 					std::string field;
 					while (std::getline(ss, field, ',')) {
 						const auto p = field.find_first_of(":");
