@@ -111,6 +111,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
 					if (usi_ponder_engines[i].IsLiving()) {
 						if (posCmd == usi_ponder_engines[i].GetUsiPosition()) {
+							std::cout << "info string multiponder " << i + 1 << " ponderhit\n";
 							ponderResult = usi_ponder_engines[i].Ponderhit();
 						}
 						else
@@ -139,7 +140,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #ifdef MULTI_PONDER
 			if (ponderResult.bestMove != "") {
 				// multi ponderがponderhitの場合
-				std::cout << ponderResult.info << std::endl;
+				std::cout << ponderResult.info << "\n";
 				if (ponderResult.bestMove == "resign")
 					promise.set_value({ Move::moveResign(), Move::moveNone() });
 				else if (ponderResult.bestMove == "win")
@@ -188,10 +189,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						}
 						pos_ss += " " + bestMove.first.toUSI();
 						// USIエンジンにgo ponderを送信
+						std::cout << "info string multiponder";
 						for (size_t i = 0, j = 0; i < multi_ponder_moves.size(); i++) {
-							if (usi_ponder_engines[i].IsLiving())
-								usi_ponder_engines[i].GoPonderAsync(pos_ss + " " + multi_ponder_moves[j++].toUSI(), limits);
+							if (usi_ponder_engines[i].IsLiving()) {
+								const std::string ponder_move = std::move(multi_ponder_moves[j++].toUSI());
+								std::cout << " " << i + 1 << " " << ponder_move;
+								usi_ponder_engines[i].GoPonderAsync(pos_ss + " " + ponder_move, limits);
+							}
 						}
+						std::cout << "\n";
 					}
 					else {
 						need_multi_ponder = false;
