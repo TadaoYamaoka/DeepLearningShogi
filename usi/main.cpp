@@ -455,6 +455,7 @@ bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.01;
+double book_reciprocal_temperature = 1.0 / 5.0;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
@@ -594,6 +595,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		// 確率的に手を選択
 		std::vector<double> probabilities;
 		for (const auto& entry : *entries) {
+			const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
 			probabilities.emplace_back(entry.count);
 		}
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
@@ -670,6 +672,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 訪問回数の閾値(1000分率)
 	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	// 訪問回数に応じてランダムに選択する際の温度パラメータ
+	book_reciprocal_temperature = 1000.0 / options["Book_Temperature"];
 
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
