@@ -36,14 +36,20 @@ class NNTensorRT {
 public:
 	NNTensorRT(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNTensorRT();
+#ifdef USE_PACKED_FEATURES
 	void forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2);
+#else
+	void forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2);
+#endif
 
 private:
 	const int gpu_id;
 	const int max_batch_size;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
+#ifdef USE_PACKED_FEATURES
 	packed_features1_t* p1_dev;
 	packed_features2_t* p2_dev;
+#endif
 	features1_t* x1_dev;
 	features2_t* x2_dev;
 	DType* y1_dev;

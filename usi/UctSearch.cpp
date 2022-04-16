@@ -45,12 +45,12 @@
 
 using namespace std;
 
-#ifdef ONNXRUNTIME
-typedef features1_t Features1;
-typedef features2_t Features2;
-#else
+#ifdef USE_PACKED_FEATURES
 typedef packed_features1_t Features1;
 typedef packed_features2_t Features2;
+#else
+typedef features1_t Features1;
+typedef features2_t Features2;
 #endif
 
 #define LOCK_EXPAND mutex_expand.lock();
@@ -289,14 +289,19 @@ public:
 #endif
 		policy_value_batch_maxsize(policy_value_batch_maxsize) {
 		// キューを動的に確保する
-#ifdef ONNXRUNTIME
+#ifdef USE_PACKED_FEATURES
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+#elif defined(ONNXRUNTIME)
 		features1 = new features1_t[policy_value_batch_maxsize];
 		features2 = new features2_t[policy_value_batch_maxsize];
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
@@ -1053,12 +1058,12 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-#ifdef ONNXRUNTIME
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
-#else
+#ifdef USE_PACKED_FEATURES
 	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
 	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+#else
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
 #endif
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
