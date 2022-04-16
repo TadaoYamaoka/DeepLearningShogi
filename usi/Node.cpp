@@ -25,6 +25,11 @@ public:
         gc_thread_.join();
     }
 
+    bool IsEmpty() {
+        std::lock_guard<std::mutex> lock(gc_mutex_);
+        return subtrees_to_gc_.size() == 0;
+    }
+
 private:
     void GarbageCollect() {
         while (!stop_.load()) {
@@ -164,6 +169,10 @@ void NodeTree::DeallocateTree() {
     gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
     gamebegin_node_ = std::make_unique<uct_node_t>();
     current_head_ = gamebegin_node_.get();
+}
+
+bool NodeTree::IsGCEmpty() {
+    return gNodeGc.IsEmpty();
 }
 
 // Boltzmann distribution
