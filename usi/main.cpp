@@ -455,7 +455,7 @@ bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.01;
-double book_reciprocal_temperature = 1.0 / 5.0;
+double book_reciprocal_temperature = 1.0;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
 	Move move;
