@@ -596,7 +596,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		std::vector<double> probabilities;
 		for (const auto& entry : *entries) {
 			const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
-			probabilities.emplace_back(entry.count);
+			probabilities.emplace_back(probability);
 		}
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
 		size_t selected = dist(g_randomTimeSeed);
