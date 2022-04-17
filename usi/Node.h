@@ -112,7 +112,6 @@ public:
 	bool ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves);
 	uct_node_t* GetCurrentHead() const { return current_head_; }
 	void DeallocateTree();
-	bool IsGCEmpty();
 
 private:
 	// 探索を開始するノード

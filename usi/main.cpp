@@ -450,6 +450,7 @@ struct child_node_t_copy {
 std::map<Key, std::vector<BookEntry> > bookMap;
 Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
+int make_book_sleep = 0;
 bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
@@ -513,8 +514,8 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		count++;
 	}
 
-	while (!tree->IsGCEmpty())
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	if (make_book_sleep > 0)
+		std::this_thread::sleep_for(std::chrono::milliseconds(make_book_sleep));
 
 	return true;
 }
@@ -656,6 +657,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 保存間隔
 	int save_book_interval = options["Save_Book_Interval"];
+
+	// 1定跡作成ごとのスリープ時間(ガベージコレクションが間に合わない場合に設定する)
+	make_book_sleep = options["Make_Book_Sleep"];
 
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
