@@ -454,7 +454,8 @@ int make_book_sleep = 0;
 bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
-double book_visit_threshold = 0.01;
+double book_visit_threshold = 0.005;
+double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
@@ -486,19 +487,25 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	const child_node_t *uct_child = current_root->child.get();
 	for (int i = 0; i < current_root->child_num; i++) {
 		movelist.emplace_back(uct_child[i]);
-		if (double(uct_child[i].move_count) / current_root->move_count > book_visit_threshold) { // 閾値
-			num++;
-		}
+	}
+
+	std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
+		return left.move_count > right.move_count;
+	});
+
+	const auto cutoff_threshold = movelist[0].win / movelist[0].move_count - book_cutoff;
+	for (const auto& child : movelist) {
+		if (double(child.move_count) / current_root->move_count < book_visit_threshold) // 訪問回数閾値
+			break;
+		if (child.win / child.move_count < cutoff_threshold) // 勝率閾値
+			break;
+		num++;
 	}
 	if (num == 0) {
 		num = (current_root->child_num + 2) / 3;
 	}
 
 	std::cout << "movelist.size: " << num << std::endl;
-
-	std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
-		return left.move_count > right.move_count;
-	});
 
 	for (int i = 0; i < num; i++) {
 		auto &child = movelist[i];
@@ -672,6 +679,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 訪問回数の閾値(1000分率)
 	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	book_cutoff = options["Book_Cutoff"] / 1000.0f;
 
 	// 訪問回数に応じてランダムに選択する際の温度パラメータ
 	book_reciprocal_temperature = 1000.0 / options["Book_Temperature"];
