@@ -495,7 +495,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 
 	const auto cutoff_threshold = movelist[0].win / movelist[0].move_count - book_cutoff;
 	for (const auto& child : movelist) {
-		if (double(child.move_count) / current_root->move_count < book_visit_threshold) // 訪問回数閾値
+		if (double(child.move_count) / current_root->move_count <= book_visit_threshold) // 訪問回数閾値
 			break;
 		if (child.win / child.move_count < cutoff_threshold) // 勝率閾値
 			break;
