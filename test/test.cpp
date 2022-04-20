@@ -344,7 +344,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -1709,7 +1709,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include "unpack.h"
 int main()
 {
@@ -1837,6 +1837,34 @@ int main()
 	for (int i = 0; i < batch_size; ++i) {
 		std::cout << "batch:" << i << "\n";
 		print_features(x1[i], x2[i]);
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+// 王手生成オーダリングテスト
+int main(int argc, char* argv[]) {
+	initTable();
+	Position pos;
+
+	std::vector<std::string> sfens = {
+		"lnsgkgsnl/1r5b1/ppGS2ppp/2pp1RN2/5pN1B/4p4/PPPPPPPPP/9/L3KGS2 b L 1",
+	};
+
+	for (const auto& sfen : sfens) {
+		pos.set(sfen);
+
+		MoveList<CheckAllExt> ml(pos);
+
+		std::sort(ml.begin(), ml.begin() + ml.size(), [](const ExtMove& lhs, const ExtMove& rhs) {
+			return (int32_t)lhs.move.value() < (int32_t)rhs.move.value();
+		});
+
+		for (; !ml.end(); ++ml) {
+			std::cout << ml.move().toUSI() << "\t" << (int)(int8_t)((ml.move().value() & 0xFF000000) >> 24) << std::endl;
+		}
 	}
 
 	return 0;

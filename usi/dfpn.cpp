@@ -23,12 +23,12 @@ void DfPn::dfpn_stop(const bool stop)
 namespace ns_dfpn {
 	const constexpr size_t MaxCheckMoves = 91;
 
-	template <bool or_node>
+	template <bool or_node, bool ordering = true>
 	class MovePicker {
 	public:
 		explicit MovePicker(const Position& pos) {
 			if (or_node) {
-				last_ = generateMoves<CheckAll>(moveList_, pos);
+				last_ = ordering ? generateMoves<CheckAllExt>(moveList_, pos) : generateMoves<CheckAll>(moveList_, pos);
 				if (pos.inCheck()) {
 					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 					ExtMove* curr = moveList_;
@@ -51,6 +51,11 @@ namespace ns_dfpn {
 					else
 						++curr;
 				}
+			}
+			if (ordering) {
+				std::stable_sort(begin(), begin() + size(), [](const ExtMove& lhs, const ExtMove& rhs) {
+					return (int32_t)lhs.move.value() < (int32_t)rhs.move.value();
+				});
 			}
 			assert(size() <= MaxCheckMoves);
 		}

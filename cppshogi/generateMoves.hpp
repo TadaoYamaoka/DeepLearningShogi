@@ -41,6 +41,7 @@ enum MoveType {
     LegalAll,           // Legal + 歩, 飛, 角 の不成、香の二段目の不成、香の三段目への駒を取らない不成を生成
 	Check,              // 王手をかける手
     CheckAll,           // Check + 歩, 飛, 角 の不成、香の二段目の不成
+    CheckAllExt,        // CheckAllのMoveの最上位バイトにソート用の値を設定
     MoveTypeNone
 };
 
