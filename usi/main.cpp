@@ -12,7 +12,10 @@
 #include "dfpn.h"
 
 #include <future>
-#include <signal.h>
+#ifdef MAKE_BOOK
+#include <sys/stat.h>
+#endif
+
 
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
@@ -644,6 +647,35 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
 }
 
+// 定跡マージ
+int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file) {
+	// ファイル更新がある場合のみ処理する
+	static time_t prev_time = 0;
+	struct stat st;
+	if (stat(merge_file.c_str(), &st) != 0)
+		return 0;
+	if (st.st_ctime == prev_time)
+		return 0;
+	prev_time = st.st_ctime;
+
+	std::ifstream ifsMerge(merge_file.c_str(), std::ios::binary);
+	int merged = 0;
+	if (ifsMerge) {
+		BookEntry entry;
+		Key prev_key = 0;
+		while (ifsMerge.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+			if (entry.key == prev_key || outMap.find(entry.key) == outMap.end()) {
+				if (entry.key != prev_key)
+					merged++;
+				outMap[entry.key].emplace_back(entry);
+				prev_key = entry.key;
+			}
+		}
+	}
+	std::cout << "merged: " << merged << std::endl;
+	return merged;
+}
+
 // 定跡作成
 void MySearcher::makeBook(std::istringstream& ssCmd) {
 	// isreadyを先に実行しておくこと。
@@ -688,6 +720,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
 
+	// 定期的にマージする定跡ファイル
+	const std::string merge_file = options["Book_Merge_File"];
+
 	SetReuseSubtree(options["ReuseSubtree"]);
 
 	// outFileが存在するときは追加する
@@ -710,6 +745,12 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
+
+	// 定跡マージ
+	int merged = 0;
+	if (merge_file != "") {
+		merged += merge_book(outMap, merge_file);
+	}
 
 	int black_num = 0;
 	int white_num = 0;
@@ -744,6 +785,11 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
 		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 		{
+			// 定跡マージ
+			if (merge_file != "") {
+				merged += merge_book(outMap, merge_file);
+			}
+
 			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
 			for (auto& elem : outMap) {
@@ -759,5 +805,6 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 	std::cout << "white\t" << white_num << std::endl;
 	std::cout << "sum\t" << black_num + white_num << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
+	std::cout << "merged entries\t" << merged << std::endl;
 }
 #endif
