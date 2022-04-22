@@ -56,6 +56,9 @@
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_to_book.py" />
+    <Compile Include="utils\csa_to_csv.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\csa_to_hcp.py" />
     <Compile Include="utils\csa_to_hcpe.py" />
     <Compile Include="utils\csa_to_hcpe2.py" />
