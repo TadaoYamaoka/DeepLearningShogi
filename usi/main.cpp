@@ -754,7 +754,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	int black_num = 0;
 	int white_num = 0;
-	int prev_num = outMap.size();
+	size_t prev_num = outMap.size();
 	std::vector<Move> moves;
 	for (int trial = 0; trial < limitTrialNum;) {
 		// 進捗状況表示
