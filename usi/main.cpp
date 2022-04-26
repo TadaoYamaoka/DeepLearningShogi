@@ -111,15 +111,18 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #ifdef MULTI_PONDER
 			USIPonderResult ponderResult;
 			if (need_multi_ponder) {
+				size_t ponderhit_i = multi_ponder_moves.size();
 				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
 					if (usi_ponder_engines[i].IsLiving()) {
-						if (posCmd == usi_ponder_engines[i].GetUsiPosition()) {
-							std::cout << "info string multiponder " << i + 1 << " ponderhit\n";
-							ponderResult = usi_ponder_engines[i].Ponderhit();
-						}
+						if (posCmd == usi_ponder_engines[i].GetUsiPosition())
+							ponderhit_i = i;
 						else
 							usi_ponder_engines[i].Stop();
 					}
+				}
+				if (ponderhit_i < multi_ponder_moves.size()) {
+					std::cout << "info string multiponder " << ponderhit_i + 1 << " ponderhit" << std::endl;
+					ponderResult = usi_ponder_engines[ponderhit_i].Ponderhit();
 				}
 				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
 					if (usi_ponder_engines[i].IsLiving())
