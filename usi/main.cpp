@@ -171,7 +171,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			{
 				th = std::thread([&pos] {
 					goUct(pos);
-					});
+				});
 			}
 #else
 			th = std::thread([&pos] {
