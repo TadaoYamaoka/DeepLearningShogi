@@ -985,6 +985,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	init_search_begin_time = false;
 	interruption = false;
 
+	if (!reuse_subtree) {
+		// ゲーム木を再利用しない場合クリア
+		tree->DeallocateTree();
+	}
+
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
 

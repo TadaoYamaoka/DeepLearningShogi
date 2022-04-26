@@ -111,9 +111,9 @@ public:
 	// 位置が完全に異なる場合、または以前よりも短い場合は、falseを返す
 	bool ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves);
 	uct_node_t* GetCurrentHead() const { return current_head_; }
+	void DeallocateTree();
 
 private:
-	void DeallocateTree();
 	// 探索を開始するノード
 	uct_node_t* current_head_ = nullptr;
 	// ゲーム木のルートノード
