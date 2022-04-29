@@ -20,6 +20,7 @@
 #ifdef MULTI_PONDER
 #include "../usi_multiponder/USIPonderEngine.h"
 std::atomic<bool> need_multi_ponder = false;
+constexpr size_t nohit = (size_t)-1;
 #endif
 
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
@@ -70,6 +71,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 #ifdef MULTI_PONDER
 	std::vector<Move> multi_ponder_moves;
+	std::vector<size_t> multi_ponder_engine_index;
 	std::vector<USIPonderEngine> usi_ponder_engines;
 #endif
 
@@ -110,9 +112,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "go") {
 #ifdef MULTI_PONDER
 			USIPonderResult ponderResult;
-			size_t ponderhit_i = multi_ponder_moves.size();
+			size_t ponderhit_i = nohit;
 			if (need_multi_ponder) {
-				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
+				for (size_t i : multi_ponder_engine_index) {
 					if (usi_ponder_engines[i].IsLiving()) {
 						if (posCmd == usi_ponder_engines[i].GetUsiPosition())
 							ponderhit_i = i;
@@ -120,11 +122,11 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 							usi_ponder_engines[i].Stop();
 					}
 				}
-				if (ponderhit_i < multi_ponder_moves.size()) {
+				if (ponderhit_i != nohit ) {
 					std::cout << "info string multiponder " << ponderhit_i + 1 << " ponderhit" << std::endl;
 					ponderResult = usi_ponder_engines[ponderhit_i].Ponderhit();
 				}
-				for (size_t i = 0; i < multi_ponder_moves.size(); i++) {
+				for (size_t i : multi_ponder_engine_index) {
 					if (usi_ponder_engines[i].IsLiving())
 						usi_ponder_engines[i].Join();
 				}
@@ -133,6 +135,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			ResetMultiPonder();
 			need_multi_ponder = false;
 			multi_ponder_moves.clear();
+			multi_ponder_engine_index.clear();
 #endif
 			// ponderの探索を停止
 			StopUctSearch();
@@ -199,7 +202,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						for (size_t i = 0, j = 0; i < multi_ponder_moves.size(); i++) {
 							size_t ponder_i = i;
 							// ponderhitしたエンジンに1番目の候補手を割り当てる
-							if (ponderhit_i < multi_ponder_moves.size()) {
+							if (ponderhit_i != nohit) {
 								if (i == 0) {
 									ponder_i = ponderhit_i;
 								}
@@ -207,10 +210,11 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 									ponder_i = 0;
 								}
 							}
-							if (usi_ponder_engines[ponderhit_i].IsLiving()) {
+							multi_ponder_engine_index.emplace_back(ponder_i);
+							if (usi_ponder_engines[ponder_i].IsLiving()) {
 								const std::string ponder_move = std::move(multi_ponder_moves[j++].toUSI());
-								std::cout << " " << ponderhit_i + 1 << " " << ponder_move;
-								usi_ponder_engines[ponderhit_i].GoPonderAsync(pos_ss + " " + ponder_move, limits);
+								std::cout << " " << ponder_i + 1 << " " << ponder_move;
+								usi_ponder_engines[ponder_i].GoPonderAsync(pos_ss + " " + ponder_move, limits);
 							}
 						}
 						std::cout << "\n";
