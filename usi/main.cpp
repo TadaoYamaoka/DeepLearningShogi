@@ -200,14 +200,17 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						// USIエンジンにgo ponderを送信
 						std::cout << "info string multiponder";
 						for (size_t i = 0, j = 0; i < multi_ponder_moves.size(); i++) {
-							size_t ponder_i = i;
+							size_t ponder_i;
 							// ponderhitしたエンジンに1番目の候補手を割り当てる
 							if (ponderhit_i != nohit) {
 								if (i == 0) {
 									ponder_i = ponderhit_i;
 								}
-								else if (i == ponderhit_i) {
-									ponder_i = 0;
+								else if (i <= ponderhit_i) {
+									ponder_i = i - 1;
+								}
+								else {
+									ponder_i = i;
 								}
 							}
 							multi_ponder_engine_index.emplace_back(ponder_i);
