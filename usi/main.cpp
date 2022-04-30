@@ -214,9 +214,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 								else if (i <= ponderhit_i) {
 									ponder_i = i - 1;
 								}
-								else {
-									ponder_i = i;
-								}
 							}
 							multi_ponder_engine_index.emplace_back(ponder_i);
 							if (usi_ponder_engines[ponder_i].IsLiving()) {
