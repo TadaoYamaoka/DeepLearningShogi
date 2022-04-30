@@ -18,7 +18,6 @@ USIPonderEngine::USIPonderEngine(const std::string path, const std::vector<std::
 
 USIPonderEngine::~USIPonderEngine()
 {
-	ops << "quit" << std::endl;
 	if (th) {
 #ifdef THREAD_POOL
 		// スレッドを終了
@@ -155,6 +154,11 @@ void USIPonderEngine::Join() {
 void USIPonderEngine::Stop()
 {
 	ops << "stop" << std::endl;
+}
+
+void USIPonderEngine::Quit()
+{
+	ops << "quit" << std::endl;
 }
 
 USIPonderResult USIPonderEngine::Ponderhit()

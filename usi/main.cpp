@@ -88,6 +88,11 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		ssCmd >> std::skipws >> token;
 
 		if (token == "quit") {
+#ifdef MULTI_PONDER
+			for (size_t i = 0; i < usi_ponder_engines.size(); i++) {
+				usi_ponder_engines[i].Quit();
+			}
+#endif
 			StopUctSearch();
 			TerminateUctSearch();
 			if (th.joinable())

@@ -35,6 +35,7 @@ public:
 	void GoPonderAsync(const std::string& usi_position, const LimitsType& limits);
 	void Join();
 	void Stop();
+	void Quit();
 	USIPonderResult Ponderhit();
 	const std::string& GetUsiPosition() const { return usi_position; }
 	bool IsLiving() { return living; }
