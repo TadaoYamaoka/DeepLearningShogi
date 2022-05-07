@@ -420,21 +420,23 @@ void MySearcher::goUct(Position& pos) {
 }
 
 void MySearcher::getAndPrintBestMove() {
-	auto bestMove = future.get();
-	std::cout << "bestmove ";
-	if (bestMove.first == Move::moveResign()) {
-		std::cout << "resign";
-	}
-	else if (bestMove.first == Move::moveWin()) {
-		std::cout << "win";
-	}
-	else {
-		std::cout << bestMove.first.toUSI();
-	}
-	if (bestMove.second != Move::moveNone()) {
-		std::cout << " ponder " << bestMove.second.toUSI();
-	}
-	std::cout << std::endl;
+	std::thread([] {
+		auto bestMove = future.get();
+		std::cout << "bestmove ";
+		if (bestMove.first == Move::moveResign()) {
+			std::cout << "resign";
+		}
+		else if (bestMove.first == Move::moveWin()) {
+			std::cout << "win";
+		}
+		else {
+			std::cout << bestMove.first.toUSI();
+		}
+		if (bestMove.second != Move::moveNone()) {
+			std::cout << " ponder " << bestMove.second.toUSI();
+		}
+		std::cout << std::endl;
+	}).detach();
 }
 
 #ifdef MAKE_BOOK
