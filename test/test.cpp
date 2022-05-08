@@ -344,7 +344,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -1838,6 +1838,108 @@ int main()
 		std::cout << "batch:" << i << "\n";
 		print_features(x1[i], x2[i]);
 	}
+
+	return 0;
+}
+#endif
+
+#if 1
+#include <fstream>
+#include <regex>
+#include "book.hpp"
+int main(int argc, char* argv[]) {
+	initTable();
+	Position pos;
+
+	struct Entry {
+		Move move;
+		int eval;
+		double prob;
+	};
+
+	constexpr int evalLimit = -200;
+	std::regex re(R"(^(\S+) \S+ (\S+) \d+ \d+$)");
+
+	std::ifstream ifs(argv[1]);
+	std::string line;
+	std::vector<Entry> entries;
+	std::map<Key, std::vector<BookEntry> > outMap;
+
+	auto outputEntries = [&entries, &outMap](Key key) {
+		std::vector<BookEntry> bookEntries;
+		bookEntries.reserve(entries.size());
+		double max = DBL_MIN;
+		constexpr double beta = 1.0 / 0.1;
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x *= beta;
+			if (x > max) {
+				max = x;
+			}
+		}
+		// オーバーフローを防止するため最大値で引く
+		double sum = 0.0;
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x = exp(x - max);
+			sum += x;
+		}
+		// normalize
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x /= sum;
+		}
+
+		for (auto& entry : entries) {
+			u16 count = (u16)(entry.prob * 1000);
+			if (count > 0)
+				bookEntries.emplace_back(BookEntry{ key, (u16)entry.move.value(), count, (Score)entry.eval });
+		}
+
+		if (bookEntries.size() > 0)
+			outMap.emplace(key, std::move(bookEntries));
+	};
+
+	auto score_to_value = [](const int score) {
+		return 1.0 / (1.0 + exp(-(double)score / 100.0));
+	};
+
+
+	while (ifs) {
+		std::getline(ifs, line);
+		if (line.size() == 0) {
+			outputEntries(Book::bookKey(pos));
+			break;
+		}
+
+		if (line[0] == '#') continue;
+
+		if (line.substr(0, 4) == "sfen") {
+			if (entries.size() > 0) {
+				outputEntries(Book::bookKey(pos));
+			}
+
+			pos.set(line.substr(5));
+			entries.clear();
+		}
+		else {
+			std::smatch m;
+			if (std::regex_match(line, m, re)) {
+				int eval = std::stoi(m[2]);
+				if (eval >= evalLimit) {
+					entries.emplace_back(Entry{ usiToMove(pos, m[1]), eval, score_to_value(eval) });
+				}
+			}
+		}
+	}
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+	}
+
+	std::cout << outMap.size() << std::endl;
 
 	return 0;
 }

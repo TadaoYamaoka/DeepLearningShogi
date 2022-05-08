@@ -144,6 +144,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
     (*this)["Book_Cutoff"]                 = USIOption(15, 0, 1000);
     (*this)["Book_Temperature"]            = USIOption(1000, 0, 100000);
+    (*this)["Book_Merge_File"]             = USIOption("");
     (*this)["Make_Book_Color"]             = USIOption("both");
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
