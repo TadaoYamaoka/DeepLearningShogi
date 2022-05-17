@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\csa_to_gokakusfen.py</StartupFile>
+    <StartupFile>utils\delete_book_side.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\floodgate\2021 r:\gokakusfen.txt</CommandLineArguments>
+    <CommandLineArguments>black f:\book\book_pre28_300m-w-fix10.bin F:\book\book_pre28_300m-w-fix10-delblack.bin --opponent F:\book\s-book_black.db</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -56,12 +56,18 @@
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_to_book.py" />
+    <Compile Include="utils\csa_to_csv.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\csa_to_hcp.py" />
     <Compile Include="utils\csa_to_hcpe.py" />
     <Compile Include="utils\csa_to_hcpe2.py" />
     <Compile Include="utils\csa_to_gokakusfen.py" />
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\delete_book_side.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\delete_hcp.py">
       <SubType>Code</SubType>
     </Compile>
@@ -93,6 +99,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
     <Compile Include="utils\__init__.py">
       <SubType>Code</SubType>

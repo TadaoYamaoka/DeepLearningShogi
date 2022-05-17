@@ -133,6 +133,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
     (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
+    (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
@@ -140,7 +141,10 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Use_Book_Policy"]             = USIOption(true);
     (*this)["Use_Interruption"]            = USIOption(true);
     (*this)["Book_Eval_Threshold"]         = USIOption(INT_MAX, 1, INT_MAX);
-    (*this)["Book_Visit_Threshold"]        = USIOption(10, 0, 1000);
+    (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
+    (*this)["Book_Cutoff"]                 = USIOption(15, 0, 1000);
+    (*this)["Book_Temperature"]            = USIOption(1000, 0, 100000);
+    (*this)["Book_Merge_File"]             = USIOption("");
     (*this)["Make_Book_Color"]             = USIOption("both");
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);

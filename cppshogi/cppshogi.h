@@ -4,10 +4,9 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "generateMoves.hpp"
+#include "dtype.h"
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
-
-typedef float DType;
 
 constexpr int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
 constexpr int MAX_HLANCE_NUM = 4;
@@ -44,10 +43,14 @@ enum MOVE_DIRECTION {
 // 指し手を表すラベルの数
 constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
+typedef char packed_features1_t[((size_t)ColorNum * MAX_FEATURES1_NUM * (size_t)SquareNum + 7) / 8];
+typedef char packed_features2_t[((size_t)MAX_FEATURES2_NUM + 7) / 8];
+
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
-void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
+void make_input_features(const Position& position, features1_t features1, features2_t features2);
+void make_input_features(const Position& position, packed_features1_t packed_features1, packed_features2_t packed_features2);
 int make_move_label(const u16 move16, const Color color);
 
 // 評価値から価値(勝率)に変換

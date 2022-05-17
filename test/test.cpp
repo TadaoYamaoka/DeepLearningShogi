@@ -1605,7 +1605,7 @@ L_EXIT:
 }
 #endif
 
-#if 1
+#if 0
 int main()
 {
 	initTable();
@@ -1625,5 +1625,322 @@ int main()
 
 	bb = lanceAttack(Black, SQ19, occ);
 	bb.printBoard();
+}
+#endif
+
+#if 0
+int main()
+{
+	initTable();
+	Position pos;
+	//pos.set("l6nl/6gk1/p6pp/4s1s2/1pB1pp1P1/2PP5/PPS1P+b2P/1KG6/LN5NL b RGN3Prgs2p 85");
+	pos.set("l1S4nl/3R2gP1/2P1ppbsp/2gpk1Np1/1p3PP2/p5K1P/1PB1P1N2/3G1Sg2/L1SR4L w Pn3p 116");
+
+	features1_t features1{};
+	features2_t features2{};
+	make_input_features(pos, features1, features2);
+
+	std::cout << "features1\n";
+	for (Color c = Black; c < ColorNum; ++c) {
+		std::cout << "color:" << c << "\n";
+		for (int f1idx = 0; f1idx < MAX_FEATURES1_NUM; ++f1idx) {
+			for (Square sq = SQ11; sq < SquareNum; ++sq) {
+				const auto v = (float)features1[c][f1idx][sq];
+				std::cout << v << ",";
+			}
+			std::cout << "\n";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "features2\n";
+	for (Color c = Black; c < ColorNum; ++c) {
+		std::cout << "color:" << c << "\n";
+		for (int f2idx = 0; f2idx < MAX_PIECES_IN_HAND_SUM; ++f2idx) {
+			const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx;
+			const auto v = (float)features2[idx][0];
+			std::cout << v << ",";
+		}
+		std::cout << "\n";
+	}
+	{
+		const int idx = MAX_FEATURES2_HAND_NUM;
+		const auto v = (float)features2[idx][0];
+		std::cout << v << "\n";
+	}
+	std::cout << "\n";
+
+
+	packed_features1_t packed_features1{};
+	packed_features2_t packed_features2{};
+	make_input_features(pos, packed_features1, packed_features2);
+
+	std::cout << "packed_features1\n";
+	for (Color c = Black; c < ColorNum; ++c) {
+		std::cout << "color:" << c << "\n";
+		for (int f1idx = 0; f1idx < MAX_FEATURES1_NUM; ++f1idx) {
+			for (Square sq = SQ11; sq < SquareNum; ++sq) {
+				const int idx = MAX_FEATURES1_NUM * (int)SquareNum * (int)c + (int)SquareNum * f1idx + sq;
+				const auto v = ((packed_features1[idx >> 3] >> (idx & 7)) & 1);
+				std::cout << v << ",";
+			}
+			std::cout << "\n";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "packed_features2\n";
+	for (Color c = Black; c < ColorNum; ++c) {
+		std::cout << "color:" << c << "\n";
+		for (int f2idx = 0; f2idx < MAX_PIECES_IN_HAND_SUM; ++f2idx) {
+			const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx;
+			const auto v = ((packed_features2[idx >> 3] >> (idx & 7)) & 1);
+			std::cout << v << ",";
+		}
+		std::cout << "\n";
+	}
+	{
+		const int idx = MAX_FEATURES2_HAND_NUM;
+		const auto v = ((packed_features2[idx >> 3] >> (idx & 7)) & 1);
+		std::cout << v << "\n";
+	}
+
+	return 0;
+}
+#endif
+
+#if 0
+#include "unpack.h"
+int main()
+{
+	initTable();
+	Position pos;
+	std::vector<std::string> sfens = {
+		"l6nl/6gk1/p6pp/4s1s2/1pB1pp1P1/2PP5/PPS1P+b2P/1KG6/LN5NL b RGN3Prgs2p 85",
+		"l1S4nl/3R2gP1/2P1ppbsp/2gpk1Np1/1p3PP2/p5K1P/1PB1P1N2/3G1Sg2/L1SR4L w Pn3p 116",
+	};
+	const int batch_size = sfens.size();
+
+	auto print_features = [](features1_t features1, features2_t features2)
+	{
+		std::cout << "features1\n";
+		for (Color c = Black; c < ColorNum; ++c) {
+			std::cout << "color:" << c << "\n";
+			for (int f1idx = 0; f1idx < MAX_FEATURES1_NUM; ++f1idx) {
+				for (Square sq = SQ11; sq < SquareNum; ++sq) {
+					if (sq > SQ11 && sq % 9 == 0) std::cout << " ";
+					const auto v = (float)features1[c][f1idx][sq];
+					std::cout << v << ",";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+		}
+
+		std::cout << "features2\n";
+		for (Color c = Black; c < ColorNum; ++c) {
+			std::cout << "color:" << c << "\n";
+			for (int f2idx = 0; f2idx < MAX_PIECES_IN_HAND_SUM; ++f2idx) {
+				const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx;
+				const auto v = (float)features2[idx][0];
+				std::cout << v << ",";
+			}
+			std::cout << "\n";
+		}
+		{
+			const int idx = MAX_FEATURES2_HAND_NUM;
+			const auto v = (float)features2[idx][0];
+			std::cout << v << "\n";
+		}
+		std::cout << "\n";
+	};
+
+	auto print_packed_features = [](packed_features1_t packed_features1, packed_features2_t packed_features2)
+	{
+		std::cout << "packed_features1\n";
+		for (Color c = Black; c < ColorNum; ++c) {
+			std::cout << "color:" << c << "\n";
+			for (int f1idx = 0; f1idx < MAX_FEATURES1_NUM; ++f1idx) {
+				for (Square sq = SQ11; sq < SquareNum; ++sq) {
+					if (sq > SQ11 && sq % 9 == 0) std::cout << " ";
+					const int idx = MAX_FEATURES1_NUM * (int)SquareNum * (int)c + (int)SquareNum * f1idx + sq;
+					const auto v = ((packed_features1[idx >> 3] >> (idx & 7)) & 1);
+					std::cout << v << ",";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+		}
+
+		std::cout << "packed_features2\n";
+		for (Color c = Black; c < ColorNum; ++c) {
+			std::cout << "color:" << c << "\n";
+			for (int f2idx = 0; f2idx < MAX_PIECES_IN_HAND_SUM; ++f2idx) {
+				const int idx = MAX_PIECES_IN_HAND_SUM * (int)c + f2idx;
+				const auto v = ((packed_features2[idx >> 3] >> (idx & 7)) & 1);
+				std::cout << v << ",";
+			}
+			std::cout << "\n";
+		}
+		{
+			const int idx = MAX_FEATURES2_HAND_NUM;
+			const auto v = ((packed_features2[idx >> 3] >> (idx & 7)) & 1);
+			std::cout << v << "\n";
+		}
+		std::cout << "\n";
+	};
+
+
+	features1_t* features1 = new features1_t[batch_size];
+	features2_t* features2 = new features2_t[batch_size];
+	std::fill_n((DType*)features1, sizeof(features1_t) / sizeof(DType) * batch_size, _zero);
+	std::fill_n((DType*)features2, sizeof(features2_t) / sizeof(DType) * batch_size, _zero);
+
+	for (int i = 0; i < batch_size; ++i) {
+		pos.set(sfens[i]);
+		make_input_features(pos, features1[i], features2[i]);
+		std::cout << "batch:" << i << "\n";
+		print_features(features1[i], features2[i]);
+	}
+
+	packed_features1_t* packed_features1 = new packed_features1_t[batch_size];
+	packed_features2_t* packed_features2 = new packed_features2_t[batch_size];
+	std::fill_n((char*)packed_features1, sizeof(packed_features1_t) * batch_size, 0);
+	std::fill_n((char*)packed_features2, sizeof(packed_features2_t) * batch_size, 0);
+
+	for (int i = 0; i < batch_size; ++i) {
+		pos.set(sfens[i]);
+		make_input_features(pos, packed_features1[i], packed_features2[i]);
+		//std::cout << "batch:" << i << "\n";
+		//print_packed_features(packed_features1[i], packed_features2[i]);
+	}
+
+	packed_features1_t* p1_dev;
+	packed_features2_t* p2_dev;
+	features1_t* x1_dev;
+	features2_t* x2_dev;
+	cudaMalloc((void**)&p1_dev, sizeof(packed_features1_t) * batch_size);
+	cudaMalloc((void**)&p2_dev, sizeof(packed_features2_t) * batch_size);
+	cudaMalloc((void**)&x1_dev, sizeof(features1_t) * batch_size);
+	cudaMalloc((void**)&x2_dev, sizeof(features2_t) * batch_size);
+	features1_t* x1 = new features1_t[batch_size];
+	features2_t* x2 = new features2_t[batch_size];
+
+	cudaMemcpyAsync(p1_dev, packed_features1, sizeof(packed_features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread);
+	cudaMemcpyAsync(p2_dev, packed_features2, sizeof(packed_features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread);
+	unpack_features1(batch_size, p1_dev, x1_dev, cudaStreamPerThread);
+	unpack_features2(batch_size, p2_dev, x2_dev, cudaStreamPerThread);
+	cudaMemcpyAsync(x1, x1_dev, sizeof(features1_t) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread);
+	cudaMemcpyAsync(x2, x2_dev, sizeof(features2_t) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread);
+	cudaStreamSynchronize(cudaStreamPerThread);
+
+	for (int i = 0; i < batch_size; ++i) {
+		std::cout << "batch:" << i << "\n";
+		print_features(x1[i], x2[i]);
+	}
+
+	return 0;
+}
+#endif
+
+#if 1
+#include <fstream>
+#include <regex>
+#include "book.hpp"
+int main(int argc, char* argv[]) {
+	initTable();
+	Position pos;
+
+	struct Entry {
+		Move move;
+		int eval;
+		double prob;
+	};
+
+	constexpr int evalLimit = -200;
+	std::regex re(R"(^(\S+) \S+ (\S+) \d+ \d+$)");
+
+	std::ifstream ifs(argv[1]);
+	std::string line;
+	std::vector<Entry> entries;
+	std::map<Key, std::vector<BookEntry> > outMap;
+
+	auto outputEntries = [&entries, &outMap](Key key) {
+		std::vector<BookEntry> bookEntries;
+		bookEntries.reserve(entries.size());
+		double max = DBL_MIN;
+		constexpr double beta = 1.0 / 0.1;
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x *= beta;
+			if (x > max) {
+				max = x;
+			}
+		}
+		// オーバーフローを防止するため最大値で引く
+		double sum = 0.0;
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x = exp(x - max);
+			sum += x;
+		}
+		// normalize
+		for (int i = 0; i < entries.size(); i++) {
+			double& x = entries[i].prob;
+			x /= sum;
+		}
+
+		for (auto& entry : entries) {
+			u16 count = (u16)(entry.prob * 1000);
+			if (count > 0)
+				bookEntries.emplace_back(BookEntry{ key, (u16)entry.move.value(), count, (Score)entry.eval });
+		}
+
+		if (bookEntries.size() > 0)
+			outMap.emplace(key, std::move(bookEntries));
+	};
+
+	auto score_to_value = [](const int score) {
+		return 1.0 / (1.0 + exp(-(double)score / 100.0));
+	};
+
+
+	while (ifs) {
+		std::getline(ifs, line);
+		if (line.size() == 0) {
+			outputEntries(Book::bookKey(pos));
+			break;
+		}
+
+		if (line[0] == '#') continue;
+
+		if (line.substr(0, 4) == "sfen") {
+			if (entries.size() > 0) {
+				outputEntries(Book::bookKey(pos));
+			}
+
+			pos.set(line.substr(5));
+			entries.clear();
+		}
+		else {
+			std::smatch m;
+			if (std::regex_match(line, m, re)) {
+				int eval = std::stoi(m[2]);
+				if (eval >= evalLimit) {
+					entries.emplace_back(Entry{ usiToMove(pos, m[1]), eval, score_to_value(eval) });
+				}
+			}
+		}
+	}
+
+	std::ofstream ofs(argv[2], std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+	}
+
+	std::cout << outMap.size() << std::endl;
+
+	return 0;
 }
 #endif

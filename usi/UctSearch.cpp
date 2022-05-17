@@ -45,6 +45,14 @@
 
 using namespace std;
 
+#ifdef ONNXRUNTIME
+typedef features1_t Features1;
+typedef features2_t Features2;
+#else
+typedef packed_features1_t Features1;
+typedef packed_features2_t Features2;
+#endif
+
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -87,7 +95,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 bool pondering_mode = false;
 
-bool pondering = false;
+atomic<bool> pondering = false;
 
 atomic<bool> uct_search_stop(false);
 
@@ -147,6 +155,7 @@ int random_ply = 0;
 float random_temperature = 10.0f;
 float random_temperature_drop = 1.0f;
 float random_cutoff = 0.015f;
+float random_cutoff_drop = 0.0f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
 
 #ifdef PV_MATE_SEARCH
@@ -242,7 +251,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2, DType* y3) {
+	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2, DType* y3) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2, y3);
 		mutex_gpu.unlock();
@@ -290,8 +299,8 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y3, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
@@ -413,8 +422,8 @@ private:
 #endif
 
 	int policy_value_batch_maxsize;
-	features1_t* features1;
-	features2_t* features2;
+	Features1* features1;
+	Features2* features2;
 	DType* y1;
 	DType* y2;
 	DType* y3;
@@ -579,12 +588,13 @@ void SetEvalCoef(const int eval_coef)
 }
 
 // ランダムムーブの設定
-void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff)
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop)
 {
 	random_ply = ply;
 	random_temperature = temperature / 1000.0f;
 	random_temperature_drop = temperature_drop / 1000.0f;
 	random_cutoff = cutoff / 1000.0f;
+	random_cutoff_drop = cutoff_drop / 1000.0f;
 	if (ply > 0 && !random_mt_64) {
 		std::random_device seed_gen;
 		random_mt_64.reset(new std::mt19937_64(seed_gen()));
@@ -632,6 +642,7 @@ void SetLimits(const LimitsType& limits)
 // go cmd前に呼ばれ、探索の条件を指定する
 void SetLimits(const Position* pos, const LimitsType& limits)
 {
+	pondering = limits.ponder;
 	begin_time = limits.startTime;
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
@@ -662,6 +673,11 @@ void SetConstPlayout(const int playout)
 	const_playout = playout;
 }
 
+void SetPondering(bool value)
+{
+	pondering = value;
+}
+
 ////////////
 //  終了  //
 ////////////
@@ -669,6 +685,12 @@ void
 FinalizeUctSearch(void)
 {
 	delete[] search_groups;
+}
+
+// UCT探索の停止フラグ初期化
+void InitUctSearchStop()
+{
+	uct_search_stop = false;
 }
 
 void
@@ -709,6 +731,26 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
+	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
 	}
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
@@ -784,10 +826,11 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 
 	// 訪問数が最大のノードの価値の一定以下は除外
 	const auto max_move_count_child = sorted_uct_childs[0];
-	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
+	const int step = (pos_root->gamePly() - 1) / 2;
+	const float cutoff = std::max(0.0f, random_cutoff - random_cutoff_drop * step);
+	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - cutoff;
 	vector<double> probabilities;
 	probabilities.reserve(child_num);
-	const int step = (pos_root->gamePly() - 1) / 2;
 	const float temperature = std::max(0.1f, random_temperature - random_temperature_drop * step);
 	const float reciprocal_temperature = 1.0f / temperature;
 	for (int i = 0; i < child_num; i++) {
@@ -893,9 +936,8 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
+UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove)
 {
-	uct_search_stop = false;
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
 		searcher.Stop(false);
@@ -904,6 +946,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	init_search_begin_time = false;
 	interruption = false;
 
+	if (!reuse_subtree) {
+		// ゲーム木を再利用しない場合クリア
+		tree->DeallocateTree();
+	}
+
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
 
@@ -911,8 +958,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	pos_root = pos;
 	
 	const uct_node_t* current_root = tree->GetCurrentHead();
-
-	pondering = ponder;
 
 	// 探索情報をクリア
 	po_info.count = 0;
@@ -946,16 +991,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// 探索スレッド終了待機
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
-
-	if (pondering) {
-#ifdef PV_MATE_SEARCH
-		// PVの詰み探索スレッド終了待機
-		for (auto& searcher : pv_mate_searchers)
-			searcher.Join();
-#endif
-
-		return Move::moveNone();
-	}
 
 #ifdef PV_MATE_SEARCH
 	// PVの詰み探索スレッド停止
@@ -1026,10 +1061,15 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0.0f);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0.0f);
+#ifdef ONNXRUNTIME
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+#else
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+#endif
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win, draw };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -1047,6 +1087,7 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 	for (int i = 0; i < child_num; i++) {
 		if (uct_child[i].move_count > max_searched) {
 			second_searched = max_searched;
+			second_index = max_index;
 			max_searched = uct_child[i].move_count;
 			max_index = i;
 		}
@@ -1566,15 +1607,15 @@ void UCTSearcher::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (*logits)[move_label];
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
 
-		*policy_value_batch[i].value_win = *value;
-		*policy_value_batch[i].draw = *draw;
+		*policy_value_batch[i].value_win = (float)*value;
+		*policy_value_batch[i].draw = (float)*draw;
 
 #ifdef MAKE_BOOK
 		if (use_book_policy) {

@@ -121,6 +121,8 @@ std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
+bool SPLIT_OPPONENT = false;
+ofstream ofs_opponent;
 bool OUT_MIN_HCP = false;
 ofstream ofs_minhcp;
 mutex imutex;
@@ -193,6 +195,26 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
+	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
 	}
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
@@ -274,8 +296,8 @@ private:
 
 	// キュー
 	int policy_value_batch_maxsize; // 最大バッチサイズ
-	features1_t* features1;
-	features2_t* features2;
+	packed_features1_t* features1;
+	packed_features2_t* features2;
 	batch_element_t* policy_value_batch;
 	int current_policy_value_batch_index;
 
@@ -410,6 +432,19 @@ private:
 			idx++;
 		}
 	}
+	// 局面出力
+	void WriteRecords(std::ofstream& ofs, HuffmanCodedPosAndEval3& hcpe3) {
+		std::unique_lock<Mutex> lock(omutex);
+		ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+		for (auto& record : records) {
+			MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
+			ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
+			if (record.candidates.size() > 0) {
+				ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
+				madeTeacherNodes++;
+			}
+		}
+	}
 };
 
 class UCTSearcherGroupPair {
@@ -430,7 +465,7 @@ public:
 		}
 		mutex_all_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -481,8 +516,8 @@ UCTSearcherGroup::Initialize()
 	}
 
 	// キューを動的に確保する
-	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 
 	// UCTSearcher
@@ -872,10 +907,10 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0.0f);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0.0f);
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
 	current_policy_value_batch_index++;
 }
@@ -949,7 +984,7 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (*logits)[move_label];
+			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
 		}
 
@@ -961,7 +996,7 @@ void UCTSearcherGroup::EvalNode() {
 			req->nnrate[j] = uct_child[j].nnrate;
 		}
 
-		const float value_win = *value;
+		const float value_win = (float)*value;
 
 		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));
@@ -1408,18 +1443,7 @@ void UCTSearcher::NextGame()
 			static_cast<u8>(gameResult | reason),
 			opponent
 		};
-		{
-			std::unique_lock<Mutex> lock(omutex);
-			ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
-			for (auto& record : records) {
-				MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
-				ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
-				if (record.candidates.size() > 0) {
-					ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
-					madeTeacherNodes++;
-				}
-			}
-		}
+		WriteRecords((!SPLIT_OPPONENT || opponent == 0) ? ofs : ofs_opponent, hcpe3);
 		++games;
 
 		if (gameResult == Draw) {
@@ -1473,6 +1497,15 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	if (!ofs) {
 		cerr << "Error: cannot open " << outputFileName << endl;
 		exit(EXIT_FAILURE);
+	}
+	// USIエンジンの教師局面を別ファイルに出力
+	if (SPLIT_OPPONENT) {
+		std::string filepath{ outputFileName };
+		if (filepath.size() >= 6 && filepath.substr(filepath.size() - 6) == ".hcpe3")
+			filepath = filepath.substr(0, filepath.size() - 6) + "_opp.hcpe3";
+		else
+			filepath += "_opp";
+		ofs_opponent.open(filepath, ios::binary);
 	}
 	// 削除候補の初期局面を出力するファイル
 	if (OUT_MIN_HCP) ofs_minhcp.open(string(outputFileName) + "_min.hcp", ios::binary);
@@ -1539,6 +1572,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
+	if (SPLIT_OPPONENT) ofs_opponent.close();
 	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
@@ -1597,8 +1631,9 @@ int main(int argc, char* argv[]) {
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("reuse", "reuse sub tree", cxxopts::value<bool>(REUSE_SUBTREE)->default_value("false"))
-			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
+			("split_opponent", "split opponent's hcpe3", cxxopts::value<bool>(SPLIT_OPPONENT)->default_value("false"))
+			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
 			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
@@ -1723,6 +1758,7 @@ int main(int argc, char* argv[]) {
 	logger->info("temperature:{}", temperature);
 	logger->info("reuse:{}", REUSE_SUBTREE);
 	logger->info("nn_cache_size:{}", nn_cache_size);
+	if (SPLIT_OPPONENT) logger->info("split_opponent");
 	if (OUT_MIN_HCP) logger->info("out_min_hcp");
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);

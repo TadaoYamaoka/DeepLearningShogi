@@ -32,6 +32,7 @@ struct po_info_t {
 void SetLimits(const LimitsType& limits);
 void SetLimits(const Position* pos, const LimitsType& limits);
 void SetConstPlayout(const int playout);
+void SetPondering(bool value);
 
 // 残り時間
 extern int remaining_time[ColorNum];
@@ -41,6 +42,9 @@ extern unsigned int current_root;
 
 // ノード数の上限
 extern unsigned int po_max;
+
+// UCT探索の停止フラグ初期化
+void InitUctSearchStop();
 
 // 予測読みを止める
 void StopUctSearch(void);
@@ -73,7 +77,7 @@ void TerminateUctSearch();
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder = false);
+Move UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove);
 
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);
@@ -88,7 +92,7 @@ void SetMultiPV(const int multipv);
 void SetEvalCoef(const int eval_coef);
 
 // ランダムムーブ設定（1000分率）
-void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff);
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);

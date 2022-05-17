@@ -33,8 +33,7 @@ namespace {
 			const Square from = fromBB.firstOneFromSQ11();
 			const bool fromCanPromote = canPromote(US, makeRank(from));
 			Bitboard toBB = pos.attacksFrom<PT>(US, from) & target;
-			while (toBB) {
-				const Square to = toBB.firstOneFromSQ11();
+			FOREACH_BB(toBB, const Square to, {
 				const bool toCanPromote = canPromote(US, makeRank(to));
 				if (fromCanPromote | toCanPromote) {
 					(*moveList++).move = makePromoteMove<MT>(PT, from, to, pos);
@@ -43,7 +42,7 @@ namespace {
 				}
 				else // 角、飛車は成れるなら成り、不成は生成しない。
 					(*moveList++).move = makeNonPromoteMove<MT>(PT, from, to, pos);
-			}
+			});
 		}
 		return moveList;
 	}
@@ -166,10 +165,9 @@ namespace {
 				// from にある駒の種類を判別
 				const PieceType pt = pieceToPieceType(pos.piece(from));
 				Bitboard toBB = pos.attacksFrom(pt, US, from) & target;
-				while (toBB) {
-					const Square to = toBB.firstOneFromSQ11();
+				FOREACH_BB(toBB, const Square to, {
 					(*moveList++).move = makeNonPromoteMove<MT>(pt, from, to, pos);
-				}
+				});
 			}
 			return moveList;
 		}
@@ -253,8 +251,7 @@ namespace {
 			while (fromBB) {
 				const Square from = fromBB.firstOneFromSQ11();
 				Bitboard toBB = pos.attacksFrom<Knight>(US, from) & target;
-				while (toBB) {
-					const Square to = toBB.firstOneFromSQ11();
+				FOREACH_BB(toBB, const Square to, {
 					const bool toCanPromote = canPromote(US, makeRank(to));
 					if (toCanPromote) {
 						(*moveList++).move = makePromoteMove<MT>(Knight, from, to, pos);
@@ -263,7 +260,7 @@ namespace {
 					}
 					else
 						(*moveList++).move = makeNonPromoteMove<MT>(Knight, from, to, pos);
-				}
+				});
 			}
 			return moveList;
 		}
@@ -276,13 +273,12 @@ namespace {
 				const Square from = fromBB.firstOneFromSQ11();
 				const bool fromCanPromote = canPromote(US, makeRank(from));
 				Bitboard toBB = pos.attacksFrom<Silver>(US, from) & target;
-				while (toBB) {
-					const Square to = toBB.firstOneFromSQ11();
+				FOREACH_BB(toBB, const Square to, {
 					const bool toCanPromote = canPromote(US, makeRank(to));
 					if (fromCanPromote | toCanPromote)
 						(*moveList++).move = makePromoteMove<MT>(Silver, from, to, pos);
 					(*moveList++).move = makeNonPromoteMove<MT>(Silver, from, to, pos);
-				}
+				});
 			}
 			return moveList;
 		}
@@ -303,10 +299,9 @@ namespace {
 		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos, const Bitboard& target, const Square /*ksq*/) {
 			const Square from = pos.kingSquare(US);
 			Bitboard toBB = pos.attacksFrom<King>(US, from) & target;
-			while (toBB) {
-				const Square to = toBB.firstOneFromSQ11();
+			FOREACH_BB(toBB, const Square to, {
 				(*moveList++).move = makeNonPromoteMove<MT>(King, from, to, pos);
-			}
+			});
 			return moveList;
 		}
 	};
@@ -468,12 +463,11 @@ namespace {
 
 			// 玉が移動出来る移動先を格納。
 			bb = bannedKingToBB.notThisAnd(pos.bbOf(US).notThisAnd(kingAttack(ksq)));
-			while (bb) {
-				const Square to = bb.firstOneFromSQ11();
+			FOREACH_BB(bb, const Square to, {
 				// 移動先に相手駒の利きがあるか調べずに指し手を生成する。
 				// attackersTo() が重いので、movePicker か search で合法手か調べる。
 				(*moveList++).move = makeNonPromoteMove<Capture>(King, ksq, to, pos);
-			}
+			});
 
 			// 両王手なら、玉を移動するしか回避方法は無い。
 			// 玉の移動は生成したので、ここで終了
@@ -719,7 +713,6 @@ namespace {
 						}
 						case Silver: // 銀
 						{
-							Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
 							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
@@ -787,8 +780,7 @@ namespace {
 				{
 					// 成って王手
 					Bitboard toBB = pawnAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						if (canPromote(US, makeRank(to))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							// 成らない手を後に生成
@@ -799,7 +791,7 @@ namespace {
 						}
 						else
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					}
+					});
 					break;
 				}
 				case Lance: // 香車
@@ -807,13 +799,12 @@ namespace {
 					// 玉と筋が異なる場合
 					if (makeFile(ksq) != makeFile(from)) {
 						Bitboard toBB = goldAttack(opp, ksq) & lanceAttack(US, from, pos.occupiedBB()) & target;
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							// 成る
 							if (canPromote(US, makeRank(to))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							}
-						}
+						});
 					}
 					// 筋が同じ場合
 					else {
@@ -841,35 +832,31 @@ namespace {
 				case Knight: // 桂馬
 				{
 					Bitboard toBB = knightAttack(opp, ksq) & knightAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					}
+					});
 					// 成って王手
 					toBB = goldAttack(opp, ksq) & knightAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						if (canPromote(US, makeRank(to))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 						}
-					}
+					});
 					break;
 				}
 				case Silver: // 銀
 				{
 					Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					}
+					});
 					// 成って王手
 					toBB = goldAttack(opp, ksq) & silverAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 						}
-					}
+					});
 					break;
 				}
 				case Gold: // 金
@@ -879,10 +866,9 @@ namespace {
 				case ProSilver: // 成銀
 				{
 					Bitboard toBB = goldAttack(opp, ksq) & goldAttack(US, from) & target;
-					while (toBB) {
-						const Square to = toBB.firstOneFromSQ11();
+					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					}
+					});
 					break;
 				}
 				case Bishop: // 角
@@ -891,8 +877,7 @@ namespace {
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
 						const Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							// 成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
@@ -906,7 +891,7 @@ namespace {
 							else if (bishopBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
-						}
+						});
 					}
 					// 対角上にある場合
 					else {
@@ -935,8 +920,7 @@ namespace {
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
 						const Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							// 成る
 							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
@@ -949,7 +933,7 @@ namespace {
 							else if (rookBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
-						}
+						});
 					}
 					// 直線上にある場合
 					else {
@@ -977,10 +961,9 @@ namespace {
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
 						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB()) & target;
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
+						});
 					}
 					// 対角上にある場合
 					else {
@@ -998,10 +981,9 @@ namespace {
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
 						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB()) & target;
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
+						});
 					}
 					// 直線上にある場合
 					else {
@@ -1011,10 +993,9 @@ namespace {
 						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
 							toBB |= dstBB;
 						}
-						while (toBB) {
-							const Square to = toBB.firstOneFromSQ11();
+						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						}
+						});
 					}
 					break;
 				}
