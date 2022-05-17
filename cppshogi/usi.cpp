@@ -109,7 +109,12 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
     (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
-    (*this)["Mate_Root_Search"]            = USIOption(31, 0, 37);
+    (*this)["Mate_Root_Search"]            = USIOption(33, 0, 37);
+#ifdef PV_MATE_SEARCH
+    (*this)["PV_Mate_Search_Threads"]      = USIOption(0, 0, 256);
+    (*this)["PV_Mate_Search_Depth"]        = USIOption(33, 0, 37);
+    (*this)["PV_Mate_Search_Nodes"]        = USIOption(500000, 0, 10000000);
+#endif
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
@@ -123,9 +128,24 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
+    (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
+    (*this)["Random_Ply"]                  = USIOption(0, 0, 1000);
+    (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
+    (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
+    (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
+    (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
+    (*this)["Make_Book_Sleep"]             = USIOption(0, 0, INT_MAX);
+    (*this)["Use_Book_Policy"]             = USIOption(true);
+    (*this)["Use_Interruption"]            = USIOption(true);
+    (*this)["Book_Eval_Threshold"]         = USIOption(INT_MAX, 1, INT_MAX);
+    (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
+    (*this)["Book_Cutoff"]                 = USIOption(15, 0, 1000);
+    (*this)["Book_Temperature"]            = USIOption(1000, 0, 100000);
+    (*this)["Book_Merge_File"]             = USIOption("");
+    (*this)["Make_Book_Color"]             = USIOption("both");
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
@@ -227,12 +247,12 @@ void randomMove(Position& pos, std::mt19937& mt) {
             }
         }
         if (&legalMoves[0] != pms) { // 手があったなら
-            std::uniform_int_distribution<int> moveDist(0, pms - &legalMoves[0] - 1);
+            std::uniform_int_distribution<int> moveDist(0, static_cast<int>(pms - &legalMoves[0] - 1));
             pos.doMove(legalMoves[moveDist(mt)].move, *st++);
             if (dist(mt)) { // 1/2 の確率で相手もランダムに指す事にする。
                 MoveList<LegalAll> ml(pos);
                 if (ml.size()) {
-                    std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                    std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                     pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 }
             }
@@ -246,7 +266,7 @@ void randomMove(Position& pos, std::mt19937& mt) {
         for (int i = 0; i < dist(mt) + 1; ++i) { // 自分だけ、または両者ランダムに1手指してみる。
             MoveList<LegalAll> ml(pos);
             if (ml.size()) {
-                std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                 pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 moved = true;
             }

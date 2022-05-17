@@ -8,14 +8,14 @@ template <int depth> bool mateMoveInEvenPly(Position& pos);
 
 // 詰み探索用のMovePicker
 namespace ns_mate {
-	const constexpr size_t MaxCheckMoves = 73;
+	const constexpr size_t MaxCheckMoves = 91;
 
 	template <bool or_node, bool INCHECK>
 	class MovePicker {
 	public:
 		explicit MovePicker(const Position& pos) {
 			if (or_node) {
-				last_ = generateMoves<Check>(moveList_, pos);
+				last_ = generateMoves<CheckAll>(moveList_, pos);
 				if (INCHECK) {
 					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 					ExtMove* curr = moveList_;
@@ -53,7 +53,6 @@ namespace ns_mate {
 }
 
 // 3手詰めチェック
-// 手番側が王手でないこと
 template <bool INCHECK>
 FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 {

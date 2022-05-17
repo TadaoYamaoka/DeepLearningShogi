@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>19c20a6a-480b-4846-8ea6-b9ee28dd7edb</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>stat_hcpe3.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>utils</Name>
+    <RootNamespace>utils</RootNamespace>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <CommandLineArguments>F:\hcpe3\suisho3kai-001.hcpe3</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="clean_hcpe3.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="csa_to_hcpe3.py" />
+    <Compile Include="aoba_to_hcpe3.py" />
+    <Compile Include="csa_to_hcpe2.py" />
+    <Compile Include="aoba_to_hcpe2.py" />
+    <Compile Include="aoba_to_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="benchmark.py" />
+    <Compile Include="build_onnx.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="fix_hcpe_eval.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="split_uniq_hcpe.py" />
+    <Compile Include="csa_to_hcpe.py" />
+    <Compile Include="csa_to_roots_hcp.py" />
+    <Compile Include="csa_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="delete_hcp_by_usi.py" />
+    <Compile Include="split_hcpe3.py" />
+    <Compile Include="hcpe3_to_hcpe.py" />
+    <Compile Include="hcpe3_to_csa.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="hcpe_to_psv.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="hcp_uniq.py" />
+    <Compile Include="kif_to_pgn.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="matches.py" />
+    <Compile Include="measure_entropy.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="append_book.py" />
+    <Compile Include="csa_to_book.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="filter_kif_in_dir.py" />
+    <Compile Include="filter_csa_in_dir.py" />
+    <Compile Include="kifustat.py" />
+    <Compile Include="merge_book.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="plot_log_policy_value.py" />
+    <Compile Include="print_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="psv_to_hcpe.py" />
+    <Compile Include="psv_to_hcp.py" />
+    <Compile Include="sfen_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="stat_csa_in_dir.py" />
+    <Compile Include="stat_csa_position_in_dir.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="stat_hcpe3.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="throughput.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mcts_params_optimizer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="uniq_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="yanebook_to_hcp.py">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release_NoOpt' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <OutputPath>bin\Release_NoOpt\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'MakeBook' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <OutputPath>bin\MakeBook\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'MakeBook_NoOpt' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <OutputPath>bin\MakeBook_NoOpt\</OutputPath>
+  </PropertyGroup>
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

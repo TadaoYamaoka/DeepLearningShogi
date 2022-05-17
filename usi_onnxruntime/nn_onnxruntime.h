@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include <onnxruntime_cxx_api.h>
-#include "nn.h"
+#include "cppshogi.h"
 
-class NNOnnxRuntime : NN {
+class NNOnnxRuntime {
 public:
 	NNOnnxRuntime(const char* filename, const int gpu_id, const int max_batch_size);
 	~NNOnnxRuntime() {};
@@ -14,3 +14,5 @@ private:
 	std::unique_ptr<Ort::Session> session;
 	Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
 };
+
+typedef NNOnnxRuntime NN;

@@ -149,6 +149,8 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
             }
             score = entry.score;
         }
+        if (tellg() == size_ * sizeof(BookEntry))
+            break;
     }
 
     return std::make_tuple(move, score);

@@ -17,6 +17,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_WinTypeDouble|x64">
+      <Configuration>Release_WinTypeDouble</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
@@ -36,6 +40,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -74,6 +85,9 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -86,32 +100,38 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>dlshogi_tensorrt</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>dlshogi_tensorrt</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
+    <TargetName>dlshogi_tensorrt_double</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>dlshogi_tensorrt</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>dlshogi_tensorrt</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-7.2.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include;..\cppshogi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-7.2.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-7.2.3.4\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include;..\cppshogi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-7.2.3.4\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>dlshogi_tensorrt</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -120,7 +140,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>PV_MATE_SEARCH;_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -139,7 +159,30 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>PV_MATE_SEARCH;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN_TYPE_DOUBLE;PV_MATE_SEARCH;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -216,7 +259,7 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>PV_MATE_SEARCH;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -238,6 +281,7 @@
     <ClCompile Include="..\cppshogi\book.cpp" />
     <ClCompile Include="..\cppshogi\common.cpp" />
     <ClCompile Include="..\cppshogi\cppshogi.cpp" />
+    <ClCompile Include="..\cppshogi\dtype.cpp" />
     <ClCompile Include="..\cppshogi\generateMoves.cpp" />
     <ClCompile Include="..\cppshogi\hand.cpp" />
     <ClCompile Include="..\cppshogi\init.cpp" />
@@ -252,6 +296,7 @@
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="Node.cpp" />
+    <ClCompile Include="PvMateSearch.cpp" />
     <ClCompile Include="UctSearch.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -260,14 +305,32 @@
     <ClInclude Include="fastmath.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
-    <ClInclude Include="nn.h" />
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="Node.h" />
+    <ClInclude Include="PvMateSearch.h" />
     <ClInclude Include="UctSearch.h" />
+    <ClInclude Include="unpack.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="unpack.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">"$(CUDA_PATH_V11_1)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x86_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

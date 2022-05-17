@@ -156,10 +156,72 @@ struct HuffmanCodedPos {
                 handCodeToPieceHash[handCodeTable[hp][c].key] = colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
     }
     void clear() { std::fill(std::begin(data), std::end(data), 0); }
+    Color color() const { return (Color)(data[0] & 1); }
+    bool operator==(const HuffmanCodedPos& other) const {
+        const auto* data4 = (const uint64_t*)data;
+        const auto* other4 = (const uint64_t*)other.data;
+        if (data4[0] != other4[0]) return false;
+        if (data4[1] != other4[1]) return false;
+        if (data4[2] != other4[2]) return false;
+        if (data4[3] != other4[3]) return false;
+        return true;
+    }
+    bool isOK() const {
+        HuffmanCodedPos tmp = *this; // ローカルにコピー
+        BitStream bs(tmp.data);
+
+        // 手番
+        static_cast<Color>(bs.getBit());
+
+        // 玉の位置
+        const Square sq0 = (Square)bs.getBits(7);
+        if (sq0 >= SquareNum) return false;
+        const Square sq1 = (Square)bs.getBits(7);
+        if (sq1 >= SquareNum) return false;
+
+        // 盤上の駒
+        for (Square sq = SQ11; sq < SquareNum; ++sq) {
+            if (sq == sq0 || sq == sq1) // piece(sq) は BKing, WKing, Empty のどれか。
+                continue;
+            HuffmanCode hc = { 0, 0 };
+            while (hc.numOfBits <= 8) {
+                hc.code |= bs.getBit() << hc.numOfBits++;
+                if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) != PieceNone) {
+                    break;
+                }
+            }
+            if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) == PieceNone)
+                return false;
+        }
+        while (bs.data() != std::end(tmp.data)) {
+            HuffmanCode hc = { 0, 0 };
+            while (hc.numOfBits <= 8) {
+                hc.code |= bs.getBit() << hc.numOfBits++;
+                const Piece pc = HuffmanCodedPos::handCodeToPieceHash.value(hc.key);
+                if (pc != PieceNone) {
+                    break;
+                }
+            }
+            if (HuffmanCodedPos::handCodeToPieceHash.value(hc.key) == PieceNone)
+                return false;
+        }
+
+        return true;
+    }
 
     u8 data[32];
 };
 static_assert(sizeof(HuffmanCodedPos) == 32, "");
+
+template <>
+struct std::hash<HuffmanCodedPos>
+{
+    std::size_t operator()(const HuffmanCodedPos& hcp) const
+    {
+        const auto* data4 = (uint64_t*)hcp.data;
+        return data4[0] ^ data4[1] ^ data4[2] ^ data4[3];
+    }
+};
 
 struct HuffmanCodedPosAndEval {
     HuffmanCodedPos hcp;

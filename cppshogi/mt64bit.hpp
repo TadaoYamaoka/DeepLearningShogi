@@ -28,7 +28,7 @@
 class MT64bit : public std::mt19937_64 {
 public:
     MT64bit() : std::mt19937_64() {}
-    explicit MT64bit(const unsigned int seed) : std::mt19937_64(seed) {}
+    explicit MT64bit(const unsigned long long seed) : std::mt19937_64(seed) {}
     u64 random() {
         return (*this)();
     }

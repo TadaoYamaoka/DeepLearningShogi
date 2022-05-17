@@ -1,6 +1,7 @@
 # DeepLearningShogi(dlshogi)
+[![pypi](https://img.shields.io/pypi/v/dlshogi.svg)](https://pypi.python.org/pypi/dlshogi)
 
-将棋でディープラーニングを実験するためのプロジェクトです。
+将棋でディープラーニングの実験をするためのプロジェクトです。
 
 基本的にAlphaGo/AlphaZeroの手法を参考に実装していく方針です。
 
@@ -16,11 +17,11 @@ http://tadaoyamaoka.hatenablog.com/
 |:---|:---|
 |cppshogi|Aperyを流用した将棋ライブラリ（盤面管理、指し手生成）、入力特徴量作成|
 |dlshogi|ニューラルネットワークの学習（Python）|
-|make_hcpe_by_self_play|MCTSによる自己対局|
+|dlshogi/utils|ツール類|
+|selfplay|MCTSによる自己対局|
 |test|テストコード|
 |usi|対局用USIエンジン|
 |usi_onnxruntime|OnnxRuntime版ビルド用プロジェクト|
-|utils|ツール類|
 
 ## ビルド環境
 ### USIエンジン、自己対局プログラム
@@ -41,7 +42,6 @@ http://tadaoyamaoka.hatenablog.com/
 上記USIエンジンのビルド環境に加えて以下が必要
 * [Pytorch](https://pytorch.org/) 1.6以上
 * Python 3.7以上 ([Anaconda](https://www.continuum.io/downloads))
-* [Boost](http://www.boost.org/) 1.67.0以上
 * CUDA (PyTorchに対応したバージョン)
 * cuDNN (CUDAに対応したバージョン)
 

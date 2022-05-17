@@ -1,4 +1,4 @@
-/*
+﻿/*
   This file is part of Leela Chess Zero.
   Copyright (C) 2018-2019 The LCZero Authors
 
@@ -50,33 +50,7 @@ inline float FastLog2(const float a) {
   return out * (1.3465552f - 0.34655523f * out) - 127 + expb;
 }
 
-// Fast approximate 2^x. Does only limited range checking.
-// The approximation used here is 2^(N+f) ~ 2^N*(1+f*(1-k+k*f)) where N is the
-// integer and f the fractional part, f>=0. The constant k is used to tune the
-// approximation accuracy. In the final version some constants were slightly
-// modified for better accuracy with 32 bit floating point math.
-inline float FastPow2(const float a) {
-  if (a < -126) return 0.0;
-  int exp = floor(a);
-  float out = a - exp;
-  // Minimize max relative error.
-  out = 1.0f + out * (0.6602339f + 0.33976606f * out);
-  int tmp;
-  std::memcpy(&tmp, &out, sizeof(float));
-  tmp += static_cast<int>(static_cast<unsigned int>(exp) << 23);
-  std::memcpy(&out, &tmp, sizeof(float));
-  return out;
-}
-
 // Fast approximate ln(x). Does no range checking.
 inline float FastLog(const float a) {
   return 0.6931471805599453f * FastLog2(a);
-}
-
-// Fast approximate exp(x). Does only limited range checking.
-inline float FastExp(const float a) { return FastPow2(1.442695040f * a); }
-
-// Fast logit for more readable code.
-inline float FastLogit(const float a) {
-  return 0.5f * FastLog((1.0f + a) / (1.0f - a));
 }

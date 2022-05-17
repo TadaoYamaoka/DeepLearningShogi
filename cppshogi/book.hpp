@@ -34,7 +34,7 @@ struct BookEntry {
 
 class Book : private std::ifstream {
 public:
-    Book() : random_(std::chrono::system_clock::now().time_since_epoch().count()) {}
+    Book() : random_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()) {}
     std::tuple<Move, Score> probe(const Position& pos, const std::string& fName, const bool pickBest);
     static void init();
     static Key bookKey(const Position& pos);

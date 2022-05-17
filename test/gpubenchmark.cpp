@@ -1,4 +1,4 @@
-#if 0
+ï»¿#if 0
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -7,7 +7,7 @@
 
 using namespace std;
 
-// GPUƒxƒ“ƒ`ƒ}[ƒN
+// GPUãƒ™ãƒ³ãƒãƒãƒ¼ã‚¯
 #include "nn.h"
 #include "nn_wideresnet10.h"
 #include "nn_fused_wideresnet10.h"
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 	initTable();
 	HuffmanCodedPos::init();
 
-	// ‰Šú‹Ç–ÊW
+	// åˆæœŸå±€é¢é›†
 	ifstream ifs(hcpe_path, ifstream::in | ifstream::binary | ios::ate);
 	if (!ifs) {
 		cerr << "Error: cannot open " << hcpe_path << endl;
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 	auto entry_num = ifs.tellg() / sizeof(HuffmanCodedPosAndEval);
 	cout << "entry_num = " << entry_num << endl;
 
-	std::mt19937_64 mt_64(0); // ƒV[ƒhŒÅ’è
+	std::mt19937_64 mt_64(0); // ã‚·ãƒ¼ãƒ‰å›ºå®š
 	uniform_int_distribution<s64> inputFileDist(0, entry_num - 1);
 
 	showDevices(gpu_id);
@@ -93,16 +93,16 @@ int main(int argc, char* argv[]) {
 
 	Color* color = new Color[batchsize];
 
-	// w‚µè‚Ì³‰ğ”
+	// æŒ‡ã—æ‰‹ã®æ­£è§£æ•°
 	int move_corrent = 0;
 
-	// Ÿ”s‚Ì³‰ğ”
+	// å‹æ•—ã®æ­£è§£æ•°
 	int result_corrent = 0;
 
-	// •]‰¿’l‚Ì2æŒë·
+	// è©•ä¾¡å€¤ã®2ä¹—èª¤å·®
 	float se_sum = 0;
 
-	// „˜_ŠÔ
+	// æ¨è«–æ™‚é–“
 	long long elapsed = 0;
 
 	Position pos;
@@ -114,9 +114,9 @@ int main(int argc, char* argv[]) {
 		std::fill_n((DType*)features1, batchsize * (int)ColorNum * MAX_FEATURES1_NUM * (int)SquareNum, _zero);
 		std::fill_n((DType*)features2, batchsize * MAX_FEATURES2_NUM * (int)SquareNum, _zero);
 
-		// hcpe‚ğƒfƒR[ƒh‚µ‚Ä“ü—Í“Á’¥ì¬
+		// hcpeã‚’ãƒ‡ã‚³ãƒ¼ãƒ‰ã—ã¦å…¥åŠ›ç‰¹å¾´ä½œæˆ
 		for (int i = 0; i < batchsize; i++) {
-			// hcpe“Ç‚İ‚İ
+			// hcpeèª­ã¿è¾¼ã¿
 			ifs.seekg(inputFileDist(mt_64) * sizeof(HuffmanCodedPosAndEval), std::ios_base::beg);
 			ifs.read(reinterpret_cast<char*>(&hcpe[i]), sizeof(HuffmanCodedPosAndEval));
 
@@ -125,15 +125,15 @@ int main(int argc, char* argv[]) {
 			make_input_features(pos, features1 + i, features2 + i);
 		}
 
-		// „˜_
+		// æ¨è«–
 		auto start = std::chrono::system_clock::now();
 		nn->forward(batchsize, features1, features2, (DType*)y1, y2);
 		auto end = std::chrono::system_clock::now();
 
-		// ŠÔWŒv
+		// æ™‚é–“é›†è¨ˆ
 		elapsed += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
-		// •]‰¿
+		// è©•ä¾¡
 		DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 		DType *value = reinterpret_cast<DType*>(y2);
 		for (int i = 0; i < batchsize; i++, logits++, value++) {
@@ -147,13 +147,13 @@ int main(int argc, char* argv[]) {
 			}
 			const int move_label = (int)distance(moves, max_element(moves, moves + MAX_MOVE_LABEL_NUM * SquareNum));
 
-			// w‚µè‚Ì”äŠr
+			// æŒ‡ã—æ‰‹ã®æ¯”è¼ƒ
 			const int t_move_label = make_move_label(hcpe[i].bestMove16, color[i]);
 			if (move_label == t_move_label) {
 				++move_corrent;
 			}
 
-			// Ÿ”s‚Ì”äŠr
+			// å‹æ•—ã®æ¯”è¼ƒ
 #ifdef FP16
 			const float v = __half2float(*value);
 #else
@@ -164,13 +164,13 @@ int main(int argc, char* argv[]) {
 				++result_corrent;
 			}
 
-			// •]‰¿’l‚ÌŒë·ŒvZ
+			// è©•ä¾¡å€¤ã®èª¤å·®è¨ˆç®—
 			const float error = v - score_to_value((Score)hcpe[i].eval);
 			se_sum += error * error;
 		}
 	}
 
-	// Œ‹‰Ê•\¦
+	// çµæœè¡¨ç¤º
 	int num_actual = num / batchsize * batchsize;
 	cout << "num_actual = " << num_actual << endl;
 	cout << "elapsed = " << elapsed << " ns" << endl;
