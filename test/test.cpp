@@ -344,7 +344,7 @@ int main() {
 }
 #endif
 
-#if 0
+#if 1
 #include "dfpn.h"
 // DfPnテスト
 int main()
@@ -1843,7 +1843,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include <fstream>
 #include <regex>
 #include "book.hpp"

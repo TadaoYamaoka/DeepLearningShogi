@@ -52,11 +52,6 @@ namespace ns_dfpn {
 						++curr;
 				}
 			}
-			if (ordering) {
-				std::stable_sort(begin(), begin() + size(), [](const ExtMove& lhs, const ExtMove& rhs) {
-					return (int32_t)lhs.move.value() < (int32_t)rhs.move.value();
-				});
-			}
 			assert(size() <= MaxCheckMoves);
 		}
 		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
@@ -668,7 +663,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					repeat = true;
 
 				if (child_entry.pn < best_pn ||
-					child_entry.pn == best_pn && best_num_search > child_entry.num_searched) {
+					child_entry.pn == best_pn && best_move.value() > move.move.value()) {
 					second_best_pn = best_pn;
 					best_pn = child_entry.pn;
 					best_dn = child_entry.dn;
