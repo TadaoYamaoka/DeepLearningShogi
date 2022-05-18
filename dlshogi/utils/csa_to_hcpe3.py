@@ -28,6 +28,7 @@ parser.add_argument('hcpe3')
 parser.add_argument('--out_maxmove', action='store_true')
 parser.add_argument('--out_noeval', action='store_true')
 parser.add_argument('--out_mate', action='store_true')
+parser.add_argument('--uniq', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3800)
 args = parser.parse_args()
@@ -48,6 +49,7 @@ f = open(args.hcpe3, 'wb')
 board = Board()
 kif_num = 0
 position_num = 0
+duplicates = set()
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
         endgame = kif.endgame
@@ -58,6 +60,13 @@ for filepath in csa_file_list:
         # 評価値がない棋譜を除外
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
             continue
+        # 重複削除
+        if args.uniq:
+            dup_key = ''.join([move_to_usi(move) for move in kif.moves])
+            if dup_key in duplicates:
+                print(f'duplicate {filepath}')
+                continue
+            duplicates.add(dup_key)
 
         hcpe['result'] = kif.win
         if endgame == '%SENNICHITE':
