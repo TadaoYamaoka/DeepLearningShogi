@@ -52,6 +52,9 @@ def main(*argv):
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
+    parser.add_argument('--distillation_model', type=str)
+    parser.add_argument('--distillation_network', default='resnet10_swish', help='network type')
+    parser.add_argument('--distillation_alpha', type=float, default=0.5)
     args = parser.parse_args(argv)
 
     if args.log:
@@ -140,6 +143,16 @@ def main(*argv):
 
     logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 
+    # Knowledge distillation
+    if args.distillation_model:
+        distillation_model = policy_value_network(args.distillation_network)
+        if args.distillation_network[-6:] == '_swish':
+            distillation_model.set_swish(False)
+        distillation_model.to(device)
+
+        serializers.load_npz(args.distillation_model, distillation_model)
+        distillation_model.eval()
+
     logging.info('Reading training data')
     train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
     train_data = np.arange(train_len, dtype=np.uint32)
@@ -201,7 +214,7 @@ def main(*argv):
                 #entropy2 = -(p2 * F.log(p2) + (1 - p2) * F.log(1 - p2))
                 log1p_ey2 = F.softplus(y2)
                 entropy2 = -(p2 * (y2 - log1p_ey2) + (1 - p2) * -log1p_ey2)
-                sum_test_entropy2 +=entropy2.mean().item()
+                sum_test_entropy2 += entropy2.mean().item()
 
         return (sum_test_loss1 / steps,
                 sum_test_loss2 / steps,
@@ -233,6 +246,8 @@ def main(*argv):
     sum_loss1 = 0
     sum_loss2 = 0
     sum_loss3 = 0
+    sum_distillation_loss1 = 0
+    sum_distillation_loss2 = 0
     sum_loss = 0
     eval_interval = args.eval_interval
     for e in range(args.epoch):
@@ -265,6 +280,16 @@ def main(*argv):
                 loss3 = bce_with_logits_loss(y2, value)
                 loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
+                if args.distillation_model:
+                    with torch.no_grad():
+                        distillation_y1, distillation_y2 = distillation_model(x1, x2)
+                    distillation_loss1 = F.kl_div(F.log_softmax(y1, dim=1), F.softmax(distillation_y1, dim=1), reduction='batchmean')
+                    distillation_p2 = distillation_y2.sigmoid()
+                    distillation_loss2 = (distillation_p2 * (F.logsigmoid(distillation_y2) - F.logsigmoid(y2)) + (1 - distillation_p2) * (-F.softplus(distillation_y2) + F.softplus(y2))).mean()
+                    loss = (1 - args.distillation_alpha) * loss + args.distillation_alpha * (distillation_loss1 + distillation_loss2)
+                    sum_distillation_loss1 += distillation_loss1.item()
+                    sum_distillation_loss2 += distillation_loss2.item()
+
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
                 scaler.unscale_(optimizer)
@@ -293,11 +318,18 @@ def main(*argv):
                     loss3 = bce_with_logits_loss(y2, value)
                     loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
-                    logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
-                        epoch, t,
-                        sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
-                        loss1.item(), loss2.item(), loss3.item(), loss.item(),
-                        accuracy(y1, t1), binary_accuracy(y2, t2)))
+                    if args.distillation_model is None:
+                        logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
+                            epoch, t,
+                            sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
+                            loss1.item(), loss2.item(), loss3.item(), loss.item(),
+                            accuracy(y1, t1), binary_accuracy(y2, t2)))
+                    else:
+                        logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
+                            epoch, t,
+                            sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_distillation_loss1 / steps, sum_distillation_loss2 / steps, sum_loss / steps,
+                            loss1.item(), loss2.item(), loss3.item(), loss.item(),
+                            accuracy(y1, t1), binary_accuracy(y2, t2)))
 
                 steps_epoch += steps
                 sum_loss1_epoch += sum_loss1
@@ -309,6 +341,8 @@ def main(*argv):
                 sum_loss1 = 0
                 sum_loss2 = 0
                 sum_loss3 = 0
+                sum_distillation_loss1 = 0
+                sum_distillation_loss2 = 0
                 sum_loss = 0
 
         steps_epoch += steps
