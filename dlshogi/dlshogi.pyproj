@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\hcpe3\floodgate_2021_0909_r3800_nomate.hcpe3 f:\selfplay\floodgate.hcpe --network resnet15_relu --model model.onnx --use_average --use_amp --distillation_model F:\model\model-pre28_resnet20_swish_b4096lr004-015 --distillation_network resnet20_swish</CommandLineArguments>
+    <CommandLineArguments>F:\hcpe3\floodgate_2021_0909_r3800_nomate.hcpe3 f:\selfplay\floodgate.hcpe --network resnet15_relu --model model.onnx --use_average --use_amp --distillation_model F:\model\model-pre28_resnet20_swish_b4096lr004-015 --distillation_network resnet20_swish --eval_interval 100</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>

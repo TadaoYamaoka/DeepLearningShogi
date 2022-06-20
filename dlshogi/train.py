@@ -283,8 +283,8 @@ def main(*argv):
                 if args.distillation_model:
                     with torch.no_grad():
                         distillation_y1, distillation_y2 = distillation_model(x1, x2)
-                    distillation_loss1 = cross_entropy_loss_with_soft_target(y1, distillation_y1)
-                    distillation_loss2 = bce_with_logits_loss(y2, distillation_y2)
+                    distillation_loss1 = cross_entropy_loss_with_soft_target(y1, distillation_y1.softmax(dim=1)).mean()
+                    distillation_loss2 = bce_with_logits_loss(y2, distillation_y2.sigmoid())
                     loss = (1 - args.distillation_alpha) * loss + args.distillation_alpha * (distillation_loss1 + distillation_loss2)
                     sum_distillation_loss1 += distillation_loss1.item()
                     sum_distillation_loss2 += distillation_loss2.item()
