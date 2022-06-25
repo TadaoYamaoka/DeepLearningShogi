@@ -13,6 +13,7 @@ cdef extern from "python_module.h" nogil:
 	size_t __load_hcpe3(const string& filepath, bool use_average, double a, double temperature, int& len);
 	void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue);
 	size_t __load_evalfix(const string& filepath);
+	void __hcpe3_get_hcpe(const size_t index, char* ndhcpe);
 	void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult);
 
 init()
@@ -30,6 +31,9 @@ def load_hcpe3(str filepath, bool use_average, double a, double temperature):
 
 def hcpe3_decode_with_value(np.ndarray ndindex, np.ndarray ndfeatures1, np.ndarray ndfeatures2, np.ndarray ndprobability, np.ndarray ndresult, np.ndarray ndvalue):
 	__hcpe3_decode_with_value(len(ndindex), ndindex.data, ndfeatures1.data, ndfeatures2.data, ndprobability.data, ndresult.data, ndvalue.data)
+
+def hcpe3_get_hcpe(size_t index, np.ndarray ndhcpe):
+	__hcpe3_get_hcpe(index, ndhcpe.data)
 
 def hcpe3_prepare_evalfix(str filepath):
 	cdef size_t size = __load_evalfix(filepath.encode(locale.getpreferredencoding()))

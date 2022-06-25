@@ -332,6 +332,35 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	}
 }
 
+// load_hcpe3で読み込み済みのtrainingDataから、インデックスを指定してhcpeを取り出す
+void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
+	HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
+
+	auto& hcpe3 = trainingData[index];
+
+	hcpe->hcp = hcpe3.hcp;
+	float max_prob = FLT_MIN ;
+	for (const auto kv : hcpe3.candidates) {
+		const auto& move16 = kv.first;
+		const auto& prob = kv.second;
+		if (prob > max_prob) {
+			hcpe->bestMove16 = move16;
+			max_prob = prob;
+		}
+	}
+	hcpe->eval = (s16)(hcpe3.eval / hcpe3.count);
+	const auto result = (hcpe3.result / hcpe3.count);
+	if (result < 0.5f) {
+		hcpe->gameResult = hcpe3.hcp.color() == Black ? WhiteWin : BlackWin;
+	}
+	else if (result > 0.5f) {
+		hcpe->gameResult = hcpe3.hcp.color() == Black ? BlackWin : WhiteWin;
+	}
+	else {
+		hcpe->gameResult = Draw;
+	}
+}
+
 // evalの補正用データ準備
 std::vector<int> eval;
 std::vector<float> result;
