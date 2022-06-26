@@ -76,6 +76,7 @@
     <Compile Include="utils\filter_kif_in_dir.py" />
     <Compile Include="utils\fix_hcpe_eval.py" />
     <Compile Include="utils\hcpe3_to_csa.py" />
+    <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
     <Compile Include="utils\hcp_uniq.py" />
