@@ -75,6 +75,8 @@ for i in range(positions):
         psv['game_result'] = 1
     elif board.turn == 2 - gameResult:
         psv['game_result'] = -1
+    else:
+        psv['game_result'] = 0
 
     psv.tofile(out)
 

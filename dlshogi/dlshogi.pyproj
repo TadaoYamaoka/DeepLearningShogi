@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\delete_book_side.py</StartupFile>
+    <StartupFile>utils\hcpe3_to_psv.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>black f:\book\book_pre28_300m-w-fix10.bin F:\book\book_pre28_300m-w-fix10-delblack.bin --opponent F:\book\s-book_black.db</CommandLineArguments>
+    <CommandLineArguments>F:\floodgate\floodgate_2021_1024_r3800_nomate.hcpe3 R:\floodgate_2021_1024_r3800_nomate.psv</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
