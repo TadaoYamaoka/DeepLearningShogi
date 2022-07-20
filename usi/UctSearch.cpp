@@ -156,6 +156,8 @@ float random_temperature = 10.0f;
 float random_temperature_drop = 1.0f;
 float random_cutoff = 0.015f;
 float random_cutoff_drop = 0.0f;
+int random_ply2 = 0;
+float random_cutoff2 = 0.015f;
 std::unique_ptr<std::mt19937_64> random_mt_64;
 
 #ifdef PV_MATE_SEARCH
@@ -583,13 +585,15 @@ void SetEvalCoef(const int eval_coef)
 }
 
 // ランダムムーブの設定
-void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop)
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop, const int ply2, const int cutoff2)
 {
 	random_ply = ply;
 	random_temperature = temperature / 1000.0f;
 	random_temperature_drop = temperature_drop / 1000.0f;
 	random_cutoff = cutoff / 1000.0f;
 	random_cutoff_drop = cutoff_drop / 1000.0f;
+	random_ply2 = ply2;
+	random_cutoff2 = cutoff2 / 1000.0f;
 	if (ply > 0 && !random_mt_64) {
 		std::random_device seed_gen;
 		random_mt_64.reset(new std::mt19937_64(seed_gen()));
@@ -822,7 +826,9 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 	// 訪問数が最大のノードの価値の一定以下は除外
 	const auto max_move_count_child = sorted_uct_childs[0];
 	const int step = (pos_root->gamePly() - 1) / 2;
-	const float cutoff = std::max(0.0f, random_cutoff - random_cutoff_drop * step);
+	const float cutoff = (random_ply2 == 0 || pos_root->gamePly() < random_ply2) ?
+		std::max(0.0f, random_cutoff - random_cutoff_drop * step) :
+		random_cutoff2;
 	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - cutoff;
 	vector<double> probabilities;
 	probabilities.reserve(child_num);

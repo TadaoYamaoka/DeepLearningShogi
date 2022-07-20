@@ -92,7 +92,7 @@ void SetMultiPV(const int multipv);
 void SetEvalCoef(const int eval_coef);
 
 // ランダムムーブ設定（1000分率）
-void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop);
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop, const int ply2, const int cutoff2);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
