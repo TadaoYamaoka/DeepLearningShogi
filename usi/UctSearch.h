@@ -32,6 +32,7 @@ struct po_info_t {
 void SetLimits(const LimitsType& limits);
 void SetLimits(const Position* pos, const LimitsType& limits);
 void SetConstPlayout(const int playout);
+void SetPondering(bool value);
 
 // 残り時間
 extern int remaining_time[ColorNum];
@@ -76,7 +77,7 @@ void TerminateUctSearch();
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder = false);
+Move UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove);
 
 // 探索の再利用の設定
 void SetReuseSubtree(bool flag);

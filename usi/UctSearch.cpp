@@ -95,7 +95,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 bool pondering_mode = false;
 
-bool pondering = false;
+atomic<bool> pondering = false;
 
 atomic<bool> uct_search_stop(false);
 
@@ -637,6 +637,7 @@ void SetLimits(const LimitsType& limits)
 // go cmd前に呼ばれ、探索の条件を指定する
 void SetLimits(const Position* pos, const LimitsType& limits)
 {
+	pondering = limits.ponder;
 	begin_time = limits.startTime;
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
@@ -665,6 +666,11 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 void SetConstPlayout(const int playout)
 {
 	const_playout = playout;
+}
+
+void SetPondering(bool value)
+{
+	pondering = value;
 }
 
 ////////////
@@ -720,6 +726,26 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
+	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
 	}
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
@@ -905,7 +931,7 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
+UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove)
 {
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
@@ -915,6 +941,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	init_search_begin_time = false;
 	interruption = false;
 
+	if (!reuse_subtree) {
+		// ゲーム木を再利用しない場合クリア
+		tree->DeallocateTree();
+	}
+
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
 
@@ -922,8 +953,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	pos_root = pos;
 	
 	const uct_node_t* current_root = tree->GetCurrentHead();
-
-	pondering = ponder;
 
 	// 探索情報をクリア
 	po_info.count = 0;
@@ -957,16 +986,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// 探索スレッド終了待機
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
-
-	if (pondering) {
-#ifdef PV_MATE_SEARCH
-		// PVの詰み探索スレッド終了待機
-		for (auto& searcher : pv_mate_searchers)
-			searcher.Join();
-#endif
-
-		return Move::moveNone();
-	}
 
 #ifdef PV_MATE_SEARCH
 	// PVの詰み探索スレッド停止

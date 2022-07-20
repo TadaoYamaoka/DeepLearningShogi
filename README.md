@@ -26,15 +26,15 @@ http://tadaoyamaoka.hatenablog.com/
 ## ビルド環境
 ### USIエンジン、自己対局プログラム
 #### Windowsの場合
-* Windows 10 64bit
-* Visual Studio 2019
+* Windows 11 64bit
+* Visual Studio 2022
 #### Linuxの場合
-* Ubuntu 18.04 LTS
+* Ubuntu 18.04 LTS / 20.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 11.0
-* cuDNN 8.0
-* TensorRT 7.2.1
+* CUDA 11.6
+* cuDNN 8.4
+* TensorRT 8.4
 
 ※CUDA 10.0以上であれば変更可
 

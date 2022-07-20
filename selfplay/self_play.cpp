@@ -196,6 +196,26 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 		}
 		return true;
 	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
+	}
 	if (lhs->move_count == rhs->move_count)
 		return lhs->nnrate > rhs->nnrate;
 	return lhs->move_count > rhs->move_count;

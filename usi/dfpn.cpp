@@ -596,7 +596,6 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			u32 gold = UINT_MAX;
 			u32 bishop = UINT_MAX;
 			u32 rook = UINT_MAX;
-			bool first = true;
 			bool repeat = false; // 最大手数チェック用
 			for (const auto& move : move_picker) {
 				auto& ttkey = ttkeys[&move - move_picker.begin()];
