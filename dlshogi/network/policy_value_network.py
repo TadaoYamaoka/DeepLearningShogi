@@ -12,6 +12,8 @@ def policy_value_network(network, add_sigmoid=False):
         from dlshogi.network.policy_value_network_resnet import PolicyValueNetwork
     elif network[:5] == 'senet':
         from dlshogi.network.policy_value_network_senet import PolicyValueNetwork
+    elif network[:8] == 'convnext':
+        from dlshogi.network.policy_value_network_convnext import PolicyValueNetwork
     else:
         # user defined network
         names = network.split('.')
@@ -34,8 +36,8 @@ def policy_value_network(network, add_sigmoid=False):
 
     if network in [ 'wideresnet10', 'resnet10_swish' ]:
         return PolicyValueNetwork()
-    elif network[:6] == 'resnet' or network[:5] == 'senet':
-        m = re.match('^(resnet|senet)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_.+){0,1}$', network)
+    elif network[:6] == 'resnet' or network[:5] == 'senet' or network[:8] == 'convnext':
+        m = re.match('^(resnet|senet|convnext)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_relu|_swish|_gelu){0,1}(_kernel\d+){0,1}$', network)
 
         # blocks
         blocks = int(m[2])
@@ -54,18 +56,27 @@ def policy_value_network(network, add_sigmoid=False):
 
         # activation
         if m[6] is None:
-            activation = nn.ReLU()
+            if m[1] != 'convnext':
+                activation = nn.GELU()
+            else:
+                activation = nn.ReLU()
         else:
-            activation = { '_relu': nn.ReLU(), '_swish': nn.SiLU() }[m[6]]
+            activation = { '_relu': nn.ReLU(), '_swish': nn.SiLU(), '_gelu': nn.GELU() }[m[6]]
 
         if m[1] == 'resnet':
             return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl)
-        else: # senet
+        elif m[1] == 'senet':
             # reduction
             if m[5] is None:
                 reduction = 8
             else:
                 reduction = int(m[5][10:])
             return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl, reduction=reduction)
+        elif m[1] == 'convnext':
+            if m[7] is None:
+                kernel = 3
+            else:
+                kernel = int(m[7][7:])
+            return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl, kernel=kernel)
     else:
         return PolicyValueNetwork()

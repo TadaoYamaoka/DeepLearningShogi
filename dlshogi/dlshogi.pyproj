@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\hcpe3_to_psv.py</StartupFile>
+    <StartupFile>train.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\floodgate\floodgate_2021_1024_r3800_nomate.hcpe3 R:\floodgate_2021_1024_r3800_nomate.psv</CommandLineArguments>
+    <CommandLineArguments>F:\hcpe3\floodgate_2019-2020_r3800.hcpe3 F:\selfplay\floodgate.hcpe --network convnext20_gelu_kernel5 --use_amp --use_average --use_evalfix</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -37,6 +37,7 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="network\policy_value_network_convnext.py" />
     <Compile Include="network\policy_value_network_resnet.py" />
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
