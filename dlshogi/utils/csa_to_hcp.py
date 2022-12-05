@@ -41,13 +41,13 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves, limi
                 break
 
             # hcp
-            if i >= limit_moves or (limit_score_moves and i > limit_score_moves):
+            board.to_hcp(np.asarray(hcps[i]))
+
+            if i + 1 >= limit_moves or (limit_score_moves and i > limit_score_moves):
                 if kachi_moves and kachi and i <= kachi_moves:
-                    board.to_hcp(np.asarray(hcps[i]))
+                    pass
                 else:
                     break
-            else:
-                board.to_hcp(np.asarray(hcps[i]))
 
             board.push(move)
 
