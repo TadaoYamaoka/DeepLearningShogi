@@ -5,6 +5,8 @@
 void init();
 void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue);
 void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndaux);
+void __hcpe3_create_cache(const std::string& filepath);
+size_t __hcpe3_load_cache(const std::string& filepath);
 size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len);
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue);
 size_t __load_evalfix(const std::string& filepath);
