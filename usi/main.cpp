@@ -211,6 +211,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMultiPV(options["MultiPV"]);
 			SetEvalCoef(options["Eval_Coef"]);
 			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"], options["Random_Cutoff_Drop"]);
+			SetRandomMove2(options["Random2_Ply"], options["Random2_Probability"], options["Random2_Temperature"], options["Random2_Cutoff"], options["Random2_Value_Limit"]);
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);

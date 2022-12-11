@@ -93,6 +93,7 @@ void SetEvalCoef(const int eval_coef);
 
 // ランダムムーブ設定（1000分率）
 void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop);
+void SetRandomMove2(const int ply, const int probability, const int temperature, const int cutoff, const int value_limit);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);
