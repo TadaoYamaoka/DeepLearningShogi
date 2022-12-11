@@ -12,6 +12,8 @@ http://tadaoyamaoka.hatenablog.com/
 ## ダウンロード
 [Releases](https://github.com/TadaoYamaoka/DeepLearningShogi/releases)からダウンロードできます。
 
+最新のモデルファイルは、[棋神アナリティクス](https://kishin-analytics.heroz.jp/lp/)でご利用いただけます。
+
 ## ソース構成
 |フォルダ|説明|
 |:---|:---|
