@@ -31,10 +31,12 @@ parser.add_argument('--out_mate', action='store_true')
 parser.add_argument('--uniq', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3800)
+parser.add_argument('--filter_win_name') # 指定した対局者が勝った棋譜
 args = parser.parse_args()
 
 filter_moves = args.filter_moves
 filter_rating = args.filter_rating
+filter_win_name = args.filter_win_name
 
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
@@ -56,6 +58,8 @@ for filepath in csa_file_list:
         if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and min(kif.ratings) < filter_rating:
+            continue
+        if filter_win_name and (kif.win == DRAW or kif.names[kif.win - 1] != filter_win_name):
             continue
         # 評価値がない棋譜を除外
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
