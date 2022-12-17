@@ -78,6 +78,18 @@
     <ClCompile Include="..\cppshogi\dtype.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\make_book.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\UctSearch.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\Message.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\Node.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\usi\unpack.cu">

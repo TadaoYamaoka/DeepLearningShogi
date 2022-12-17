@@ -1843,7 +1843,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include <fstream>
 #include <regex>
 #include "book.hpp"
@@ -1943,4 +1943,136 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+#endif
+
+#ifdef MAKE_BOOK
+#include "make_book.h"
+
+void test_insert_map(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<const char*> moves, const int score) {
+	const Key key = Book::bookKey(pos);
+	const Move move = usiToMove(pos, moves[0]);
+	if (moves.size() == 1) {
+		const BookEntry entry{ key, (u16)move.value(), (u16)score, (Score)score };
+		outMap[key].emplace_back(entry);
+	}
+	else {
+		StateInfo state;
+		pos.doMove(move, state);
+		test_insert_map(pos, outMap, std::vector<const char*>(++moves.begin(), moves.end()), score);
+		pos.undoMove(move);
+	}
+}
+
+#if 0
+extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
+int main() {
+	initTable();
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "6i7h" }, 1);
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = select_best_book_entry(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 3);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d" }, -1);
+	test_insert_map(pos, outMap, { "2g2f", "3c3d" }, -6); // cut
+	test_insert_map(pos, outMap, { "7g7f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d" }, -5);
+	test_insert_map(pos, outMap, { "7g7f", "3c3d" }, -4); // select
+	test_insert_map(pos, outMap, { "6i7h" }, 1); // cut
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = select_best_book_entry(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 3);
+	test_insert_map(pos, outMap, { "7g7f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d" }, -5); // select
+	test_insert_map(pos, outMap, { "7g7f", "3c3d" }, -4);
+	test_insert_map(pos, outMap, { "7g7f", "3c3d", "2g2f" }, 6);
+	test_insert_map(pos, outMap, { "7g7f", "3c3d", "6i7h" }, 7); // beta cut
+	test_insert_map(pos, outMap, { "6i7h" }, 4); // cut
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = select_best_book_entry(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 1
+extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	draw_score_black = (Score)-100;
+	draw_score_white = (Score)-10;
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b" }, -1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h" }, 1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h", "6b6a" }, -1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h", "6b6a", "6h6i"}, 1); // black draw
+	test_insert_map(pos, outMap, { "6i6h" }, 1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b" }, -1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b", "6h6i" }, 1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b", "6h6i", "6b6a" }, -1); // white draw
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = select_best_book_entry(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
 #endif

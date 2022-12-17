@@ -293,6 +293,7 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="make_book.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="Node.cpp" />
@@ -303,6 +304,7 @@
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="fastmath.h" />
+    <ClInclude Include="make_book.h" />
     <ClInclude Include="mate.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="int8_calibrator.h" />
