@@ -444,7 +444,7 @@ void MySearcher::getAndPrintBestMove() {
 struct child_node_t_copy {
 	Move move;       // 着手する座標
 	int move_count;  // 探索回数
-	float win;       // 勝った回数
+	WinType win;       // 勝った回数
 
 	child_node_t_copy(const child_node_t& child) {
 		this->move = child.move;
@@ -517,8 +517,8 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		auto &child = movelist[i];
 		// 定跡追加
 		BookEntry be;
-		float wintrate = child.win / child.move_count;
-		be.score = Score(int(-logf(1.0f / wintrate - 1.0f) * 754.3f));
+		const auto wintrate = child.win / child.move_count;
+		be.score = Score(int(-log(1.0 / wintrate - 1.0) * 754.3));
 		be.key = key;
 		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
 		be.count = (u16)((double)child.move_count / (double)current_root->move_count * 1000.0);
