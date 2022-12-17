@@ -464,12 +464,12 @@ double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 
-inline Move UctSearchGenmoveNoPonder(Position* pos, std::vector<Move>& moves) {
+inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
-bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, std::vector<Move> &moves) {
+bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, const std::vector<Move> &moves) {
 	std::cout << "position startpos moves";
 	for (Move move : moves) {
 		std::cout << " " << move.toUSI();
@@ -514,7 +514,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	std::cout << "movelist.size: " << num << std::endl;
 
 	for (int i = 0; i < num; i++) {
-		auto &child = movelist[i];
+		const auto &child = movelist[i];
 		// 定跡追加
 		BookEntry be;
 		const auto wintrate = child.win / child.move_count;
@@ -534,7 +534,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, int depth, const bool isBlack, std::vector<Move> &moves) {
+void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> > &outMap, int& count, const int depth, const bool isBlack, std::vector<Move> &moves) {
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
@@ -698,7 +698,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 	limits.nodes = playoutNum;
 
 	// 保存間隔
-	int save_book_interval = options["Save_Book_Interval"];
+	const int save_book_interval = options["Save_Book_Interval"];
 
 	// 1定跡作成ごとのスリープ時間(ガベージコレクションが間に合わない場合に設定する)
 	make_book_sleep = options["Make_Book_Sleep"];
