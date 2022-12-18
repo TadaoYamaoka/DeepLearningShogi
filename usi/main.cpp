@@ -18,7 +18,7 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	static void doUSICommandLoop(int argc, char* argv[]);
 #ifdef MAKE_BOOK
-	static void makeBook(std::istringstream& ssCmd);
+	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -235,7 +235,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetMultiPV(options["MultiPV"]);
 		}
 #ifdef MAKE_BOOK
-		else if (token == "make_book") makeBook(ssCmd);
+		else if (token == "make_book") makeBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -440,7 +440,7 @@ void MySearcher::getAndPrintBestMove() {
 #include "make_book.h"
 
 // 定跡作成
-void MySearcher::makeBook(std::istringstream& ssCmd) {
+void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
 
 	std::string bookFileName;
@@ -507,7 +507,38 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 		}
 	}
 
+	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
+	book_pos_cmd = "position " + posCmd;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		if (token != "moves")
+			book_pos_cmd += " moves";
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+		}
+	}
 	book_starting_pos_key = pos.getKey();
 
 	// 定跡読み込み
@@ -532,8 +563,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 			int count = 0;
 			moves.clear();
 			// 探索
-			pos.set(DefaultStartPositionSFEN);
-			make_book_inner(pos, limits, bookMap, outMap, count, 0, true, moves);
+			Position pos_copy(pos);
+			make_book_inner(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
 			black_num += count;
 			trial++;
 		}
@@ -543,8 +574,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 			int count = 0;
 			moves.clear();
 			// 探索
-			pos.set(DefaultStartPositionSFEN);
-			make_book_inner(pos, limits, bookMap, outMap, count, 0, false, moves);
+			Position pos_copy(pos);
+			make_book_inner(pos_copy, limits, bookMap, outMap, count, 0, false, moves);
 			white_num += count;
 			trial++;
 		}

@@ -4,6 +4,7 @@
 
 extern std::map<Key, std::vector<BookEntry> > bookMap;
 extern Key book_starting_pos_key;
+extern std::string book_pos_cmd;
 extern int make_book_sleep;
 extern bool use_book_policy;
 extern bool use_interruption;

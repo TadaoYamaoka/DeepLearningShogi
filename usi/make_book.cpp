@@ -28,6 +28,7 @@ struct child_node_t_copy {
 
 std::map<Key, std::vector<BookEntry> > bookMap;
 Key book_starting_pos_key;
+std::string book_pos_cmd;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_book_policy = true;
@@ -49,7 +50,7 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& mov
 }
 
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves) {
-	std::cout << "position startpos moves";
+	std::cout << book_pos_cmd;
 	for (Move move : moves) {
 		std::cout << " " << move.toUSI();
 	}
@@ -193,7 +194,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 				// 評価値が閾値を超えた場合、探索終了
 				if (std::abs(entry.score) > book_eval_threshold) {
-					std::cout << "position startpos moves";
+					std::cout << book_pos_cmd;
 					for (Move move : moves) {
 						std::cout << " " << move.toUSI();
 					}
