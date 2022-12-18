@@ -202,6 +202,8 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 				}
 
 				const Move move = move16toMove(Move(entry.fromToPro), pos);
+				if (&entry != &entries[0])
+					std::cout << "best move : " << depth << " " << & entry - &entries[0] << " " << move.toUSI() << std::endl;
 
 				StateInfo state;
 				pos.doMove(move, state);
