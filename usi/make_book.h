@@ -12,6 +12,9 @@ extern int book_eval_threshold;
 extern double book_visit_threshold;
 extern double book_cutoff;
 extern double book_reciprocal_temperature;
+// MinMaxで選ぶ確率
+extern double make_book_minmax_prob;
+extern double make_book_minmax_prob_opp;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;

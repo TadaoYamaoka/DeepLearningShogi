@@ -37,6 +37,10 @@ int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
+// MinMaxで選ぶ確率
+double make_book_minmax_prob = 1.0;
+double make_book_minmax_prob_opp = 0.1;
+std::uniform_real_distribution<double> dist_minmax(0, 1);
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -189,8 +193,8 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			// 探索済みの場合
 			{
 				const auto& entries = itr->second;
-				// 最善手を選択
-				const auto& entry = select_best_book_entry(pos, outMap, entries);
+				// 一定の確率でmin-maxで選ぶ
+				const auto& entry = (dist_minmax(g_randomTimeSeed) < make_book_minmax_prob) ? select_best_book_entry(pos, outMap, entries) : entries[0];
 
 				// 評価値が閾値を超えた場合、探索終了
 				if (std::abs(entry.score) > book_eval_threshold) {
@@ -234,7 +238,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		}
 		else {
 			// 定跡にない場合、探索結果を使う
-			itr = outMap.find(Book::bookKey(pos));
+			itr = outMap.find(key);
 
 			if (itr == outMap.end()) {
 				// 定跡になく未探索の局面の場合
@@ -249,15 +253,22 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			entries = &outMap[key];
 		}
 
-		// 確率的に手を選択
-		std::vector<double> probabilities;
-		for (const auto& entry : *entries) {
-			const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
-			probabilities.emplace_back(probability);
+		size_t selected = 0;
+		if (dist_minmax(g_randomTimeSeed) < make_book_minmax_prob_opp) {
+			// 一定の確率でmin-maxで選ぶ
+			const auto& entry = select_best_book_entry(pos, outMap, *entries);
+			selected = &entry - &(*entries)[0];
 		}
-		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-		size_t selected = dist(g_randomTimeSeed);
-
+		else {
+			// 確率的に手を選択
+			std::vector<double> probabilities;
+			for (const auto& entry : *entries) {
+				const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
+				probabilities.emplace_back(probability);
+			}
+			std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
+			selected = dist(g_randomTimeSeed);
+		}
 		const Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
 
 		StateInfo state;
