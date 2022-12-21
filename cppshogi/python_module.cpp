@@ -364,6 +364,36 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 	return trainingData.size();
 }
 
+void __hcpe3_patch_with_hcpe(const std::string& filepath) {
+	std::ifstream ifs(filepath, std::ifstream::binary);
+	while (ifs) {
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (ifs.eof()) {
+			break;
+		}
+		bool found = false;
+		for (auto& data : trainingData) {
+			if (data.hcp == hcpe.hcp) {
+				found = true;
+				data.count = 1;
+				data.eval = hcpe.eval;
+				data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
+				data.candidates.clear();
+				data.candidates[hcpe.bestMove16] = 1;
+			}
+		}
+		if (!found) {
+			auto& data = trainingData.emplace_back(
+				hcpe.hcp,
+				hcpe.eval,
+				make_result(hcpe.gameResult, hcpe.hcp.color())
+			);
+			data.candidates[hcpe.bestMove16] = 1;
+		}
+	}
+}
+
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {

@@ -8,6 +8,7 @@ void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures
 void __hcpe3_create_cache(const std::string& filepath);
 size_t __hcpe3_load_cache(const std::string& filepath);
 size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len);
+void __hcpe3_patch_with_hcpe(const std::string& filepath);
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue);
 size_t __load_evalfix(const std::string& filepath);
 void __hcpe3_get_hcpe(const size_t index, char* ndhcpe);
