@@ -16,7 +16,7 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
     for kif in CSA.Parser.parse_file(filepath):
         if kif.endgame not in ('%TORYO', '%KACHI'):
             continue
-        if kif.names[kif.win - 1] != args.win_name:
+        if args.win_name and kif.names[kif.win - 1] != args.win_name:
             continue
         # •]‰¿’l‚ª‚È‚¢Šû•ˆ‚ğœŠO
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
@@ -31,14 +31,17 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
 
             if score * prev_score < 0 and abs(score - prev_score) > args.diff:
                 if (score > 0 and kif.win - 1 == board.turn) or (score < 0 and kif.win - 1 != board.turn):
-                    base_score = int(score * 0.9)
+                    if i % 2 != kif.win - 1:
+                        i += 1
+                    base_score = int(kif.scores[i] * 0.9)
                     ok = True
-                    for after_score in kif.scores[i:]:
-                        if (score > 0 and after_score < base_score) or (score < 0 and after_score > base_score):
+                    for after_score in kif.scores[i::2]:
+                        if (base_score > 0 and after_score < base_score) or (base_score < 0 and after_score > base_score):
                             ok = False
                             break
                     if ok:
                         print(filepath, board.sfen(), sep='\t')
+                        break
 
             board.push(move)
             prev_score = score
