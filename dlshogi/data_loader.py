@@ -172,8 +172,8 @@ class Hcpe3DataLoader(DataLoader):
                 logging.warn('{} not found, skipping'.format(path))
         if patch:
             # パッチを当てる
-            logging.info('Patch with {}'.format(patch))
-            cppshogi.hcpe3_patch_with_hcpe(patch);
+            patch_sum_len, patch_add_len = cppshogi.hcpe3_patch_with_hcpe(patch);
+            logging.info('Patch with {}, patched num = {}, added num = {}'.format(patch, patch_sum_len - patch_add_len, patch_add_len))
         if cache:
             # キャッシュ作成
             logging.info('Create cache {}'.format(cache))

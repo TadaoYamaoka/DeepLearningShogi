@@ -173,7 +173,7 @@ TrainingData get_cache(const size_t i) {
 }
 
 // hcpe形式の指し手をone-hotの方策として読み込む
-size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, int& len) {
+size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, size_t& len) {
 	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval hcpe;
 		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
@@ -280,7 +280,7 @@ bool is_hcpe(std::ifstream& ifs) {
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len) {
+size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, size_t& len) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return trainingData.size();
 
@@ -364,8 +364,9 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 	return trainingData.size();
 }
 
-void __hcpe3_patch_with_hcpe(const std::string& filepath) {
+size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 	std::ifstream ifs(filepath, std::ifstream::binary);
+	size_t sum_len = 0;
 	while (ifs) {
 		HuffmanCodedPosAndEval hcpe;
 		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
@@ -390,8 +391,11 @@ void __hcpe3_patch_with_hcpe(const std::string& filepath) {
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
+			++add_len;
 		}
+		++sum_len;
 	}
+	return sum_len;
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
