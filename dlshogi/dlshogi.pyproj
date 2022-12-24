@@ -80,7 +80,7 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
-    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
