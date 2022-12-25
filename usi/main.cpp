@@ -487,8 +487,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	const std::string merge_file = options["Book_Merge_File"];
 
 	// MinMaxで選ぶ確率
-	make_book_minmax_prob = options["Make_Book_MinMax_Prob"] / 1000.0;
-	make_book_minmax_prob_opp = options["Make_Book_MinMax_Prob_Opp"] / 1000.0;
+	book_minmax_prob = options["Book_MinMax_Prob"] / 1000.0;
+	book_minmax_prob_opp = options["Book_MinMax_Prob_Opp"] / 1000.0;
 
 	// 千日手の評価値
 	draw_score_black = Score(-logf(1.0f / draw_value_black - 1.0f) * eval_coef);

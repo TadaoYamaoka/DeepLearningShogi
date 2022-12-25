@@ -38,8 +38,8 @@ double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 // MinMaxで選ぶ確率
-double make_book_minmax_prob = 1.0;
-double make_book_minmax_prob_opp = 0.1;
+double book_minmax_prob = 1.0;
+double book_minmax_prob_opp = 0.1;
 std::uniform_real_distribution<double> dist_minmax(0, 1);
 // 千日手の評価値
 extern float draw_value_black;
@@ -194,7 +194,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			{
 				const auto& entries = itr->second;
 				// 一定の確率でmin-maxで選ぶ
-				const auto& entry = (dist_minmax(g_randomTimeSeed) < make_book_minmax_prob) ? select_best_book_entry(pos, outMap, entries) : entries[0];
+				const auto& entry = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries) : entries[0];
 
 				// 評価値が閾値を超えた場合、探索終了
 				if (std::abs(entry.score) > book_eval_threshold) {
@@ -254,7 +254,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		}
 
 		size_t selected = 0;
-		if (dist_minmax(g_randomTimeSeed) < make_book_minmax_prob_opp) {
+		if (dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
 			// 一定の確率でmin-maxで選ぶ
 			const auto& entry = select_best_book_entry(pos, outMap, *entries);
 			selected = &entry - &(*entries)[0];
