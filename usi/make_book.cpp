@@ -12,7 +12,7 @@
 #include "Message.h"
 #include "dfpn.h"
 
-#include <sys/stat.h>
+#include <filesystem>
 
 struct child_node_t_copy {
 	Move move;       // 着手する座標
@@ -308,13 +308,12 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 // 定跡マージ
 int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file) {
 	// ファイル更新がある場合のみ処理する
-	static time_t prev_time = 0;
-	struct stat st;
-	if (stat(merge_file.c_str(), &st) != 0)
+	static std::filesystem::file_time_type prev_time{};
+	std::error_code ec;
+	const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(merge_file, ec);
+	if (file_time == prev_time)
 		return 0;
-	if (st.st_ctime == prev_time)
-		return 0;
-	prev_time = st.st_ctime;
+	prev_time = file_time;
 
 	std::ifstream ifsMerge(merge_file.c_str(), std::ios::binary);
 	int merged = 0;
