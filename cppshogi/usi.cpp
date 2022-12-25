@@ -153,6 +153,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Make_Book_Color"]             = USIOption("both");
     (*this)["Book_MinMax_Prob"]            = USIOption(1000, 0, 1000);
     (*this)["Book_MinMax_Prob_Opp"]        = USIOption(100, 0, 1000);
+    (*this)["Use_Book_Lock"]               = USIOption(false);
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK

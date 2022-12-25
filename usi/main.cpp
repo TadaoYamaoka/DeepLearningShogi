@@ -438,6 +438,29 @@ void MySearcher::getAndPrintBestMove() {
 
 #ifdef MAKE_BOOK
 #include "make_book.h"
+#include <filesystem>
+
+class BookLock {
+public:
+	BookLock(const std::string filename, const bool use_book_lock) : filename(filename), use_book_lock(use_book_lock) {
+		if (use_book_lock) {
+			std::error_code ec;
+			while (!std::filesystem::create_directory(filename + ".lock", ec)) {
+				std::cout << filename << " locked" << std::endl;
+				std::this_thread::sleep_for(std::chrono::seconds(3));
+			}
+		}
+	}
+	~BookLock() {
+		if (use_book_lock) {
+			if (!std::filesystem::remove(filename + ".lock"))
+				std::quick_exit(1);
+		}
+	}
+private:
+	std::string filename;
+	bool use_book_lock;
+};
 
 // 定跡作成
 void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) {
@@ -485,6 +508,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 定期的にマージする定跡ファイル
 	const std::string merge_file = options["Book_Merge_File"];
+
+	// マージ時にロックする
+	const bool use_book_lock = options["Use_Book_Lock"];
 
 	// MinMaxで選ぶ確率
 	book_minmax_prob = options["Book_MinMax_Prob"] / 1000.0;
@@ -551,6 +577,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 定跡マージ
 	int merged = 0;
 	if (merge_file != "") {
+		BookLock book_lock(merge_file, use_book_lock);
 		merged += merge_book(outMap, merge_file);
 	}
 
@@ -589,14 +616,18 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		{
 			// 定跡マージ
 			if (merge_file != "") {
+				BookLock book_lock(merge_file, use_book_lock);
 				merged += merge_book(outMap, merge_file);
 			}
 
 			prev_num = outMap.size();
-			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-			for (auto& elem : outMap) {
-				for (auto& elel : elem.second)
-					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+			{
+				BookLock book_lock(outFileName, use_book_lock);
+				std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+				for (auto& elem : outMap) {
+					for (auto& elel : elem.second)
+						ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+				}
 			}
 		}
 	}
