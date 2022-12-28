@@ -37,23 +37,24 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
                         j = i + 1
                     else:
                         j = i
-                    base_score = int(kif.scores[j] * 0.9)
-                    ok = True
-                    for after_score in kif.scores[j::2]:
-                        if (base_score > 0 and after_score < base_score) or (base_score < 0 and after_score > base_score):
-                            ok = False
+                    if kif.scores[j] > 100:
+                        base_score = int(kif.scores[j] * 0.9)
+                        ok = True
+                        for after_score in kif.scores[j::2]:
+                            if (base_score > 0 and after_score < base_score) or (base_score < 0 and after_score > base_score):
+                                ok = False
+                                break
+                        if ok:
+                            print(filepath, board.sfen(), sep='\t')
+                            if args.lose_sfen:
+                                for k, (move, score) in enumerate(zip(kif.moves[i:], kif.scores[i:])):
+                                    # •‰‚¯‚½•û‚ÌŽè”Ô
+                                    if (i + k) % 2 != j % 2:
+                                        if (base_score > 0 and score > 100) or (base_score < 0 and score < -100):
+                                            break
+                                        lose_sfen.append('startpos moves ' + ' '.join([move_to_usi(move) for move in board.history]) + '\n')
+                                    board.push(move)
                             break
-                    if ok:
-                        print(filepath, board.sfen(), sep='\t')
-                        if args.lose_sfen:
-                            for k, (move, score) in enumerate(zip(kif.moves[i:], kif.scores[i:])):
-                                # •‰‚¯‚½•û‚ÌŽè”Ô
-                                if (i + k) % 2 != j % 2:
-                                    if (base_score > 0 and score > 100) or (base_score < 0 and score < -100):
-                                        break
-                                    lose_sfen.append('startpos moves ' + ' '.join([move_to_usi(move) for move in board.history]) + '\n')
-                                board.push(move)
-                        break
 
             board.push(move)
             prev_score = score
