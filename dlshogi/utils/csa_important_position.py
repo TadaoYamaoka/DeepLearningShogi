@@ -37,7 +37,7 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
                         j = i + 1
                     else:
                         j = i
-                    if kif.scores[j] > 100:
+                    if abs(kif.scores[j]) > 100:
                         base_score = int(kif.scores[j] * 0.9)
                         ok = True
                         for after_score in kif.scores[j::2]:
