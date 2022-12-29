@@ -66,7 +66,6 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
 
                                         # dlshogiのモデルで方策の確率が実際の指し手以上の手を追加で出力する
                                         if args.aug_policy:
-                                            prev_move = board.pop()
                                             make_input_features(board, features1, features2)
                                             io_binding = session.io_binding()
                                             io_binding.bind_cpu_input('input1', features1)
@@ -76,13 +75,12 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
                                             session.run_with_iobinding(io_binding)
                                             y1, y2 = io_binding.copy_outputs_to_cpu()
                                             policy_logit = y1[0]
-                                            prev_move_label = make_move_label(prev_move, board.turn)
-                                            prev_move_policy_logit = policy_logit[prev_move_label]
+                                            move_label = make_move_label(move, board.turn)
+                                            move_policy_logit = policy_logit[move_label]
                                             for legal_move in board.legal_moves:
                                                 label = make_move_label(legal_move, board.turn)
-                                                if policy_logit[label] > prev_move_policy_logit:
+                                                if policy_logit[label] >= move_policy_logit:
                                                     lose_sfen.append('startpos moves ' + ' '.join([move_to_usi(move) for move in board.history]) + ' ' + move_to_usi(legal_move) + '\n')
-                                            board.push(prev_move)
 
                                     board.push(move)
                             break
