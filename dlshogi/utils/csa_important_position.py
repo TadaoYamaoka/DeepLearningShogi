@@ -8,6 +8,7 @@ import glob
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('--diff', type=int, default=500)
+parser.add_argument('--filter_rating', type=int, default=0)
 parser.add_argument('--win_name')
 parser.add_argument('--lose_sfen')
 parser.add_argument('--aug_policy')
@@ -27,6 +28,8 @@ board = Board()
 for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True):
     for kif in CSA.Parser.parse_file(filepath):
         if kif.endgame not in ('%TORYO', '%KACHI'):
+            continue
+        if args.filter_rating > 0 and min(kif.ratings) < args.filter_rating:
             continue
         if args.win_name and kif.names[kif.win - 1] != args.win_name:
             continue
