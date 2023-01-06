@@ -1,4 +1,3 @@
-from email.policy import default
 from cshogi import *
 from cshogi import CSA
 import os
