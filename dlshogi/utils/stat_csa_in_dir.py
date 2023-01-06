@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import os
 import glob
 from cshogi import *

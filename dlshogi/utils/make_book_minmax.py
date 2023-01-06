@@ -25,7 +25,7 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
         endgame = kif.endgame
         if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI'):
             continue
-        # d•¡íœ
+        # é‡è¤‡å‰Šé™¤
         if args.uniq:
             dup_key = ''.join([move_to_usi(move) for move in kif.moves])
             if dup_key in duplicates:
@@ -114,7 +114,7 @@ board.set_sfen(startsfen)
 
 minmax(board)
 
-# ’èÕo—Í
+# å®šè·¡å‡ºåŠ›
 if args.side == 'black':
     side = BLACK
 elif args.side == 'white':

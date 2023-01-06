@@ -33,7 +33,7 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
             continue
         if args.win_name and kif.names[kif.win - 1] != args.win_name:
             continue
-        # •]‰¿’l‚ª‚È‚¢Šû•ˆ‚ðœŠO
+        # è©•ä¾¡å€¤ãŒãªã„æ£‹è­œã‚’é™¤å¤–
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
             continue
 
@@ -61,13 +61,13 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
                             print(filepath, board.sfen(), sep='\t')
                             if args.lose_sfen:
                                 for k, (move, score) in enumerate(zip(kif.moves[i:], kif.scores[i:])):
-                                    # •‰‚¯‚½•û‚ÌŽè”Ô
+                                    # è² ã‘ãŸæ–¹ã®æ‰‹ç•ª
                                     if (i + k) % 2 != j % 2:
                                         if (base_score > 0 and score > 100) or (base_score < 0 and score < -100):
                                             break
                                         lose_sfen.append('startpos moves ' + ' '.join([move_to_usi(move) for move in board.history]) + '\n')
 
-                                        # dlshogi‚Ìƒ‚ƒfƒ‹‚Å•ûô‚ÌŠm—¦‚ªŽÀÛ‚ÌŽw‚µŽèˆÈã‚ÌŽè‚ð’Ç‰Á‚Åo—Í‚·‚é
+                                        # dlshogiã®ãƒ¢ãƒ‡ãƒ«ã§æ–¹ç­–ã®ç¢ºçŽ‡ãŒå®Ÿéš›ã®æŒ‡ã—æ‰‹ä»¥ä¸Šã®æ‰‹ã‚’è¿½åŠ ã§å‡ºåŠ›ã™ã‚‹
                                         if args.aug_policy:
                                             make_input_features(board, features1, features2)
                                             io_binding = session.io_binding()
