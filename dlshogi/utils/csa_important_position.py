@@ -12,6 +12,7 @@ parser.add_argument('--filter_rating', type=int, default=0)
 parser.add_argument('--win_name')
 parser.add_argument('--lose_sfen')
 parser.add_argument('--aug_policy')
+parser.add_argument('--aug_policy_th', type=float, default=1.0)
 args = parser.parse_args()
 
 if args.lose_sfen:
@@ -19,10 +20,12 @@ if args.lose_sfen:
     if args.aug_policy:
         import onnxruntime
         import numpy as np
+        import math
         from cshogi.dlshogi import make_input_features, make_move_label, FEATURES1_NUM, FEATURES2_NUM
         session = onnxruntime.InferenceSession(args.aug_policy, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
         features1 = np.empty((1, FEATURES1_NUM, 9, 9), dtype=np.float32)
         features2 = np.empty((1, FEATURES2_NUM, 9, 9), dtype=np.float32)
+        aug_policy_log_th = math.log(args.aug_policy_th)
 
 board = Board()
 for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True):
@@ -82,7 +85,7 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
                                             move_policy_logit = policy_logit[move_label]
                                             for legal_move in board.legal_moves:
                                                 label = make_move_label(legal_move, board.turn)
-                                                if policy_logit[label] >= move_policy_logit:
+                                                if policy_logit[label] >= move_policy_logit + aug_policy_log_th:
                                                     lose_sfen.append('startpos moves ' + ' '.join([move_to_usi(move) for move in board.history]) + ' ' + move_to_usi(legal_move) + '\n')
 
                                     board.push(move)
