@@ -567,21 +567,24 @@ void MySearcher::goUct(Position& pos) {
 }
 
 std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
-	auto bestMove = future.get();
-	std::cout << "bestmove ";
-	if (bestMove.first == Move::moveResign()) {
-		std::cout << "resign";
-	}
-	else if (bestMove.first == Move::moveWin()) {
-		std::cout << "win";
-	}
-	else {
-		std::cout << bestMove.first.toUSI();
-	}
-	if (bestMove.second != Move::moveNone()) {
-		std::cout << " ponder " << bestMove.second.toUSI();
-	}
-	std::cout << std::endl;
+	std::pair<Move, Move> bestMove;
+	std::thread([&bestMove] {
+		bestMove = future.get();
+		std::cout << "bestmove ";
+		if (bestMove.first == Move::moveResign()) {
+			std::cout << "resign";
+		}
+		else if (bestMove.first == Move::moveWin()) {
+			std::cout << "win";
+		}
+		else {
+			std::cout << bestMove.first.toUSI();
+		}
+		if (bestMove.second != Move::moveNone()) {
+			std::cout << " ponder " << bestMove.second.toUSI();
+		}
+		std::cout << std::endl;
+	}).detach();
 
 	return bestMove;
 }
