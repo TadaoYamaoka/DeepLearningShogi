@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\delete_book_side.py</StartupFile>
+    <StartupFile>utils\make_book_minmax.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>black f:\book\book_pre28_300m-w-fix10.bin F:\book\book_pre28_300m-w-fix10-delblack.bin --opponent F:\book\s-book_black.db</CommandLineArguments>
+    <CommandLineArguments>R:\kgr0 R:\kgr0.book --startsfen "lr5nl/3g1kg2/2n1ppsp1/p1pps1p1p/1p5P1/P1PPSPP1P/1PS1P1N2/2GK1G3/LN5RL w Bb 38" --side black</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -55,6 +55,7 @@
     <Compile Include="utils\benchmark.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
+    <Compile Include="utils\csa_important_position.py" />
     <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_csv.py">
       <SubType>Code</SubType>
@@ -65,6 +66,7 @@
     <Compile Include="utils\csa_to_gokakusfen.py" />
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
     </Compile>
@@ -76,9 +78,10 @@
     <Compile Include="utils\filter_kif_in_dir.py" />
     <Compile Include="utils\fix_hcpe_eval.py" />
     <Compile Include="utils\hcpe3_to_csa.py" />
+    <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
-    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
@@ -99,6 +102,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\usi_repeater.py" />
     <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
     <Compile Include="utils\__init__.py">

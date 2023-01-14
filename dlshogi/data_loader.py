@@ -139,7 +139,13 @@ def score_to_value(score, a):
 
 class Hcpe3DataLoader(DataLoader):
     @staticmethod
-    def load_files(files, use_average=False, use_evalfix=False, temperature=1.0):
+    def load_files(files, use_average=False, use_evalfix=False, temperature=1.0, patch=None, cache=None):
+        # キャッシュが存在する場合、キャッシュから読み込む
+        if cache and os.path.isfile(cache):
+            logging.info('Load cache {}'.format(cache))
+            cache_len = cppshogi.hcpe3_load_cache(cache)
+            return cache_len, cache_len
+
         if use_evalfix:
             from scipy.optimize import curve_fit
 
@@ -164,6 +170,16 @@ class Hcpe3DataLoader(DataLoader):
                 actual_len += len_
             else:
                 logging.warn('{} not found, skipping'.format(path))
+        if patch:
+            # パッチを当てる
+            patch_sum_len, patch_add_len = cppshogi.hcpe3_patch_with_hcpe(patch);
+            logging.info('Patch with {}, patched num = {}, added num = {}'.format(patch, patch_sum_len - patch_add_len, patch_add_len))
+        if cache:
+            # キャッシュ作成
+            logging.info('Create cache {}'.format(cache))
+            cppshogi.hcpe3_create_cache(cache)
+            cache_len = cppshogi.hcpe3_load_cache(cache)
+            assert sum_len == cache_len
         return sum_len, actual_len
 
     def __init__(self, data, batch_size, device, shuffle=False):

@@ -12,6 +12,8 @@ http://tadaoyamaoka.hatenablog.com/
 ## ダウンロード
 [Releases](https://github.com/TadaoYamaoka/DeepLearningShogi/releases)からダウンロードできます。
 
+最新のモデルファイルは、[棋神アナリティクス](https://kishin-analytics.heroz.jp/lp/)でご利用いただけます。
+
 ## ソース構成
 |フォルダ|説明|
 |:---|:---|
@@ -26,15 +28,15 @@ http://tadaoyamaoka.hatenablog.com/
 ## ビルド環境
 ### USIエンジン、自己対局プログラム
 #### Windowsの場合
-* Windows 10 64bit
-* Visual Studio 2019
+* Windows 11 64bit
+* Visual Studio 2022
 #### Linuxの場合
-* Ubuntu 18.04 LTS
+* Ubuntu 18.04 LTS / 20.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 11.0
-* cuDNN 8.0
-* TensorRT 7.2.1
+* CUDA 11.8
+* cuDNN 8.7
+* TensorRT 8.5
 
 ※CUDA 10.0以上であれば変更可
 

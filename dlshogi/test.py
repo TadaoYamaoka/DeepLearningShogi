@@ -38,7 +38,7 @@ def main(*argv):
     print('Load model from', args.model)
     if args.onnx:
         import onnxruntime
-        session = onnxruntime.InferenceSession(args.model)
+        session = onnxruntime.InferenceSession(args.model, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
     else:
         model = policy_value_network(args.network)
         model.to(device)

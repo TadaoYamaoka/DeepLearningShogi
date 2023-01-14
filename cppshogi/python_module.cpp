@@ -1,4 +1,5 @@
 ﻿#include <numeric>
+#include <omp.h>
 #include "cppshogi.h"
 
 void init() {
@@ -101,8 +102,78 @@ std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
 std::unordered_map<HuffmanCodedPos, unsigned int> duplicates;
 
+void __hcpe3_create_cache(const std::string& filepath) {
+	std::ofstream ofs(filepath, std::ios::binary);
+
+	// インデックス部
+	// 局面数
+	const size_t num = trainingData.size();
+	ofs.write((const char*)&num, sizeof(num));
+	// 各局面の開始位置
+	size_t pos = sizeof(num) + sizeof(pos) * num;
+	for (const auto& hcpe3 : trainingData) {
+		ofs.write((const char*)&pos, sizeof(pos));
+		pos += sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * hcpe3.candidates.size();
+	}
+
+	// ボディ部
+	for (const auto& hcpe3 : trainingData) {
+		Hcpe3CacheBody body{
+			hcpe3.hcp,
+			hcpe3.eval,
+			hcpe3.result,
+			hcpe3.count
+		};
+		ofs.write((const char*)&body, sizeof(body));
+
+		for (const auto kv : hcpe3.candidates) {
+			Hcpe3CacheCandidate candidate{
+				kv.first,
+				kv.second
+			};
+			ofs.write((const char*)&candidate, sizeof(candidate));
+		}
+	}
+
+	// メモリ開放
+	// trainingDataを開放してしまうため、キャッシュを作成した場合、データはキャッシュから読み込むこと
+	trainingData.clear();
+	trainingData.shrink_to_fit();
+	duplicates.clear();
+	std::unordered_map<HuffmanCodedPos, unsigned int>(duplicates).swap(duplicates);
+}
+
+// hcpe3キャッシュ
+std::ifstream cache;
+std::vector<size_t> cache_pos;
+std::mutex cache_mutex;
+size_t __hcpe3_load_cache(const std::string& filepath) {
+	cache.open(filepath, std::ios::binary);
+	size_t num;
+	cache.read((char*)&num, sizeof(num));
+	cache_pos.resize(num + 1);
+	cache.read((char*)cache_pos.data(), sizeof(size_t) * num);
+	cache.seekg(0, std::ios_base::end);
+	cache_pos[num] = cache.tellg();
+	return num;
+}
+
+TrainingData get_cache(const size_t i) {
+	const size_t pos = cache_pos[i];
+	const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+	cache_mutex.lock();
+	cache.seekg(pos, std::ios_base::beg);
+	struct Hcpe3CacheBuf {
+		Hcpe3CacheBody body;
+		Hcpe3CacheCandidate candidates[MaxLegalMoves];
+	} buf;
+	cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
+	cache_mutex.unlock();
+	return TrainingData(buf.body, buf.candidates, candidateNum);
+}
+
 // hcpe形式の指し手をone-hotの方策として読み込む
-size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, int& len) {
+size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_average, const double eval_scale, size_t& len) {
 	for (int p = 0; ifs; ++p) {
 		HuffmanCodedPosAndEval hcpe;
 		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
@@ -209,7 +280,7 @@ bool is_hcpe(std::ifstream& ifs) {
 
 // hcpe3形式のデータを読み込み、ランダムアクセス可能なように加工し、trainingDataに保存する
 // 複数回呼ぶことで、複数ファイルの読み込みが可能
-size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, int& len) {
+size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, size_t& len) {
 	std::ifstream ifs(filepath, std::ifstream::binary | std::ios::ate);
 	if (!ifs) return trainingData.size();
 
@@ -293,6 +364,40 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 	return trainingData.size();
 }
 
+size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
+	std::ifstream ifs(filepath, std::ifstream::binary);
+	size_t sum_len = 0;
+	while (ifs) {
+		HuffmanCodedPosAndEval hcpe;
+		ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
+		if (ifs.eof()) {
+			break;
+		}
+		bool found = false;
+		for (auto& data : trainingData) {
+			if (data.hcp == hcpe.hcp) {
+				found = true;
+				data.count = 1;
+				data.eval = hcpe.eval;
+				data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
+				data.candidates.clear();
+				data.candidates[hcpe.bestMove16] = 1;
+			}
+		}
+		if (!found) {
+			auto& data = trainingData.emplace_back(
+				hcpe.hcp,
+				hcpe.eval,
+				make_result(hcpe.gameResult, hcpe.hcp.color())
+			);
+			data.candidates[hcpe.bestMove16] = 1;
+			++add_len;
+		}
+		++sum_len;
+	}
+	return sum_len;
+}
+
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
@@ -308,27 +413,57 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
-	Position position;
-	for (size_t i = 0; i < len; i++, index++, features1++, features2++, value++, probability++, result++) {
-		auto& hcpe3 = trainingData[*index];
+	#pragma omp parallel for num_threads(2)
+	for (int64_t i = 0; i < len; i++) {
+		const auto& hcpe3 = cache.is_open() ? get_cache(index[i]) : trainingData[index[i]];
 
+		Position position;
 		position.set(hcpe3.hcp);
 
 		// input features
-		make_input_features(position, *features1, *features2);
+		make_input_features(position, features1[i], features2[i]);
 
 		// move probability
 		for (const auto kv : hcpe3.candidates) {
 			const auto label = make_move_label(kv.first, position.turn());
 			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
-			(*probability)[label] = kv.second / hcpe3.count;
+			probability[i][label] = kv.second / hcpe3.count;
 		}
 
 		// game result
-		*result = hcpe3.result / hcpe3.count;
+		result[i] = hcpe3.result / hcpe3.count;
 
 		// eval
-		*value = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+		value[i] = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+	}
+}
+
+// load_hcpe3で読み込み済みのtrainingDataから、インデックスを指定してhcpeを取り出す
+void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
+	HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
+
+	const auto& hcpe3 = cache.is_open() ? get_cache(index) : trainingData[index];
+
+	hcpe->hcp = hcpe3.hcp;
+	float max_prob = FLT_MIN ;
+	for (const auto kv : hcpe3.candidates) {
+		const auto& move16 = kv.first;
+		const auto& prob = kv.second;
+		if (prob > max_prob) {
+			hcpe->bestMove16 = move16;
+			max_prob = prob;
+		}
+	}
+	hcpe->eval = (s16)(hcpe3.eval / hcpe3.count);
+	const auto result = (hcpe3.result / hcpe3.count);
+	if (result < 0.5f) {
+		hcpe->gameResult = hcpe3.hcp.color() == Black ? WhiteWin : BlackWin;
+	}
+	else if (result > 0.5f) {
+		hcpe->gameResult = hcpe3.hcp.color() == Black ? BlackWin : WhiteWin;
+	}
+	else {
+		hcpe->gameResult = Draw;
 	}
 }
 
