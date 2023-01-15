@@ -36,7 +36,11 @@ struct MySearcher : Searcher {
 	static std::future<std::pair<Move, Move>> future;
 	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
 	static void goUct(Position& pos);
+#ifndef MULTI_PONDER
+	static void getAndPrintBestMove();
+#else
 	static std::pair<Move, Move> getAndPrintBestMove();
+#endif
 };
 
 Key MySearcher::starting_pos_key;
@@ -187,8 +191,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			});
 #endif
 			if (!limits.ponder) {
-				auto bestMove = getAndPrintBestMove();
-#ifdef MULTI_PONDER
+#ifndef MULTI_PONDER
+				getAndPrintBestMove();
+#else
+				const auto bestMove = getAndPrintBestMove();
 				if (need_multi_ponder) {
 					// ルートノードが展開されるのを待つ
 					WaitPrepareMultiPonder();
@@ -566,10 +572,10 @@ void MySearcher::goUct(Position& pos) {
 	}
 }
 
-std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
-	std::pair<Move, Move> bestMove;
-	std::thread([&bestMove] {
-		bestMove = future.get();
+#ifndef MULTI_PONDER
+void MySearcher::getAndPrintBestMove() {
+	std::thread([] {
+		const auto bestMove = future.get();
 		std::cout << "bestmove ";
 		if (bestMove.first == Move::moveResign()) {
 			std::cout << "resign";
@@ -585,9 +591,28 @@ std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
 		}
 		std::cout << std::endl;
 	}).detach();
+}
+#else
+std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
+	auto bestMove = future.get();
+	std::cout << "bestmove ";
+	if (bestMove.first == Move::moveResign()) {
+		std::cout << "resign";
+	}
+	else if (bestMove.first == Move::moveWin()) {
+		std::cout << "win";
+	}
+	else {
+		std::cout << bestMove.first.toUSI();
+	}
+	if (bestMove.second != Move::moveNone()) {
+		std::cout << " ponder " << bestMove.second.toUSI();
+	}
+	std::cout << std::endl;
 
 	return bestMove;
 }
+#endif
 
 #ifdef MAKE_BOOK
 struct child_node_t_copy {
