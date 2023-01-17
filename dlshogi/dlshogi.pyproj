@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\make_book_minmax.py</StartupFile>
+    <StartupFile>utils\feature_importance.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\kgr0 R:\kgr0.book --startsfen "lr5nl/3g1kg2/2n1ppsp1/p1pps1p1p/1p5P1/P1PPSPP1P/1PS1P1N2/2GK1G3/LN5RL w Bb 38" --side black</CommandLineArguments>
+    <CommandLineArguments>"F:\model\model-pre39_resnet30x384_relu_b4096lr004-013.onnx" "l2r3nl/1P1+Rsk3/2nPppgp1/p5p1p/1pP2P3/PSp1s1P1P/4P4/1KG2G3/LN6L b 2B2Pgsn 85" --svg r:\a.svg</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -66,6 +66,7 @@
     <Compile Include="utils\csa_to_gokakusfen.py" />
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\feature_importance.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
