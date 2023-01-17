@@ -2,6 +2,7 @@ from cshogi import *
 from cshogi import CSA
 import os
 import glob
+import math
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -146,6 +147,15 @@ book = {}
 make_book(board, book)
 
 print('book position num', len(book))
+
+def value_to_score(value, a=300):
+	if value == 1.0:
+		return 30000
+	elif value == 0.0:
+		return -30000
+	else:
+		return int(-math.log(1.0 / value - 1.0) * a)
+
 with open(args.book, 'w') as f:
     f.write('#YANEURAOU-DB2016 1.00\n')
     for key in sorted(book.keys()):
@@ -157,4 +167,5 @@ with open(args.book, 'w') as f:
 
         for candidate in entry['candidates']:
             next_move = move_to_usi(candidate['next_move']) if candidate['next_move'] is not None else 'none'
-            f.write(f"{move_to_usi(candidate['move'])} {next_move} {candidate['eval']} 0 {int(candidate['value'] * 100)}\n")
+            score = value_to_score(candidate['value'])
+            f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 0\n")
