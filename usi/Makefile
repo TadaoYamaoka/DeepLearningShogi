@@ -6,7 +6,7 @@ INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64
 
 target = bin/usi
-target_make_book = bin/make_book
+target_makebook = bin/makebook
 sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp nn_tensorrt.cpp PvMateSearch.cpp make_book.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp dtype.cpp
 cuda_sources = unpack.cu
@@ -38,5 +38,5 @@ $(target_make_book): $(objects) $(cppshogi_objects) $(cuda_objects)
 	@[ -d bin ] || mkdir -p bin
 	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
 
-make_book: CFLAGS += -DMAKE_BOOK
-make_book: $(target_make_book)
+makebook: CFLAGS += -DMAKE_BOOK
+makebook: $(target_makebook)
