@@ -53,6 +53,30 @@ typedef packed_features1_t Features1;
 typedef packed_features2_t Features2;
 #endif
 
+#ifdef MULTI_PONDER
+std::mutex mtx_expand_root;
+std::condition_variable cond_expand_root;
+int expanded_root = false;
+void ResetMultiPonder()
+{
+	std::lock_guard<std::mutex> lk(mtx_expand_root);
+	expanded_root = false;
+}
+void PrepareMultiPonder()
+{
+	std::lock_guard<std::mutex> lk(mtx_expand_root);
+	expanded_root = true;
+	cond_expand_root.notify_all();
+}
+void WaitPrepareMultiPonder()
+{
+	std::unique_lock<std::mutex> lk(mtx_expand_root);
+	while (!expanded_root) {
+		cond_expand_root.wait(lk);
+	}
+}
+#endif
+
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -955,6 +979,28 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 	return std::make_tuple(move, best_wp, ponderMove);
 }
 
+#ifdef MULTI_PONDER
+bool GetMultiPonderMove(std::vector<Move>& moves, int num)
+{
+	const uct_node_t* current_root = tree->GetCurrentHead();
+	// 部分ソート
+	const child_node_t* root_uct_child = current_root->child.get();
+	const int child_num = current_root->child_num;
+	if (child_num <= 1) return false;
+	const int multipv_num = std::min(num, child_num);
+	std::vector<const child_node_t*> sorted_root_uct_childs;
+	sorted_root_uct_childs.reserve(child_num);
+	for (int i = 0; i < child_num; i++)
+		sorted_root_uct_childs.emplace_back(&root_uct_child[i]);
+	std::partial_sort(sorted_root_uct_childs.begin(), sorted_root_uct_childs.begin() + multipv_num, sorted_root_uct_childs.end(), compare_child_node_ptr_descending);
+
+	for (int i = 0; i < multipv_num; i++) {
+		const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
+		moves.emplace_back(best_root_uct_child->move);
+	}
+	return true;
+}
+#endif
 
 /////////////////////////////////////
 //  UCTアルゴリズムによる着手生成  //
@@ -988,6 +1034,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	// UCTの初期化
 	ExpandRoot(pos);
+
+#ifdef MULTI_PONDER
+	if (pondering)
+		PrepareMultiPonder();
+#endif
 
 	// 詰みのチェック
 	const int child_num = current_root->child_num;

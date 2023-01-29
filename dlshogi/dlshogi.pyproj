@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\hcpe3_to_psv.py</StartupFile>
+    <StartupFile>utils\feature_importance.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\floodgate\floodgate_2021_1024_r3800_nomate.hcpe3 R:\floodgate_2021_1024_r3800_nomate.psv</CommandLineArguments>
+    <CommandLineArguments>"F:\model\model-pre39_resnet30x384_relu_b4096lr004-013.onnx" "l2r3nl/1P1+Rsk3/2nPppgp1/p5p1p/1pP2P3/PSp1s1P1P/4P4/1KG2G3/LN6L b 2B2Pgsn 85" --svg r:\a.svg</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -55,6 +55,7 @@
     <Compile Include="utils\benchmark.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
+    <Compile Include="utils\csa_important_position.py" />
     <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_csv.py">
       <SubType>Code</SubType>
@@ -65,6 +66,8 @@
     <Compile Include="utils\csa_to_gokakusfen.py" />
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
     </Compile>
@@ -79,7 +82,7 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
-    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
@@ -100,6 +103,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\usi_repeater.py" />
     <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
     <Compile Include="utils\__init__.py">

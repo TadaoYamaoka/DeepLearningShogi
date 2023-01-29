@@ -1,4 +1,4 @@
-﻿from cshogi import *
+from cshogi import *
 import argparse
 import os
 import sys

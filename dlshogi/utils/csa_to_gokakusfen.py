@@ -9,6 +9,7 @@ parser.add_argument('csa_dir')
 parser.add_argument('gokakusfen')
 parser.add_argument('--moves1', type=int, default=24)
 parser.add_argument('--moves2', type=int, default=36)
+parser.add_argument('--less_than_moves2', action='store_true')
 parser.add_argument('--eval', type=int, default=170)
 parser.add_argument('--eval2', type=int, default=100)
 parser.add_argument('--filter_moves', type=int, default=50)
@@ -36,6 +37,7 @@ for filepath in csa_file_list:
 
         board.reset()
         sfen = "startpos moves"
+        under_eval2 = False
         for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
             if not board.is_legal(move):
                 print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
@@ -47,14 +49,26 @@ for filepath in csa_file_list:
                 board.to_hcp(hcp)
                 key = hcp.tobytes()
             elif i == args.moves2:
-                if  abs(score) > args.eval2:
+                if abs(score) > args.eval2:
                     break
 
+                if args.less_than_moves2:
+                    board.to_hcp(hcp)
+                    key = hcp.tobytes()
                 if not key in dic:
                     dic[key] = sfen + '\n'
                 break
             elif abs(score) > args.eval:
                 break
+            elif args.less_than_moves2 and i > args.moves1:
+                if abs(score) < args.eval2:
+                    under_eval2 = True
+                elif under_eval2:
+                    board.to_hcp(hcp)
+                    key = hcp.tobytes()
+                    if not key in dic:
+                        dic[key] = sfen + '\n'
+                    break
 
             board.push(move)
             sfen += " " + move_to_usi(move)
