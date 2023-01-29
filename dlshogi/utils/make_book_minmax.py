@@ -139,7 +139,7 @@ def make_book(board, book):
 
     if args.side == 'both' or board.turn == side:
         candidates.sort(key=lambda x: x['value'], reverse=True)
-        book[key] = { 'sfen': board.sfen(), 'candidates': candidates }
+        book[board.sfen()] = candidates
 
     return node['value'], candidates[0]['move'] if len(candidates) > 0 else None
 
@@ -158,14 +158,13 @@ def value_to_score(value, a=300):
 
 with open(args.book, 'w') as f:
     f.write('#YANEURAOU-DB2016 1.00\n')
-    for key in sorted(book.keys()):
-        entry = book[key]
-        if len(entry['candidates']) == 0:
+    for sfen, candidates in book.items():
+        if len(candidates) == 0:
             continue
 
-        f.write('sfen ' + entry['sfen'] + '\n')
+        f.write('sfen ' + sfen + '\n')
 
-        for candidate in entry['candidates']:
+        for candidate in candidates:
             next_move = move_to_usi(candidate['next_move']) if candidate['next_move'] is not None else 'none'
             score = value_to_score(candidate['value'])
             f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 0\n")
