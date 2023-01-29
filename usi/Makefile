@@ -34,7 +34,7 @@ all: $(target)
 clean:
 	rm -f $(objects) $(cppshogi_objects) $(target) $(cuda_objects)
 
-$(target_make_book): $(objects) $(cppshogi_objects) $(cuda_objects)
+$(target_makebook): $(objects) $(cppshogi_objects) $(cuda_objects)
 	@[ -d bin ] || mkdir -p bin
 	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
 
