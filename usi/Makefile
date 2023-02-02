@@ -2,7 +2,7 @@
 MATE_SEARCH_DEPTH = 5
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
-INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
+INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64
 
 target = bin/usi

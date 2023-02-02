@@ -91,14 +91,32 @@ struct MoveVisits {
 };
 static_assert(sizeof(MoveVisits) == 4, "");
 
+struct Hcpe3CacheBody {
+	HuffmanCodedPos hcp; // 局面
+	int eval;
+	float result;
+	int count; // 重複カウント
+};
+
+struct Hcpe3CacheCandidate {
+	u16 move16;
+	float prob;
+};
+
 struct TrainingData {
 	TrainingData(const HuffmanCodedPos& hcp, const int eval, const float result)
 		: hcp(hcp), eval(eval), result(result), count(1) {};
+	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)
+		: hcp(body.hcp), eval(body.eval), result(body.result), count(body.count), candidates(candidateNum) {
+		for (size_t i = 0; i < candidateNum; i++) {
+			this->candidates.emplace(candidates[i].move16, candidates[i].prob);
+		}
+	};
 
 	HuffmanCodedPos hcp;
 	int eval;
 	float result;
-	std::map<u16, float> candidates;
+	std::unordered_map<u16, float> candidates;
 	int count; // 重複カウント
 };
 

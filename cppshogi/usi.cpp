@@ -134,6 +134,11 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
     (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
     (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
+    (*this)["Random2_Ply"]                 = USIOption(0, 0, 1000);
+    (*this)["Random2_Probability"]         = USIOption(40, 0, 1000);
+    (*this)["Random2_Temperature"]         = USIOption(10000, 0, 100000);
+    (*this)["Random2_Cutoff"]              = USIOption(30, 0, 1000);
+    (*this)["Random2_Value_Limit"]         = USIOption(750, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
@@ -149,6 +154,25 @@ void OptionsMap::init(Searcher* s) {
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
+#ifdef MULTI_PONDER
+    (*this)["Multi_Ponder"]                = USIOption(0, 0, 8);
+    (*this)["Multi_Ponder_Engine1"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine2"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine3"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine4"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine5"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine6"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine7"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine8"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine1_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine2_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine3_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine4_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine5_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine6_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine7_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine8_Options"] = USIOption("");
+#endif
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");

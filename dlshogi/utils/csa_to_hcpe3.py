@@ -31,16 +31,18 @@ parser.add_argument('--out_mate', action='store_true')
 parser.add_argument('--uniq', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3800)
+parser.add_argument('--filter_win_name') # 指定した対局者が勝った棋譜
+parser.add_argument('--skip_opening', action='store_true')
 args = parser.parse_args()
 
 filter_moves = args.filter_moves
 filter_rating = args.filter_rating
+filter_win_name = args.filter_win_name
 
 csa_file_list = glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True)
 
 hcpe = np.zeros(1, HuffmanCodedPosAndEval3)
 move_info_vec = np.empty(513, MoveInfo)
-move_info_vec['candidateNum'] = 1
 move_visits_vec = np.empty(513, MoveVisits)
 move_visits_vec['visitNum'] = 1
 
@@ -56,6 +58,8 @@ for filepath in csa_file_list:
         if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and min(kif.ratings) < filter_rating:
+            continue
+        if filter_win_name and (kif.win == DRAW or kif.names[kif.win - 1] != filter_win_name):
             continue
         # 評価値がない棋譜を除外
         if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
@@ -78,10 +82,12 @@ for filepath in csa_file_list:
                 continue
             hcpe['result'] += 16
 
+        move_info_vec['candidateNum'] = 1
+
         board.set_sfen(kif.sfen)
         board.to_hcp(hcpe['hcp'])
         try:
-            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+            for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
                 move_info = move_info_vec[i]
                 move_visits = move_visits_vec[i]
@@ -90,7 +96,10 @@ for filepath in csa_file_list:
                 eval = min(32767, max(score, -32767))
                 move_info['eval'] = eval if board.turn == BLACK else -eval
                 move_info['selectedMove16'] = move16(move)
-                move_visits['move16'] = move16(move)
+                if comment == '' and args.skip_opening:
+                    move_info['candidateNum'] = 0
+                else:
+                    move_visits['move16'] = move16(move)
                 if not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
                     break
                 board.push(move)
@@ -104,9 +113,10 @@ for filepath in csa_file_list:
         hcpe.tofile(f)
         for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
             move_info.tofile(f)
-            move_visits.tofile(f)
+            if move_info['candidateNum'] > 0:
+                move_visits.tofile(f)
+                position_num += 1
         kif_num += 1
-        position_num += move_num
 
 print('kif_num', kif_num)
 print('position_num', position_num)

@@ -9,6 +9,13 @@
 #include "search.hpp"
 #include "Node.h"
 
+#ifdef MULTI_PONDER
+void ResetMultiPonder();
+void PrepareMultiPonder();
+void WaitPrepareMultiPonder();
+bool GetMultiPonderMove(std::vector<Move>& moves, int num);
+#endif
+
 // 候補手の最大数(盤上全体)
 // http://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 // 篠田 正人、将棋における最大分岐数、コンピュータ将棋協会誌Vol.12 (1999), 57-58.
@@ -93,6 +100,7 @@ void SetEvalCoef(const int eval_coef);
 
 // ランダムムーブ設定（1000分率）
 void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop);
+void SetRandomMove2(const int ply, const int probability, const int temperature, const int cutoff, const int value_limit);
 
 // モデルパスの設定
 void SetModelPath(const std::string path[max_gpu]);

@@ -82,7 +82,7 @@ while p < end:
 
     need_output = p >= start and (not args.nyugyoku or result & 8 != 0)
     if need_output:
-        csa.info(board, comments=[f"moveNum={move_num},result={result},opponent={hcpe['opponent']}"])
+        csa.info(board, comment=f"moveNum={move_num},result={result},opponent={hcpe['opponent']}")
 
     for i in range(move_num):
         move_info = np.frombuffer(f.read(MoveInfo.itemsize), MoveInfo, 1)[0]
