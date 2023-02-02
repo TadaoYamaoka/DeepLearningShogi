@@ -9,6 +9,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str, default='model', help='model file name')
 parser.add_argument('sfen', type=str, help='position')
+parser.add_argument('--black', action='store_true')
 parser.add_argument('--svg', type=str)
 args = parser.parse_args()
 
@@ -64,6 +65,8 @@ io_binding.bind_output('output_policy')
 io_binding.bind_output('output_value')
 session.run_with_iobinding(io_binding)
 y1, y2 = io_binding.copy_outputs_to_cpu()
+if args.black and board.turn == WHITE:
+	y2 *= -1
 
 importance = y2 - y2[0]
 
