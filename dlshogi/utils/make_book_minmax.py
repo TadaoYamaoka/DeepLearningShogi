@@ -125,9 +125,10 @@ elif args.side == 'white':
 visited = set()
 def make_book(board, book):
     key = board.book_key()
-    if key in visited:
+    sfen = board.sfen()
+    if sfen in visited:
         return None, None
-    visited.add(key)
+    visited.add(sfen)
 
     node = nodes[key]
     if node['value'] is None:
@@ -146,7 +147,7 @@ def make_book(board, book):
 
     if args.side == 'both' or board.turn == side:
         candidates.sort(key=lambda x: x['value'], reverse=True)
-        book[board.sfen()] = candidates
+        book[sfen] = candidates
 
     return node['value'], candidates[0]['move'] if len(candidates) > 0 else None
 
