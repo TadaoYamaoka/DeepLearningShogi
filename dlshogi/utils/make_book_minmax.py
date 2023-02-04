@@ -76,10 +76,13 @@ for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=T
 
 print('kif num', kif_num)
 
-
+visited = set()
 def minmax(board):
     key = board.book_key()
     assert key in nodes
+    if key in visited:
+        return None
+    visited.add(key)
 
     node = nodes[key]
     if node['num'] < args.th:
@@ -119,8 +122,12 @@ if args.side == 'black':
     side = BLACK
 elif args.side == 'white':
     side = WHITE
+visited = set()
 def make_book(board, book):
     key = board.book_key()
+    if key in visited:
+        return None, None
+    visited.add(key)
 
     node = nodes[key]
     if node['value'] is None:
