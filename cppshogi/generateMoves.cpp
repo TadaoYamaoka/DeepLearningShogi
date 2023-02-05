@@ -37,7 +37,7 @@ namespace {
 				const bool toCanPromote = canPromote(US, makeRank(to));
 				if (fromCanPromote | toCanPromote) {
 					(*moveList++).move = makePromoteMove<MT>(PT, from, to, pos);
-					if (/*MT == NonEvasion || */ALL)
+					if (ALL)
 						(*moveList++).move = makeNonPromoteMove<MT>(PT, from, to, pos);
 				}
 				else // 角、飛車は成れるなら成り、不成は生成しない。
@@ -191,7 +191,7 @@ namespace {
 					FOREACH_BB(toOn123BB, to, {
 							const Square from = to + TDeltaS;
 							(*moveList++).move = makePromoteMove<MT>(Pawn, from, to, pos);
-							if (/*MT == NonEvasion || */ALL) {
+							if (ALL) {
 								const Rank TRank1 = (US == Black ? Rank1 : Rank9);
 								if (makeRank(to) != TRank1)
 									(*moveList++).move = makeNonPromoteMove<MT>(Pawn, from, to, pos);
@@ -226,7 +226,7 @@ namespace {
 						const bool toCanPromote = canPromote(US, makeRank(to));
 						if (toCanPromote) {
 							(*moveList++).move = makePromoteMove<MT>(Lance, from, to, pos);
-							if (/*MT == NonEvasion || */ALL) {
+							if (ALL) {
 								if (isBehind<US, Rank1, Rank9>(makeRank(to))) // 1段目の不成は省く
 									(*moveList++).move = makeNonPromoteMove<MT>(Lance, from, to, pos);
 							}
@@ -497,7 +497,7 @@ namespace {
 	// 王手が掛かっていないときの指し手生成
 	// これには、玉が相手駒の利きのある地点に移動する自殺手と、pin されている駒を動かす自殺手を含む。
 	// ここで生成した手は pseudo legal
-	template <Color US> struct GenerateMoves<NonEvasion, US> {
+	template <Color US, bool ALL> struct GenerateMoves<NonEvasion, US, ALL> {
 		/*FORCE_INLINE*/ ExtMove* operator () (ExtMove* moveList, const Position& pos) {
 			Bitboard target = pos.emptyBB();
 
@@ -505,14 +505,14 @@ namespace {
 			target |= pos.bbOf(oppositeColor(US));
 			const Square ksq = pos.kingSquare(oppositeColor(US));
 
-			moveList = GeneratePieceMoves<NonEvasion, Pawn           , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Lance          , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Knight         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Silver         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Bishop         , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, Rook           , US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, GoldHorseDragon, US, false>()(moveList, pos, target, ksq);
-			moveList = GeneratePieceMoves<NonEvasion, King           , US, false>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Pawn           , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Lance          , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Knight         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Silver         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Bishop         , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, Rook           , US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, GoldHorseDragon, US, ALL>()(moveList, pos, target, ksq);
+			moveList = GeneratePieceMoves<NonEvasion, King           , US, ALL>()(moveList, pos, target, ksq);
 
 			return moveList;
 		}
@@ -542,14 +542,14 @@ namespace {
 	};
 
 	// 部分特殊化
-	// Evasion のときに歩、飛、角と、香の2段目の不成も生成する。
+	// 歩、飛、角と、香の2段目の不成も生成する。
 	template <Color US> struct GenerateMoves<LegalAll, US> {
 		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos) {
 			ExtMove* curr = moveList;
 			const Bitboard pinned = pos.pinnedBB();
 
 			moveList = pos.inCheck() ?
-				GenerateMoves<Evasion, US, true>()(moveList, pos) : GenerateMoves<NonEvasion, US>()(moveList, pos);
+				GenerateMoves<Evasion, US, true>()(moveList, pos) : GenerateMoves<NonEvasion, US, true>()(moveList, pos);
 
 			// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
@@ -1141,7 +1141,7 @@ template ExtMove* generateMoves<NonCaptureMinusPro>(ExtMove* moveList, const Pos
 template ExtMove* generateMoves<Evasion           >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<NonEvasion        >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<Legal             >(ExtMove* moveList, const Position& pos);
-#if !defined NDEBUG || defined LEARN
+#if !defined NDEBUG || defined LEARN || defined MAKE_BOOK
 template ExtMove* generateMoves<LegalAll          >(ExtMove* moveList, const Position& pos);
 #endif
 template ExtMove* generateMoves<Recapture         >(ExtMove* moveList, const Position& pos, const Square to);

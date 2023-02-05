@@ -332,4 +332,98 @@ int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string
 	std::cout << "merged: " << merged << std::endl;
 	return merged;
 }
+
+//std::vector<std::string> debug_moves;
+Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const std::vector<BookEntry>* const parent) {
+	if (pos.isDraw() == RepetitionDraw) {
+		// 繰り返しになる場合、千日手の評価値
+		return pos.turn() == Black ? draw_score_white : draw_score_black;
+	}
+
+	const Key key = Book::bookKey(pos);
+
+	// 探索済み
+	const auto itr_minmax = bookMapMinMax.find(key);
+	if (itr_minmax != bookMapMinMax.end()) {
+		const auto& minmax_entries = itr_minmax->second;
+		return minmax_entries[0].score;
+	}
+
+	const auto itr = bookMap.find(key);
+	const std::vector<BookEntry>* const entries = (itr == bookMap.end()) ? nullptr : &(itr->second);
+	if (parent == nullptr && entries == nullptr)
+		return ScoreNotEvaluated;
+
+	std::vector<BookEntry> minmax_entries;
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move move = ml.move();
+		const u16 move16 = (u16)move.value();
+
+		int found = -1;
+		if (entries != nullptr) {
+			for (int i = 0; i < entries->size(); i++) {
+				if (entries->at(i).fromToPro == move16)
+					found = i;
+			}
+		}
+
+		StateInfo state;
+		pos.doMove(move, state);
+		//debug_moves.emplace_back(move.toUSI());
+
+		Score score = minmax_book(pos, bookMapMinMax, entries);
+
+		if (score == ScoreNotEvaluated) {
+			if (found < 0) {
+				pos.undoMove(move);
+				//debug_moves.pop_back();
+				continue;
+			}
+			score = entries->at(found).score;
+		}
+
+		pos.undoMove(move);
+		//debug_moves.pop_back();
+
+		// scoreをminmaxの値に更新
+		auto& minmax_entry = minmax_entries.emplace_back();
+		minmax_entry.key = key;
+		minmax_entry.fromToPro = move16;
+		minmax_entry.score = score;
+		minmax_entry.count = found < 0 ? 0 : entries->at(found).count;
+	}
+
+	// 繋がる定跡がない
+	if (minmax_entries.size() == 0)
+		return ScoreNotEvaluated;
+
+	// 元の定跡にない場合は伝播しない
+	if (entries == nullptr)
+		return ScoreNotEvaluated;
+
+	// score, countの降順にソート
+	std::stable_sort(minmax_entries.begin(), minmax_entries.end(), [](const BookEntry& l, const BookEntry& r) {
+		if (l.score == r.score)
+			return l.count > r.count;
+		return l.score > r.score;
+	});
+	
+	// count設定
+	for (int i = 0; i < minmax_entries.size(); i++) {
+		// 勝率を千分率で設定
+		minmax_entries[i].count = (u16)(score_to_value(minmax_entries[i].score) * 1000.0f);
+	}
+
+	const auto max_score = minmax_entries[0].score;
+
+	// 定跡に追加
+	bookMapMinMax.emplace(key, std::move(minmax_entries));
+	/*std::cout << "position startpos moves";
+	for (int i = 0; i < debug_moves.size(); i++) {
+		std::cout << " " << debug_moves[i];
+	}
+	std::cout << "\n";*/
+
+	return -max_score;
+}
 #endif
