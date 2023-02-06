@@ -390,11 +390,6 @@ int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string
 
 //std::vector<std::string> debug_moves;
 Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const std::vector<BookEntry>* const parent) {
-	if (pos.isDraw() == RepetitionDraw) {
-		// 繰り返しになる場合、千日手の評価値
-		return pos.turn() == Black ? draw_score_white : draw_score_black;
-	}
-
 	const Key key = Book::bookKey(pos);
 
 	// 探索済み
@@ -426,15 +421,22 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move.toUSI());
 
-		Score score = minmax_book(pos, bookMapMinMax, entries);
+		Score score;
+		if (pos.isDraw() == RepetitionDraw) {
+			// 繰り返しになる場合、千日手の評価値
+			score = pos.turn() == Black ? draw_score_white : draw_score_black;
+		}
+		else {
+			score = minmax_book(pos, bookMapMinMax, entries);
 
-		if (score == ScoreNotEvaluated) {
-			if (found < 0) {
-				pos.undoMove(move);
-				//debug_moves.pop_back();
-				continue;
+			if (score == ScoreNotEvaluated) {
+				if (found < 0) {
+					pos.undoMove(move);
+					//debug_moves.pop_back();
+					continue;
+				}
+				score = entries->at(found).score;
 			}
-			score = entries->at(found).score;
 		}
 
 		pos.undoMove(move);
