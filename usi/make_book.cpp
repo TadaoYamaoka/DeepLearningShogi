@@ -143,7 +143,32 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 
 		alpha = std::max(alpha, value);
 		if (alpha >= beta)
-			break;
+			return value;
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		const u16 move16 = (u16)(move.value());
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
+		StateInfo state;
+		pos.doMove(move, state);
+		if (pos.isDraw() == RepetitionDraw) {
+			// 繰り返しになる場合、千日手の評価値
+			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
+		}
+		else {
+			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated);
+			if (ret == ScoreNotEvaluated) {
+				pos.undoMove(move);
+				continue;
+			}
+			value = std::max(value, -ret);
+		}
+		pos.undoMove(move);
+
+		alpha = std::max(alpha, value);
+		if (alpha >= beta)
+			return value;
 	}
 	return value;
 }
@@ -154,6 +179,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 
 	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
+	static BookEntry tmp; // entriesにない要素を返す場合、static変数に格納する
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
@@ -172,6 +198,35 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 
 		if (value > alpha) {
 			best = &entry;
+			alpha = value;
+		}
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		const u16 move16 = (u16)(move.value());
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
+		StateInfo state;
+		pos.doMove(move, state);
+		Score value;
+		if (pos.isDraw() == RepetitionDraw) {
+			// 繰り返しになる場合、千日手の評価値
+			value = pos.turn() == Black ? draw_score_white : draw_score_black;
+		}
+		else {
+			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated);
+			if (ret == ScoreNotEvaluated) {
+				pos.undoMove(move);
+				continue;
+			}
+			value = -ret;
+		}
+		pos.undoMove(move);
+
+		if (value > alpha) {
+			tmp.score = value;
+			tmp.fromToPro = move16;
+			best = &tmp;
 			alpha = value;
 		}
 	}
@@ -208,7 +263,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 				const Move move = move16toMove(Move(entry.fromToPro), pos);
 				if (&entry != &entries[0])
-					std::cout << "best move : " << depth << " " << & entry - &entries[0] << " " << move.toUSI() << std::endl;
+					std::cout << "best move : " << depth << " " << &entry - &entries[0] << " " << move.toUSI() << std::endl;
 
 				StateInfo state;
 				pos.doMove(move, state);
