@@ -817,6 +817,21 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::cout << "merged entries\t" << merged << std::endl;
 }
 
+std::string getPV(Position &pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax) {
+	const Key key = Book::bookKey(pos);
+	const auto itr = bookMapMinMax.find(key);
+	if (itr == bookMapMinMax.end())
+		return "";
+	const auto entries = itr->second;
+	const Move move = move16toMove((Move)entries[0].fromToPro, pos);
+	StateInfo state;
+	pos.doMove(move, state);
+	const auto moves = getPV(pos, bookMapMinMax);
+	pos.undoMove(move);
+	//std::cout << move.toUSI() << ", " << key << ", " << entries[0].score << ", " << entries[0].count << "\n";
+	return move.toUSI() + " " + moves;
+};
+
 void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	std::string bookFileName;
 	std::string outFileName;
@@ -851,5 +866,9 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 		}
 	}
 	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << " count:" << num_entries << std::endl;
+
+	// PV出力
+	const auto pv = getPV(pos, bookMapMinMax);
+	std::cout << "pv " << pv << std::endl;
 }
 #endif
