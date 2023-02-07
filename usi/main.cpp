@@ -850,7 +850,8 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	setPosition(pos, std::istringstream(posCmd));
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
 	// 定跡をmin-max探索
 	std::map<Key, std::vector<BookEntry> > bookMapMinMax;
