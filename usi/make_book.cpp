@@ -411,7 +411,8 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 
 		int found = -1;
 		if (entries != nullptr) {
-			for (int i = 0; i < entries->size(); i++) {
+			const int entries_size = (int)entries->size();
+			for (int i = 0; i < entries_size; i++) {
 				if (entries->at(i).fromToPro == move16)
 					found = i;
 			}
@@ -466,7 +467,7 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	});
 	
 	// count設定
-	for (int i = 0; i < minmax_entries.size(); i++) {
+	for (size_t i = 0; i < minmax_entries.size(); i++) {
 		// 勝率を千分率で設定
 		minmax_entries[i].count = (u16)(score_to_value(minmax_entries[i].score) * 1000.0f);
 	}
