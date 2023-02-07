@@ -396,7 +396,7 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	const auto itr_minmax = bookMapMinMax.find(key);
 	if (itr_minmax != bookMapMinMax.end()) {
 		const auto& minmax_entries = itr_minmax->second;
-		return minmax_entries[0].score;
+		return -minmax_entries[0].score;
 	}
 
 	const auto itr = bookMap.find(key);
