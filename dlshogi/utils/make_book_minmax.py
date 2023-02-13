@@ -126,7 +126,7 @@ if args.side == 'black':
 elif args.side == 'white':
     side = WHITE
 visited = set()
-def make_book(board, book):
+def make_book(board, book, draw):
     key = board.book_key()
     sfen = board.sfen()
     if sfen in visited:
@@ -138,12 +138,14 @@ def make_book(board, book):
         return None, None
 
     if board.is_draw() == REPETITION_DRAW:
-        return node['value'], None
+        draw += 1
+        if draw == 4:
+            return node['value'], None
 
     candidates = []
     for move, candidate in node['candidates'].items():
         board.push(move)
-        value, next_move = make_book(board, book)
+        value, next_move = make_book(board, book, draw)
         if value is not None:
             candidates.append({ 'move': move, 'next_move': next_move, 'value': 1 - value, 'eval': int(candidate['sum_eval'] / candidate['num']) })
         board.pop()
@@ -155,7 +157,7 @@ def make_book(board, book):
     return node['value'], candidates[0]['move'] if len(candidates) > 0 else None
 
 book = {}
-make_book(board, book)
+make_book(board, book, 0)
 
 print('book position num', len(book))
 
