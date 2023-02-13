@@ -21,58 +21,61 @@ nodes = {}
 kif_num = 0
 duplicates = set()
 for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True):
-    for kif in CSA.Parser.parse_file(filepath):
-        endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI'):
-            continue
-        # 重複削除
-        if args.uniq:
-            dup_key = ''.join([move_to_usi(move) for move in kif.moves])
-            if dup_key in duplicates:
-                # print(f'duplicate {filepath}')
+    try:
+        for kif in CSA.Parser.parse_file(filepath):
+            endgame = kif.endgame
+            if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI'):
                 continue
-            duplicates.add(dup_key)
+            # 重複削除
+            if args.uniq:
+                dup_key = ''.join([move_to_usi(move) for move in kif.moves])
+                if dup_key in duplicates:
+                    # print(f'duplicate {filepath}')
+                    continue
+                duplicates.add(dup_key)
 
-        board.set_sfen(kif.sfen)
-        try:
-            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
-                assert board.is_legal(move)
+            board.set_sfen(kif.sfen)
+            try:
+                for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+                    assert board.is_legal(move)
 
-                key = board.book_key()
-                if key in nodes:
-                    node = nodes[key]
-                else:
-                    node = { 'win': 0, 'draw': 0, 'num': 0, 'value': None, 'candidates': {} }
-                    nodes[key] = node
+                    key = board.book_key()
+                    if key in nodes:
+                        node = nodes[key]
+                    else:
+                        node = { 'win': 0, 'draw': 0, 'num': 0, 'value': None, 'candidates': {} }
+                        nodes[key] = node
 
-                node['num'] += 1
-                if board.turn == kif.win - 1:
-                    node['win'] += 1
-                elif kif.win == DRAW:
-                    node['draw'] += 1
+                    node['num'] += 1
+                    if board.turn == kif.win - 1:
+                        node['win'] += 1
+                    elif kif.win == DRAW:
+                        node['draw'] += 1
 
-                assert abs(score) <= 1000000
-                eval = min(32767, max(score, -32767))
-                eval = eval if board.turn == BLACK else -eval
+                    assert abs(score) <= 1000000
+                    eval = min(32767, max(score, -32767))
+                    eval = eval if board.turn == BLACK else -eval
 
-                candidates = node['candidates']
-                if move in candidates:
-                    candidate = candidates[move]
-                else:
-                    candidate = { 'sum_eval': 0, 'num': 0 }
-                    candidates[move] = candidate
+                    candidates = node['candidates']
+                    if move in candidates:
+                        candidate = candidates[move]
+                    else:
+                        candidate = { 'sum_eval': 0, 'num': 0 }
+                        candidates[move] = candidate
 
-                candidate['sum_eval'] += eval
-                candidate['num'] += 1
+                    candidate['sum_eval'] += eval
+                    candidate['num'] += 1
 
-                board.push(move)
-                if board.is_draw() == REPETITION_DRAW:
-                    break
-        except:
-            print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
-            continue
+                    board.push(move)
+                    if board.is_draw() == REPETITION_DRAW:
+                        break
+            except:
+                print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
+                continue
 
-        kif_num += 1
+            kif_num += 1
+    except:
+        print(f'skip {filepath}')
 
 print('kif num', kif_num)
 
