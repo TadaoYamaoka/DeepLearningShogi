@@ -308,11 +308,11 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			entries = &outMap[key];
 		}
 
-		size_t selected = 0;
+		u16 selected_move16;
 		if (dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
 			// 一定の確率でmin-maxで選ぶ
 			const auto& entry = select_best_book_entry(pos, outMap, *entries);
-			selected = &entry - &(*entries)[0];
+			selected_move16 = entry.fromToPro;
 		}
 		else {
 			// 確率的に手を選択
@@ -322,9 +322,10 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 				probabilities.emplace_back(probability);
 			}
 			std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-			selected = dist(g_randomTimeSeed);
+			const auto selected_index = dist(g_randomTimeSeed);
+			selected_move16 = entries->at(selected_index).fromToPro;
 		}
-		const Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
+		const Move move = move16toMove(Move(selected_move16), pos);
 
 		StateInfo state;
 		pos.doMove(move, state);
