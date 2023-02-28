@@ -1967,6 +1967,7 @@ void test_insert_map(Position& pos, std::map<Key, std::vector<BookEntry> >& outM
 extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
+	Position::initZobrist();
 
 	std::map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
@@ -2076,10 +2077,11 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
+	Position::initZobrist();
 
 	std::map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
@@ -2088,6 +2090,35 @@ int main() {
 	test_insert_map(pos, outMap, { "7g7f" }, 3);
 	test_insert_map(pos, outMap, { "6i7h", "6a6b"}, -4); // select
 	test_insert_map(pos, outMap, { "2h5h", "6a6b", "7g7f"}, 5);
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = select_best_book_entry(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 1
+// 合流テスト
+extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d" }, -2);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d", "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d", "7g7f", "3c3d"}, -4); // select
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d" }, -2);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d", "2g2f"}, 999); // 合流するためカットされる
 
 	const auto itr = outMap.find(key);
 	const auto& entries = itr->second;

@@ -118,8 +118,15 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 }
 
 // min-max(αβ)で選択
-Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score) {
+Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Score>& searched) {
 	const Key key = Book::bookKey(pos);
+	// 探索済みチェック
+	{
+		const auto itr_searched = searched.find(key);
+		if (itr_searched != searched.end())
+			return itr_searched->second;
+	}
+	
 	const auto itr = outMap.find(key);
 	if (itr == outMap.end()) {
 		// エントリがない場合、自身の評価値を返す
@@ -137,13 +144,15 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
 		}
 		else {
-			value = std::max(value, -book_search(pos, outMap, -beta, -alpha, -entry.score));
+			value = std::max(value, -book_search(pos, outMap, -beta, -alpha, -entry.score, searched));
 		}
 		pos.undoMove(move);
 
 		alpha = std::max(alpha, value);
-		if (alpha >= beta)
+		if (alpha >= beta) {
+			searched[key] = value;
 			return value;
+		}
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
@@ -157,7 +166,7 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
 		}
 		else {
-			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated);
+			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
 			if (ret == ScoreNotEvaluated) {
 				pos.undoMove(move);
 				continue;
@@ -167,9 +176,12 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		pos.undoMove(move);
 
 		alpha = std::max(alpha, value);
-		if (alpha >= beta)
+		if (alpha >= beta) {
+			searched[key] = value;
 			return value;
+		}
 	}
+	searched[key] = value;
 	return value;
 }
 
@@ -180,6 +192,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
 	static BookEntry tmp; // entriesにない要素を返す場合、static変数に格納する
+	std::map<Key, Score> searched;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
@@ -191,7 +204,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 		}
 		else {
-			value = -book_search(pos, outMap, -ScoreInfinite, -alpha, -entry.score);
+			value = -book_search(pos, outMap, -ScoreInfinite, -alpha, -entry.score, searched);
 		}
 		pos.undoMove(move);
 		//std::cout << value << std::endl;
@@ -214,7 +227,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 		}
 		else {
-			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated);
+			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
 			if (ret == ScoreNotEvaluated) {
 				pos.undoMove(move);
 				continue;
