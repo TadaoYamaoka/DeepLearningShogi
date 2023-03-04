@@ -129,6 +129,8 @@ elif args.side == 'white':
 visited = set()
 def make_book(board, book, draw):
     key = board.book_key()
+    if key not in nodes:
+        return None, None
     sfen = board.sfen()
     if sfen in visited:
         return None, None
