@@ -482,8 +482,8 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	
 	// count設定
 	for (size_t i = 0; i < minmax_entries.size(); i++) {
-		// 勝率を千分率で設定
-		minmax_entries[i].count = (u16)(score_to_value(minmax_entries[i].score) * 1000.0f);
+		// 勝率を10000分率で設定
+		minmax_entries[i].count = (u16)(score_to_value(minmax_entries[i].score) * 10000.0f);
 	}
 
 	const auto max_score = minmax_entries[0].score;
