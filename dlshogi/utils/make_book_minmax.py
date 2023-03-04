@@ -82,7 +82,8 @@ print('kif num', kif_num)
 visited = set()
 def minmax(board):
     key = board.book_key()
-    assert key in nodes
+    if key not in nodes:
+        return None
     if key in visited:
         return None
     visited.add(key)
