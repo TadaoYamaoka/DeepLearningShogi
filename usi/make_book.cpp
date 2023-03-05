@@ -235,7 +235,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
-		std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+		//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
 		if (value > alpha) {
 			best = &entry;
@@ -262,10 +262,11 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 				//debug_moves.pop_back();
 				continue;
 			}
-			value = -ret;
+			value = ret;
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
+		//std::cout << move.toUSI() << "\t" << ScoreNotEvaluated << "\t" << value << std::endl;
 
 		if (value > alpha) {
 			tmp.score = value;
