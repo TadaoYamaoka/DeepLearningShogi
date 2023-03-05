@@ -25,5 +25,5 @@ extern Score draw_score_white;
 void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap);
 int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file);
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
-Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const std::vector<BookEntry>* const parent=nullptr);
+Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const Score score=Score(0));
 #endif
