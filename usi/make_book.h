@@ -15,6 +15,8 @@ extern double book_reciprocal_temperature;
 // MinMaxで選ぶ確率
 extern double book_minmax_prob;
 extern double book_minmax_prob_opp;
+// MinMaxのために相手定跡の手番でも探索する
+extern bool make_book_for_minmax;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;

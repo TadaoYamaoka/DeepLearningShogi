@@ -41,6 +41,8 @@ double book_reciprocal_temperature = 1.0;
 double book_minmax_prob = 1.0;
 double book_minmax_prob_opp = 0.1;
 std::uniform_real_distribution<double> dist_minmax(0, 1);
+// MinMaxのために相手定跡の手番でも探索する
+bool make_book_for_minmax = false;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -329,6 +331,19 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		}
 	}
 	else {
+		// MinMaxのために相手定跡の手番でも探索する
+		if (make_book_for_minmax) {
+			if (outMap.find(key) == outMap.end()) {
+				// 未探索の局面の場合
+				// UCT探索で定跡作成
+				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
+				{
+					// 詰みの局面の場合何もしない
+					return;
+				}
+			}
+		}
+
 		// 定跡を使用
 		std::vector<BookEntry>* entries;
 
