@@ -207,7 +207,8 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		}
 	}
 	//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
-	searched[key] = { value, beta };
+
+	// βカットされなかった場合はsearchedに追加しない
 	return -value;
 }
 
