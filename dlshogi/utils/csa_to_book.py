@@ -23,37 +23,40 @@ parser = Parser()
 num_games = 0
 bookdic = {}
 for filepath in csa_file_list:
-    parser.parse_csa_file(filepath)
-    if args.filter_rating:
-        if parser.ratings[0] < args.filter_rating or parser.ratings[1] < args.filter_rating:
-            continue
-    if args.only_winner:
-        if parser.win == 0:
-            continue
-        if args.winner and args.winner not in parser.names[parser.win - 1]:
-            continue
-    board.set_sfen(parser.sfen)
-    assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
-    for i, move in enumerate(parser.moves):
-        if i >= args.limit_moves:
-            break
+    try:
+        parser.parse_csa_file(filepath)
+        if args.filter_rating:
+            if parser.ratings[0] < args.filter_rating or parser.ratings[1] < args.filter_rating:
+                continue
+        if args.only_winner:
+            if parser.win == 0:
+                continue
+            if args.winner and args.winner not in parser.names[parser.win - 1]:
+                continue
+        board.set_sfen(parser.sfen)
+        assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
+        for i, move in enumerate(parser.moves):
+            if i >= args.limit_moves:
+                break
 
-        if not board.is_legal(move):
-            print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
-            break
+            if not board.is_legal(move):
+                print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
+                break
 
-        if args.only_winner and board.turn != parser.win - 1:
+            if args.only_winner and board.turn != parser.win - 1:
+                board.push(move)
+                continue
+
+            key = board.book_key()
+            if key not in bookdic:
+                bookdic[key] = defaultdict(int)
+            bookdic[key][move16(move)] += 1
+
             board.push(move)
-            continue
 
-        key = board.book_key()
-        if key not in bookdic:
-            bookdic[key] = defaultdict(int)
-        bookdic[key][move16(move)] += 1
-
-        board.push(move)
-
-    num_games += 1
+        num_games += 1
+    except Exception as e:
+        print("skip {} {}".format(filepath, e))
 
 # 閾値以下のエントリを削除
 num_positions = 0
