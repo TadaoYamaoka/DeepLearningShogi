@@ -13,6 +13,7 @@ parser.add_argument('--limit_moves', type=int, default=80)
 parser.add_argument('--limit_entries', type=int, default=50)
 parser.add_argument('--filter_rating', type=int)
 parser.add_argument('--only_winner', action='store_true')
+parser.add_argument('--winner')
 args = parser.parse_args()
 
 csa_file_list = glob.glob(os.path.join(args.dir, '**', '*.csa'), recursive=True)
@@ -26,8 +27,11 @@ for filepath in csa_file_list:
     if args.filter_rating:
         if parser.ratings[0] < args.filter_rating or parser.ratings[1] < args.filter_rating:
             continue
-    if args.only_winner and parser.win == 0:
-        continue
+    if args.only_winner:
+        if parser.win == 0:
+            continue
+        if args.winner and args.winner not in parser.names[parser.win - 1]:
+            continue
     board.set_sfen(parser.sfen)
     assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
     for i, move in enumerate(parser.moves):
