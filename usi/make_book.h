@@ -28,4 +28,5 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file);
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
 Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const Score score=Score(0));
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes);
 #endif

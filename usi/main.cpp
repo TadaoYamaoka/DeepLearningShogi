@@ -699,6 +699,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	draw_score_black = Score(-logf(1.0f / draw_value_black - 1.0f) * eval_coef);
 	draw_score_white = Score(-logf(1.0f / draw_value_white - 1.0f) * eval_coef);
 
+	// 相手定跡から外れた場合USIエンジンを使う
+	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"]);
+
 	SetReuseSubtree(options["ReuseSubtree"]);
 
 	// outFileが存在するときは追加する

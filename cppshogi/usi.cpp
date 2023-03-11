@@ -155,6 +155,9 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_MinMax_Prob_Opp"]        = USIOption(100, 0, 1000);
     (*this)["Use_Book_Lock"]               = USIOption(false);
     (*this)["Make_Book_For_MinMax"]        = USIOption(false);
+    (*this)["USI_Book_Engine"]             = USIOption("");
+    (*this)["USI_Book_Engine_Options"]     = USIOption("");
+    (*this)["USI_Book_Engine_Nodes"]       = USIOption(1000000, 0, 1000000000);
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK

@@ -11,6 +11,7 @@
 #include "UctSearch.h"
 #include "Message.h"
 #include "dfpn.h"
+#include "USIBookEngine.h"
 
 #include <filesystem>
 
@@ -49,6 +50,9 @@ extern float draw_value_white;
 extern float eval_coef;
 Score draw_score_black;
 Score draw_score_white;
+// 相手定跡から外れた場合USIエンジンを使う
+std::unique_ptr<USIBookEngine> usi_book_engine;
+int usi_book_engine_nodes;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
@@ -344,49 +348,60 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			}
 		}
 
-		// 定跡を使用
-		std::vector<BookEntry>* entries;
-
-		// 局面が定跡にあるか確認
+		Move move;
 		auto itr = bookMap.find(key);
-		if (itr != bookMap.end()) {
-			entries = &itr->second;
+		if (itr == bookMap.end() && usi_book_engine) {
+			// 相手定跡から外れた場合USIエンジンを使う
+			const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes);
+			std::cout << "usi move : " << depth << " " << usi_result.info << std::endl;
+			if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
+				return;
+			move = usiToMove(pos, usi_result.bestMove);
 		}
 		else {
-			// 定跡にない場合、探索結果を使う
-			itr = outMap.find(key);
+			// 定跡を使用
+			std::vector<BookEntry>* entries;
 
-			if (itr == outMap.end()) {
-				// 定跡になく未探索の局面の場合
-				// UCT探索で定跡作成
-				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
-				{
-					// 詰みの局面の場合何もしない
-					return;
+			// 局面が定跡にあるか確認
+			if (itr != bookMap.end()) {
+				entries = &itr->second;
+			}
+			else {
+				// 定跡にない場合、探索結果を使う
+				itr = outMap.find(key);
+
+				if (itr == outMap.end()) {
+					// 定跡になく未探索の局面の場合
+					// UCT探索で定跡作成
+					if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
+					{
+						// 詰みの局面の場合何もしない
+						return;
+					}
 				}
+
+				entries = &outMap[key];
 			}
 
-			entries = &outMap[key];
-		}
-
-		u16 selected_move16;
-		if (dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
-			// 一定の確率でmin-maxで選ぶ
-			const auto& entry = select_best_book_entry(pos, outMap, *entries);
-			selected_move16 = entry.fromToPro;
-		}
-		else {
-			// 確率的に手を選択
-			std::vector<double> probabilities;
-			for (const auto& entry : *entries) {
-				const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
-				probabilities.emplace_back(probability);
+			u16 selected_move16;
+			if (dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
+				// 一定の確率でmin-maxで選ぶ
+				const auto& entry = select_best_book_entry(pos, outMap, *entries);
+				selected_move16 = entry.fromToPro;
 			}
-			std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-			const auto selected_index = dist(g_randomTimeSeed);
-			selected_move16 = entries->at(selected_index).fromToPro;
+			else {
+				// 確率的に手を選択
+				std::vector<double> probabilities;
+				for (const auto& entry : *entries) {
+					const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
+					probabilities.emplace_back(probability);
+				}
+				std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
+				const auto selected_index = dist(g_randomTimeSeed);
+				selected_move16 = entries->at(selected_index).fromToPro;
+			}
+			move = move16toMove(Move(selected_move16), pos);
 		}
-		const Move move = move16toMove(Move(selected_move16), pos);
 
 		StateInfo state;
 		pos.doMove(move, state);
@@ -543,5 +558,20 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	}*/
 
 	return -max_score;
+}
+
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes) {
+	if (engine_path == "")
+		return;
+
+	std::vector<std::pair<std::string, std::string>> usi_engine_options;
+	std::istringstream ss(engine_options);
+	std::string field;
+	while (std::getline(ss, field, ',')) {
+		const auto p = field.find_first_of(":");
+		usi_engine_options.emplace_back(field.substr(0, p), field.substr(p + 1));
+	}
+	usi_book_engine.reset(new USIBookEngine(engine_path, usi_engine_options));
+	usi_book_engine_nodes = nodes;
 }
 #endif
