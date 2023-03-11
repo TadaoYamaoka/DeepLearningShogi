@@ -53,6 +53,7 @@ Score draw_score_white;
 // 相手定跡から外れた場合USIエンジンを使う
 std::unique_ptr<USIBookEngine> usi_book_engine;
 int usi_book_engine_nodes;
+double usi_book_engine_prob = 1.0;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
@@ -350,7 +351,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 		Move move;
 		auto itr = bookMap.find(key);
-		if (itr == bookMap.end() && usi_book_engine) {
+		if (itr == bookMap.end() && usi_book_engine && dist_minmax(g_randomTimeSeed) < usi_book_engine_prob) {
 			// 相手定跡から外れた場合USIエンジンを使う
 			const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes);
 			std::cout << "usi move : " << depth << " " << usi_result.info << std::endl;
@@ -560,7 +561,7 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	return -max_score;
 }
 
-void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes) {
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob) {
 	if (engine_path == "")
 		return;
 
@@ -573,5 +574,6 @@ void init_usi_book_engine(const std::string& engine_path, const std::string& eng
 	}
 	usi_book_engine.reset(new USIBookEngine(engine_path, usi_engine_options));
 	usi_book_engine_nodes = nodes;
+	usi_book_engine_prob = prob;
 }
 #endif
