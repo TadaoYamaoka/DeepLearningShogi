@@ -143,7 +143,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
     (*this)["Make_Book_Sleep"]             = USIOption(0, 0, INT_MAX);
-    (*this)["Use_Book_Policy"]             = USIOption(true);
+    (*this)["Use_Book_Policy"]             = USIOption(false);
     (*this)["Use_Interruption"]            = USIOption(true);
     (*this)["Book_Eval_Threshold"]         = USIOption(INT_MAX, 1, INT_MAX);
     (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
