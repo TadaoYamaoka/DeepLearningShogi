@@ -107,6 +107,34 @@ Key Book::bookKey(const Position& pos) {
     return key;
 }
 
+Key Book::bookKeyAfter(const Position& pos, const Key key, const Move move) {
+    Key key_after = key;
+    const Square to = move.to();
+    if (move.isDrop()) {
+        const Piece pc = colorAndPieceTypeToPiece(pos.turn(), move.pieceTypeDropped());
+        key_after ^= ZobPiece[pc][to];
+    }
+    else {
+        const Square from = move.from();
+        key_after ^= ZobPiece[pos.piece(from)][from];
+
+        const Piece pc = colorAndPieceTypeToPiece(pos.turn(), move.pieceTypeTo());
+        key_after ^= ZobPiece[pc][to];
+
+        if (move.isCapture())
+            key_after ^= ZobPiece[pos.piece(to)][to];
+    }
+    const Hand hand = pos.hand(pos.turn());
+    for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
+        key_after ^= ZobHand[hp][hand.numOf(hp)];
+    const Hand hand_after = pos.hand(oppositeColor(pos.turn()));
+    for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
+        key_after ^= ZobHand[hp][hand_after.numOf(hp)];
+
+    key_after ^= ZobTurn;
+    return key_after;
+}
+
 std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest) {
     BookEntry entry;
     u16 best = 0;

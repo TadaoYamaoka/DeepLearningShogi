@@ -184,6 +184,8 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
+		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
+			continue;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -193,11 +195,6 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		}
 		else {
 			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
-			if (ret == ScoreNotEvaluated) {
-				pos.undoMove(move);
-				//debug_moves.pop_back();
-				continue;
-			}
 			value = std::max(value, ret);
 		}
 		pos.undoMove(move);
@@ -222,6 +219,7 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
 	if (entries.size() == 1)
 		return entries[0];
+	const Key key = Book::bookKey(pos);
 
 	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
@@ -255,6 +253,8 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
+		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
+			continue;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -265,11 +265,6 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 		}
 		else {
 			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
-			if (ret == ScoreNotEvaluated) {
-				pos.undoMove(move);
-				//debug_moves.pop_back();
-				continue;
-			}
 			value = ret;
 		}
 		pos.undoMove(move);
@@ -491,8 +486,9 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
-		const u16 move16 = (u16)(move.value());
-		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+		if (std::find(moves.begin(), moves.end(), move) != moves.end())
+			continue;
+		if (bookMap.find(Book::bookKeyAfter(pos, key, move)) == bookMap.end())
 			continue;
 		moves.emplace_back(move);
 	}
@@ -513,12 +509,6 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 		}
 		else {
 			score = minmax_book(pos, bookMapMinMax, i < entries.size() ? entries[i].score : ScoreNotEvaluated);
-
-			if (score == ScoreNotEvaluated) {
-				pos.undoMove(move);
-				//debug_moves.pop_back();
-				continue;
-			}
 		}
 
 		pos.undoMove(move);

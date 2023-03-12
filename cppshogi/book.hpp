@@ -38,6 +38,7 @@ public:
     std::tuple<Move, Score> probe(const Position& pos, const std::string& fName, const bool pickBest);
     static void init();
     static Key bookKey(const Position& pos);
+    static Key bookKeyAfter(const Position& pos, const Key key, const Move move);
 
 private:
     bool open(const char* fName);
