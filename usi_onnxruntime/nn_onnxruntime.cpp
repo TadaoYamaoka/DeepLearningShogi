@@ -1,4 +1,4 @@
-﻿#if defined(ONNXRUNTIME) || defined(ONNXRUNTIME_CPU)
+﻿#ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
 #ifndef ONNXRUNTIME_CPU
 #include <dml_provider_factory.h>
