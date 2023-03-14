@@ -184,6 +184,55 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
     return std::make_tuple(move, score);
 }
 
+// 評価値が高い手を選択する
+// その際、千日手の評価値を考慮する
+std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const Score drawScore) {
+    BookEntry entry;
+    Score best = -ScoreInfinite;
+    Move move = Move::moveNone();
+    const Key key = bookKey(pos);
+    Score score = ScoreZero;
+
+    if (fileName_ != fName && !open(fName.c_str()))
+        return std::make_tuple(Move::moveNone(), ScoreNone);
+
+    binary_search(key);
+
+    // 現在の局面における定跡手の数だけループする。
+    while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
+        const Move tmp = Move(entry.fromToPro);
+
+        if (pos.moveIsDraw(tmp) == RepetitionDraw) {
+            // 千日手の評価で上書き
+            entry.score = drawScore;
+        }
+
+        if (entry.score > best)
+        {
+            best = entry.score;
+            const Square to = tmp.to();
+            if (tmp.isDrop()) {
+                const PieceType ptDropped = tmp.pieceTypeDropped();
+                move = makeDropMove(ptDropped, to);
+            }
+            else {
+                const Square from = tmp.from();
+                const PieceType ptFrom = pieceToPieceType(pos.piece(from));
+                const bool promo = tmp.isPromotion();
+                if (promo)
+                    move = makeCapturePromoteMove(ptFrom, from, to, pos);
+                else
+                    move = makeCaptureMove(ptFrom, from, to, pos);
+            }
+            score = entry.score;
+        }
+        if (tellg() == size_ * sizeof(BookEntry))
+            break;
+    }
+
+    return std::make_tuple(move, score);
+}
+
 inline bool countCompare(const BookEntry& b1, const BookEntry& b2) {
     return b1.count < b2.count;
 }

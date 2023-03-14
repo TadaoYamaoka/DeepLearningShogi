@@ -11,6 +11,7 @@
 #include "UctSearch.h"
 #include "Message.h"
 #include "dfpn.h"
+#include "make_book.h"
 #include "USIBookEngine.h"
 
 #include <filesystem>
@@ -126,20 +127,31 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 
 // min-max(αβ)で選択
 /*std::vector<Move> debug_moves;
-void print_debug_moves(Score score) {
+void print_debug_moves(Score score= ScoreNotEvaluated) {
 	std::cout << "position startpos moves";
 	for (int i = 0; i < debug_moves.size(); i++) {
 		std::cout << " " << debug_moves[i].toUSI();
 	}
-	std::cout << "\t" << score << "\n";
+	std::cout << "\t" << score << std::endl;
 }*/
-Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, std::pair<Score, Score>>& searched) {
+struct Searched {
+	int depth;
+	Score score;
+	Score beta;
+};
+Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
 	const Key key = Book::bookKey(pos);
 	// 探索済みチェック
-	{
-		const auto itr_searched = searched.find(key);
-		if (itr_searched != searched.end() && itr_searched->second.second >= beta)
-			return -itr_searched->second.first;
+	const auto itr_searched = searched.find(key);
+	// 深さが同じか浅い場合のみ再利用
+	/*if (std::abs(itr_searched->second.score) == 71 && std::abs(beta) == 171) {
+		std::cout << key << "\t" << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << "\t" << itr_searched->second.score << std::endl;
+		__debugbreak();
+	}*/
+	if (itr_searched != searched.end() && itr_searched->second.depth <= pos.gamePly() && itr_searched->second.beta >= beta) {
+		/*if (key == 12668901208309554908UL)
+			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
+		return -itr_searched->second.score;
 	}
 	
 	const auto itr = outMap.find(key);
@@ -152,8 +164,8 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
-		/*if (key == 10658616078280284869UL && move.toUSI() == "1g1f") {
-			std::cout << entry.score << std::endl;
+		/*if (key == 7172278114399076909UL && debug_moves[0].toUSI() == "4b5b" && move.toUSI() == "4a5b") {
+			print_debug_moves(entry.score);
 			__debugbreak();
 		}*/
 		StateInfo state;
@@ -169,13 +181,15 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
-		/*if (key == 10658616078280284869UL)
-			std::cout << "***\t" << move.toUSI() << "\t" << value << std::endl;*/
+		/*if (key == 10806437342126107775UL && debug_moves.size() > 8 && debug_moves[8].toUSI() == "6c5d")
+			std::cout << "***\t" << move.toUSI() << "\t" << value << "\t" << alpha << "\t" << beta << std::endl;*/
 
 		alpha = std::max(alpha, value);
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
-			searched[key] = { value, beta };
+			if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
+				searched[key] = { pos.gamePly(), value, beta };
+			}
 			return -value;
 		}
 	}
@@ -200,17 +214,19 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
-		/*if (key == 10658616078280284869UL)
+		/*if (key == 10806437342126107775UL)
 			std::cout << "***\t" << move.toUSI() << "\t" << value << std::endl;*/
 
 		alpha = std::max(alpha, value);
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
-			searched[key] = { value, beta };
+			if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
+				searched[key] = { pos.gamePly(), value, beta };
+			}
 			return -value;
 		}
 	}
-	//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
+	//if (std::abs(value) == 71) print_debug_moves(value);
 
 	// βカットされなかった場合はsearchedに追加しない
 	return -value;
@@ -224,7 +240,7 @@ const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector
 	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
 	static BookEntry tmp; // entriesにない要素を返す場合、static変数に格納する
-	std::map<Key, std::pair<Score, Score>> searched;
+	std::map<Key, Searched> searched;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
@@ -461,14 +477,22 @@ int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string
 	return merged;
 }
 
-Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMapMinMax, const Score score) {
+Score minmax_book_inner(Position& pos, std::map<Key, BookEntries>& bookMapMinMax, const Score score) {
 	const Key key = Book::bookKey(pos);
 
 	// 探索済み
 	const auto itr_minmax = bookMapMinMax.find(key);
 	if (itr_minmax != bookMapMinMax.end()) {
 		const auto& minmax_entries = itr_minmax->second;
-		return -minmax_entries[0].score;
+		// 深さが同じか浅い場合のみ再利用
+		if (minmax_entries.depth <= pos.gamePly()) {
+			/*if (key == 1258486100392820274UL) {
+				for (auto move : minmax_entries.moves)
+					std::cout << move.toUSI() << " ";
+				std::cout << minmax_entries.entries[0].score << "\t" << minmax_entries.depth << "\t" << pos.gamePly() << std::endl;
+			}*/
+			return -minmax_entries.entries[0].score;
+		}
 	}
 
 	const auto itr = bookMap.find(key);
@@ -476,6 +500,7 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 		// エントリがない場合、自身の評価値を返す
 		return score;
 	}
+
 	const std::vector<BookEntry>& entries = itr->second;
 
 	std::vector<Move> moves;
@@ -493,10 +518,16 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 		moves.emplace_back(move);
 	}
 
-	std::vector<BookEntry> minmax_entries;
+	BookEntries minmax_entries;
+	minmax_entries.depth = pos.gamePly();
+	//bool exist_draw = false;
 	for (size_t i = 0; i < moves.size(); ++i) {
 		const Move move = moves[i];
 		const u16 move16 = (u16)move.value();
+		/*if (key == 10806437342126107775UL && debug_moves[0].toUSI() == "6i7i" && move.toUSI() == "7i6h") {
+			print_debug_moves();
+			__debugbreak();
+		}*/
 
 		StateInfo state;
 		pos.doMove(move, state);
@@ -504,22 +535,33 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 
 		Score score;
 		if (pos.isDraw() == RepetitionDraw) {
-			// 繰り返しになる場合、千日手の評価値
-			score = pos.turn() == Black ? draw_score_white : draw_score_black;
+			// 探索済みの場合、その評価を使う
+			// 千日手の評価はできるだけ定跡に反映しない
+			// 定跡使用時に千日手の評価で上書きする
+			const auto itr_minmax_draw = bookMapMinMax.find(Book::bookKey(pos));
+			if (itr_minmax_draw != bookMapMinMax.end()) {
+				const auto& minmax_entries_draw = itr_minmax_draw->second;
+				score = -minmax_entries_draw.entries[0].score;
+			}
+			else {
+				// 繰り返しになる場合、千日手の評価値
+				score = pos.turn() == Black ? draw_score_white : draw_score_black;
+				//exist_draw = true;
+			}
 		}
 		else {
-			score = minmax_book(pos, bookMapMinMax, i < entries.size() ? entries[i].score : ScoreNotEvaluated);
+			score = minmax_book_inner(pos, bookMapMinMax, i < entries.size() ? entries[i].score : ScoreNotEvaluated);
 		}
 
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
-		/*if (key == 10658616078280284869UL) {
+		/*if (key == 9353607838864041304UL) {
 			std::cout << "***\t" << move.toUSI() << "\t" << score << std::endl;
 		}*/
 
 		// scoreをminmaxの値に更新
-		auto& minmax_entry = minmax_entries.emplace_back();
+		auto& minmax_entry = minmax_entries.entries.emplace_back();
 		minmax_entry.key = key;
 		minmax_entry.fromToPro = move16;
 		minmax_entry.score = score;
@@ -527,29 +569,58 @@ Score minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& bookMap
 	}
 
 	// score, countの降順にソート
-	std::stable_sort(minmax_entries.begin(), minmax_entries.end(), [](const BookEntry& l, const BookEntry& r) {
+	std::stable_sort(minmax_entries.entries.begin(), minmax_entries.entries.end(), [](const BookEntry& l, const BookEntry& r) {
 		if (l.score == r.score)
 			return l.count > r.count;
 		return l.score > r.score;
 	});
 	
 	// count設定
-	for (size_t i = 0; i < minmax_entries.size(); i++) {
+	for (size_t i = 0; i < minmax_entries.entries.size(); i++) {
 		// countに順番(降順)を設定
-		minmax_entries[i].count = (u16)(minmax_entries.size() - i);
+		minmax_entries.entries[i].count = (u16)(minmax_entries.entries.size() - i);
 	}
 
-	const auto max_score = minmax_entries[0].score;
+	const auto max_score = minmax_entries.entries[0].score;
 
 	// 定跡に追加
-	bookMapMinMax.emplace(key, std::move(minmax_entries));
+	//if (!exist_draw) {
+		//std::copy(debug_moves.begin(), debug_moves.end(), std::back_inserter(minmax_entries.moves));
+		bookMapMinMax[key] = std::move(minmax_entries);
+	//}
 
-	/*if (debug_moves[0] == Move(465597) && (max_score == 181 || max_score == 150)) {
+	/*if (key == 7172278114399076909UL && std::abs(max_score) == 71) {
 		print_debug_moves(max_score);
 	}*/
 
 	return -max_score;
 }
+
+void minmax_book(Position& pos, std::map<Key, BookEntries>& bookMapMinMax) {
+	minmax_book_inner(pos, bookMapMinMax, Score(0));
+}
+
+std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
+	const auto bookMoveScore = book.probe(pos, fileName, pos.turn() == Black ? draw_score_black : draw_score_white);
+	const Move move = std::get<0>(bookMoveScore);
+	if (move) {
+		StateInfo state;
+		pos.doMove(move, state);
+		if (pos.isDraw() == RepetitionDraw) {
+			pos.undoMove(move);
+			return move.toUSI();
+		}
+		const auto moves = get_book_pv_inner(pos, fileName, book);
+		pos.undoMove(move);
+		return move.toUSI() + " " + moves;
+	}
+	return "";
+}
+
+std::string getBookPV(Position& pos, const std::string& fileName) {
+	Book book;
+	return get_book_pv_inner(pos, fileName, book);
+};
 
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob) {
 	if (engine_path == "")

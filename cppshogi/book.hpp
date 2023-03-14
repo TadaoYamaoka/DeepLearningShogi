@@ -36,6 +36,7 @@ class Book : private std::ifstream {
 public:
     Book() : random_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()) {}
     std::tuple<Move, Score> probe(const Position& pos, const std::string& fName, const bool pickBest);
+    std::tuple<Move, Score> probe(const Position& pos, const std::string& fName, const Score drawScore);
     static void init();
     static Key bookKey(const Position& pos);
     static Key bookKeyAfter(const Position& pos, const Key key, const Move move);
