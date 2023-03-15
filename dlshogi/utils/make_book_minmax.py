@@ -183,4 +183,4 @@ with open(args.book, 'w') as f:
         for candidate in candidates:
             next_move = move_to_usi(candidate['next_move']) if candidate['next_move'] is not None else 'none'
             score = value_to_score(candidate['value'])
-            f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 0\n")
+            f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 1\n")
