@@ -24,8 +24,9 @@ extern float eval_coef;
 extern Score draw_score_black;
 extern Score draw_score_white;
 
-struct BookEntries {
-	std::vector<BookEntry> entries;
+struct MinMaxBookEntry {
+	u16 move16;
+	Score score;
 	int depth;
 	//std::vector<Move> moves;
 };
@@ -33,7 +34,7 @@ struct BookEntries {
 void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap);
 int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file);
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
-void minmax_book(Position& pos, std::map<Key, BookEntries>& bookMapMinMax);
+void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax);
 std::string getBookPV(Position& pos, const std::string& fileName);
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob);
 #endif

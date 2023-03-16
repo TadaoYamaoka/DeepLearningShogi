@@ -845,20 +845,17 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	setPosition(pos, ssPosCmd);
 
 	// 定跡をmin-max探索
-	std::map<Key, BookEntries> bookMapMinMax;
+	std::map<Key, MinMaxBookEntry> bookMapMinMax;
 	minmax_book(pos, bookMapMinMax);
 
 	// 出力
-	int num_entries = 0;
 	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
 	for (auto& elem : bookMapMinMax) {
-		for (auto& elel : elem.second.entries) {
-			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-			num_entries++;
-		}
+		BookEntry entry = { elem.first, elem.second.move16, 1, elem.second.score };
+		ofs.write(reinterpret_cast<char*>(&entry), sizeof(BookEntry));
 	}
 	ofs.close();
-	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << " count:" << num_entries << std::endl;
+	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << std::endl;
 
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);

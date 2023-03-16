@@ -139,7 +139,7 @@ struct Searched {
 	Score score;
 	Score beta;
 };
-Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
+Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
 	const Key key = Book::bookKey(pos);
 	// 探索済みチェック
 	const auto itr_searched = searched.find(key);
@@ -232,7 +232,7 @@ Score book_search(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap,
 	return -value;
 }
 
-const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
+const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
 	if (entries.size() == 1)
 		return entries[0];
 	const Key key = Book::bookKey(pos);
@@ -477,28 +477,86 @@ int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string
 	return merged;
 }
 
-Score minmax_book_inner(Position& pos, std::map<Key, BookEntries>& bookMapMinMax, const Score score) {
+void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax);
+
+void minmax_book_black(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
+	// αβで探索
 	const Key key = Book::bookKey(pos);
 
-	// 探索済み
+	// 探索済みの場合、深さが同じか浅い場合、打ち切る
 	const auto itr_minmax = bookMapMinMax.find(key);
-	if (itr_minmax != bookMapMinMax.end()) {
-		const auto& minmax_entries = itr_minmax->second;
-		// 深さが同じか浅い場合のみ再利用
-		if (minmax_entries.depth <= pos.gamePly()) {
-			/*if (key == 1258486100392820274UL) {
-				for (auto move : minmax_entries.moves)
-					std::cout << move.toUSI() << " ";
-				std::cout << minmax_entries.entries[0].score << "\t" << minmax_entries.depth << "\t" << pos.gamePly() << std::endl;
-			}*/
-			return -minmax_entries.entries[0].score;
-		}
+	if (itr_minmax != bookMapMinMax.end() && itr_minmax->second.depth <= pos.gamePly()) {
+		return;
 	}
 
 	const auto itr = bookMap.find(key);
 	if (itr == bookMap.end()) {
-		// エントリがない場合、自身の評価値を返す
-		return score;
+		// エントリがない
+		return;
+	}
+
+	const std::vector<BookEntry>& entries = itr->second;
+
+	std::vector<std::tuple<Move, Score>> moves;
+	moves.reserve(entries.size());
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		moves.emplace_back(move, entry.score);
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		if (std::find_if(moves.begin(), moves.end(), [move](const auto& v) { return std::get<0>(v) == move; }) != moves.end())
+			continue;
+		if (bookMap.find(Book::bookKeyAfter(pos, key, move)) == bookMap.end())
+			continue;
+		moves.emplace_back(move, ScoreNotEvaluated);
+	}
+
+	Score alpha = -ScoreInfinite;
+	size_t best = 0;
+	std::map<Key, Searched> searched;
+	for (size_t i = 0; i < moves.size(); ++i) {
+		const Move move = std::get<0>(moves[i]);
+		StateInfo state;
+		pos.doMove(move, state);
+		Score value;
+		if (pos.isDraw() == RepetitionDraw) {
+			// 繰り返しになる場合、千日手の評価値
+			value = pos.turn() == Black ? draw_score_white : draw_score_black;
+		}
+		else {
+			value = book_search(pos, bookMap, -ScoreInfinite, -alpha, std::get<1>(moves[i]), searched);
+		}
+		pos.undoMove(move);
+
+		if (value > alpha) {
+			best = i;
+			alpha = value;
+		}
+	}
+
+	// 最善手を登録
+	const Move bestMove = std::get<0>(moves[best]);
+	auto& minMaxBookEntry = bookMapMinMax[key];
+	minMaxBookEntry.move16 = (u16)bestMove.value();
+	minMaxBookEntry.score = alpha;
+	minMaxBookEntry.depth = pos.gamePly();
+
+	// 最善手を指す
+	StateInfo state;
+	pos.doMove(bestMove, state);
+	minmax_book_white(pos, bookMapMinMax);
+	pos.undoMove(bestMove);
+}
+
+void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
+	// すべての手を試す
+	const Key key = Book::bookKey(pos);
+
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		// エントリがない
+		return;
 	}
 
 	const std::vector<BookEntry>& entries = itr->second;
@@ -518,86 +576,25 @@ Score minmax_book_inner(Position& pos, std::map<Key, BookEntries>& bookMapMinMax
 		moves.emplace_back(move);
 	}
 
-	BookEntries minmax_entries;
-	minmax_entries.depth = pos.gamePly();
-	//bool exist_draw = false;
 	for (size_t i = 0; i < moves.size(); ++i) {
 		const Move move = moves[i];
-		const u16 move16 = (u16)move.value();
-		/*if (key == 10806437342126107775UL && debug_moves[0].toUSI() == "6i7i" && move.toUSI() == "7i6h") {
-			print_debug_moves();
-			__debugbreak();
-		}*/
-
 		StateInfo state;
 		pos.doMove(move, state);
-		//debug_moves.emplace_back(move);
-
-		Score score;
 		if (pos.isDraw() == RepetitionDraw) {
-			// 探索済みの場合、その評価を使う
-			// 千日手の評価はできるだけ定跡に反映しない
-			// 定跡使用時に千日手の評価で上書きする
-			const auto itr_minmax_draw = bookMapMinMax.find(Book::bookKey(pos));
-			if (itr_minmax_draw != bookMapMinMax.end()) {
-				const auto& minmax_entries_draw = itr_minmax_draw->second;
-				score = -minmax_entries_draw.entries[0].score;
-			}
-			else {
-				// 繰り返しになる場合、千日手の評価値
-				score = pos.turn() == Black ? draw_score_white : draw_score_black;
-				//exist_draw = true;
-			}
+			// 繰り返しになる場合
+			pos.undoMove(move);
+			continue;
 		}
 		else {
-			score = minmax_book_inner(pos, bookMapMinMax, i < entries.size() ? entries[i].score : ScoreNotEvaluated);
+			minmax_book_black(pos, bookMapMinMax);
 		}
-
 		pos.undoMove(move);
-		//debug_moves.pop_back();
-
-		/*if (key == 9353607838864041304UL) {
-			std::cout << "***\t" << move.toUSI() << "\t" << score << std::endl;
-		}*/
-
-		// scoreをminmaxの値に更新
-		auto& minmax_entry = minmax_entries.entries.emplace_back();
-		minmax_entry.key = key;
-		minmax_entry.fromToPro = move16;
-		minmax_entry.score = score;
-		minmax_entry.count = i < entries.size() ? entries[i].count : 0;
 	}
-
-	// score, countの降順にソート
-	std::stable_sort(minmax_entries.entries.begin(), minmax_entries.entries.end(), [](const BookEntry& l, const BookEntry& r) {
-		if (l.score == r.score)
-			return l.count > r.count;
-		return l.score > r.score;
-	});
-	
-	// count設定
-	for (size_t i = 0; i < minmax_entries.entries.size(); i++) {
-		// countに順番(降順)を設定
-		minmax_entries.entries[i].count = (u16)(minmax_entries.entries.size() - i);
-	}
-
-	const auto max_score = minmax_entries.entries[0].score;
-
-	// 定跡に追加
-	//if (!exist_draw) {
-		//std::copy(debug_moves.begin(), debug_moves.end(), std::back_inserter(minmax_entries.moves));
-		bookMapMinMax[key] = std::move(minmax_entries);
-	//}
-
-	/*if (key == 7172278114399076909UL && std::abs(max_score) == 71) {
-		print_debug_moves(max_score);
-	}*/
-
-	return -max_score;
 }
 
-void minmax_book(Position& pos, std::map<Key, BookEntries>& bookMapMinMax) {
-	minmax_book_inner(pos, bookMapMinMax, Score(0));
+void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
+	minmax_book_black(pos, bookMapMinMax);
+	minmax_book_white(pos, bookMapMinMax);
 }
 
 std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
