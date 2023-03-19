@@ -233,8 +233,6 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 }
 
 const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
-	if (entries.size() == 1)
-		return entries[0];
 	const Key key = Book::bookKey(pos);
 
 	Score alpha = -ScoreInfinite;
