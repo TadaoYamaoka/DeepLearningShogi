@@ -359,7 +359,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		}
 
 		Move move;
-		auto itr = bookMap.find(key);
+		const auto itr = bookMap.find(key);
 		if (itr == bookMap.end() && usi_book_engine && dist_minmax(g_randomTimeSeed) < usi_book_engine_prob) {
 			// 相手定跡から外れた場合USIエンジンを使う
 			const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes);
@@ -378,9 +378,9 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			}
 			else {
 				// 定跡にない場合、探索結果を使う
-				itr = outMap.find(key);
+				const auto itr_out = outMap.find(key);
 
-				if (itr == outMap.end()) {
+				if (itr_out == outMap.end()) {
 					// 定跡になく未探索の局面の場合
 					// UCT探索で定跡作成
 					if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
@@ -394,7 +394,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			}
 
 			u16 selected_move16;
-			if (dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
+			if (itr == bookMap.end() && dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
 				// 一定の確率でmin-maxで選ぶ
 				const auto& entry = select_best_book_entry(pos, outMap, *entries);
 				selected_move16 = entry.fromToPro;
