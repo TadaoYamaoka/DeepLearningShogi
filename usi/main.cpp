@@ -682,6 +682,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 相手定跡の最善手を選択する
 	book_best_move = options["Book_Best_Move"];
 
+	// 相手定跡の評価値閾値
+	book_eval_diff = (Score)(int)options["Book_Eval_Diff"];
+
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
 

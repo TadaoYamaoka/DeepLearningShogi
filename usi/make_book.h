@@ -13,6 +13,7 @@ extern double book_visit_threshold;
 extern double book_cutoff;
 extern double book_reciprocal_temperature;
 extern bool book_best_move;
+extern Score book_eval_diff;
 // MinMaxで選ぶ確率
 extern double book_minmax_prob;
 extern double book_minmax_prob_opp;

@@ -40,6 +40,7 @@ double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 bool book_best_move = false;
+Score book_eval_diff = Score(10000);
 // MinMaxで選ぶ確率
 double book_minmax_prob = 1.0;
 double book_minmax_prob_opp = 0.1;
@@ -416,7 +417,11 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			else {
 				// 確率的に手を選択
 				std::vector<double> probabilities;
+				const Score score_th = entries->at(0).score - book_eval_diff;
 				for (const auto& entry : *entries) {
+					// 相手定跡の評価値閾値
+					if (itr != bookMap.end() && entry.score < score_th)
+						continue;
 					const auto probability = std::pow((double)entry.count, book_reciprocal_temperature);
 					probabilities.emplace_back(probability);
 				}
