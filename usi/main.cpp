@@ -679,6 +679,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 訪問回数に応じてランダムに選択する際の温度パラメータ
 	book_reciprocal_temperature = 1000.0 / options["Book_Temperature"];
 
+	// 相手定跡の最善手を選択する
+	book_best_move = options["Book_Best_Move"];
+
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
 

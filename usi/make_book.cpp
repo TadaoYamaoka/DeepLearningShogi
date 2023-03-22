@@ -39,6 +39,7 @@ int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
+bool book_best_move = false;
 // MinMaxで選ぶ確率
 double book_minmax_prob = 1.0;
 double book_minmax_prob_opp = 0.1;
@@ -398,6 +399,19 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 				// 一定の確率でmin-maxで選ぶ
 				const auto& entry = select_best_book_entry(pos, outMap, *entries);
 				selected_move16 = entry.fromToPro;
+			}
+			if (itr != bookMap.end() && book_best_move) {
+				// 相手定跡の最善手を選択する
+				size_t selected_index = 0;
+				u16 max_count = entries->at(0).count;
+				for (size_t i = 1; i < entries->size(); ++i) {
+					const auto& entry = entries->at(i);
+					if (entry.count > max_count) {
+						selected_index = i;
+						max_count = entry.count;
+					}
+				}
+				selected_move16 = entries->at(selected_index).fromToPro;
 			}
 			else {
 				// 確率的に手を選択
