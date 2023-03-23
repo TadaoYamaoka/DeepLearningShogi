@@ -271,7 +271,7 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 			value = ScoreMaxEvaluate;
 			break;
 		case RepetitionLose:
-			// 負けのためvalueを更新しない
+			value = -ScoreInfinite;
 			break;
 		default:
 			value = book_search(pos, outMap, -ScoreInfinite, -alpha, entry.score, searched);
@@ -305,7 +305,7 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 			value = ScoreMaxEvaluate;
 			break;
 		case RepetitionLose:
-			// 負けのためvalueを更新しない
+			value = -ScoreInfinite;
 			break;
 		default:
 			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
