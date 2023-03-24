@@ -163,6 +163,7 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 	}
 	const auto& entries = itr->second;
 	Score value = -ScoreInfinite;
+	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
@@ -185,7 +186,10 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 			// 負けのためvalueを更新しない
 			break;
 		default:
-			value = std::max(value, book_search(pos, outMap, -beta, -alpha, entry.score, searched));
+			// 訪問回数が少ない評価値は信頼しない
+			if (entry.score < trusted_score)
+				trusted_score = entry.score;
+			value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched));
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -255,6 +259,7 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 	const BookEntry* best = nullptr;
 	static BookEntry tmp; // entriesにない要素を返す場合、static変数に格納する
 	std::map<Key, Searched> searched;
+	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
@@ -274,7 +279,10 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 			value = -ScoreInfinite;
 			break;
 		default:
-			value = book_search(pos, outMap, -ScoreInfinite, -alpha, entry.score, searched);
+			// 訪問回数が少ない評価値は信頼しない
+			if (entry.score < trusted_score)
+				trusted_score = entry.score;
+			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -547,9 +555,13 @@ void minmax_book_black(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMin
 
 	std::vector<std::tuple<Move, Score>> moves;
 	moves.reserve(entries.size());
+	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
-		moves.emplace_back(move, entry.score);
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
+		moves.emplace_back(move, trusted_score);
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
