@@ -184,14 +184,15 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
     return std::make_tuple(move, score);
 }
 
-// 評価値が高い手を選択する
-// その際、千日手の評価値を考慮する
+// 千日手の評価値を考慮する
+// countの降順にソートされていること
 std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const Score drawScore) {
     BookEntry entry;
     Score best = -ScoreInfinite;
     Move move = Move::moveNone();
     const Key key = bookKey(pos);
     Score score = ScoreZero;
+    Score trusted_score = ScoreInfinite;
 
     if (fileName_ != fName && !open(fName.c_str()))
         return std::make_tuple(Move::moveNone(), ScoreNone);
@@ -202,9 +203,24 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
     while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
         const Move tmp = Move(entry.fromToPro);
 
-        if (pos.moveIsDraw(tmp) == RepetitionDraw) {
+        // 回数が少ない評価値は信頼しない
+        if (entry.score < trusted_score)
+            trusted_score = entry.score;
+        entry.score = trusted_score;
+
+        switch (pos.moveIsDraw(tmp)) {
+        case RepetitionDraw:
             // 千日手の評価で上書き
             entry.score = drawScore;
+            break;
+        case RepetitionWin:
+            // 相手の勝ち(自分の負け)
+            entry.score = -ScoreMaxEvaluate;
+            break;
+        case RepetitionLose:
+            // 相手の負け(自分の勝ち)
+            entry.score = ScoreMaxEvaluate;
+            break;
         }
 
         if (entry.score > best)

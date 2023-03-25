@@ -1801,7 +1801,7 @@ RepetitionType Position::isDraw(const int checkMaxPly) const {
     return NotRepetition;
 }
 
-bool Position::moveIsDraw(const Move move) const {
+RepetitionType Position::moveIsDraw(const Move move) const {
     const int Start = 4;
     int i = Start;
     const int e = st_->pliesFromNull + 1;
@@ -1817,7 +1817,12 @@ bool Position::moveIsDraw(const Move move) const {
             // 更に 2 手戻る。
             stp = stp->previous->previous;
             if (stp->key() == key) {
-                return RepetitionDraw;
+                if (i <= st_->continuousCheck[turn()])
+                    return RepetitionWin;
+                else if (i <= st_->continuousCheck[oppositeColor(turn())])
+                    return RepetitionLose;
+                else
+                    return RepetitionDraw;
             }
             i += 2;
         } while (i <= e);
