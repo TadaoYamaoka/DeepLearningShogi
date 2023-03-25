@@ -180,10 +180,11 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
 			break;
 		case RepetitionWin:
-			value = ScoreMaxEvaluate;
+			// 相手の勝ち(自分の負け)のためvalueを更新しない
 			break;
 		case RepetitionLose:
-			// 負けのためvalueを更新しない
+			// 相手の負け(自分の勝ち)
+			value = ScoreMaxEvaluate;
 			break;
 		default:
 			// 訪問回数が少ない評価値は信頼しない
@@ -222,10 +223,11 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
 			break;
 		case RepetitionWin:
-			value = ScoreMaxEvaluate;
+			// 相手の勝ち(自分の負け)のためvalueを更新しない
 			break;
 		case RepetitionLose:
-			// 負けのためvalueを更新しない
+			// 相手の負け(自分の勝ち)
+			value = ScoreMaxEvaluate;
 			break;
 		default:
 			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
@@ -273,10 +275,10 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
-			value = ScoreMaxEvaluate;
+			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
-			value = -ScoreInfinite;
+			value = ScoreMaxEvaluate;
 			break;
 		default:
 			// 訪問回数が少ない評価値は信頼しない
@@ -310,10 +312,10 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
-			value = ScoreMaxEvaluate;
+			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
-			value = -ScoreInfinite;
+			value = ScoreMaxEvaluate;
 			break;
 		default:
 			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
@@ -586,10 +588,10 @@ void minmax_book_black(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMin
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
-			value = ScoreMaxEvaluate;
+			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
-			value = -ScoreInfinite;
+			value = ScoreMaxEvaluate;
 			break;
 		default:
 			value = book_search(pos, bookMap, -ScoreInfinite, -alpha, std::get<1>(moves[i]), searched);
