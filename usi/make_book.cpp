@@ -57,6 +57,9 @@ Score draw_score_white;
 std::unique_ptr<USIBookEngine> usi_book_engine;
 int usi_book_engine_nodes;
 double usi_book_engine_prob = 1.0;
+// 自分の手番でも一定確率でUSIエンジンを使う
+int usi_book_engine_nodes_own;
+double usi_book_engine_prob_own = 0.0;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
@@ -349,23 +352,34 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 		else {
 			// 探索済みの場合
 			{
-				const auto& entries = itr->second;
-				// 一定の確率でmin-maxで選ぶ
-				const auto& entry = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries) : entries[0];
-
-				// 評価値が閾値を超えた場合、探索終了
-				if (std::abs(entry.score) > book_eval_threshold) {
-					std::cout << book_pos_cmd;
-					for (Move move : moves) {
-						std::cout << " " << move.toUSI();
-					}
-					std::cout << "\nentry.score: " << entry.score << std::endl;
-					return;
+				Move move;
+				if (dist_minmax(g_randomTimeSeed) < usi_book_engine_prob_own) {
+					// 自分の手番でも一定確率でUSIエンジンを使う
+					const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes_own);
+					std::cout << "usi move : " << depth << " " << usi_result.info << std::endl;
+					if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
+						return;
+					move = usiToMove(pos, usi_result.bestMove);
 				}
+				else {
+					const auto& entries = itr->second;
+					// 一定の確率でmin-maxで選ぶ
+					const auto& entry = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries) : entries[0];
 
-				const Move move = move16toMove(Move(entry.fromToPro), pos);
-				if (&entry != &entries[0])
-					std::cout << "best move : " << depth << " " << &entry - &entries[0] << " " << move.toUSI() << std::endl;
+					// 評価値が閾値を超えた場合、探索終了
+					if (std::abs(entry.score) > book_eval_threshold) {
+						std::cout << book_pos_cmd;
+						for (Move move : moves) {
+							std::cout << " " << move.toUSI();
+						}
+						std::cout << "\nentry.score: " << entry.score << std::endl;
+						return;
+					}
+
+					move = move16toMove(Move(entry.fromToPro), pos);
+					if (&entry != &entries[0])
+						std::cout << "best move : " << depth << " " << &entry - &entries[0] << " " << move.toUSI() << std::endl;
+				}
 
 				StateInfo state;
 				pos.doMove(move, state);
@@ -693,7 +707,7 @@ std::string getBookPV(Position& pos, const std::string& fileName) {
 	return get_book_pv_inner(pos, fileName, book);
 };
 
-void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob) {
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own) {
 	if (engine_path == "")
 		return;
 
@@ -707,5 +721,7 @@ void init_usi_book_engine(const std::string& engine_path, const std::string& eng
 	usi_book_engine.reset(new USIBookEngine(engine_path, usi_engine_options));
 	usi_book_engine_nodes = nodes;
 	usi_book_engine_prob = prob;
+	usi_book_engine_nodes_own = nodes_own;
+	usi_book_engine_prob_own = prob_own;
 }
 #endif
