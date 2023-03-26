@@ -60,6 +60,8 @@ double usi_book_engine_prob = 1.0;
 // 自分の手番でも一定確率でUSIエンジンを使う
 int usi_book_engine_nodes_own;
 double usi_book_engine_prob_own = 0.0;
+// αβ探索で特定局面の評価値を置き換える
+std::map<Key, Score> book_key_eval_map;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
@@ -146,6 +148,13 @@ struct Searched {
 };
 Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
 	const Key key = Book::bookKey(pos);
+
+	// 特定局面の評価値を置き換える
+	if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
+		//std::cout << pos.toSFEN() << std::endl;
+		return -book_key_eval_map[key];
+	}
+
 	// 探索済みチェック
 	const auto itr_searched = searched.find(key);
 	// 深さが同じか浅い場合のみ再利用
@@ -723,5 +732,19 @@ void init_usi_book_engine(const std::string& engine_path, const std::string& eng
 	usi_book_engine_prob = prob;
 	usi_book_engine_nodes_own = nodes_own;
 	usi_book_engine_prob_own = prob_own;
+}
+
+void init_book_key_eval_map(const std::string& str) {
+	if (str == "")
+		return;
+
+	std::istringstream ss(str);
+	std::string field;
+	while (std::getline(ss, field, ',')) {
+		const auto p = field.find_first_of(":");
+		const Key key = std::stoull(field.substr(0, p));
+		const Score score = (Score)std::stoi(field.substr(p + 1));
+		book_key_eval_map.emplace(key, score);
+	}
 }
 #endif

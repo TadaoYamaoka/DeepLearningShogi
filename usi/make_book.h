@@ -39,4 +39,5 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax);
 std::string getBookPV(Position& pos, const std::string& fileName);
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own);
+void init_book_key_eval_map(const std::string& str);
 #endif

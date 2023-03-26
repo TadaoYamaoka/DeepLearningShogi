@@ -164,6 +164,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["USI_Book_Engine_Prob"]        = USIOption(1000, 0, 1000);
     (*this)["USI_Book_Engine_Nodes_Own"]   = USIOption(1000000, 0, 1000000000);
     (*this)["USI_Book_Engine_Prob_Own"]    = USIOption(0, 0, 1000);
+    (*this)["Book_Key_Eval_Map"]           = USIOption("");
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
