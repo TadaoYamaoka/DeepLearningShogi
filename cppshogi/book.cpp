@@ -186,7 +186,8 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
 
 // 千日手の評価値を考慮する
 // countの降順にソートされていること
-std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const Score drawScore) {
+// countが少ない評価値は信頼しない
+std::tuple<Move, Score> Book::probeConsideringDraw(const Position& pos, const std::string& fName) {
     BookEntry entry;
     Score best = -ScoreInfinite;
     Move move = Move::moveNone();
@@ -210,12 +211,19 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
 
         switch (pos.moveIsDraw(tmp)) {
         case RepetitionDraw:
+        {
             // 千日手の評価で上書き
+            const float drawValue = (pos.turn() == Black
+                ? static_cast<int>(pos.searcher()->options["Draw_Value_Black"])
+                : static_cast<int>(pos.searcher()->options["Draw_Value_White"])) / 1000.0f;
+            const int evalCoef = static_cast<int>(pos.searcher()->options["Eval_Coef"]);
+            const Score drawScore = static_cast<Score>(static_cast<int>(-logf(1.0f / drawValue - 1.0f) * evalCoef));
             entry.score = drawScore;
             break;
+        }
         case RepetitionWin:
             // 相手の勝ち(自分の負け)
-            entry.score = -ScoreMaxEvaluate;
+            entry.score = -ScoreInfinite;
             break;
         case RepetitionLose:
             // 相手の負け(自分の勝ち)
@@ -247,6 +255,10 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
     }
 
     return std::make_tuple(move, score);
+}
+
+std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest, const bool considerDraw) {
+    return considerDraw ? probeConsideringDraw(pos, fName) : probe(pos, fName, pickBest);
 }
 
 inline bool countCompare(const BookEntry& b1, const BookEntry& b2) {

@@ -462,7 +462,7 @@ void MySearcher::goUct(Position& pos) {
 	// Book使用
 	static Book book;
 	if (options["OwnBook"]) {
-		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
+		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"], options["Book_Consider_Draw"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"
 				<< " score cp " << std::get<1>(bookMoveScore)
