@@ -26,6 +26,7 @@ struct MySearcher : Searcher {
 #ifdef MAKE_BOOK
 	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -384,6 +385,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #ifdef MAKE_BOOK
 		else if (token == "make_book") makeBook(ssCmd, posCmd);
 		else if (token == "make_minmax_book") makeMinMaxBook(ssCmd, posCmd);
+		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -763,6 +765,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	book_starting_pos_key = pos.getKey();
 
 	// 定跡読み込み
+	bookMap.clear();
 	read_book(bookFileName, bookMap);
 
 	// 定跡マージ
@@ -839,6 +842,9 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	ssCmd >> bookFileName;
 	ssCmd >> outFileName;
 
+	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
+
 	// 千日手の評価値
 	SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 	SetEvalCoef(options["Eval_Coef"]);
@@ -858,7 +864,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::map<Key, MinMaxBookEntry> bookMapMinMax;
-	minmax_book(pos, bookMapMinMax);
+	minmax_book(pos, bookMapMinMax, make_book_color);
 
 	// 出力
 	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
@@ -872,5 +878,43 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);
 	std::cout << "pv " << pv << std::endl;
+}
+
+void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	std::string bookFileName;
+	std::string mergeFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> mergeFileName;
+	ssCmd >> outFileName;
+
+	// 定跡読み込み
+	int input_num = 0;
+	std::map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(bookFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+				input_num++;
+			}
+			std::cout << "input size: " << outMap.size() << std::endl;
+		}
+	}
+
+	// 定跡マージ
+	const auto merged = merge_book(outMap, mergeFileName);
+
+	// 出力
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+	}
+	ofs.close();
+
+	std::cout << "output size: " << outMap.size() << std::endl;
 }
 #endif

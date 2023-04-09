@@ -686,9 +686,15 @@ void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMin
 	}
 }
 
-void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
-	minmax_book_black(pos, bookMapMinMax);
-	minmax_book_white(pos, bookMapMinMax);
+void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color) {
+	if (make_book_color == Black)
+		minmax_book_black(pos, bookMapMinMax);
+	else if (make_book_color == White)
+		minmax_book_white(pos, bookMapMinMax);
+	else {
+		minmax_book_black(pos, bookMapMinMax);
+		minmax_book_white(pos, bookMapMinMax);
+	}
 }
 
 std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
