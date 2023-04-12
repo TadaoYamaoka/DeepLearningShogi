@@ -396,6 +396,7 @@ public:
     HuffmanCodedPos toHuffmanCodedPos() const;
 
     RepetitionType isDraw(const int checkMaxPly = std::numeric_limits<int>::max()) const;
+    RepetitionType moveIsDraw(const Move move) const;
 
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
 
