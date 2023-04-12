@@ -27,6 +27,7 @@ struct MySearcher : Searcher {
 	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void extractConsideringDrawPositions(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -386,6 +387,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book") makeBook(ssCmd, posCmd);
 		else if (token == "make_minmax_book") makeMinMaxBook(ssCmd, posCmd);
 		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
+		else if (token == "extract_considering_draw_positions") extractConsideringDrawPositions(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -916,5 +918,28 @@ void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd)
 	ofs.close();
 
 	std::cout << "output size: " << outMap.size() << std::endl;
+}
+
+void MySearcher::extractConsideringDrawPositions(std::istringstream& ssCmd, const std::string& posCmd) {
+	std::string bookFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	std::vector<Move> histories;
+	std::ofstream ofs(outFileName.c_str());
+	std::set<Key> exists;
+	extract_considering_draw_positions(pos, bookMap, histories, ofs, exists);
+	std::cout << "output size: " << exists.size() << std::endl;
 }
 #endif

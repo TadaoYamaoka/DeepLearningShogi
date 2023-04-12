@@ -62,6 +62,8 @@ int usi_book_engine_nodes_own;
 double usi_book_engine_prob_own = 0.0;
 // αβ探索で特定局面の評価値を置き換える
 std::map<Key, Score> book_key_eval_map;
+// 最大手数
+Ply book_max_ply = 200;
 
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
@@ -147,7 +149,7 @@ struct Searched {
 	Score beta;
 };
 Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
-	const Key key = Book::bookKey(pos);
+	const Key key = Book::bookKeyConsideringDraw(pos);
 
 	// 特定局面の評価値を置き換える
 	if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
@@ -167,12 +169,30 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
 		return -itr_searched->second.score;
 	}
+
+	// 最大手数に達した場合、自身の評価値を返す
+	if (pos.gamePly() > book_max_ply) {
+		return score;
+	}
 	
 	const auto itr = outMap.find(key);
 	if (itr == outMap.end()) {
 		// エントリがない場合、自身の評価値を返す
 		return score;
 	}
+
+	switch (pos.isDraw()) {
+	case RepetitionDraw:
+		// 繰り返しになる場合、千日手の評価値
+		return pos.turn() == Black ? draw_score_white : draw_score_black;
+	case RepetitionWin:
+		// 相手の勝ち(自分の負け)のためvalueを更新しない
+		return -ScoreInfinite;
+	case RepetitionLose:
+		// 相手の負け(自分の勝ち)
+		return ScoreMaxEvaluate;
+	}
+
 	const auto& entries = itr->second;
 	Score value = -ScoreInfinite;
 	Score trusted_score = entries[0].score;
@@ -186,24 +206,10 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
-		switch (pos.isDraw()) {
-		case RepetitionDraw:
-			// 繰り返しになる場合、千日手の評価値
-			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
-			break;
-		case RepetitionWin:
-			// 相手の勝ち(自分の負け)のためvalueを更新しない
-			break;
-		case RepetitionLose:
-			// 相手の負け(自分の勝ち)
-			value = ScoreMaxEvaluate;
-			break;
-		default:
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
-			value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched));
-		}
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
+		value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched));
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
@@ -224,27 +230,16 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
-		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
-			continue;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
-		switch (pos.isDraw()) {
-		case RepetitionDraw:
-			// 繰り返しになる場合、千日手の評価値
-			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
-			break;
-		case RepetitionWin:
-			// 相手の勝ち(自分の負け)のためvalueを更新しない
-			break;
-		case RepetitionLose:
-			// 相手の負け(自分の勝ち)
-			value = ScoreMaxEvaluate;
-			break;
-		default:
-			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
-			value = std::max(value, ret);
+		const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
+		if (ret == ScoreNotEvaluated) {
+			pos.undoMove(move);
+			//debug_moves.pop_back();
+			continue;
 		}
+		value = std::max(value, ret);
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
@@ -267,7 +262,7 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 }
 
 const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
-	const Key key = Book::bookKey(pos);
+	const Key key = Book::bookKeyConsideringDraw(pos);
 
 	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
@@ -280,24 +275,10 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
-		Score value;
-		switch (pos.isDraw()) {
-		case RepetitionDraw:
-			// 繰り返しになる場合、千日手の評価値
-			value = pos.turn() == Black ? draw_score_white : draw_score_black;
-			break;
-		case RepetitionWin:
-			value = -ScoreInfinite;
-			break;
-		case RepetitionLose:
-			value = ScoreMaxEvaluate;
-			break;
-		default:
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
-			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched);
-		}
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
+		const Score value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched);
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 		//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
@@ -312,26 +293,14 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
-		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
-			continue;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
-		Score value;
-		switch (pos.isDraw()) {
-		case RepetitionDraw:
-			// 繰り返しになる場合、千日手の評価値
-			value = pos.turn() == Black ? draw_score_white : draw_score_black;
-			break;
-		case RepetitionWin:
-			value = -ScoreInfinite;
-			break;
-		case RepetitionLose:
-			value = ScoreMaxEvaluate;
-			break;
-		default:
-			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
-			value = ret;
+		const Score value = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
+		if (value == ScoreNotEvaluated) {
+			pos.undoMove(move);
+			//debug_moves.pop_back();
+			continue;
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -349,7 +318,7 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 
 // 定跡作成(再帰処理)
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
-	const Key key = Book::bookKey(pos);
+	const Key key = Book::bookKeyConsideringDraw(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
 		const auto itr = outMap.find(key);
@@ -751,6 +720,71 @@ void init_book_key_eval_map(const std::string& str) {
 		const Key key = std::stoull(field.substr(0, p));
 		const Score score = (Score)std::stoi(field.substr(p + 1));
 		book_key_eval_map.emplace(key, score);
+	}
+}
+
+// 通常の定跡キーと千日手を考慮した定跡キーが異なる局面を抽出
+void extract_considering_draw_positions(Position& pos, const std::map<Key, std::vector<BookEntry> >& bookMap, std::vector<Move> histories, std::ofstream& ofs, std::set<Key>& exists) {
+	// すべての手を試す
+	const Key key = Book::bookKey(pos);
+
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		// エントリがない
+		return;
+	}
+
+	{
+		const Key keyConsideringDraw = Book::bookKeyConsideringDraw(pos);
+		// 重複する場合
+		const auto ret = exists.emplace(keyConsideringDraw);
+		if (!ret.second)
+			return;
+
+		if (key != keyConsideringDraw) {
+			// 通常の定跡キーと千日手を考慮した定跡キーが異なる
+			for (size_t i = 0; i < histories.size(); ++i) {
+				if (i > 0)
+					ofs << " ";
+				ofs << histories[i].toUSI();
+			}
+			ofs << std::endl;
+		}
+	}
+
+	const std::vector<BookEntry>& entries = itr->second;
+
+	std::vector<Move> moves;
+	moves.reserve(entries.size());
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		moves.emplace_back(move);
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		if (std::find(moves.begin(), moves.end(), move) != moves.end())
+			continue;
+		if (bookMap.find(Book::bookKeyAfter(pos, key, move)) == bookMap.end())
+			continue;
+		moves.emplace_back(move);
+	}
+
+	for (size_t i = 0; i < moves.size(); ++i) {
+		const Move move = moves[i];
+		StateInfo state;
+		pos.doMove(move, state);
+		switch (pos.isDraw()) {
+		case RepetitionDraw:
+		case RepetitionWin:
+		case RepetitionLose:
+			// 繰り返しになる場合
+			pos.undoMove(move);
+			continue;
+		}
+		histories.emplace_back(move);
+		extract_considering_draw_positions(pos, bookMap, histories, ofs, exists);
+		histories.pop_back();
+		pos.undoMove(move);
 	}
 }
 #endif

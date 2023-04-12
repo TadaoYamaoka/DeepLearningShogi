@@ -2102,7 +2102,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 合流テスト
 extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
@@ -2130,4 +2130,35 @@ int main() {
 	return 0;
 }
 #endif
+#endif
+
+#if 1
+// 千日手を考慮した定跡キー
+#include "book.hpp"
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::vector<std::vector<std::string> > positions;
+	positions.emplace_back(std::vector<std::string>{});
+	positions.emplace_back(std::vector<std::string>{ "2h7h", "8b3b", "7h2h" });
+	positions.emplace_back(std::vector<std::string>{ "2h3h", "8b7b", "3h2h" });
+
+	for (const auto moves : positions) {
+		Position pos;
+		pos.set(DefaultStartPositionSFEN);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+		for (auto token : moves) {
+			const Move move = usiToMove(pos, token);
+			pos.searcher()->states->push_back(StateInfo());
+			pos.doMove(move, pos.searcher()->states->back());
+		}
+
+		const Key key1 = Book::bookKey(pos);
+		const Key key2 = Book::bookKeyConsideringDraw(pos);
+		std::cout << key1 << "\t" << key2 << "\t" << (key1 == key2) << std::endl;
+	}
+
+	return 0;
+}
 #endif

@@ -25,6 +25,17 @@
 #include "position.hpp"
 #include "mt64bit.hpp"
 
+namespace book {
+    // 移動方向
+    enum MOVE_DIRECTION {
+        UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT, UP2_LEFT, UP2_RIGHT,
+        UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE, UP2_LEFT_PROMOTE, UP2_RIGHT_PROMOTE,
+        MOVE_DIRECTION_NUM
+    };
+    // 指し手を表すインデックスの数
+    constexpr int MAX_MOVE_INDEX_NUM = (MOVE_DIRECTION_NUM + HandPieceNum) * SquareNum;
+}
+
 struct BookEntry {
     Key key;
     u16 fromToPro;
@@ -41,6 +52,7 @@ public:
     static void init();
     static Key bookKey(const Position& pos);
     static Key bookKeyAfter(const Position& pos, const Key key, const Move move);
+    static Key bookKeyConsideringDraw(const Position& pos);
 
 private:
     bool open(const char* fName);
@@ -54,6 +66,7 @@ private:
     static Key ZobPiece[PieceNone][SquareNum];
     static Key ZobHand[HandPieceNum][19];
     static Key ZobTurn;
+    static Key ZobMove[book::MAX_MOVE_INDEX_NUM];
 };
 
 void makeBook(Position& pos, std::istringstream& ssCmd);

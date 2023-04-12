@@ -1141,9 +1141,7 @@ template ExtMove* generateMoves<NonCaptureMinusPro>(ExtMove* moveList, const Pos
 template ExtMove* generateMoves<Evasion           >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<NonEvasion        >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<Legal             >(ExtMove* moveList, const Position& pos);
-#if !defined NDEBUG || defined LEARN || defined MAKE_BOOK
 template ExtMove* generateMoves<LegalAll          >(ExtMove* moveList, const Position& pos);
-#endif
 template ExtMove* generateMoves<Recapture         >(ExtMove* moveList, const Position& pos, const Square to);
 template ExtMove* generateMoves<Check             >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<CheckAll          >(ExtMove* moveList, const Position& pos);

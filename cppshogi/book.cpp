@@ -22,13 +22,82 @@
 #include "book.hpp"
 #include "position.hpp"
 #include "move.hpp"
+#include "generateMoves.hpp"
 #include "usi.hpp"
 #include "search.hpp"
+
+namespace book {
+    // 移動方向を取得
+    inline MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {
+        if (dir_y < 0 && dir_x == 0) {
+            return UP;
+        }
+        else if (dir_y == -2 && dir_x == -1) {
+            return UP2_LEFT;
+        }
+        else if (dir_y == -2 && dir_x == 1) {
+            return UP2_RIGHT;
+        }
+        else if (dir_y < 0 && dir_x < 0) {
+            return UP_LEFT;
+        }
+        else if (dir_y < 0 && dir_x > 0) {
+            return UP_RIGHT;
+        }
+        else if (dir_y == 0 && dir_x < 0) {
+            return LEFT;
+        }
+        else if (dir_y == 0 && dir_x > 0) {
+            return RIGHT;
+        }
+        else if (dir_y > 0 && dir_x == 0) {
+            return DOWN;
+        }
+        else if (dir_y > 0 && dir_x < 0) {
+            return DOWN_LEFT;
+        }
+        else /* if (dir_y > 0 && dir_x > 0) */ {
+            return DOWN_RIGHT;
+        }
+    }
+
+    // 指し手をインデックスに変換
+    int move_to_index(const Move move) {
+        const auto to_sq = move.to();
+        const auto from_sq = move.from();
+
+        if (from_sq < SquareNum) {
+            const div_t to_d = div(to_sq, 9);
+            const int to_x = to_d.quot;
+            const int to_y = to_d.rem;
+            const div_t from_d = div(from_sq, 9);
+            const int from_x = from_d.quot;
+            const int from_y = from_d.rem;
+            const int dir_x = from_x - to_x;
+            const int dir_y = to_y - from_y;
+
+            MOVE_DIRECTION move_direction = get_move_direction(dir_x, dir_y);
+
+            // promote
+            if (move.isPromotion()) {
+                move_direction = (MOVE_DIRECTION)(move_direction + 10);
+            }
+            return 9 * 9 * move_direction + to_sq;
+        }
+        // 持ち駒の場合
+        else {
+            const int hand_piece = from_sq - (int)SquareNum;
+            const int move_direction_label = MOVE_DIRECTION_NUM + hand_piece;
+            return 9 * 9 * move_direction_label + to_sq;
+        }
+    }
+}
 
 MT64bit Book::mt64bit_; // 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
 Key Book::ZobPiece[PieceNone][SquareNum];
 Key Book::ZobHand[HandPieceNum][19]; // 持ち駒の同一種類の駒の数ごと
 Key Book::ZobTurn;
+Key Book::ZobMove[book::MAX_MOVE_INDEX_NUM]; // 千日手になる指し手に使う
 
 void Book::init() {
     for (Piece p = Empty; p < PieceNone; ++p) {
@@ -40,6 +109,9 @@ void Book::init() {
             ZobHand[hp][num] = mt64bit_.random();
     }
     ZobTurn = mt64bit_.random();
+    for (size_t i = 0; i < book::MAX_MOVE_INDEX_NUM; ++i) {
+        ZobMove[i] = mt64bit_.random();
+    }
 }
 
 bool Book::open(const char* fName) {
@@ -133,6 +205,21 @@ Key Book::bookKeyAfter(const Position& pos, const Key key, const Move move) {
 
     key_after ^= ZobTurn;
     return key_after;
+}
+
+Key Book::bookKeyConsideringDraw(const Position& pos) {
+    Key key = bookKey(pos);
+
+    for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+        switch (pos.moveIsDraw(ml.move())) {
+        case RepetitionDraw:
+        case RepetitionWin:
+        case RepetitionLose:
+            key ^= ZobMove[book::move_to_index(ml.move())];
+        }
+    }
+
+    return key;
 }
 
 std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest) {
