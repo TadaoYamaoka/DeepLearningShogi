@@ -905,7 +905,7 @@ void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd)
 	}
 
 	// 定跡マージ
-	const auto merged = merge_book(outMap, mergeFileName);
+	const auto merged = merge_book(outMap, mergeFileName, false);
 
 	// 出力
 	std::ofstream ofs(outFileName.c_str(), std::ios::binary);

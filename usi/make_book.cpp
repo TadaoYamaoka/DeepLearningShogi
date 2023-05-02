@@ -531,14 +531,16 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡マージ
-int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file) {
-	// ファイル更新がある場合のみ処理する
-	static std::filesystem::file_time_type prev_time{};
-	std::error_code ec;
-	const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(merge_file, ec);
-	if (file_time == prev_time)
-		return 0;
-	prev_time = file_time;
+int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time) {
+	if (check_file_time) {
+		// ファイル更新がある場合のみ処理する
+		static std::filesystem::file_time_type prev_time{};
+		std::error_code ec;
+		const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(merge_file, ec);
+		if (file_time == prev_time)
+			return 0;
+		prev_time = file_time;
+	}
 
 	std::ifstream ifsMerge(merge_file.c_str(), std::ios::binary);
 	int merged = 0;

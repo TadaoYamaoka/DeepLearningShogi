@@ -34,7 +34,7 @@ struct MinMaxBookEntry {
 };
 
 void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap);
-int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file);
+int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time=true);
 void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
 void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color);
 std::string getBookPV(Position& pos, const std::string& fileName);
