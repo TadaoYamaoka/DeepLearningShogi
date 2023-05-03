@@ -704,8 +704,10 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	make_book_for_minmax = options["Make_Book_For_MinMax"];
 
 	// 千日手の評価値
-	draw_score_black = Score(-logf(1.0f / draw_value_black - 1.0f) * eval_coef);
-	draw_score_white = Score(-logf(1.0f / draw_value_white - 1.0f) * eval_coef);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
 	// 相手定跡から外れた場合USIエンジンを使う
 	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0);
@@ -848,8 +850,10 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	// 千日手の評価値
 	SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 	SetEvalCoef(options["Eval_Coef"]);
-	draw_score_black = Score(-logf(1.0f / draw_value_black - 1.0f) * eval_coef);
-	draw_score_white = Score(-logf(1.0f / draw_value_white - 1.0f) * eval_coef);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
