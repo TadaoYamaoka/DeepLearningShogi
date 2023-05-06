@@ -93,7 +93,7 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 
 #ifdef MAKE_BOOK
 #include "book.hpp"
-extern std::map<Key, std::vector<BookEntry> > bookMap;
+extern std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_book_policy;
 extern bool use_interruption;
 #endif

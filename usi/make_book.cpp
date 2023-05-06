@@ -28,7 +28,7 @@ struct child_node_t_copy {
 	}
 };
 
-std::map<Key, std::vector<BookEntry> > bookMap;
+std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 Key book_starting_pos_key;
 std::string book_pos_cmd;
 extern std::unique_ptr<NodeTree> tree;
@@ -68,7 +68,7 @@ inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& mov
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
-bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves) {
+bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves) {
 	std::cout << book_pos_cmd;
 	for (Move move : moves) {
 		std::cout << " " << move.toUSI();
@@ -146,7 +146,7 @@ struct Searched {
 	Score score;
 	Score beta;
 };
-Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
+Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched) {
 	const Key key = Book::bookKey(pos);
 
 	// 特定局面の評価値を置き換える
@@ -266,7 +266,7 @@ Score book_search(Position& pos, const std::map<Key, std::vector<BookEntry> >& o
 	return -value;
 }
 
-const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
+const BookEntry& select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries) {
 	const Key key = Book::bookKey(pos);
 
 	Score alpha = -ScoreInfinite;
@@ -348,7 +348,7 @@ const BookEntry& select_best_book_entry(Position& pos, const std::map<Key, std::
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
+void make_book_inner(Position& pos, LimitsType& limits, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
@@ -508,7 +508,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 }
 
 // 定跡読み込み
-void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
+void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vector<BookEntry> >& bookMap) {
 	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
 	if (!ifs) {
 		std::cerr << "Error: cannot open " << bookFileName << std::endl;
@@ -531,7 +531,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 
 // 定跡マージ
-int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time) {
+int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time) {
 	if (check_file_time) {
 		// ファイル更新がある場合のみ処理する
 		static std::filesystem::file_time_type prev_time{};
@@ -560,9 +560,9 @@ int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string
 	return merged;
 }
 
-void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax);
+void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax);
 
-void minmax_book_black(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
+void minmax_book_black(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax) {
 	// αβで探索
 	const Key key = Book::bookKey(pos);
 
@@ -643,7 +643,7 @@ void minmax_book_black(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMin
 	pos.undoMove(bestMove);
 }
 
-void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax) {
+void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax) {
 	// すべての手を試す
 	const Key key = Book::bookKey(pos);
 
@@ -688,7 +688,7 @@ void minmax_book_white(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMin
 	}
 }
 
-void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color) {
+void minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color) {
 	if (make_book_color == Black)
 		minmax_book_black(pos, bookMapMinMax);
 	else if (make_book_color == White)

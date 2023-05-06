@@ -2,7 +2,7 @@
 #ifdef MAKE_BOOK
 #include "book.hpp"
 
-extern std::map<Key, std::vector<BookEntry> > bookMap;
+extern std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 extern Key book_starting_pos_key;
 extern std::string book_pos_cmd;
 extern int make_book_sleep;
@@ -33,10 +33,10 @@ struct MinMaxBookEntry {
 	//std::vector<Move> moves;
 };
 
-void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap);
-int merge_book(std::map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time=true);
-void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
-void minmax_book(Position& pos, std::map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color);
+void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vector<BookEntry> >& bookMap);
+int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time=true);
+void make_book_inner(Position& pos, LimitsType& limits, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves);
+void minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color);
 std::string getBookPV(Position& pos, const std::string& fileName);
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own);
 void init_book_key_eval_map(const std::string& str);

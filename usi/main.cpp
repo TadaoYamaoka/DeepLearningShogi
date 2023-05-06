@@ -642,6 +642,22 @@ private:
 	bool use_book_lock;
 };
 
+void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, std::vector<BookEntry> >& outMap) {
+	// キーをソート
+	std::set<Key> keySet;
+	for (auto& elem : outMap) {
+		keySet.emplace(elem.first);
+	}
+
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (const Key key : keySet) {
+		const auto itr = outMap.find(key);
+		const auto& elem = *itr;
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<const char*>(&(elel)), sizeof(BookEntry));
+	}
+}
+
 // 定跡作成
 void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
@@ -721,7 +737,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// outFileが存在するときは追加する
 	int input_num = 0;
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	{
 		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
 		if (ifsOutFile) {
@@ -821,11 +837,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			prev_num = outMap.size();
 			{
 				BookLock book_lock(outFileName, use_book_lock);
-				std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-				for (auto& elem : outMap) {
-					for (auto& elel : elem.second)
-						ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-				}
+				saveOutmap(outFileName, outMap);
 			}
 		}
 	}
@@ -837,6 +849,22 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::cout << "sum\t" << black_num + white_num << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
 	std::cout << "merged entries\t" << merged << std::endl;
+}
+
+void saveBookMapMinMax(const std::string& outFileName, const std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax) {
+	// キーをソート
+	std::set<Key> keySet;
+	for (auto& elem : bookMapMinMax) {
+		keySet.emplace(elem.first);
+	}
+
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (const Key key : keySet) {
+		const auto itr = bookMapMinMax.find(key);
+		const auto& elem = *itr;
+		BookEntry entry = { elem.first, elem.second.move16, 1, elem.second.score };
+		ofs.write(reinterpret_cast<char*>(&entry), sizeof(BookEntry));
+	}
 }
 
 void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
@@ -869,16 +897,11 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	setPosition(pos, ssPosCmd);
 
 	// 定跡をmin-max探索
-	std::map<Key, MinMaxBookEntry> bookMapMinMax;
+	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
 	minmax_book(pos, bookMapMinMax, make_book_color);
 
 	// 出力
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (auto& elem : bookMapMinMax) {
-		BookEntry entry = { elem.first, elem.second.move16, 1, elem.second.score };
-		ofs.write(reinterpret_cast<char*>(&entry), sizeof(BookEntry));
-	}
-	ofs.close();
+	saveBookMapMinMax(outFileName, bookMapMinMax);
 	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << std::endl;
 
 	// PV出力
@@ -897,7 +920,7 @@ void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd)
 
 	// 定跡読み込み
 	int input_num = 0;
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	{
 		std::ifstream ifsOutFile(bookFileName.c_str(), std::ios::binary);
 		if (ifsOutFile) {
@@ -914,12 +937,7 @@ void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd)
 	const auto merged = merge_book(outMap, mergeFileName, false);
 
 	// 出力
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (auto& elem : outMap) {
-		for (auto& elel : elem.second)
-			ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-	}
-	ofs.close();
+	saveOutmap(outFileName, outMap);
 
 	std::cout << "output size: " << outMap.size() << std::endl;
 }
@@ -993,7 +1011,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 
 	// outFileが存在するときは追加する
 	int input_num = 0;
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	{
 		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
 		if (ifsOutFile) {
@@ -1055,13 +1073,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 	}
 
 	// 保存
-	{
-		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-		for (auto& elem : outMap) {
-			for (auto& elel : elem.second)
-				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-		}
-	}
+	saveOutmap(outFileName, outMap);
 
 	// 結果表示
 	std::cout << "input\t" << input_num << std::endl;
