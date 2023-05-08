@@ -120,7 +120,7 @@ void __hcpe3_create_cache(const std::string& filepath) {
 	for (const auto& hcpe3 : trainingData) {
 		Hcpe3CacheBody body{
 			hcpe3.hcp,
-			hcpe3.eval,
+			hcpe3.value,
 			hcpe3.result,
 			hcpe3.count
 		};
@@ -181,13 +181,13 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			break;
 		}
 
-		const int eval = (int)(hcpe.eval * eval_scale);
+		const float value = score_to_value((Score)(hcpe.eval * eval_scale));
 		if (use_average) {
 			auto ret = duplicates.emplace(hcpe.hcp, trainingData.size());
 			if (ret.second) {
 				auto& data = trainingData.emplace_back(
 					hcpe.hcp,
-					eval,
+					value,
 					make_result(hcpe.gameResult, hcpe.hcp.color())
 				);
 				data.candidates[hcpe.bestMove16] = 1;
@@ -195,7 +195,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			else {
 				// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 				auto& data = trainingData[ret.first->second];
-				data.eval += eval;
+				data.value += value;
 				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
 				data.candidates[hcpe.bestMove16] += 1;
 				data.count++;
@@ -204,7 +204,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 		else {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
-				eval,
+				value,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
@@ -324,13 +324,13 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
 				const auto hcp = pos.toHuffmanCodedPos();
-				const int eval = (int)(moveInfo.eval * eval_scale);
+				const float value = score_to_value((Score)(moveInfo.eval * eval_scale));
 				if (use_average) {
 					auto ret = duplicates.emplace(hcp, trainingData.size());
 					if (ret.second) {
 						auto& data = trainingData.emplace_back(
 							hcp,
-							eval,
+							value,
 							make_result(hcpe3.result, pos.turn())
 						);
 						visits_to_proberbility<false>(data, candidates, temperature);
@@ -338,7 +338,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 					else {
 						// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 						auto& data = trainingData[ret.first->second];
-						data.eval += eval;
+						data.value += value;
 						data.result += make_result(hcpe3.result, pos.turn());
 						visits_to_proberbility<true>(data, candidates, temperature);
 						data.count++;
@@ -348,7 +348,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 				else {
 					auto& data = trainingData.emplace_back(
 						hcp,
-						eval,
+						value,
 						make_result(hcpe3.result, pos.turn())
 					);
 					visits_to_proberbility<false>(data, candidates, temperature);
@@ -374,11 +374,12 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 			break;
 		}
 		bool found = false;
+		const float value = score_to_value((Score)hcpe.eval);
 		for (auto& data : trainingData) {
 			if (data.hcp == hcpe.hcp) {
 				found = true;
 				data.count = 1;
-				data.eval = hcpe.eval;
+				data.value = value;
 				data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
 				data.candidates.clear();
 				data.candidates[hcpe.bestMove16] = 1;
@@ -387,7 +388,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 		if (!found) {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
-				hcpe.eval,
+				value,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
@@ -434,7 +435,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 		result[i] = hcpe3.result / hcpe3.count;
 
 		// eval
-		value[i] = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+		value[i] = hcpe3.value / hcpe3.count;
 	}
 }
 
@@ -454,7 +455,7 @@ void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
 			max_prob = prob;
 		}
 	}
-	hcpe->eval = (s16)(hcpe3.eval / hcpe3.count);
+	hcpe->eval = s16(-logf(1.0f / (hcpe3.value / hcpe3.count) - 1.0f) * 756.0f);
 	const auto result = (hcpe3.result / hcpe3.count);
 	if (result < 0.5f) {
 		hcpe->gameResult = hcpe3.hcp.color() == Black ? WhiteWin : BlackWin;
