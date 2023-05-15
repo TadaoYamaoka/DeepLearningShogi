@@ -83,7 +83,6 @@ struct book_uct_node_t {
 		const Key key = Book::bookKey(pos);
 		const auto itr = outMap.find(key);
 		if (itr == outMap.end()) {
-			__debugbreak();
 			return false;
 		}
 
@@ -99,7 +98,7 @@ struct book_uct_node_t {
 		const auto softmax_temperature_with_normalize = [](std::vector<ChildEntry>& child_entries) {
 			const auto child_num = child_entries.size();
 			float max = 0.0f;
-			for (int i = 0; i < child_num; i++) {
+			for (size_t i = 0; i < child_num; i++) {
 				float& x = child_entries[i].prob;
 				x *= beta / 756.0f;
 				if (x > max) {
@@ -108,13 +107,13 @@ struct book_uct_node_t {
 			}
 			// オーバーフローを防止するため最大値で引く
 			float sum = 0.0f;
-			for (int i = 0; i < child_num; i++) {
+			for (size_t i = 0; i < child_num; i++) {
 				float& x = child_entries[i].prob;
 				x = expf(x - max);
 				sum += x;
 			}
 			// normalize
-			for (int i = 0; i < child_num; i++) {
+			for (size_t i = 0; i < child_num; i++) {
 				float& x = child_entries[i].prob;
 				x /= sum;
 			}
@@ -602,7 +601,7 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 			}
 		}
 	}
-	const int selected_index = book_select_max_child_node(&parent, current_root);
+	const size_t selected_index = book_select_max_child_node(&parent, current_root);
 	const auto child = current_root->child.get();
 
 	if (book_mcts_debug) {
