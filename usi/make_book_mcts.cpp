@@ -247,7 +247,7 @@ struct book_uct_node_t {
 	std::unique_ptr<std::unique_ptr<book_uct_node_t>[]> child_nodes;
 };
 
-NodeGarbageCollector<book_uct_node_t> gNodeGc;
+NodeGarbageCollector<book_uct_node_t> gBookNodeGc;
 
 book_uct_node_t* book_uct_node_t::ReleaseChildrenExceptOne(const Move move) {
 	if (child_num > 0 && child_nodes) {
@@ -271,7 +271,7 @@ book_uct_node_t* book_uct_node_t::ReleaseChildrenExceptOne(const Move move) {
 			else {
 				// 子ノードを削除（ガベージコレクタに追加）
 				if (child_node)
-					gNodeGc.AddToGcQueue(std::move(child_node));
+					gBookNodeGc.AddToGcQueue(std::move(child_node));
 			}
 		}
 
@@ -329,7 +329,7 @@ public:
 			if (prev_head) {
 				assert(prev_head->child_num == 1);
 				auto& prev_uct_child_node = prev_head->child_nodes[0];
-				gNodeGc.AddToGcQueue(std::move(prev_uct_child_node));
+				gBookNodeGc.AddToGcQueue(std::move(prev_uct_child_node));
 				prev_uct_child_node = std::make_unique<book_uct_node_t>();
 				current_head_ = prev_uct_child_node.get();
 			}
@@ -343,7 +343,7 @@ public:
 	book_uct_node_t* GetCurrentHead() const { return current_head_; }
 	void DeallocateTree() {
 		// gamebegin_node_.reset（）と同じだが、実際の割り当て解除はGCスレッドで行われる
-		gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
+		gBookNodeGc.AddToGcQueue(std::move(gamebegin_node_));
 		gamebegin_node_ = std::make_unique<book_uct_node_t>();
 		current_head_ = gamebegin_node_.get();
 	}
