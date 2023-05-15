@@ -1948,7 +1948,14 @@ int main(int argc, char* argv[]) {
 #ifdef MAKE_BOOK
 #include "make_book.h"
 
-void test_insert_map(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<const char*> moves, const int score) {
+extern const BookEntry& select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves = {});
+extern const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves = {});
+extern void reset_to_position(const std::vector<Move>& moves);
+extern void set_softmax_temperature(const float temperature);
+extern float c_init;
+extern float c_base;
+
+void test_insert_map(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<const char*> moves, const int score) {
 	const Key key = Book::bookKey(pos);
 	const Move move = usiToMove(pos, moves[0]);
 	if (moves.size() == 1) {
@@ -1964,12 +1971,11 @@ void test_insert_map(Position& pos, std::map<Key, std::vector<BookEntry> >& outM
 }
 
 #if 0
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 2);
@@ -1988,12 +1994,11 @@ int main() {
 #endif
 
 #if 0
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 3);
@@ -2016,12 +2021,11 @@ int main() {
 #endif
 
 #if 0
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 3);
@@ -2044,7 +2048,6 @@ int main() {
 #endif
 
 #if 0
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
@@ -2052,7 +2055,7 @@ int main() {
 	draw_score_black = (Score)-100;
 	draw_score_white = (Score)-10;
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 2);
@@ -2078,12 +2081,11 @@ int main() {
 #endif
 
 #if 0
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 2);
@@ -2102,14 +2104,13 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 // 合流テスト
-extern const BookEntry& select_best_book_entry(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries);
 int main() {
 	initTable();
 	Position::initZobrist();
 
-	std::map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
 	Position pos(DefaultStartPositionSFEN, nullptr);
 	const Key key = Book::bookKey(pos);
 	test_insert_map(pos, outMap, { "2g2f" }, 2);
@@ -2130,4 +2131,248 @@ int main() {
 	return 0;
 }
 #endif
+
+#if 0
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2); // select 2番目以降の評価値は信頼されないため
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "6i7h" }, 1);
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 3);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d" }, -1);
+	test_insert_map(pos, outMap, { "2g2f", "3c3d" }, -6);
+	test_insert_map(pos, outMap, { "7g7f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d" }, -5); // select 2番目以降の評価値は信頼されないため
+	test_insert_map(pos, outMap, { "7g7f", "3c3d" }, -4);
+	test_insert_map(pos, outMap, { "6i7h" }, 1);
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	draw_score_black = (Score)-1000;
+	draw_score_white = (Score)-10;
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b" }, -1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h" }, 1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h", "6b6a" }, -1);
+	test_insert_map(pos, outMap, { "7g7f", "6a6b", "6i6h", "6b6a", "6h6i" }, 1); // black draw
+	test_insert_map(pos, outMap, { "6i6h" }, 1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b" }, -1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b", "6h6i" }, 1);
+	test_insert_map(pos, outMap, { "6i6h", "6a6b", "6h6i", "6b6a" }, -1); // select white draw
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "6i7h", "6a6b" }, -4); // select
+	test_insert_map(pos, outMap, { "2h5h", "6a6b", "7g7f" }, 5);
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+// 合流テスト
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	const Key key = Book::bookKey(pos);
+	test_insert_map(pos, outMap, { "2g2f" }, 2);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d" }, -2);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d", "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "2g2f", "8c8d", "7g7f", "3c3d" }, -4); // select
+	test_insert_map(pos, outMap, { "7g7f" }, 3);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d" }, -2);
+	test_insert_map(pos, outMap, { "7g7f", "8c8d", "2g2f" }, 999); // 合流するためカットされる
+
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 0
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	Position pos(DefaultStartPositionSFEN, nullptr);
+	reset_to_position(pos.getKey(), {});
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(R"(F:\book\book_pre44_10m-suishodr3-g02.bin)", std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	const Key key = Book::bookKey(pos);
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
+#if 1
+int main() {
+	initTable();
+	Position::initZobrist();
+
+	draw_score_black = (Score)-30;
+	draw_score_white = (Score)30;
+	set_softmax_temperature(1.4f);
+	c_init = 1.27f;
+	c_base = 27126.0f;
+
+	// 開始局面設定
+	Searcher searcher;
+	searcher.init();
+	Position pos(DefaultStartPositionSFEN, searcher.thisptr);
+	std::string posCmd = "startpos moves 2g2f 8c8d 2f2e 8d8e 7g7f 4a3b 8h7g";
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+		}
+	}
+
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(R"(F:\book\book_pre44_10m-suishodr3-g02.bin)", std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	const Key key = Book::bookKey(pos);
+	const auto itr = outMap.find(key);
+	const auto& entries = itr->second;
+	const auto& entry = parallel_uct_search(pos, outMap, entries);
+
+	const Move move = move16toMove(Move(entry.fromToPro), pos);
+	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+
+	return 0;
+}
+#endif
+
 #endif

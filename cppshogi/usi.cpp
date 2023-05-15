@@ -167,6 +167,10 @@ void OptionsMap::init(Searcher* s) {
     (*this)["USI_Book_Engine_Nodes_Own"]   = USIOption(1000000, 0, 1000000000);
     (*this)["USI_Book_Engine_Prob_Own"]    = USIOption(0, 0, 1000);
     (*this)["Book_Key_Eval_Map"]           = USIOption("");
+    (*this)["Book_Use_Mcts"]               = USIOption(false);
+    (*this)["Book_Mcts_Playouts"]          = USIOption(10000000, 1, 1000000000);
+    (*this)["Book_Mcts_Threads"]           = USIOption(32, 1, 1024);
+    (*this)["Book_Mcts_Debug"]             = USIOption(false);
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK

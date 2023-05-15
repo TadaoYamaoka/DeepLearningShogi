@@ -733,6 +733,12 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
+	// αβ探索の代わりにMCTSを使う
+	const bool book_use_mcts = options["Book_Use_Mcts"];
+	book_mcts_playouts = options["Book_Mcts_Playouts"];
+	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_debug = options["Book_Mcts_Debug"];
+
 	SetReuseSubtree(options["ReuseSubtree"]);
 
 	// outFileが存在するときは追加する
@@ -799,6 +805,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int white_num = 0;
 	size_t prev_num = outMap.size();
 	std::vector<Move> moves;
+	const auto make_book_search = book_use_mcts ? make_book_mcts : make_book_alpha_beta;
 	for (int trial = 0; trial < limitTrialNum;) {
 		// 進捗状況表示
 		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
@@ -809,7 +816,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			moves.clear();
 			// 探索
 			Position pos_copy(pos);
-			make_book_inner(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
+			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
 			black_num += count;
 			trial++;
 		}
@@ -820,7 +827,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			moves.clear();
 			// 探索
 			Position pos_copy(pos);
-			make_book_inner(pos_copy, limits, bookMap, outMap, count, 0, false, moves);
+			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, moves);
 			white_num += count;
 			trial++;
 		}
@@ -1065,7 +1072,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 					book_starting_pos_key = pos.getKey();
 					std::vector<Move> moves;
 					Position pos_copy(pos);
-					make_book_inner(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
 				}
 			}
 

@@ -206,13 +206,6 @@ static bool ExtendTime(void);
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
-template <typename T>
-inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
-	T expected = obj->load();
-	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
-		;
-}
-
 // Virtual Lossの加算
 inline void
 AddVirtualLoss(child_node_t* child, uct_node_t* current)

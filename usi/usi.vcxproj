@@ -294,6 +294,7 @@
     <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="make_book.cpp" />
+    <ClCompile Include="make_book_mcts.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
     <ClCompile Include="Node.cpp" />

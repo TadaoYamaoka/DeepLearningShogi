@@ -3,59 +3,6 @@
 #include <thread>
 #include <mutex>
 
-// Periodicity of garbage collection, milliseconds.
-const int kGCIntervalMs = 100;
-
-// Every kGCIntervalMs milliseconds release nodes in a separate GC thread.
-class NodeGarbageCollector {
-public:
-    NodeGarbageCollector() : gc_thread_([this]() { Worker(); }) {}
-
-    // Takes ownership of a subtree, to dispose it in a separate thread when
-    // it has time.
-    void AddToGcQueue(std::unique_ptr<uct_node_t> node) {
-        if (!node) return;
-        std::lock_guard<std::mutex> lock(gc_mutex_);
-        subtrees_to_gc_.emplace_back(std::move(node));
-    }
-
-    ~NodeGarbageCollector() {
-        // Flips stop flag and waits for a worker thread to stop.
-        stop_.store(true);
-        gc_thread_.join();
-    }
-
-private:
-    void GarbageCollect() {
-        while (!stop_.load()) {
-            // Node will be released in destructor when mutex is not locked.
-            std::unique_ptr<uct_node_t> node_to_gc;
-            {
-                // Lock the mutex and move last subtree from subtrees_to_gc_ into
-                // node_to_gc.
-                std::lock_guard<std::mutex> lock(gc_mutex_);
-                if (subtrees_to_gc_.empty()) return;
-                node_to_gc = std::move(subtrees_to_gc_.back());
-                subtrees_to_gc_.pop_back();
-            }
-        }
-    }
-
-    void Worker() {
-        while (!stop_.load()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kGCIntervalMs));
-            GarbageCollect();
-        };
-    }
-
-    mutable std::mutex gc_mutex_;
-    std::vector<std::unique_ptr<uct_node_t>> subtrees_to_gc_;
-
-    // When true, Worker() should stop and exit.
-    std::atomic<bool> stop_{ false };
-    std::thread gc_thread_;
-};
-
 NodeGarbageCollector gNodeGc;
 
 

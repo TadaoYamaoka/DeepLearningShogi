@@ -90,6 +90,12 @@
     <ClCompile Include="..\usi\Node.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="..\usi\USIBookEngine.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\usi\make_book_mcts.cpp">
+      <Filter>ソース ファイル\usi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\usi\unpack.cu">

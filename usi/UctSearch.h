@@ -24,6 +24,13 @@ constexpr int UCT_CHILD_MAX = 593;
 // Virtual Loss (Best Parameter)
 constexpr int VIRTUAL_LOSS = 1;
 
+template <typename T>
+inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
+	T expected = obj->load();
+	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
+		;
+}
+
 extern float c_init;
 extern float c_base;
 extern float c_fpu_reduction;
