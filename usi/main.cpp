@@ -28,6 +28,7 @@ struct MySearcher : Searcher {
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makeBookPositions(std::istringstream& ssCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -388,6 +389,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_minmax_book") makeMinMaxBook(ssCmd, posCmd);
 		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
 		else if (token == "make_book_position") makeBookPosition(ssCmd, posCmd);
+		else if (token == "make_book_positions") makeBookPositions(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -949,7 +951,7 @@ void MySearcher::mergeBook(std::istringstream& ssCmd, const std::string& posCmd)
 	std::cout << "output size: " << outMap.size() << std::endl;
 }
 
-// 定跡作成
+// 局面の定跡作成
 void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
 
@@ -1037,6 +1039,152 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 	int count = 0;
 	{
 		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+		book_pos_cmd += " " + token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		book_pos_cmd += " moves";
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+			book_pos_cmd += " " + token;
+
+			// 定跡にない場合、追加
+			{
+				const Key key = Book::bookKey(pos);
+				const auto itr = outMap.find(key);
+				if (outMap.find(key) == outMap.end()) {
+					book_starting_pos_key = pos.getKey();
+					std::vector<Move> moves;
+					Position pos_copy(pos);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
+				}
+			}
+
+		}
+	}
+
+	// 保存
+	saveOutmap(outFileName, outMap);
+
+	// 結果表示
+	std::cout << "input\t" << input_num << std::endl;
+	std::cout << "output\t" << count << std::endl;
+	std::cout << "entries\t" << outMap.size() << std::endl;
+}
+
+// 局面の定跡作成(ファイル入力)
+void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
+	// isreadyを先に実行しておくこと。
+
+	std::string inFileName;
+	std::string outFileName;
+	int playoutNum;
+
+	ssCmd >> inFileName;
+	ssCmd >> outFileName;
+	ssCmd >> playoutNum;
+
+	// プレイアウト数固定
+	LimitsType limits;
+	limits.nodes = playoutNum;
+
+	// 事前確率に定跡の遷移確率も使用する
+	use_book_policy = options["Use_Book_Policy"];
+
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
+
+	// 評価値の閾値
+	book_eval_threshold = options["Book_Eval_Threshold"];
+
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	book_cutoff = options["Book_Cutoff"] / 1000.0f;
+
+	// 訪問回数に応じてランダムに選択する際の温度パラメータ
+	book_reciprocal_temperature = 1000.0 / options["Book_Temperature"];
+
+	// 相手定跡の最善手を選択する
+	book_best_move = options["Book_Best_Move"];
+
+	// 相手定跡の評価値閾値
+	book_eval_diff = (Score)(int)options["Book_Eval_Diff"];
+
+	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
+
+	// 定期的にマージする定跡ファイル
+	const std::string merge_file = options["Book_Merge_File"];
+
+	// マージ時にロックする
+	const bool use_book_lock = options["Use_Book_Lock"];
+
+	// MinMaxで選ぶ確率
+	book_minmax_prob = options["Book_MinMax_Prob"] / 1000.0;
+	book_minmax_prob_opp = options["Book_MinMax_Prob_Opp"] / 1000.0;
+
+	// MinMaxのために相手定跡の手番でも探索する
+	make_book_for_minmax = options["Make_Book_For_MinMax"];
+
+	// 千日手の評価値
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// 相手定跡から外れた場合USIエンジンを使う
+	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0);
+
+	// αβ探索で特定局面の評価値を置き換える
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	SetReuseSubtree(options["ReuseSubtree"]);
+
+	// outFileが存在するときは追加する
+	int input_num = 0;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+				input_num++;
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	int count = 0;
+	// 局面ファイル読み込み
+	std::ifstream ifsInFile(inFileName.c_str());
+	std::string line;
+	while (std::getline(ifsInFile, line)) {
+		if (line == "") continue;
+
+		book_pos_cmd = "position";
+		std::istringstream ssPosCmd(line);
 		std::string token;
 		std::string sfen;
 
