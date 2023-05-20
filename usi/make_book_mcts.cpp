@@ -25,6 +25,9 @@ int book_mcts_playouts = 10000000;
 int book_mcts_threads = 32;
 bool book_mcts_debug = false;
 
+// 特定局面の評価値を置き換える
+extern std::map<Key, Score> book_key_eval_map;
+
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex book_mutexes[MUTEX_NUM];
 inline std::mutex& GetPositionMutex(const Position& pos)
@@ -129,39 +132,48 @@ struct book_uct_node_t {
 			// 訪問回数が少ない評価値は信頼しない
 			if (entry.score < trusted_score)
 				trusted_score = entry.score;
-			// 千日手
 			StateInfo state;
 			pos.doMove(move, state);
-			switch (pos.isDraw()) {
-			case RepetitionDraw:
-				score = pos.turn() == Black ? draw_score_white : draw_score_black;
+			const Key key = Book::bookKey(pos);
+			// 特定局面の評価値を置き換える
+			if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
+				score = -book_key_eval_map[key];
 				value = score_to_value(score);
 				is_evaled = true;
-				break;
-			case RepetitionWin:
-				score = -ScoreMaxEvaluate;
-				value = 0.0f;
-				is_evaled = true;
-				break;
-			case RepetitionLose:
-				score = ScoreMaxEvaluate;
-				value = 1.0f;
-				is_evaled = true;
-				break;
-			default:
-			{
-				const auto itr_next = outMap.find(Book::bookKey(pos));
-				if (itr_next == outMap.end()) {
-					score = trusted_score;
-					is_evaled = true;
-				}
-				else {
-					// 1手先の評価値を使用する
-					score = -itr_next->second[0].score;
-					is_evaled = false;
-				}
-				value = score_to_value(score);
 			}
+			else {
+				// 千日手
+				switch (pos.isDraw()) {
+				case RepetitionDraw:
+					score = pos.turn() == Black ? draw_score_white : draw_score_black;
+					value = score_to_value(score);
+					is_evaled = true;
+					break;
+				case RepetitionWin:
+					score = -ScoreMaxEvaluate;
+					value = 0.0f;
+					is_evaled = true;
+					break;
+				case RepetitionLose:
+					score = ScoreMaxEvaluate;
+					value = 1.0f;
+					is_evaled = true;
+					break;
+				default:
+				{
+					const auto itr_next = outMap.find(key);
+					if (itr_next == outMap.end()) {
+						score = trusted_score;
+						is_evaled = true;
+					}
+					else {
+						// 1手先の評価値を使用する
+						score = -itr_next->second[0].score;
+						is_evaled = false;
+					}
+					value = score_to_value(score);
+				}
+				}
 			}
 			pos.undoMove(move);
 			child_entries.emplace_back() = { move, score, value, is_evaled, (float)score };
@@ -177,29 +189,37 @@ struct book_uct_node_t {
 			Score score;
 			float value;
 			bool is_evaled;
-			// 千日手
 			StateInfo state;
 			pos.doMove(move, state);
-			switch (pos.isDraw()) {
-			case RepetitionDraw:
-				score = pos.turn() == Black ? draw_score_white : draw_score_black;
+			// 特定局面の評価値を置き換える
+			if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
+				score = -book_key_eval_map[key];
 				value = score_to_value(score);
 				is_evaled = true;
-				break;
-			case RepetitionWin:
-				score = -ScoreMaxEvaluate;
-				value = 0.0f;
-				is_evaled = true;
-				break;
-			case RepetitionLose:
-				score = ScoreMaxEvaluate;
-				value = 1.0f;
-				is_evaled = true;
-				break;
-			default:
-				score = -itr_next->second[0].score;
-				value = score_to_value(score);
-				is_evaled = false;
+			}
+			else {
+				// 千日手
+				switch (pos.isDraw()) {
+				case RepetitionDraw:
+					score = pos.turn() == Black ? draw_score_white : draw_score_black;
+					value = score_to_value(score);
+					is_evaled = true;
+					break;
+				case RepetitionWin:
+					score = -ScoreMaxEvaluate;
+					value = 0.0f;
+					is_evaled = true;
+					break;
+				case RepetitionLose:
+					score = ScoreMaxEvaluate;
+					value = 1.0f;
+					is_evaled = true;
+					break;
+				default:
+					score = -itr_next->second[0].score;
+					value = score_to_value(score);
+					is_evaled = false;
+				}
 			}
 			pos.undoMove(move);
 			child_entries.emplace_back() = { move, score, value, is_evaled, (float)score };
