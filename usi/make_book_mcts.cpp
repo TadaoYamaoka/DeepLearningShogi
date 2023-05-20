@@ -748,6 +748,12 @@ std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, cons
 	const book_child_node_t* child = current_root->child.get();
 	const size_t child_num = current_root->child_num;
 
+	if (book_mcts_debug) {
+		for (int i = 0; i < current_root->child_num; ++i) {
+			std::cout << i << ": " << child[i].move.toUSI() << " count: " << child[i].move_count << " value: " << child[i].win / child[i].move_count << " evaled: " << child[i].IsEvaled() << " " << child[i].value << " prob: " << child[i].prob << std::endl;
+		}
+	}
+
 	// BookEntryì¬
 	std::vector<BookEntry> results;
 	results.reserve(child_num);

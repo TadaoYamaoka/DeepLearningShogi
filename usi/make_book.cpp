@@ -704,7 +704,7 @@ void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& b
 }
 
 std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
-	const auto bookMoveScore = book.probe(pos, fileName, pos.turn() == Black ? draw_score_black : draw_score_white);
+	const auto bookMoveScore = book.probeConsideringDraw(pos, fileName);
 	const Move move = std::get<0>(bookMoveScore);
 	if (move) {
 		StateInfo state;

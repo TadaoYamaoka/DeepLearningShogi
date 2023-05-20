@@ -937,6 +937,10 @@ void MySearcher::makeMctsBook(std::istringstream& ssCmd, const std::string& posC
 	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
 	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
+	book_mcts_playouts = options["Book_Mcts_Playouts"];
+	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_debug = options["Book_Mcts_Debug"];
+
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
 
