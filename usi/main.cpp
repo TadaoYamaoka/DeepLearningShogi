@@ -26,6 +26,7 @@ struct MySearcher : Searcher {
 #ifdef MAKE_BOOK
 	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makeMctsBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPositions(std::istringstream& ssCmd);
@@ -387,6 +388,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #ifdef MAKE_BOOK
 		else if (token == "make_book") makeBook(ssCmd, posCmd);
 		else if (token == "make_minmax_book") makeMinMaxBook(ssCmd, posCmd);
+		else if (token == "make_mcts_book") makeMctsBook(ssCmd, posCmd);
 		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
 		else if (token == "make_book_position") makeBookPosition(ssCmd, posCmd);
 		else if (token == "make_book_positions") makeBookPositions(ssCmd);
@@ -907,11 +909,58 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	minmax_book(pos, bookMapMinMax, make_book_color);
+	make_minmax_book(pos, bookMapMinMax, make_book_color);
 
 	// 出力
 	saveBookMapMinMax(outFileName, bookMapMinMax);
 	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << std::endl;
+
+	// PV出力
+	const auto pv = getBookPV(pos, outFileName);
+	std::cout << "pv " << pv << std::endl;
+}
+
+void MySearcher::makeMctsBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+
+	// 千日手の評価値
+	SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// 定跡読み込み
+	read_book(bookFileName, bookMap);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	// 定跡をMCTSで探索
+	std::map<Key, std::vector<BookEntry> > outMap;
+	make_mcts_book(pos, bookMap, outMap);
+
+	// 出力
+	{
+		size_t count = 0;
+		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+		for (auto& elem : outMap) {
+			for (auto& elel : elem.second) {
+				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+				count++;
+			}
+		}
+		std::cout << "outMap.size:" << outMap.size() << " count: " << count << std::endl;
+	}
 
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);

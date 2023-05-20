@@ -692,7 +692,7 @@ void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& 
 	}
 }
 
-void minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color) {
+void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color) {
 	if (make_book_color == Black)
 		minmax_book_black(pos, bookMapMinMax);
 	else if (make_book_color == White)

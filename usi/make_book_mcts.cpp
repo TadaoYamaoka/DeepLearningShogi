@@ -485,7 +485,7 @@ float uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* curr
 }
 
 // 訪問回数が最大の子ノードを選択
-int book_select_max_child_node(const book_child_node_t* parent, const book_uct_node_t* uct_node)
+unsigned int book_select_max_child_node(const book_child_node_t* parent, const book_uct_node_t* uct_node)
 {
 	const auto child = uct_node->child.get();
 	const int child_num = uct_node->child_num;
@@ -601,7 +601,7 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 			}
 		}
 	}
-	const size_t selected_index = book_select_max_child_node(&parent, current_root);
+	const auto selected_index = book_select_max_child_node(&parent, current_root);
 	const auto child = current_root->child.get();
 
 	if (book_mcts_debug) {
@@ -610,7 +610,8 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 			std::cout << " " << move.toUSI();
 		}
 		std::cout << std::endl;
-		std::cout << "playout: " << playout_count << " select: " << selected_index << " value: " << child[selected_index].win / child[selected_index].move_count << " cp: " << value_to_score(child[selected_index].win / child[selected_index].move_count) << " evaled: " << child[selected_index].IsEvaled() << " " << child[selected_index].value << " pv: " << get_pv(current_root, selected_index) << std::endl;
+		const float value = (float)(child[selected_index].win / child[selected_index].move_count);
+		std::cout << "playout: " << playout_count << " select: " << selected_index << " value: " << value << " cp: " << value_to_score(value) << " evaled: " << child[selected_index].IsEvaled() << " " << child[selected_index].value << " pv: " << get_pv(current_root, selected_index) << std::endl;
 		for (int i = 0; i < current_root->child_num; ++i) {
 			std::cout << i << ": " << child[i].move.toUSI() << " count: " << child[i].move_count << " value: " << child[i].win / child[i].move_count << " evaled: " << child[i].IsEvaled() << " " << child[i].value << " prob: " << child[i].prob << std::endl;
 		}
@@ -629,6 +630,211 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 
 void make_book_mcts(Position& pos, LimitsType& limits, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
 	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search);
+}
+
+
+float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* current, const std::unordered_map<Key, std::vector<BookEntry> >& outMap) {
+	float result;
+	book_child_node_t* uct_child = current->child.get();
+
+	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
+	if (!current->child_nodes) current->InitChildNodes();
+	// UCB値最大の手を求める
+	const unsigned int next_index = select_max_ucb_child(parent, current);
+	// 評価済み
+	if (uct_child[next_index].IsEvaled()) {
+		result = uct_child[next_index].value;
+
+		// 探索結果の更新
+		atomic_fetch_add(&current->win, (double)result);
+		current->move_count++;
+		atomic_fetch_add(&uct_child[next_index].win, (double)result);
+		uct_child[next_index].move_count++;
+
+		return 1.0f - result;
+	}
+	// 選んだ手を着手
+	StateInfo st;
+	pos.doMove(uct_child[next_index].move, st);
+
+	// ノードの展開の確認
+	if (!current->child_nodes[next_index]) {
+		result = uct_child[next_index].value;
+
+		const Key key = Book::bookKey(pos);
+		const auto itr = outMap.find(key);
+		if (itr == outMap.end()) {
+			uct_child[next_index].SetEvaled();
+		}
+		else {
+			// ノードの作成
+			book_uct_node_t* child_node = current->CreateChildNode(next_index);
+
+			// 候補手を展開する
+			child_node->ExpandNode(pos, outMap, &uct_child[next_index]);
+		}
+	}
+	else {
+		book_uct_node_t* next_node = current->child_nodes[next_index].get();
+
+		// 手番を入れ替えて1手深く読む
+		result = single_uct_search(pos, &uct_child[next_index], next_node, outMap);
+	}
+
+	// 探索結果の反映
+	atomic_fetch_add(&current->win, (double)result);
+	current->move_count++;
+	atomic_fetch_add(&uct_child[next_index].win, (double)result);
+	uct_child[next_index].move_count++;
+
+	return 1.0f - result;
+}
+
+std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::vector<BookEntry>& entries) {
+	tree.DeallocateTree();
+	book_uct_node_t* current_root = tree.GetCurrentHead();
+	book_child_node_t parent;
+	// ルートノードの展開
+	if (current_root->child_num == 0) {
+		current_root->ExpandNode(pos, bookMap, &parent);
+	}
+
+	if (parent.IsEvaled()) {
+		// そのものを出力
+		return std::vector<BookEntry>(entries.begin(), entries.end());
+	}
+
+	int playout_count = current_root->move_count;
+
+	while (playout_count < book_mcts_playouts) {
+		// 盤面のコピー
+		Position pos_copy(pos);
+
+		// 1回プレイアウトする
+		single_uct_search(pos_copy, &parent, current_root, bookMap);
+
+		playout_count++;
+
+		// 打ち切りの確認
+		if (parent.IsEvaled()) {
+			break;
+		}
+		else {
+			int max_searched = 0, second_searched = 0;
+			int max_index = 0, second_index = 0;
+
+			const book_child_node_t* uct_child = current_root->child.get();
+			const int child_num = current_root->child_num;
+			for (int i = 0; i < child_num; i++) {
+				if (uct_child[i].move_count > max_searched) {
+					second_searched = max_searched;
+					second_index = max_index;
+					max_searched = uct_child[i].move_count;
+					max_index = i;
+				}
+				else if (uct_child[i].move_count > second_searched) {
+					second_searched = uct_child[i].move_count;
+					second_index = i;
+				}
+			}
+			// 残りの探索で次善手が最善手を超える可能性がない場合は打ち切る
+			const int rest_po = book_mcts_playouts - playout_count;
+			if (max_searched - second_searched > rest_po) {
+				break;
+			}
+		}
+	}
+
+	const book_child_node_t* child = current_root->child.get();
+	const size_t child_num = current_root->child_num;
+
+	// BookEntry作成
+	std::vector<BookEntry> results;
+	results.reserve(child_num);
+	std::vector<const book_child_node_t*> sorted_child;
+	sorted_child.reserve(child_num);
+	for (size_t i = 0; i < child_num; ++i)
+		sorted_child.emplace_back(child + i);
+	if (parent.IsEvaled()) {
+		// 評価済みの場合、valueの順に出力
+		std::stable_sort(sorted_child.begin(), sorted_child.end(), [](const book_child_node_t* lhs, const book_child_node_t* rhs) {
+			return lhs->value > rhs->value;
+		});
+		u16 count = (u16)child_num;
+		for (const auto uct_child : sorted_child) {
+			results.emplace_back() = {
+				entries[0].key,
+				(u16)uct_child->move.value(),
+				count--,
+				value_to_score(uct_child->value)
+			};
+		}
+	}
+	else {
+		std::stable_sort(sorted_child.begin(), sorted_child.end(), [](const book_child_node_t* lhs, const book_child_node_t* rhs) {
+			return lhs->move_count > rhs->move_count;
+			});
+		for (const auto uct_child : sorted_child) {
+			results.emplace_back() = {
+				entries[0].key,
+				(u16)uct_child->move.value(),
+				(u16)((double)uct_child->move_count / playout_count * 65535),
+				value_to_score((float)(uct_child->win / uct_child->move_count))
+			};
+		}
+	}
+	return results;
+}
+
+void enumerate_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists) {
+	if (pos.gamePly() > 256)
+		return;
+	const Key key = Book::bookKey(pos);
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return;
+
+	if (!exists.emplace(key).second)
+		return;
+
+	positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
+
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move move = ml.move();
+		StateInfo state;
+		pos.doMove(move, state);
+		enumerate_positions(pos, bookMap, positions, exists);
+		pos.undoMove(move);
+	}
+}
+
+void make_mcts_book(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap) {
+	// 全局面を列挙
+	std::vector<std::pair<HuffmanCodedPos, std::vector<BookEntry>*>> positions;
+	{
+		std::unordered_set<Key> exists;
+		enumerate_positions(pos, bookMap, positions, exists);
+	}
+
+	std::cout << "positions: " << positions.size() << std::endl;
+
+	// 並列でMCTSで定跡作成
+	const int positions_size = (int)positions.size();
+	#pragma omp parallel for num_threads(book_mcts_threads)
+	for (int i = 0; i < positions_size; ++i) {
+		BookNodeTree tree;
+		Searcher s;
+		Position pos(s.thisptr);
+		pos.set(positions[i].first);
+		std::vector<BookEntry> results = single_uct_search(tree, pos, bookMap, *positions[i].second);
+		const Key key = Book::bookKey(pos);
+		#pragma omp critical
+		{
+			outMap.emplace(key, std::move(results));
+			if (outMap.size() % 10000 == 0)
+				std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
+		}
+	}
 }
 
 #endif
