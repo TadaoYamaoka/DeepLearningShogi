@@ -813,8 +813,6 @@ std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, cons
 }
 
 void enumerate_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists) {
-	if (pos.gamePly() > 256)
-		return;
 	const Key key = Book::bookKey(pos);
 	auto itr = bookMap.find(key);
 	if (itr == bookMap.end())
@@ -825,10 +823,11 @@ void enumerate_positions(Position& pos, std::unordered_map<Key, std::vector<Book
 
 	positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
 
-	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-		const Move move = ml.move();
-		StateInfo state;
-		pos.doMove(move, state);
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
 		enumerate_positions(pos, bookMap, positions, exists);
 		pos.undoMove(move);
 	}
@@ -860,6 +859,46 @@ void make_mcts_book(Position& pos, std::unordered_map<Key, std::vector<BookEntry
 			if (outMap.size() % 10000 == 0)
 				std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
 		}
+	}
+}
+
+void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_set<Key>& exists, std::ofstream& ofs, int& count) {
+	const Key key = Book::bookKey(pos);
+
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		bool first = true;
+		for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+			const Move move = ml->move();
+			const Key key_after = Book::bookKeyAfter(pos, key, move);
+			if (bookMap.find(key_after) != bookMap.end()) {
+				if (first) {
+					if (!exists.emplace(key).second)
+						return;
+					count++;
+					ofs << pos.toSFEN() << std::endl;
+					first = false;
+				}
+				auto state = std::make_unique<StateInfo>();
+				pos.doMove(move, *state);
+				output_none_connect_positions(pos, bookMap, exists, ofs, count);
+				pos.undoMove(move);
+			}
+		}
+
+		return;
+	}
+
+	if (!exists.emplace(key).second)
+		return;
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		output_none_connect_positions(pos, bookMap, exists, ofs, count);
+		pos.undoMove(move);
 	}
 }
 

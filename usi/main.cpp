@@ -30,6 +30,7 @@ struct MySearcher : Searcher {
 	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPositions(std::istringstream& ssCmd);
+	static void outpuNoneConnectPositions(std::istringstream& ssCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -392,6 +393,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
 		else if (token == "make_book_position") makeBookPosition(ssCmd, posCmd);
 		else if (token == "make_book_positions") makeBookPositions(ssCmd);
+		else if (token == "output_none_connect_positions") outpuNoneConnectPositions(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -900,6 +902,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
 	// 定跡読み込み
+	bookMap.clear();
 	read_book(bookFileName, bookMap);
 
 	// 開始局面設定
@@ -942,6 +945,7 @@ void MySearcher::makeMctsBook(std::istringstream& ssCmd, const std::string& posC
 	book_mcts_debug = options["Book_Mcts_Debug"];
 
 	// 定跡読み込み
+	bookMap.clear();
 	read_book(bookFileName, bookMap);
 
 	// 開始局面設定
@@ -1287,6 +1291,26 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	std::cout << "input\t" << input_num << std::endl;
 	std::cout << "output\t" << count << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
+}
+
+// 定跡が未接続の局面を出力する
+void MySearcher::outpuNoneConnectPositions(std::istringstream& ssCmd) {
+	std::string bookFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::ofstream ofs(outFileName);
+	std::unordered_set<Key> exists;
+	int count = 0;
+	output_none_connect_positions(pos, bookMap, exists, ofs, count);
+	std::cout << "exists: " << exists.size() << " count: " << count << std::endl;
 }
 
 #endif
