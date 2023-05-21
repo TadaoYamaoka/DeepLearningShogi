@@ -1165,6 +1165,9 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	LimitsType limits;
 	limits.nodes = playoutNum;
 
+	// 保存間隔
+	const int save_book_interval = options["Save_Book_Interval"];
+
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
 
@@ -1236,6 +1239,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	int count = 0;
+	int positions = 0;
 	// 局面ファイル読み込み
 	std::ifstream ifsInFile(inFileName.c_str());
 	std::string line;
@@ -1280,9 +1284,15 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 					std::vector<Move> moves;
 					Position pos_copy(pos);
 					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
+
+					// Save_Book_Intervalごとに途中経過を保存
+					if (++positions % save_book_interval == 0)
+					{
+						// 保存
+						saveOutmap(outFileName, outMap);
+					}
 				}
 			}
-
 		}
 	}
 
@@ -1293,6 +1303,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	std::cout << "input\t" << input_num << std::endl;
 	std::cout << "output\t" << count << std::endl;
 	std::cout << "entries\t" << outMap.size() << std::endl;
+	std::cout << "positions\t" << positions << std::endl;
 }
 
 // 定跡が未接続の局面を出力する
