@@ -23,6 +23,7 @@ extern float beta;
 
 int book_mcts_playouts = 10000000;
 int book_mcts_threads = 32;
+float book_mcts_temperature = 1.0f;
 bool book_mcts_debug = false;
 
 // “Á’è‹Ç–Ê‚Ì•]‰¿’l‚ð’u‚«Š·‚¦‚é
@@ -101,9 +102,10 @@ struct book_uct_node_t {
 		const auto softmax_temperature_with_normalize = [](std::vector<ChildEntry>& child_entries) {
 			const auto child_num = child_entries.size();
 			float max = 0.0f;
+			const auto beta = 1.0f / book_mcts_temperature / 756.0f;
 			for (size_t i = 0; i < child_num; i++) {
 				float& x = child_entries[i].prob;
-				x *= beta / 756.0f;
+				x *= beta;
 				if (x > max) {
 					max = x;
 				}

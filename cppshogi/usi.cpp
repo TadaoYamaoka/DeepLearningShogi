@@ -170,6 +170,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_Use_Mcts"]               = USIOption(false);
     (*this)["Book_Mcts_Playouts"]          = USIOption(10000000, 1, 1000000000);
     (*this)["Book_Mcts_Threads"]           = USIOption(32, 1, 1024);
+    (*this)["Book_Mcts_Temperature"]       = USIOption(100, 1, 500);
     (*this)["Book_Mcts_Debug"]             = USIOption(false);
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);

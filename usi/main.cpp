@@ -743,6 +743,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	const bool book_use_mcts = options["Book_Use_Mcts"];
 	book_mcts_playouts = options["Book_Mcts_Playouts"];
 	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
 	book_mcts_debug = options["Book_Mcts_Debug"];
 
 	SetReuseSubtree(options["ReuseSubtree"]);
@@ -942,6 +943,7 @@ void MySearcher::makeMctsBook(std::istringstream& ssCmd, const std::string& posC
 
 	book_mcts_playouts = options["Book_Mcts_Playouts"];
 	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
 	book_mcts_debug = options["Book_Mcts_Debug"];
 
 	// 定跡読み込み
