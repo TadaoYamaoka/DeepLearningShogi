@@ -712,13 +712,12 @@ float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_
 	return 1.0f - result;
 }
 
-std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::vector<BookEntry>& entries) {
-	tree.DeallocateTree();
-	book_uct_node_t* current_root = tree.GetCurrentHead();
+std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::vector<BookEntry>& entries) {
+	book_uct_node_t current_root;
 	book_child_node_t parent;
 	// ルートノードの展開
-	if (current_root->child_num == 0) {
-		current_root->ExpandNode(pos, bookMap, &parent);
+	if (current_root.child_num == 0) {
+		current_root.ExpandNode(pos, bookMap, &parent);
 	}
 
 	if (parent.IsEvaled()) {
@@ -726,14 +725,14 @@ std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, cons
 		return std::vector<BookEntry>(entries.begin(), entries.end());
 	}
 
-	int playout_count = current_root->move_count;
+	int playout_count = current_root.move_count;
 
 	while (playout_count < book_mcts_playouts) {
 		// 盤面のコピー
 		Position pos_copy(pos);
 
 		// 1回プレイアウトする
-		single_uct_search(pos_copy, &parent, current_root, bookMap);
+		single_uct_search(pos_copy, &parent, &current_root, bookMap);
 
 		playout_count++;
 
@@ -745,8 +744,8 @@ std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, cons
 			int max_searched = 0, second_searched = 0;
 			int max_index = 0, second_index = 0;
 
-			const book_child_node_t* uct_child = current_root->child.get();
-			const int child_num = current_root->child_num;
+			const book_child_node_t* uct_child = current_root.child.get();
+			const int child_num = current_root.child_num;
 			for (int i = 0; i < child_num; i++) {
 				if (uct_child[i].move_count > max_searched) {
 					second_searched = max_searched;
@@ -767,11 +766,11 @@ std::vector<BookEntry> single_uct_search(BookNodeTree& tree, Position& pos, cons
 		}
 	}
 
-	const book_child_node_t* child = current_root->child.get();
-	const size_t child_num = current_root->child_num;
+	const book_child_node_t* child = current_root.child.get();
+	const size_t child_num = current_root.child_num;
 
 	if (book_mcts_debug) {
-		for (int i = 0; i < current_root->child_num; ++i) {
+		for (int i = 0; i < current_root.child_num; ++i) {
 			std::cout << i << ": " << child[i].move.toUSI() << " count: " << child[i].move_count << " value: " << child[i].win / child[i].move_count << " evaled: " << child[i].IsEvaled() << " " << child[i].value << " prob: " << child[i].prob << std::endl;
 		}
 	}
@@ -849,11 +848,10 @@ void make_mcts_book(Position& pos, std::unordered_map<Key, std::vector<BookEntry
 	const int positions_size = (int)positions.size();
 	#pragma omp parallel for num_threads(book_mcts_threads)
 	for (int i = 0; i < positions_size; ++i) {
-		BookNodeTree tree;
 		Searcher s;
 		Position pos(s.thisptr);
 		pos.set(positions[i].first);
-		std::vector<BookEntry> results = single_uct_search(tree, pos, bookMap, *positions[i].second);
+		std::vector<BookEntry> results = single_uct_search(pos, bookMap, *positions[i].second);
 		const Key key = Book::bookKey(pos);
 		#pragma omp critical
 		{
