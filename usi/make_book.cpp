@@ -177,6 +177,9 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	Score value = -ScoreInfinite;
 	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
 		/*if (key == 7172278114399076909UL && debug_moves[0].toUSI() == "4b5b" && move.toUSI() == "4a5b") {
@@ -199,9 +202,6 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
 			value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched));
 		}
 		pos.undoMove(move);
@@ -275,6 +275,9 @@ const BookEntry& select_best_book_entry(Position& pos, const std::unordered_map<
 	std::map<Key, Searched> searched;
 	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
 		StateInfo state;
@@ -293,9 +296,6 @@ const BookEntry& select_best_book_entry(Position& pos, const std::unordered_map<
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
 			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched);
 		}
 		pos.undoMove(move);
