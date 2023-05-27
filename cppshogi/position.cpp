@@ -405,9 +405,6 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         if (ptTo == King)
             kingSquare_[us] = to;
-        else {
-            const Piece pcTo = colorAndPieceTypeToPiece(us, ptTo);
-        }
 
         if (moveIsCheck) {
             // Direct checks
@@ -423,7 +420,7 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
                     st_->checkersBB |= rookAttackFile(from, occupiedBB()) & bbOf(us);
                     break;
                 case DirecRank:
-                    st_->checkersBB |= attacksFrom<Rook>(ksq) & bbOf(Rook, Dragon, us);
+                    st_->checkersBB |= rookAttackRank(ksq, occupiedBB()) & bbOf(Rook, Dragon, us);
                     break;
                 case DirecDiagNESW: case DirecDiagNWSE:
                     st_->checkersBB |= attacksFrom<Bishop>(ksq) & bbOf(Bishop, Horse, us);
@@ -676,7 +673,7 @@ inline void Position::xorBBs(const PieceType pt, const Square sq, const Color c)
 // 1手詰みでないなら、Move::moveNone() を返す。
 // Bitboard の状態を途中で更新する為、const 関数ではない。(更新後、元に戻すが。)
 template <Color US> Move Position::mateMoveIn1Ply() {
-    const Color Them = oppositeColor(US);
+    constexpr Color Them = oppositeColor(US);
     const Square ksq = kingSquare(Them);
     const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
 
@@ -1797,6 +1794,35 @@ RepetitionType Position::isDraw(const int checkMaxPly) const {
             else if (stp->boardKey == st_->boardKey) {
                 if (st_->hand.isEqualOrSuperior(stp->hand)) return RepetitionSuperior;
                 if (stp->hand.isEqualOrSuperior(st_->hand)) return RepetitionInferior;
+            }
+            i += 2;
+        } while (i <= e);
+    }
+    return NotRepetition;
+}
+
+RepetitionType Position::moveIsDraw(const Move move) const {
+    const int Start = 4;
+    int i = Start;
+    const int e = st_->pliesFromNull + 1;
+
+    // 4手掛けないと千日手には絶対にならない。
+    if (i <= e) {
+        // 現在の局面と、少なくとも 4 手戻らないと同じ局面にならない。
+        // ここでまず 1 手戻る。
+        StateInfo* stp = st_->previous;
+        Key key = getKeyAfter(move);
+
+        do {
+            // 更に 2 手戻る。
+            stp = stp->previous->previous;
+            if (stp->key() == key) {
+                if (i <= st_->continuousCheck[turn()])
+                    return RepetitionWin;
+                else if (i <= st_->continuousCheck[oppositeColor(turn())])
+                    return RepetitionLose;
+                else
+                    return RepetitionDraw;
             }
             i += 2;
         } while (i <= e);

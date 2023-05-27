@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('book1')
 parser.add_argument('book2')
 parser.add_argument('out')
-parser.add_argument('--book2_ratio', type=float, default=0.5)
+parser.add_argument('--book2_ratio', type=float)
 args = parser.parse_args()
 
 book2_ratio = args.book2_ratio
@@ -22,10 +22,10 @@ book1dic = {}
 for entry in book1:
     key = entry['key']
     if key not in book1dic:
-        book1dic[key] = defaultdict(int)
+        book1dic[key] = defaultdict(lambda: [0, 0])
 
     entries = book1dic[key]
-    entries[entry['fromToPro']] += entry['count']
+    entries[entry['fromToPro']] = [entry['count'], entry['score']]
 
 print(f"book1 entries   : {len(book1)}")
 print(f"book1 positions : {len(book1dic)}")
@@ -34,10 +34,10 @@ book2dic = {}
 for entry in book2:
     key = entry['key']
     if key not in book2dic:
-        book2dic[key] = defaultdict(int)
+        book2dic[key] = defaultdict(lambda: [0, 0])
 
     entries = book2dic[key]
-    entries[entry['fromToPro']] += entry['count']
+    entries[entry['fromToPro']] = [entry['count'], entry['score']]
 
 print(f"book2 entries   : {len(book2)}")
 print(f"book2 positions : {len(book2dic)}")
@@ -48,19 +48,28 @@ for key, entries2 in book2dic.items():
         book1dic[key] = entries2
         continue
 
-    # book1にある場合、book1のcountの合計に合わせて追加する
-    entries1 = book1dic[key]
-    sum1 = 0
-    for count in entries1.values():
-        sum1 += count
+    if args.book2_ratio:
+        # book1にある場合、book1のcountの合計に合わせて追加する
+        entries1 = book1dic[key]
+        sum1 = 0
+        for (count, score) in entries1.values():
+            sum1 += count
 
-    sum2 = 0
-    for count in entries2.values():
-        sum2 += count
+        sum2 = 0
+        for (count, score) in entries2.values():
+            sum2 += count
 
-    for fromToPro, count in entries2.items():
-        entries1[fromToPro] = int(entries1[fromToPro] * (1 - book2_ratio) + count / sum1 * sum2 * book2_ratio)
-        assert entries1[fromToPro] < 65536
+        for fromToPro, (count, score) in entries1.items():
+            entries1[fromToPro] = [int(count * (1 - book2_ratio)), int(score * (1 - book2_ratio))]
+
+        for fromToPro, (count, score) in entries2.items():
+            values = entries1[fromToPro]
+            values[0] += int(count / sum1 * sum2 * book2_ratio)
+            values[1] += int(score / sum1 * sum2 * book2_ratio)
+            assert entries1[fromToPro][0] < 65536
+    else:
+        # book2で上書きする
+        book1dic[key] =entries2
 
 num_entries = 0
 for entries in book1dic.values():
@@ -70,8 +79,8 @@ for entries in book1dic.values():
 entries = np.empty(num_entries, dtype=BookEntry)
 i = 0
 for key in sorted(book1dic.keys()):
-    for fromToPro, count in book1dic[key].items():
-        entries[i] = key, fromToPro, count, 0
+    for fromToPro, (count, score) in book1dic[key].items():
+        entries[i] = key, fromToPro, count, score
         i += 1
 entries.tofile(args.out)
 

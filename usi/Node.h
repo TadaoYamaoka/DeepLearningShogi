@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <atomic>
 #include <vector>
@@ -20,33 +20,33 @@ template <typename T>
 using atomic_t = std::atomic<T>;
 #endif
 
-// ‹l‚İ’Tõ‚Å‹l‚İ‚Ìê‡‚Ì’è”
+// è©°ã¿æ¢ç´¢ã§è©°ã¿ã®å ´åˆã®å®šæ•°
 constexpr u32 VALUE_WIN = 0x1000000;
 constexpr u32 VALUE_LOSE = 0x2000000;
-// ç“úè‚Ìê‡‚Ìvalue_win‚Ì’è”
+// åƒæ—¥æ‰‹ã®å ´åˆã®value_winã®å®šæ•°
 constexpr u32 VALUE_DRAW = 0x4000000;
 
-// ƒm[ƒh–¢“WŠJ‚ğ•\‚·’è”
+// ãƒãƒ¼ãƒ‰æœªå±•é–‹ã‚’è¡¨ã™å®šæ•°
 constexpr int NOT_EXPANDED = -1;
 
 struct uct_node_t;
 struct child_node_t {
-	child_node_t() : move_count(0), win(0.0f), nnrate(0.0f) {}
+	child_node_t() : move_count(0), win((WinType)0), nnrate(0.0f) {}
 	child_node_t(const Move move)
-		: move(move), move_count(0), win(0.0f), nnrate(0.0f) {}
-	// ƒ€[ƒuƒRƒ“ƒXƒgƒ‰ƒNƒ^
+		: move(move), move_count(0), win((WinType)0), nnrate(0.0f) {}
+	// ãƒ ãƒ¼ãƒ–ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
-	// ƒ€[ƒu‘ã“ü‰‰Zq
+		: move(o.move), move_count((int)o.move_count), win((WinType)o.win), nnrate(o.nnrate) {}
+	// ãƒ ãƒ¼ãƒ–ä»£å…¥æ¼”ç®—å­
 	child_node_t& operator=(child_node_t&& o) noexcept {
 		move = o.move;
 		move_count = (int)o.move_count;
-		win = (float)o.win;
+		win = (WinType)o.win;
 		nnrate = (float)o.nnrate;
 		return *this;
 	}
 
-	// ƒƒ‚ƒŠß–ñ‚Ì‚½‚ßAmove‚ÌÅãˆÊƒoƒCƒg‚ÅWin/Lose/Draw‚Ìó‘Ô‚ğ•\‚·
+	// ãƒ¡ãƒ¢ãƒªç¯€ç´„ã®ãŸã‚ã€moveã®æœ€ä¸Šä½ãƒã‚¤ãƒˆã§Win/Lose/Drawã®çŠ¶æ…‹ã‚’è¡¨ã™
 	bool IsWin() const { return move.value() & VALUE_WIN; }
 	void SetWin() { move |= Move(VALUE_WIN); }
 	bool IsLose() const { return move.value() & VALUE_LOSE; }
@@ -54,42 +54,42 @@ struct child_node_t {
 	bool IsDraw() const { return move.value() & VALUE_DRAW; }
 	void SetDraw() { move |= Move(VALUE_DRAW); }
 
-	Move move;                   // ’…è‚·‚éÀ•W
-	atomic_t<int> move_count; // ’Tõ‰ñ”
-	atomic_t<WinType> win;    // Ÿ‚Á‚½‰ñ”
-	float nnrate;                // ƒjƒ…[ƒ‰ƒ‹ƒlƒbƒgƒ[ƒN‚Å‚ÌƒŒ[ƒg
+	Move move;                   // ç€æ‰‹ã™ã‚‹åº§æ¨™
+	float nnrate;                // ãƒ‹ãƒ¥ãƒ¼ãƒ©ãƒ«ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã§ã®ãƒ¬ãƒ¼ãƒˆ
+	atomic_t<int> move_count; // æ¢ç´¢å›æ•°
+	atomic_t<WinType> win;    // å‹ã£ãŸå›æ•°
 };
 
 struct uct_node_t {
 	uct_node_t()
 		: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f), child_num(0) {}
 
-	// qƒm[ƒhì¬
+	// å­ãƒãƒ¼ãƒ‰ä½œæˆ
 	uct_node_t* CreateChildNode(int i) {
 		return (child_nodes[i] = std::make_unique<uct_node_t>()).get();
 	}
-	// qƒm[ƒhˆê‚Â‚Ì‚İ‚Å‰Šú‰»‚·‚é
+	// å­ãƒãƒ¼ãƒ‰ä¸€ã¤ã®ã¿ã§åˆæœŸåŒ–ã™ã‚‹
 	void CreateSingleChildNode(const Move move) {
 		child_num = 1;
 		child = std::make_unique<child_node_t[]>(1);
 		child[0].move = move;
 	}
-	// Œó•âè‚Ì“WŠJ
+	// å€™è£œæ‰‹ã®å±•é–‹
 	void ExpandNode(const Position* pos) {
 		MoveList<Legal> ml(*pos);
-		child_num = (short)ml.size();
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
 		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+		child_num = (short)ml.size();
 	}
-	// qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚Ì‰Šú‰»
+	// å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ã®åˆæœŸåŒ–
 	void InitChildNodes() {
 		child_nodes = std::make_unique<std::unique_ptr<uct_node_t>[]>(child_num);
 	}
 
-	// 1‚Â‚ğœ‚­‚·‚×‚Ä‚Ìq‚ğíœ‚·‚é
-	// 1‚Â‚àŒ©‚Â‚©‚ç‚È‚¢ê‡AV‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
-	// c‚µ‚½ƒm[ƒh‚ğ•Ô‚·
+	// 1ã¤ã‚’é™¤ãã™ã¹ã¦ã®å­ã‚’å‰Šé™¤ã™ã‚‹
+	// 1ã¤ã‚‚è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã€æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
+	// æ®‹ã—ãŸãƒãƒ¼ãƒ‰ã‚’è¿”ã™
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
 	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
@@ -98,26 +98,30 @@ struct uct_node_t {
 	atomic_t<int> move_count;
 	atomic_t<WinType> win;
 	atomic_t<float> visited_nnrate;
-	short child_num;                       // qƒm[ƒh‚Ì”
-	std::unique_ptr<child_node_t[]> child; // qƒm[ƒh‚Ìî•ñ
-	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ
+	short child_num;                       // å­ãƒãƒ¼ãƒ‰ã®æ•°
+	std::unique_ptr<child_node_t[]> child; // å­ãƒãƒ¼ãƒ‰ã®æƒ…å ±
+	std::unique_ptr<std::unique_ptr<uct_node_t>[]> child_nodes; // å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—
 };
 
 class NodeTree {
 public:
 	~NodeTree() { DeallocateTree(); }
-	// ƒcƒŠ[“à‚ÌˆÊ’u‚ğİ’è‚µAƒcƒŠ[‚ÌÄ—˜—p‚ğ‚İ‚é
-	// V‚µ‚¢ˆÊ’u‚ªŒÃ‚¢ˆÊ’u‚Æ“¯‚¶ƒQ[ƒ€‚Å‚ ‚é‚©‚Ç‚¤‚©‚ğ•Ô‚·i‚¢‚­‚Â‚©‚Ì’…è“®‚ª’Ç‰Á‚³‚ê‚Ä‚¢‚éj
-	// ˆÊ’u‚ªŠ®‘S‚ÉˆÙ‚È‚éê‡A‚Ü‚½‚ÍˆÈ‘O‚æ‚è‚à’Z‚¢ê‡‚ÍAfalse‚ğ•Ô‚·
+	// ãƒ„ãƒªãƒ¼å†…ã®ä½ç½®ã‚’è¨­å®šã—ã€ãƒ„ãƒªãƒ¼ã®å†åˆ©ç”¨ã‚’è©¦ã¿ã‚‹
+	// æ–°ã—ã„ä½ç½®ãŒå¤ã„ä½ç½®ã¨åŒã˜ã‚²ãƒ¼ãƒ ã§ã‚ã‚‹ã‹ã©ã†ã‹ã‚’è¿”ã™ï¼ˆã„ãã¤ã‹ã®ç€æ‰‹å‹•ãŒè¿½åŠ ã•ã‚Œã¦ã„ã‚‹ï¼‰
+	// ä½ç½®ãŒå®Œå…¨ã«ç•°ãªã‚‹å ´åˆã€ã¾ãŸã¯ä»¥å‰ã‚ˆã‚Šã‚‚çŸ­ã„å ´åˆã¯ã€falseã‚’è¿”ã™
 	bool ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves);
 	uct_node_t* GetCurrentHead() const { return current_head_; }
+	void DeallocateTree();
 
 private:
-	void DeallocateTree();
-	// ’Tõ‚ğŠJn‚·‚éƒm[ƒh
+	// æ¢ç´¢ã‚’é–‹å§‹ã™ã‚‹ãƒãƒ¼ãƒ‰
 	uct_node_t* current_head_ = nullptr;
-	// ƒQ[ƒ€–Ø‚Ìƒ‹[ƒgƒm[ƒh
+	// ã‚²ãƒ¼ãƒ æœ¨ã®ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰
 	std::unique_ptr<uct_node_t> gamebegin_node_;
-	// ˆÈ‘O‚Ì‹Ç–Ê
+	// ä»¥å‰ã®å±€é¢
 	Key history_starting_pos_key_;
 };
+
+// Boltzmann distribution
+void set_softmax_temperature(const float temperature);
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num);

@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train.py</StartupFile>
+    <StartupFile>utils\make_book_minmax.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\hcpe3\floodgate_2021_0521_r3800_nomate.hcpe3 f:\selfplay\floodgate.hcpe --use_amp --eval_interval 100 --use_evalfix --resume r:\ckpt-resnet10_swish-003.pth --checkpoint r:\ckpt-resnet10_swish.pth --save_every_epoch -e 1 -b 2048 --reset_optimizer --lr_scheduler MultiStepLR([1,3],0.5) --reset_scheduler</CommandLineArguments>
+    <CommandLineArguments>R:\s5book R:\a.book --startsfen "lr5nl/3g1kg2/2n1ppsp1/p1pps1p1p/1p5P1/P1PPSPP1P/1PS1P1N2/2GK1G3/LN5RL w Bb 38" --th 200</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -55,16 +55,22 @@
     <Compile Include="utils\benchmark.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
-    <Compile Include="utils\convert_model_to_neuronscript.py" />
-    <Compile Include="utils\convert_model_to_torchscript.py">
+    <Compile Include="utils\csa_important_position.py" />
+    <Compile Include="utils\csa_to_book.py" />
+    <Compile Include="utils\csa_to_csv.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_hcp.py" />
     <Compile Include="utils\csa_to_hcpe.py" />
     <Compile Include="utils\csa_to_hcpe2.py" />
+    <Compile Include="utils\csa_to_gokakusfen.py" />
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
+    <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\make_book_minmax.py" />
+    <Compile Include="utils\delete_book_side.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\delete_hcp.py">
       <SubType>Code</SubType>
     </Compile>
@@ -73,28 +79,36 @@
     <Compile Include="utils\filter_kif_in_dir.py" />
     <Compile Include="utils\fix_hcpe_eval.py" />
     <Compile Include="utils\hcpe3_to_csa.py" />
+    <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
-    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />
-    <Compile Include="utils\measure_entropy.py" />
     <Compile Include="utils\merge_book.py" />
     <Compile Include="utils\plot_log_policy_value.py" />
     <Compile Include="utils\print_hcpe.py" />
     <Compile Include="utils\psv_to_hcp.py" />
     <Compile Include="utils\psv_to_hcpe.py" />
+    <Compile Include="utils\sample_hcpe.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\sfen_to_hcp.py" />
     <Compile Include="utils\split_hcpe3.py" />
     <Compile Include="utils\split_hcpe.py" />
+    <Compile Include="utils\split_pgn.py" />
     <Compile Include="utils\stat_csa_in_dir.py" />
     <Compile Include="utils\stat_csa_position_in_dir.py" />
     <Compile Include="utils\stat_hcpe3.py" />
-    <Compile Include="utils\throughput.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\usi_repeater.py" />
+    <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
+    <Compile Include="utils\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -126,6 +140,11 @@
     <DebugSymbols>true</DebugSymbols>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
     <OutputPath>bin\MakeBook_NoOpt\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release_WinTypeDouble' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <OutputPath>bin\Release_WinTypeDouble\</OutputPath>
   </PropertyGroup>
   <!-- Uncomment the CoreCompile target to enable the Build command in
        Visual Studio and specify your pre- and post-build commands in

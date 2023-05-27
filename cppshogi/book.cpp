@@ -107,6 +107,34 @@ Key Book::bookKey(const Position& pos) {
     return key;
 }
 
+Key Book::bookKeyAfter(const Position& pos, const Key key, const Move move) {
+    Key key_after = key;
+    const Square to = move.to();
+    if (move.isDrop()) {
+        const Piece pc = colorAndPieceTypeToPiece(pos.turn(), move.pieceTypeDropped());
+        key_after ^= ZobPiece[pc][to];
+    }
+    else {
+        const Square from = move.from();
+        key_after ^= ZobPiece[pos.piece(from)][from];
+
+        const Piece pc = colorAndPieceTypeToPiece(pos.turn(), move.pieceTypeTo());
+        key_after ^= ZobPiece[pc][to];
+
+        if (move.isCapture())
+            key_after ^= ZobPiece[pos.piece(to)][to];
+    }
+    const Hand hand = pos.hand(pos.turn());
+    for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
+        key_after ^= ZobHand[hp][hand.numOf(hp)];
+    const Hand hand_after = pos.hand(oppositeColor(pos.turn()));
+    for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
+        key_after ^= ZobHand[hp][hand_after.numOf(hp)];
+
+    key_after ^= ZobTurn;
+    return key_after;
+}
+
 std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest) {
     BookEntry entry;
     u16 best = 0;
@@ -149,9 +177,88 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
             }
             score = entry.score;
         }
+        if (tellg() == size_ * sizeof(BookEntry))
+            break;
     }
 
     return std::make_tuple(move, score);
+}
+
+// 千日手の評価値を考慮する
+// countの降順にソートされていること
+// countが少ない評価値は信頼しない
+std::tuple<Move, Score> Book::probeConsideringDraw(const Position& pos, const std::string& fName) {
+    BookEntry entry;
+    Score best = -ScoreInfinite;
+    Move move = Move::moveNone();
+    const Key key = bookKey(pos);
+    Score score = ScoreZero;
+    Score trusted_score = ScoreInfinite;
+
+    if (fileName_ != fName && !open(fName.c_str()))
+        return std::make_tuple(Move::moveNone(), ScoreNone);
+
+    binary_search(key);
+
+    // 現在の局面における定跡手の数だけループする。
+    while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
+        const Move tmp = Move(entry.fromToPro);
+
+        // 回数が少ない評価値は信頼しない
+        if (entry.score < trusted_score)
+            trusted_score = entry.score;
+        entry.score = trusted_score;
+
+        switch (pos.moveIsDraw(tmp)) {
+        case RepetitionDraw:
+        {
+            // 千日手の評価で上書き
+            const float drawValue = (pos.turn() == Black
+                ? static_cast<int>(pos.searcher()->options["Draw_Value_Black"])
+                : static_cast<int>(pos.searcher()->options["Draw_Value_White"])) / 1000.0f;
+            const int evalCoef = static_cast<int>(pos.searcher()->options["Eval_Coef"]);
+            const Score drawScore = static_cast<Score>(static_cast<int>(-logf(1.0f / drawValue - 1.0f) * evalCoef));
+            entry.score = drawScore;
+            break;
+        }
+        case RepetitionWin:
+            // 相手の勝ち(自分の負け)
+            entry.score = -ScoreInfinite;
+            break;
+        case RepetitionLose:
+            // 相手の負け(自分の勝ち)
+            entry.score = ScoreMaxEvaluate;
+            break;
+        }
+
+        if (entry.score > best)
+        {
+            best = entry.score;
+            const Square to = tmp.to();
+            if (tmp.isDrop()) {
+                const PieceType ptDropped = tmp.pieceTypeDropped();
+                move = makeDropMove(ptDropped, to);
+            }
+            else {
+                const Square from = tmp.from();
+                const PieceType ptFrom = pieceToPieceType(pos.piece(from));
+                const bool promo = tmp.isPromotion();
+                if (promo)
+                    move = makeCapturePromoteMove(ptFrom, from, to, pos);
+                else
+                    move = makeCaptureMove(ptFrom, from, to, pos);
+            }
+            score = entry.score;
+        }
+        if (tellg() == size_ * sizeof(BookEntry))
+            break;
+    }
+
+    return std::make_tuple(move, score);
+}
+
+std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest, const bool considerDraw) {
+    return considerDraw ? probeConsideringDraw(pos, fName) : probe(pos, fName, pickBest);
 }
 
 inline bool countCompare(const BookEntry& b1, const BookEntry& b2) {

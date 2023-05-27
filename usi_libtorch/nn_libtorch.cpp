@@ -5,6 +5,7 @@
 NNLibTorch::NNLibTorch(const char* filename, const torch::DeviceIndex gpu_id, const int max_batch_size)
 	: device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU, torch::cuda::is_available() ? gpu_id : -1)
 {
+	c10::InferenceMode guard;
 	model = torch::jit::load(filename);
 	model.to(device);
 	model.eval();
@@ -12,7 +13,7 @@ NNLibTorch::NNLibTorch(const char* filename, const torch::DeviceIndex gpu_id, co
 
 void NNLibTorch::forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2)
 {
-	torch::NoGradGuard no_grad;
+	c10::InferenceMode guard;
 
 	std::vector<torch::jit::IValue> x = {
 		torch::from_blob(x1, { batch_size, (size_t)ColorNum * MAX_FEATURES1_NUM, 9, 9 }, torch::dtype(torch::kFloat32)).to(device),

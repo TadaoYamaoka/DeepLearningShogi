@@ -1,4 +1,4 @@
-#include "Node.h"
+ï»¿#include "Node.h"
 
 #include <thread>
 #include <mutex>
@@ -66,7 +66,7 @@ NodeGarbageCollector gNodeGc;
 uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 {
     if (child_num > 0 && child_nodes) {
-        // ˆê‚Â‚ğc‚µ‚Äíœ‚·‚é
+        // ä¸€ã¤ã‚’æ®‹ã—ã¦å‰Šé™¤ã™ã‚‹
         bool found = false;
         for (int i = 0; i < child_num; ++i) {
             auto& uct_child = child[i];
@@ -74,39 +74,39 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
             if (uct_child.move == move) {
                 found = true;
                 if (!child_node) {
-                    // V‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
+                    // æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
                     child_node = std::make_unique<uct_node_t>();
                 }
-                // 0”Ô–Ú‚Ì—v‘f‚ÉˆÚ“®‚·‚é
+                // 0ç•ªç›®ã®è¦ç´ ã«ç§»å‹•ã™ã‚‹
                 if (i != 0) {
                     child[0] = std::move(uct_child);
                     child_nodes[0] = std::move(child_node);
                 }
             }
             else {
-                // qƒm[ƒh‚ğíœiƒKƒx[ƒWƒRƒŒƒNƒ^‚É’Ç‰Áj
+                // å­ãƒãƒ¼ãƒ‰ã‚’å‰Šé™¤ï¼ˆã‚¬ãƒ™ãƒ¼ã‚¸ã‚³ãƒ¬ã‚¯ã‚¿ã«è¿½åŠ ï¼‰
                 if (child_node)
                     gNodeGc.AddToGcQueue(std::move(child_node));
             }
         }
 
         if (found) {
-            // qƒm[ƒh‚ğˆê‚Â‚É‚·‚é
+            // å­ãƒãƒ¼ãƒ‰ã‚’ä¸€ã¤ã«ã™ã‚‹
             child_num = 1;
             return child_nodes[0].get();
         }
         else {
-            // ‡–@è‚É•s¬‚ğ¶¬‚µ‚Ä‚¢‚È‚¢‚½‚ßAƒm[ƒh‚ª‘¶İ‚µ‚Ä‚àŒ©‚Â‚©‚ç‚È‚¢ê‡‚ª‚ ‚é
-            // qƒm[ƒh‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½ê‡AV‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
+            // åˆæ³•æ‰‹ã«ä¸æˆã‚’ç”Ÿæˆã—ã¦ã„ãªã„ãŸã‚ã€ãƒãƒ¼ãƒ‰ãŒå­˜åœ¨ã—ã¦ã‚‚è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆãŒã‚ã‚‹
+            // å­ãƒãƒ¼ãƒ‰ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸå ´åˆã€æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
             CreateSingleChildNode(move);
             InitChildNodes();
             return (child_nodes[0] = std::make_unique<uct_node_t>()).get();
         }
     }
     else {
-        // qƒm[ƒh–¢“WŠJA‚Ü‚½‚Íqƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ª–¢‰Šú‰»‚Ìê‡
+        // å­ãƒãƒ¼ãƒ‰æœªå±•é–‹ã€ã¾ãŸã¯å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ãŒæœªåˆæœŸåŒ–ã®å ´åˆ
         CreateSingleChildNode(move);
-        // qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ğ‰Šú‰»‚·‚é
+        // å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ã‚’åˆæœŸåŒ–ã™ã‚‹
         InitChildNodes();
         return (child_nodes[0] = std::make_unique<uct_node_t>()).get();
     }
@@ -118,7 +118,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
 
 bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Move>& moves) {
     if (gamebegin_node_ && history_starting_pos_key_ != starting_pos_key) {
-        // Š®‘S‚ÉˆÙ‚È‚éˆÊ’u
+        // å®Œå…¨ã«ç•°ãªã‚‹ä½ç½®
         DeallocateTree();
     }
 
@@ -135,15 +135,15 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
     bool seen_old_head = (gamebegin_node_.get() == old_head);
     for (const auto& move : moves) {
         prev_head = current_head_;
-        // current_head_‚É’…è‚ğ’Ç‰Á‚·‚é
+        // current_head_ã«ç€æ‰‹ã‚’è¿½åŠ ã™ã‚‹
         current_head_ = current_head_->ReleaseChildrenExceptOne(move);
         if (old_head == current_head_) seen_old_head = true;
     }
 
-    // MakeMove‚ÍŒZ’í‚ª‘¶İ‚µ‚È‚¢‚±‚Æ‚ğ•ÛØ‚·‚é 
-    // ‚½‚¾‚µAŒÃ‚¢ƒwƒbƒh‚ªŒ»‚ê‚È‚¢ê‡‚ÍAˆÈ‘O‚ÉŒŸõ‚³‚ê‚½ˆÊ’u‚Ì‘cæ‚Å‚ ‚éˆÊ’u‚ª‚ ‚é‰Â”\«‚ª‚ ‚é‚±‚Æ‚ğˆÓ–¡‚·‚é
-    // ‚Â‚Ü‚èAŒÃ‚¢q‚ªˆÈ‘O‚ÉƒgƒŠƒ~ƒ“ƒO‚³‚ê‚Ä‚¢‚Ä‚àAcurrent_head_‚ÍŒÃ‚¢ƒf[ƒ^‚ğ•Û‚·‚é‰Â”\«‚ª‚ ‚é
-    // ‚»‚Ìê‡Acurrent_head_‚ğƒŠƒZƒbƒg‚·‚é•K—v‚ª‚ ‚é
+    // MakeMoveã¯å…„å¼ŸãŒå­˜åœ¨ã—ãªã„ã“ã¨ã‚’ä¿è¨¼ã™ã‚‹ 
+    // ãŸã ã—ã€å¤ã„ãƒ˜ãƒƒãƒ‰ãŒç¾ã‚Œãªã„å ´åˆã¯ã€ä»¥å‰ã«æ¤œç´¢ã•ã‚ŒãŸä½ç½®ã®ç¥–å…ˆã§ã‚ã‚‹ä½ç½®ãŒã‚ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹ã“ã¨ã‚’æ„å‘³ã™ã‚‹
+    // ã¤ã¾ã‚Šã€å¤ã„å­ãŒä»¥å‰ã«ãƒˆãƒªãƒŸãƒ³ã‚°ã•ã‚Œã¦ã„ã¦ã‚‚ã€current_head_ã¯å¤ã„ãƒ‡ãƒ¼ã‚¿ã‚’ä¿æŒã™ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹
+    // ãã®å ´åˆã€current_head_ã‚’ãƒªã‚»ãƒƒãƒˆã™ã‚‹å¿…è¦ãŒã‚ã‚‹
     if (!seen_old_head && current_head_ != old_head) {
         if (prev_head) {
             assert(prev_head->child_num == 1);
@@ -153,7 +153,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
             current_head_ = prev_uct_child_node.get();
         }
         else {
-            // ŠJn‹Ç–Ê‚É–ß‚Á‚½ê‡
+            // é–‹å§‹å±€é¢ã«æˆ»ã£ãŸå ´åˆ
             DeallocateTree();
         }
     }
@@ -161,8 +161,40 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 }
 
 void NodeTree::DeallocateTree() {
-    // gamebegin_node_.resetij‚Æ“¯‚¶‚¾‚ªAÀÛ‚ÌŠ„‚è“–‚Ä‰ğœ‚ÍGCƒXƒŒƒbƒh‚Ås‚í‚ê‚é
+    // gamebegin_node_.resetï¼ˆï¼‰ã¨åŒã˜ã ãŒã€å®Ÿéš›ã®å‰²ã‚Šå½“ã¦è§£é™¤ã¯GCã‚¹ãƒ¬ãƒƒãƒ‰ã§è¡Œã‚ã‚Œã‚‹
     gNodeGc.AddToGcQueue(std::move(gamebegin_node_));
     gamebegin_node_ = std::make_unique<uct_node_t>();
     current_head_ = gamebegin_node_.get();
+}
+
+// Boltzmann distribution
+// see: Reinforcement Learning : An Introduction 2.3.SOFTMAX ACTION SELECTION
+constexpr float default_softmax_temperature = 1.0f;
+float beta = 1.0f / default_softmax_temperature;
+void set_softmax_temperature(const float temperature) {
+    beta = 1.0f / temperature;
+}
+
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num) {
+    // apply beta exponent to probabilities(in log space)
+    float max = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x *= beta;
+        if (x > max) {
+            max = x;
+        }
+    }
+    // ã‚ªãƒ¼ãƒãƒ¼ãƒ•ãƒ­ãƒ¼ã‚’é˜²æ­¢ã™ã‚‹ãŸã‚æœ€å¤§å€¤ã§å¼•ã
+    float sum = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x = expf(x - max);
+        sum += x;
+    }
+    // normalize
+    for (int i = 0; i < child_num; i++) {
+        float& x = child_node[i].nnrate;
+        x /= sum;
+    }
 }

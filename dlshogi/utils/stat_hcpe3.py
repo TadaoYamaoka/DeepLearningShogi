@@ -66,11 +66,13 @@ while True:
         board.push(move)
         assert board.is_ok()
 
-    black_win = 1 if (result & 1) == BLACK_WIN else 0
+    black_win = 1 if (result & 3) == BLACK_WIN else 0
+    draw = 1 if (result & 3) == DRAW else 0
     nyugyoku = 1 if (result & GAMERESULT_NYUGYOKU) != 0 else 0
     stats.append({
         'moves': move_num,
         'black win': black_win,
+        'draw': draw,
         'nyugyoku': nyugyoku,
         'opponent': opponent,
         'positions': positions,
@@ -84,9 +86,14 @@ df = pd.DataFrame(stats)
 if args.csv:
     df.to_csv(args.csv)
 
-print(df[['moves', 'black win', 'nyugyoku', 'opponent']].describe())
+print(df[['moves', 'black win', 'draw', 'nyugyoku', 'opponent']].describe())
+print('black win rate', df['black win'].sum() / (len(df) - df['draw'].sum()))
+for opponent in range(3):
+    df2 = df[df.loc[:, 'opponent']==opponent]
+    print(df2[['moves', 'black win', 'draw', 'nyugyoku', 'opponent']].describe())
+    print('black win rate', df2['black win'].sum() / (len(df2) - df2['draw'].sum()))
 print(df[['positions', 'candidates avr', 'max candidates', 'visits avr', 'top visits avr']].describe())
-sum_poritions = df['positions'].sum()
-print('sum positions', sum_poritions)
+sum_positions = df['positions'].sum()
+print('sum positions', sum_positions)
 print('unique positions', unique_positions)
-print('unique positions / sum positions', unique_positions / sum_poritions)
+print('unique positions / sum positions', unique_positions / sum_positions)

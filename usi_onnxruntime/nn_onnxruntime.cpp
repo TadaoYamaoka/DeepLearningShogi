@@ -1,6 +1,8 @@
-#ifdef ONNXRUNTIME
+﻿#ifdef ONNXRUNTIME
 #include "nn_onnxruntime.h"
+#ifndef ONNXRUNTIME_CPU
 #include <dml_provider_factory.h>
+#endif
 
 #ifdef _WIN32
 #include <clocale>
@@ -10,9 +12,11 @@
 NNOnnxRuntime::NNOnnxRuntime(const char* filename, const int gpu_id, const int max_batch_size)
 {
 	Ort::SessionOptions session_options;
+#ifndef ONNXRUNTIME_CPU
 	session_options.DisableMemPattern();
 	session_options.SetExecutionMode(ORT_SEQUENTIAL);
 	Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
+#endif
 
 #ifdef _WIN32
 	std::setlocale(LC_ALL, ".OCP");

@@ -32,7 +32,7 @@ def main(*argv):
     parser.add_argument('--reset_optimizer', action='store_true')
     parser.add_argument('--model', type=str, help='model file name')
     parser.add_argument('--initmodel', '-m', default='', help='Initialize the model from given file (for compatibility)')
-    parser.add_argument('--log', default=None, help='log file path')
+    parser.add_argument('--log', help='log file path')
     parser.add_argument('--optimizer', default='SGD(momentum=0.9,nesterov=True)', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
@@ -52,9 +52,14 @@ def main(*argv):
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
+    parser.add_argument('--patch', type=str, help='Overwrite with the hcpe')
+    parser.add_argument('--cache', type=str, help='training data cache file')
     args = parser.parse_args(argv)
 
-    logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+    if args.log:
+        logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
+    else:
+        logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', stream=sys.stdout, level=logging.DEBUG)
     logging.info('network {}'.format(args.network))
     logging.info('batchsize={}'.format(args.batchsize))
     logging.info('lr={}'.format(args.lr))
@@ -138,7 +143,7 @@ def main(*argv):
     logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 
     logging.info('Reading training data')
-    train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature)
+    train_len, actual_len = Hcpe3DataLoader.load_files(args.train_data, args.use_average, args.use_evalfix, args.temperature, args.patch, args.cache)
     train_data = np.arange(train_len, dtype=np.uint32)
     logging.info('Reading test data')
     test_data = np.fromfile(args.test_data, dtype=HuffmanCodedPosAndEval)

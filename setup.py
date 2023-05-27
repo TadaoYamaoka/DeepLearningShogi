@@ -5,10 +5,10 @@ class my_build_ext(build_ext):
     def build_extensions(self):
         if self.compiler.compiler_type == 'unix':
             for e in self.extensions:
-                e.extra_compile_args = ['-std=c++17', '-msse4.2', '-mavx2']
+                e.extra_compile_args = ['-std=c++17', '-msse4.2', '-mavx2', '-fopenmp']
         elif self.compiler.compiler_type == 'msvc':
             for e in self.extensions:
-                e.extra_compile_args = ['/std:c++17', '/arch:AVX2']
+                e.extra_compile_args = ['/std:c++17', '/arch:AVX2', '/openmp']
 
         build_ext.build_extensions(self)
 
@@ -29,7 +29,7 @@ ext_modules = [
 
 setup(
     name = 'dlshogi',
-    version = '0.0.6',
+    version = '0.1.1',
     author = 'Tadao Yamaoka',
     url='https://github.com/TadaoYamaoka/DeepLearningShogi',
     packages = ['dlshogi', 'dlshogi.network', 'dlshogi.utils'],

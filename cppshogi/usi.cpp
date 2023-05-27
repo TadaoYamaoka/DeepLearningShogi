@@ -75,6 +75,7 @@ namespace {
 void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
+    (*this)["Book_Consider_Draw"]          = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(false);
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(false);
@@ -128,12 +129,51 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
     (*this)["ReuseSubtree"]                = USIOption(true);
+    (*this)["Eval_Coef"]                   = USIOption(756, 1, 10000);
+    (*this)["Random_Ply"]                  = USIOption(0, 0, 1000);
+    (*this)["Random_Temperature"]          = USIOption(10000, 0, 100000);
+    (*this)["Random_Temperature_Drop"]     = USIOption(1000, 0, 100000);
+    (*this)["Random_Cutoff"]               = USIOption(15, 0, 1000);
+    (*this)["Random_Cutoff_Drop"]          = USIOption(0, 0, 1000);
+    (*this)["Random2_Ply"]                 = USIOption(0, 0, 1000);
+    (*this)["Random2_Probability"]         = USIOption(40, 0, 1000);
+    (*this)["Random2_Temperature"]         = USIOption(10000, 0, 100000);
+    (*this)["Random2_Cutoff"]              = USIOption(30, 0, 1000);
+    (*this)["Random2_Value_Limit"]         = USIOption(750, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
+    (*this)["Make_Book_Sleep"]             = USIOption(0, 0, INT_MAX);
+    (*this)["Use_Book_Policy"]             = USIOption(true);
+    (*this)["Use_Interruption"]            = USIOption(true);
+    (*this)["Book_Eval_Threshold"]         = USIOption(INT_MAX, 1, INT_MAX);
+    (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
+    (*this)["Book_Cutoff"]                 = USIOption(15, 0, 1000);
+    (*this)["Book_Temperature"]            = USIOption(1000, 0, 100000);
+    (*this)["Book_Merge_File"]             = USIOption("");
+    (*this)["Make_Book_Color"]             = USIOption("both");
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
+#ifdef MULTI_PONDER
+    (*this)["Multi_Ponder"]                = USIOption(0, 0, 8);
+    (*this)["Multi_Ponder_Engine1"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine2"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine3"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine4"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine5"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine6"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine7"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine8"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine1_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine2_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine3_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine4_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine5_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine6_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine7_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine8_Options"] = USIOption("");
+#endif
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
     (*this)["Engine_Name"]                 = USIOption("dlshogi");
@@ -232,12 +272,12 @@ void randomMove(Position& pos, std::mt19937& mt) {
             }
         }
         if (&legalMoves[0] != pms) { // 手があったなら
-            std::uniform_int_distribution<int> moveDist(0, pms - &legalMoves[0] - 1);
+            std::uniform_int_distribution<int> moveDist(0, static_cast<int>(pms - &legalMoves[0] - 1));
             pos.doMove(legalMoves[moveDist(mt)].move, *st++);
             if (dist(mt)) { // 1/2 の確率で相手もランダムに指す事にする。
                 MoveList<LegalAll> ml(pos);
                 if (ml.size()) {
-                    std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                    std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                     pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 }
             }
@@ -251,7 +291,7 @@ void randomMove(Position& pos, std::mt19937& mt) {
         for (int i = 0; i < dist(mt) + 1; ++i) { // 自分だけ、または両者ランダムに1手指してみる。
             MoveList<LegalAll> ml(pos);
             if (ml.size()) {
-                std::uniform_int_distribution<int> moveDist(0, ml.size()-1);
+                std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
                 pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
                 moved = true;
             }

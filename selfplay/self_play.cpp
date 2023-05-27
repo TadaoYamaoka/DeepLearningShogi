@@ -49,10 +49,16 @@ void sigint_handler(int signum)
 
 // ランダムムーブの手数
 int RANDOM_MOVE;
-// 訪問数が最大のノードの価値の一定割合以下は除外
-float RANDOM_CUTOFF = 0.0f;
+// 訪問数が最大のノードの価値の一定以下は除外
+float RANDOM_CUTOFF = 0.015f;
+// 1手ごとに低下する価値の閾値
+float RANDOM_CUTOFF_DROP = 0.001f;
 // 訪問数に応じてランダムに選択する際の温度パラメータ
-float RANDOM_TEMPERATURE = 1.0f;
+float RANDOM_TEMPERATURE = 10.0f;
+// 1手ごとに低下する温度
+float RANDOM_TEMPERATURE_DROP = 1.0f;
+// ランダムムーブした局面を学習する
+bool TRAIN_RANDOM = false;
 // 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
 float RANDOM2 = 0;
 // 出力する最低手数
@@ -81,6 +87,7 @@ int usi_threads;
 // USIエンジンオプション（name:value,...,name:value）
 string usi_options;
 int usi_byoyomi;
+int usi_turn; // 0:先手、1:後手、それ以外:ランダム
 
 std::mutex mutex_all_gpu;
 
@@ -114,6 +121,8 @@ std::atomic<s64> usi_draws(0);
 
 ifstream ifs;
 ofstream ofs;
+bool SPLIT_OPPONENT = false;
+ofstream ofs_opponent;
 bool OUT_MIN_HCP = false;
 ofstream ofs_minhcp;
 mutex imutex;
@@ -163,6 +172,63 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	current->move_count++;
 	child->win += (WinType)result;
 	child->move_count++;
+}
+
+bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
+{
+	if (lhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (rhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
+	}
+	else if (lhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (rhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
+	}
+	if (lhs->move_count == rhs->move_count)
+		return lhs->nnrate > rhs->nnrate;
+	return lhs->move_count > rhs->move_count;
+}
+
+// 価値(勝率)から評価値に変換
+inline s16 value_to_score(const float value) {
+	if (value == 1.0f)
+		return 30000;
+	else if (value == 0.0f)
+		return -30000;
+	else
+		return s16(-logf(1.0f / value - 1.0f) * 756.0864962951762f);
 }
 
 // 詰み探索スロット
@@ -230,8 +296,8 @@ private:
 
 	// キュー
 	int policy_value_batch_maxsize; // 最大バッチサイズ
-	features1_t* features1;
-	features2_t* features2;
+	packed_features1_t* features1;
+	packed_features2_t* features2;
 	batch_element_t* policy_value_batch;
 	int current_policy_value_batch_index;
 
@@ -352,7 +418,8 @@ private:
 		if (trainning) {
 			const auto child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
-			for (size_t i = 0; i < root_node->child_num; ++i) {
+			const size_t child_num = root_node->child_num;
+			for (size_t i = 0; i < child_num; ++i) {
 				// ノイズにより選んだ回数を除く
 				const auto move_count = child[i].move_count - noise_count[i];
 				if (move_count > 0) {
@@ -363,6 +430,19 @@ private:
 				}
 			}
 			idx++;
+		}
+	}
+	// 局面出力
+	void WriteRecords(std::ofstream& ofs, HuffmanCodedPosAndEval3& hcpe3) {
+		std::unique_lock<Mutex> lock(omutex);
+		ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+		for (auto& record : records) {
+			MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
+			ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
+			if (record.candidates.size() > 0) {
+				ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
+				madeTeacherNodes++;
+			}
 		}
 	}
 };
@@ -385,7 +465,7 @@ public:
 		}
 		mutex_all_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -436,8 +516,8 @@ UCTSearcherGroup::Initialize()
 	}
 
 	// キューを動的に確保する
-	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 
 	// UCTSearcher
@@ -556,19 +636,20 @@ void UCTSearcherGroup::MateSearch()
 			Position pos_copy(*mate_search_slot[id].pos);
 
 			// 詰み探索
-			if (!pos_copy.inCheck()) {
-				bool mate = dfpn.dfpn(pos_copy);
-				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-				if (mate)
-					mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
-				mate_search_slot[id].status = mate ? MateSearchEntry::WIN : MateSearchEntry::NOMATE;
+			const bool mate = dfpn.dfpn(pos_copy);
+			//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
+			if (mate) {
+				mate_search_slot[id].move = dfpn.dfpn_move(pos_copy);
+				mate_search_slot[id].status = MateSearchEntry::WIN;
 			}
-			else {
+			else if (pos_copy.inCheck()) {
 				// 自玉に王手がかかっている
-				bool mate = dfpn.dfpn_andnode(pos_copy);
-				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mate, dfpn.searchedNode);
-				mate_search_slot[id].status = mate ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
+				const bool mated = dfpn.dfpn_andnode(pos_copy);
+				//SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} {} mate_andnode:{} nodes:{}", gpu_id, group_id, id, pos_copy.toSFEN(), mated, dfpn.searchedNode);
+				mate_search_slot[id].status = mated ? MateSearchEntry::LOSE : MateSearchEntry::NOMATE;
 			}
+			else
+				mate_search_slot[id].status = MateSearchEntry::NOMATE;
 		}
 		queue.clear();
 	}
@@ -826,10 +907,10 @@ void
 UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
 	current_policy_value_batch_index++;
 }
@@ -900,25 +981,22 @@ void UCTSearcherGroup::EvalNode() {
 		child_node_t* uct_child = node->child.get();
 
 		// 合法手一覧
-		vector<float> legal_move_probabilities;
-		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
 			Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (*logits)[move_label];
-			legal_move_probabilities.emplace_back(logit);
+			const float logit = (float)(*logits)[move_label];
+			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(uct_child, child_num);
 
 		auto req = make_unique<CachedNNRequest>(child_num);
 		for (int j = 0; j < child_num; j++) {
-			req->nnrate[j] = legal_move_probabilities[j];
-			uct_child[j].nnrate = legal_move_probabilities[j];
+			req->nnrate[j] = uct_child[j].nnrate;
 		}
 
-		const float value_win = *value;
+		const float value_win = (float)*value;
 
 		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));
@@ -958,6 +1036,14 @@ void UCTSearcher::Playout(visitor_t& visitor)
 				if (usi_engine_turn >= 0) {
 					// 開始局面設定
 					usi_position = "position " + pos_root->toSFEN() + " moves";
+
+					// 先手後手指定
+					if (usi_turn == Black)
+						usi_engine_turn = pos_root->turn() == Black ? 1 : 0;
+					else if (usi_turn == White)
+						usi_engine_turn = pos_root->turn() == White ? 1 : 0;
+					else
+						usi_engine_turn = rnd(*mt) % 2;
 
 					if (usi_engine_turn == 1 && RANDOM_MOVE == 0) {
 						grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
@@ -1044,30 +1130,30 @@ void UCTSearcher::NextStep()
 {
 	// USIエンジン
 	if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE) {
-		const Move move = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
-		if (move == Move::moveNone())
+		const auto& result = grp->usi_engines[id % usi_threads].ThinkDone(id / usi_threads);
+		if (result.move == Move::moveNone())
 			return;
 
-		if (move == moveResign()) {
+		if (result.move == moveResign()) {
 			gameResult = (pos_root->turn() == Black) ? GameResult::WhiteWin : GameResult::BlackWin;
 			NextGame();
 			return;
 		}
-		else if (move == moveWin()) {
+		else if (result.move == moveWin()) {
 			gameResult = (pos_root->turn() == Black) ? GameResult::BlackWin : GameResult::WhiteWin;
 			reason = GAMERESULT_NYUGYOKU;
 			NextGame();
 			return;
 		}
-		else if (move == moveAbort()) {
+		else if (result.move == moveAbort()) {
 			if (stopflg)
 				return;
 			throw std::runtime_error("usi engine abort");
 		}
-		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
+		SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} usi_move:{} usi_score:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), result.move.toUSI(), result.score);
 
-		AddRecord(move, 0, false);
-		NextPly(move);
+		AddRecord(result.move, result.score, false);
+		NextPly(result.move);
 		return;
 	}
 
@@ -1134,36 +1220,56 @@ void UCTSearcher::NextStep()
 		}
 
 		const child_node_t* uct_child = root_node->child.get();
-		unsigned int select_index = 0;
+		float best_wp;
 		Move best_move;
 		if (ply <= RANDOM_MOVE) {
 			// N手までは訪問数に応じた確率で選択する
+			const auto child_num = root_node->child_num;
+
+			// 訪問回数順にソート
+			std::vector<const child_node_t*> sorted_uct_childs;
+			sorted_uct_childs.reserve(child_num);
+			for (int i = 0; i < child_num; i++)
+				sorted_uct_childs.emplace_back(&uct_child[i]);
+			std::stable_sort(sorted_uct_childs.begin(), sorted_uct_childs.end(), compare_child_node_ptr_descending);
+
 			// 訪問数が最大のノードの価値の一定割合以下は除外
-			const auto max_move_count_child = std::max_element(uct_child, uct_child + root_node->child_num, [](const child_node_t& l, const child_node_t& r) { return l.move_count < r.move_count; });
-			const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count * RANDOM_CUTOFF;
-			vector<int> indexes;
+			const auto max_move_count_child = sorted_uct_childs[0];
+			const int step = (ply - 1) / 2;
+			const float random_cutoff = std::max(0.0f, RANDOM_CUTOFF - RANDOM_CUTOFF_DROP * step);
+			const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - random_cutoff;
 			vector<double> probabilities;
-			indexes.reserve(root_node->child_num);
-			probabilities.reserve(root_node->child_num);
-			for (int i = 0; i < root_node->child_num; i++) {
-				if (uct_child[i].move_count > 0) {
-					const auto win = uct_child[i].win / uct_child[i].move_count;
-					if (win >= cutoff_threshold) {
-						indexes.emplace_back(i);
-						probabilities.emplace_back(std::pow(uct_child[i].move_count, 1.0 / RANDOM_TEMPERATURE));
-						SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{}", grp->gpu_id, grp->group_id, id, i, uct_child[i].move.toUSI(), uct_child[i].move_count, uct_child[i].nnrate, uct_child[i].win / (uct_child[i].move_count));
-					}
-				}
+			probabilities.reserve(child_num);
+			const float temperature = std::max(0.1f, RANDOM_TEMPERATURE - RANDOM_TEMPERATURE_DROP * step);
+			const float reciprocal_temperature = 1.0f / temperature;
+			for (int i = 0; i < child_num; i++) {
+				if (sorted_uct_childs[i]->move_count == 0) break;
+
+				const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
+				if (win < cutoff_threshold) break;
+
+				const auto probability = std::pow(sorted_uct_childs[i]->move_count, reciprocal_temperature);
+				probabilities.emplace_back(probability);
+				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{} probability:{}",
+					grp->gpu_id, grp->group_id, id, i, sorted_uct_childs[i]->move.toUSI(), sorted_uct_childs[i]->move_count,
+					sorted_uct_childs[i]->nnrate, sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count, probability);
 			}
 
 			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
-			select_index = indexes[dist(*mt_64)];
-			best_move = uct_child[select_index].move;
-			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI());
-			AddRecord(best_move, 0, false);
+			const auto sorted_select_index = dist(*mt_64);
+			best_move = sorted_uct_childs[sorted_select_index]->move;
+			best_wp = sorted_uct_childs[sorted_select_index]->win / sorted_uct_childs[sorted_select_index]->move_count;
+			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
+
+			// 局面追加
+			if (TRAIN_RANDOM)
+				AddRecord(best_move, value_to_score(best_wp), true);
+			else
+				AddRecord(best_move, 0, false);
 		}
 		else {
 			// 探索回数最大の手を見つける
+			unsigned int select_index = 0;
 			int max_count = uct_child[0].move_count;
 			int second_index = 0;
 			int second_count = 0;
@@ -1213,7 +1319,7 @@ void UCTSearcher::NextStep()
 			}
 
 			// 選択した着手の勝率の算出
-			float best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
+			best_wp = uct_child[select_index].win / uct_child[select_index].move_count;
 			// 勝ちの場合
 			if (child_lose_count > 0) {
 				best_wp = 1.0f;
@@ -1240,14 +1346,7 @@ void UCTSearcher::NextStep()
 			}
 
 			// 局面追加
-			s16 eval;
-			if (best_wp == 1.0f)
-				eval = 30000;
-			else if (best_wp == 0.0f)
-				eval = -30000;
-			else
-				eval = s16(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
-			AddRecord(best_move, eval, true);
+			AddRecord(best_move, value_to_score(best_wp), true);
 		}
 
 		NextPly(best_move);
@@ -1269,6 +1368,7 @@ void UCTSearcher::NextPly(const Move move)
 
 	// 着手
 	pos_root->doMove(move, states[ply]);
+	ply++;
 
 	// 千日手の場合
 	switch (pos_root->isDraw(16)) {
@@ -1293,7 +1393,6 @@ void UCTSearcher::NextPly(const Move move)
 	// 次の手番
 	max_playout_num = playout_num;
 	playout = 0;
-	ply++;
 
 	if (usi_engine_turn >= 0) {
 		usi_position += " " + move.toUSI();
@@ -1340,22 +1439,11 @@ void UCTSearcher::NextGame()
 		const u8 opponent = usi_engine_turn < 0 ? 0 : (usi_engine_turn == 1 && start_turn == Black || usi_engine_turn == 0 && start_turn == White) ? 1 : 2;
 		HuffmanCodedPosAndEval3 hcpe3{
 			hcp,
-			records.size(),
-			gameResult | reason,
+			static_cast<u16>(records.size()),
+			static_cast<u8>(gameResult | reason),
 			opponent
 		};
-		{
-			std::unique_lock<Mutex> lock(omutex);
-			ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
-			for (auto& record : records) {
-				MoveInfo moveInfo{ record.selectedMove16, record.eval, record.candidates.size() };
-				ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
-				if (record.candidates.size() > 0) {
-					ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
-					madeTeacherNodes++;
-				}
-			}
-		}
+		WriteRecords((!SPLIT_OPPONENT || opponent == 0) ? ofs : ofs_opponent, hcpe3);
 		++games;
 
 		if (gameResult == Draw) {
@@ -1409,6 +1497,15 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	if (!ofs) {
 		cerr << "Error: cannot open " << outputFileName << endl;
 		exit(EXIT_FAILURE);
+	}
+	// USIエンジンの教師局面を別ファイルに出力
+	if (SPLIT_OPPONENT) {
+		std::string filepath{ outputFileName };
+		if (filepath.size() >= 6 && filepath.substr(filepath.size() - 6) == ".hcpe3")
+			filepath = filepath.substr(0, filepath.size() - 6) + "_opp.hcpe3";
+		else
+			filepath += "_opp";
+		ofs_opponent.open(filepath, ios::binary);
 	}
 	// 削除候補の初期局面を出力するファイル
 	if (OUT_MIN_HCP) ofs_minhcp.open(string(outputFileName) + "_min.hcp", ios::binary);
@@ -1475,6 +1572,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	progressThread.join();
 	ifs.close();
 	ofs.close();
+	if (SPLIT_OPPONENT) ofs_opponent.close();
 	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
@@ -1486,6 +1584,11 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		usi_wins,
 		usi_draws,
 		static_cast<double>(usi_wins) / (usi_games - usi_draws) * 100);
+
+	logger->flush();
+
+	// リソースの破棄はOSに任せてすぐに終了する
+	std::quick_exit(0);
 }
 
 int main(int argc, char* argv[]) {
@@ -1508,8 +1611,11 @@ int main(int argc, char* argv[]) {
 			("positional", "", cxxopts::value<std::vector<int>>())
 			("threads", "thread number", cxxopts::value<int>(threads)->default_value("2"), "num")
 			("random", "random move number", cxxopts::value<int>(RANDOM_MOVE)->default_value("4"), "num")
-			("random_cutoff", "random cutoff ratio", cxxopts::value<float>(RANDOM_CUTOFF)->default_value("0.9"))
-			("random_temperature", "random temperature", cxxopts::value<float>(RANDOM_TEMPERATURE)->default_value("1.0"))
+			("random_cutoff", "random cutoff value", cxxopts::value<float>(RANDOM_CUTOFF)->default_value("0.015"))
+			("random_cutoff_drop", "random cutoff drop", cxxopts::value<float>(RANDOM_CUTOFF_DROP)->default_value("0.001"))
+			("random_temperature", "random temperature", cxxopts::value<float>(RANDOM_TEMPERATURE)->default_value("10.0"))
+			("random_temperature_drop", "random temperature drop", cxxopts::value<float>(RANDOM_TEMPERATURE_DROP)->default_value("1.0"))
+			("train_random", "train random move", cxxopts::value<bool>(TRAIN_RANDOM)->default_value("false"))
 			("random2", "random2", cxxopts::value<float>(RANDOM2)->default_value("0"))
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
 			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
@@ -1525,13 +1631,15 @@ int main(int argc, char* argv[]) {
 			("c_base_root", "UCT parameter c_base_root", cxxopts::value<float>(c_base_root)->default_value("39470.0"), "val")
 			("temperature", "Softmax temperature", cxxopts::value<float>(temperature)->default_value("1.66"), "val")
 			("reuse", "reuse sub tree", cxxopts::value<bool>(REUSE_SUBTREE)->default_value("false"))
-			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("nn_cache_size", "nn cache size", cxxopts::value<unsigned int>(nn_cache_size)->default_value("8388608"))
+			("split_opponent", "split opponent's hcpe3", cxxopts::value<bool>(SPLIT_OPPONENT)->default_value("false"))
+			("out_min_hcp", "output minimum move hcp", cxxopts::value<bool>(OUT_MIN_HCP)->default_value("false"))
 			("usi_engine", "USIEngine exe path", cxxopts::value<std::string>(usi_engine_path))
 			("usi_engine_num", "USIEngine number", cxxopts::value<int>(usi_engine_num)->default_value("0"), "num")
 			("usi_threads", "USIEngine thread number", cxxopts::value<int>(usi_threads)->default_value("1"), "num")
 			("usi_options", "USIEngine options", cxxopts::value<std::string>(usi_options))
 			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
+			("usi_turn", "USIEngine turn", cxxopts::value<int>(usi_turn)->default_value("-1"))
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
@@ -1630,7 +1738,10 @@ int main(int argc, char* argv[]) {
 	logger->info("threads:{}", threads);
 	logger->info("random:{}", RANDOM_MOVE);
 	logger->info("random_cutoff:{}", RANDOM_CUTOFF);
+	logger->info("random_cutoff_drop:{}", RANDOM_CUTOFF_DROP);
 	logger->info("random_temperature:{}", RANDOM_TEMPERATURE);
+	logger->info("random_temperature_drop:{}", RANDOM_TEMPERATURE_DROP);
+	logger->info("train_random:{}", TRAIN_RANDOM);
 	logger->info("random2:{}", RANDOM2);
 	logger->info("min_move:{}", MIN_MOVE);
 	logger->info("max_move:{}", MAX_MOVE);
@@ -1647,12 +1758,14 @@ int main(int argc, char* argv[]) {
 	logger->info("temperature:{}", temperature);
 	logger->info("reuse:{}", REUSE_SUBTREE);
 	logger->info("nn_cache_size:{}", nn_cache_size);
+	if (SPLIT_OPPONENT) logger->info("split_opponent");
 	if (OUT_MIN_HCP) logger->info("out_min_hcp");
 	logger->info("usi_engine:{}", usi_engine_path);
 	logger->info("usi_engine_num:{}", usi_engine_num);
 	logger->info("usi_threads:{}", usi_threads);
 	logger->info("usi_options:{}", usi_options);
 	logger->info("usi_byoyomi:{}", usi_byoyomi);
+	logger->info("usi_turn:{}", usi_turn);
 
 	initTable();
 	Position::initZobrist();

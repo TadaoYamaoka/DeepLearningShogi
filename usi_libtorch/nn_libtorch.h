@@ -1,9 +1,9 @@
 #pragma once
 
 #include <torch/torch.h>
-#include "nn.h"
+#include "cppshogi.h"
 
-class NNLibTorch : NN {
+class NNLibTorch {
 public:
 	NNLibTorch(const char* filename, const torch::DeviceIndex gpu_id, const int max_batch_size);
 	~NNLibTorch() {};
@@ -13,3 +13,5 @@ private:
 	torch::Device device;
 	torch::jit::Module model;
 };
+
+typedef NNLibTorch NN;

@@ -4,7 +4,8 @@ import numpy as np
 import os
 
 parser = argparse.ArgumentParser()
-parser.add_argument('hcpe')
+parser.add_argument('hcpe', type=str, nargs='+')
+parser.add_argument('--outpath')
 parser.add_argument('--split', type=int)
 parser.add_argument('--positions', type=int)
 parser.add_argument('--uniq', action='store_true')
@@ -12,7 +13,9 @@ parser.add_argument('--uniq_each_split', action='store_true')
 parser.add_argument('--shuffle', action='store_true')
 args = parser.parse_args()
 
-hcpes = np.fromfile(args.hcpe, HuffmanCodedPosAndEval)
+hcpes = np.empty(0, HuffmanCodedPosAndEval)
+for hcpe in args.hcpe:
+    hcpes = np.concatenate([hcpes, np.fromfile(hcpe, HuffmanCodedPosAndEval)])
 num_positions = len(hcpes)
 
 if args.uniq:
@@ -24,7 +27,12 @@ else:
 if args.shuffle:
     np.random.shuffle(hcpes)
 
-basepath, ext = os.path.splitext(args.hcpe)
+if args.outpath:
+    outpath = args.outpath
+else:
+    outpath = args.hcpe[0]
+basepath, ext = os.path.splitext(outpath)
+
 if args.split:
     num_split = args.split
     num = len(hcpes) // num_split

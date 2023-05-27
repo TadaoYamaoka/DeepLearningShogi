@@ -40,15 +40,15 @@ struct LimitsType {
 struct Searcher {
     // static メンバ関数からだとthis呼べないので代わりに thisptr を使う。
     // static じゃないときは this を入れることにする。
-    STATIC Searcher* thisptr;
-	STATIC LimitsType limits;
-	STATIC StateListPtr states;
+    STATIC_ Searcher* thisptr;
+	STATIC_ LimitsType limits;
+	STATIC_ StateListPtr states;
 
-    STATIC OptionsMap options;
+    STATIC_ OptionsMap options;
 
-    STATIC void init();
+    STATIC_ void init();
 
-    STATIC void setOption(std::istringstream& ssCmd);
+    STATIC_ void setOption(std::istringstream& ssCmd);
 };
 
 // 入玉勝ちかどうかを判定

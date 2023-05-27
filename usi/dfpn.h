@@ -57,12 +57,14 @@ public:
 	bool dfpn_andnode(Position& r);
 	void dfpn_stop(const bool stop);
 	Move dfpn_move(Position& pos);
+	std::tuple<std::string, int, Move> get_pv(Position& pos);
 
 	static void set_hashsize(const uint64_t size) {
 		HASH_SIZE_MB = size;
 	}
 	static void set_draw_ply(const int draw_ply) {
-		DfPn::draw_ply = draw_ply;
+		// WCSCのルールでは、最大手数で詰ました場合は勝ちになるため+1する
+		DfPn::draw_ply = draw_ply + 1;
 	}
 	void set_maxdepth(const int depth) {
 		kMaxDepth = depth;
@@ -75,9 +77,11 @@ public:
 private:
 	template <bool or_node>
 	void dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_flag*/, const uint16_t maxDepth, int64_t& searchedNode);
+	template<bool or_node>
+	int get_pv_inner(Position& pos, std::vector<Move>& pv);
 
 	ns_dfpn::TranspositionTable transposition_table;
-	std::atomic<bool> stop;
+	std::atomic<bool> stop = false;
 	int64_t maxSearchNode = 2097152;
 
 	int kMaxDepth = 31;

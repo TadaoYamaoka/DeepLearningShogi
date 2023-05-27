@@ -4,10 +4,9 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "generateMoves.hpp"
+#include "dtype.h"
 
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
-
-typedef float DType;
 
 constexpr int MAX_HPAWN_NUM = 8; // 歩の持ち駒の上限
 constexpr int MAX_HLANCE_NUM = 4;
@@ -44,14 +43,15 @@ enum MOVE_DIRECTION {
 // 指し手を表すラベルの数
 constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
+typedef char packed_features1_t[((size_t)ColorNum * MAX_FEATURES1_NUM * (size_t)SquareNum + 7) / 8];
+typedef char packed_features2_t[((size_t)MAX_FEATURES2_NUM + 7) / 8];
+
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
-void make_input_features(const Position& position, features1_t* features1, features2_t* features2);
+void make_input_features(const Position& position, features1_t features1, features2_t features2);
+void make_input_features(const Position& position, packed_features1_t packed_features1, packed_features2_t packed_features2);
 int make_move_label(const u16 move16, const Color color);
-void softmax_temperature(std::vector<float> &log_probabilities);
-void softmax_temperature_with_normalize(std::vector<float> &log_probabilities);
-void set_softmax_temperature(const float temperature);
 
 // 評価値から価値(勝率)に変換
 // スケールパラメータは、elmo_for_learnの勝率から調査した値
@@ -91,14 +91,32 @@ struct MoveVisits {
 };
 static_assert(sizeof(MoveVisits) == 4, "");
 
+struct Hcpe3CacheBody {
+	HuffmanCodedPos hcp; // 局面
+	float value;
+	float result;
+	int count; // 重複カウント
+};
+
+struct Hcpe3CacheCandidate {
+	u16 move16;
+	float prob;
+};
+
 struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const int eval, const float result)
-		: hcp(hcp), eval(eval), result(result), count(1) {};
+	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result)
+		: hcp(hcp), value(value), result(result), count(1) {};
+	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)
+		: hcp(body.hcp), value(body.value), result(body.result), count(body.count), candidates(candidateNum) {
+		for (size_t i = 0; i < candidateNum; i++) {
+			this->candidates.emplace(candidates[i].move16, candidates[i].prob);
+		}
+	};
 
 	HuffmanCodedPos hcp;
-	int eval;
+	float value;
 	float result;
-	std::map<u16, float> candidates;
+	std::unordered_map<u16, float> candidates;
 	int count; // 重複カウント
 };
 

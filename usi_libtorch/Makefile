@@ -1,9 +1,9 @@
 ﻿CC = g++
 MATE_SEARCH_DEPTH = 5
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DLIBTORCH -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2 -D_GLIBCXX_USE_CXX11_ABI=0
-LDFLAGS = -flto -Wl,-rpath,/home/ubuntu/libtorch_demo/libtorch/lib /home/ubuntu/libtorch_demo/libtorch/lib/libtorch.so /home/ubuntu/libtorch_demo/libtorch/lib/libc10.so /home/ubuntu/libtorch_demo/libtorch/lib/libneuron_op.so -Wl,--no-as-needed,"/home/ubuntu/libtorch_demo/libtorch/lib/libtorch_cpu.so" -Wl,--as-needed /home/ubuntu/libtorch_demo/libtorch/lib/libc10.so -lpthread -Wl,--no-as-needed,"/home/ubuntu/libtorch_demo/libtorch/lib/libtorch.so" -Wl,--as-needed
-INCLUDE = -I../usi_libtorch -I../usi -I../cppshogi -I../cppshogi -I/home/ubuntu/libtorch_demo/libtorch/include -I/home/ubuntu/libtorch_demo/libtorch/include/torch/csrc/api/include
-LIB = -L/home/ubuntu/libtorch_demo/libtorch/lib
+LDFLAGS = -flto -Wl,-rpath,/work/libtorch/lib /work/libtorch/lib/libtorch.so /work/libtorch/lib/libc10.so /work/libtorch/lib/libkineto.a -Wl,--no-as-needed,"/work/libtorch/lib/libtorch_cpu.so" -Wl,--as-needed /work/libtorch/lib/libc10.so -Wl,--no-as-needed,"/work/libtorch/lib/libtorch.so" -Wl,--as-needed
+INCLUDE = -I../usi_libtorch -I../usi -I../cppshogi -I../cppshogi -I/work/libtorch/include -I/work/libtorch/include/torch/csrc/api/include
+LIB = -L/work/libtorch/lib
 
 target = bin/usi
 target_make_book = bin/make_book

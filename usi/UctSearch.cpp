@@ -47,6 +47,38 @@
 
 using namespace std;
 
+#if defined(ONNXRUNTIME) || defined(LIBTORCH)
+typedef features1_t Features1;
+typedef features2_t Features2;
+#else
+typedef packed_features1_t Features1;
+typedef packed_features2_t Features2;
+#endif
+
+#ifdef MULTI_PONDER
+std::mutex mtx_expand_root;
+std::condition_variable cond_expand_root;
+int expanded_root = false;
+void ResetMultiPonder()
+{
+	std::lock_guard<std::mutex> lk(mtx_expand_root);
+	expanded_root = false;
+}
+void PrepareMultiPonder()
+{
+	std::lock_guard<std::mutex> lk(mtx_expand_root);
+	expanded_root = true;
+	cond_expand_root.notify_all();
+}
+void WaitPrepareMultiPonder()
+{
+	std::unique_lock<std::mutex> lk(mtx_expand_root);
+	while (!expanded_root) {
+		cond_expand_root.wait(lk);
+	}
+}
+#endif
+
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -64,6 +96,8 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 #ifdef MAKE_BOOK
 #include "book.hpp"
 extern std::map<Key, std::vector<BookEntry> > bookMap;
+extern bool use_book_policy;
+extern bool use_interruption;
 #endif
 
 // 持ち時間
@@ -87,7 +121,7 @@ mutex mutex_expand;       // ノード展開を排他処理するためのmutex
 
 bool pondering_mode = false;
 
-bool pondering = false;
+atomic<bool> pondering = false;
 
 atomic<bool> uct_search_stop(false);
 
@@ -97,6 +131,7 @@ int minimum_time = 0;
 int last_pv_print; // 最後にpvが表示された時刻
 int pv_interval = 500; // pvを表示する周期(ms)
 int multi_pv = 1; // MultiPvの数
+float eval_coef = 756; // 勝率から評価値に変換する際の係数
 
 // ハッシュの再利用
 bool reuse_subtree = true;
@@ -140,6 +175,20 @@ float draw_value_white = 0.5f;
 
 // 引き分けとする手数（この手数に達した場合引き分けとする）
 int draw_ply = INT_MAX;
+
+// ランダムムーブ設定
+int random_ply = 0;
+float random_temperature = 10.0f;
+float random_temperature_drop = 1.0f;
+float random_cutoff = 0.015f;
+float random_cutoff_drop = 0.0f;
+int random2_ply = 0;
+float random2_probability = 0.04f;
+float random2_temperature = 10.0f;
+float random2_cutoff = 0.1f;
+float random2_value_limit = 0.8f;
+std::unique_ptr<std::mt19937_64> random_mt_64;
+std::uniform_real_distribution<float> random2_dist(0.0f, 1.0f);
 
 #ifdef PV_MATE_SEARCH
 // PVの詰み探索
@@ -232,7 +281,7 @@ public:
 		}
 		mutex_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, features1_t* x1, features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int batch_size, Features1* x1, Features2* x2, DType* y1, DType* y2) {
 		mutex_gpu.lock();
 		nn->forward(batch_size, x1, x2, y1, y2);
 		mutex_gpu.unlock();
@@ -280,8 +329,8 @@ public:
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
 #else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
@@ -292,8 +341,8 @@ public:
 
 	}
 	UCTSearcher(UCTSearcher&& o) :
-		grp(grp),
-		thread_id(thread_id),
+		grp(o.grp),
+		thread_id(o.thread_id),
 		mt(move(o.mt)) {}
 	~UCTSearcher() {
 #if defined(ONNXRUNTIME) || defined(LIBTORCH)
@@ -403,8 +452,8 @@ private:
 #endif
 
 	int policy_value_batch_maxsize;
-	features1_t* features1;
-	features2_t* features2;
+	Features1* features1;
+	Features2* features2;
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
@@ -561,6 +610,39 @@ void SetMultiPV(const int multipv)
 	multi_pv = multipv;
 }
 
+// 勝率から評価値に変換する際の係数設定
+void SetEvalCoef(const int eval_coef)
+{
+	::eval_coef = (float)eval_coef;
+}
+
+// ランダムムーブの設定
+void SetRandomMove(const int ply, const int temperature, const int temperature_drop, const int cutoff, const int cutoff_drop)
+{
+	random_ply = ply;
+	random_temperature = temperature / 1000.0f;
+	random_temperature_drop = temperature_drop / 1000.0f;
+	random_cutoff = cutoff / 1000.0f;
+	random_cutoff_drop = cutoff_drop / 1000.0f;
+	if (ply > 0 && !random_mt_64) {
+		std::random_device seed_gen;
+		random_mt_64.reset(new std::mt19937_64(seed_gen()));
+	}
+}
+
+void SetRandomMove2(const int ply, const int probability, const int temperature, const int cutoff, const int value_limit)
+{
+	random2_ply = ply;
+	random2_probability = probability / 1000.0f;
+	random2_temperature = temperature / 1000.0f;
+	random2_cutoff = cutoff / 1000.0f;
+	random2_value_limit = value_limit / 1000.0f;
+	if (random_ply == 0 && ply > 0 && !random_mt_64) {
+		std::random_device seed_gen;
+		random_mt_64.reset(new std::mt19937_64(seed_gen()));
+	}
+}
+
 /////////////////////////
 //  UCT探索の初期設定  //
 /////////////////////////
@@ -594,7 +676,7 @@ void SetLimits(const LimitsType& limits)
 {
 	begin_time = limits.startTime;
 	time_limit = limits.moveTime;
-	po_info.halt = limits.nodes;
+	po_info.halt = static_cast<int>(limits.nodes);
 	minimum_time = limits.moveTime;
 }
 
@@ -602,6 +684,7 @@ void SetLimits(const LimitsType& limits)
 // go cmd前に呼ばれ、探索の条件を指定する
 void SetLimits(const Position* pos, const LimitsType& limits)
 {
+	pondering = limits.ponder;
 	begin_time = limits.startTime;
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
@@ -621,7 +704,7 @@ void SetLimits(const Position* pos, const LimitsType& limits)
 	if (limits.infinite)
 		po_info.halt = INT_MAX;
 	else
-		po_info.halt = limits.nodes;
+		po_info.halt = static_cast<int>(limits.nodes);
 	extend_time = time_limit > minimum_time && limits.nodes == 0;
 }
 
@@ -632,6 +715,11 @@ void SetConstPlayout(const int playout)
 	const_playout = playout;
 }
 
+void SetPondering(bool value)
+{
+	pondering = value;
+}
+
 ////////////
 //  終了  //
 ////////////
@@ -639,6 +727,12 @@ void
 FinalizeUctSearch(void)
 {
 	delete[] search_groups;
+}
+
+// UCT探索の停止フラグ初期化
+void InitUctSearchStop()
+{
+	uct_search_stop = false;
 }
 
 void
@@ -653,12 +747,19 @@ StopUctSearch(void)
 	uct_search_stop = true;
 }
 
+bool IsUctSearchStoped()
+{
+	return uct_search_stop;
+}
+
 bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
 {
 	if (lhs->IsWin()) {
 		// 負けが確定しているノードは選択しない
 		if (rhs->IsWin()) {
 			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
 		return false;
@@ -667,10 +768,34 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 		// 子ノードに一つでも負けがあれば、勝ちなので選択する
 		if (rhs->IsLose()) {
 			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
 		return true;
 	}
+	else if (rhs->IsWin()) {
+		// 負けが確定しているノードは選択しない
+		if (lhs->IsWin()) {
+			// すべて負けの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return true;
+	}
+	else if (rhs->IsLose()) {
+		// 子ノードに一つでも負けがあれば、勝ちなので選択する
+		if (lhs->IsLose()) {
+			// すべて勝ちの場合は、探索回数が最大の手を選択する
+			if (lhs->move_count == rhs->move_count)
+				return lhs->nnrate > rhs->nnrate;
+			return lhs->move_count > rhs->move_count;
+		}
+		return false;
+	}
+	if (lhs->move_count == rhs->move_count)
+		return lhs->nnrate > rhs->nnrate;
 	return lhs->move_count > rhs->move_count;
 }
 
@@ -697,7 +822,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 		cp = -30000;
 	}
 	else {
-		cp = int(-logf(1.0f / best_wp - 1.0f) * 756.0864962951762f);
+		cp = int(-logf(1.0f / best_wp - 1.0f) * eval_coef);
 	}
 
 	Move ponderMove = Move::moveNone();
@@ -728,7 +853,49 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 	return std::make_tuple(pv, cp, depth, move, best_wp, ponderMove);
 }
 
-std::tuple<Move, float, Move> get_and_print_pv()
+// 訪問回数に応じてランダムに子ノードを選択
+inline unsigned int select_random_child_node(const uct_node_t* uct_node, float& random_cutoff, float& random_temperature, const float random_cutoff_drop = 0, const float random_temperature_drop = 0)
+{
+	const child_node_t* uct_child = uct_node->child.get();
+	const auto child_num = uct_node->child_num;
+
+	// 訪問回数順にソート
+	std::vector<const child_node_t*> sorted_uct_childs;
+	sorted_uct_childs.reserve(child_num);
+	for (int i = 0; i < child_num; i++)
+		sorted_uct_childs.emplace_back(&uct_node->child[i]);
+	std::stable_sort(sorted_uct_childs.begin(), sorted_uct_childs.end(), compare_child_node_ptr_descending);
+
+	// 訪問数が最大のノードの価値の一定以下は除外
+	const auto max_move_count_child = sorted_uct_childs[0];
+	const int step = (pos_root->gamePly() - 1) / 2;
+	const float cutoff = std::max(0.0f, random_cutoff - random_cutoff_drop * step);
+	const auto cutoff_threshold = max_move_count_child->win / max_move_count_child->move_count - cutoff;
+	vector<double> probabilities;
+	probabilities.reserve(child_num);
+	const float temperature = std::max(0.1f, random_temperature - random_temperature_drop * step);
+	const float reciprocal_temperature = 1.0f / temperature;
+	for (int i = 0; i < child_num; i++) {
+		if (sorted_uct_childs[i]->move_count == 0) break;
+
+		const auto win = sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count;
+		if (win < cutoff_threshold) break;
+
+		const auto probability = std::pow((float)sorted_uct_childs[i]->move_count, reciprocal_temperature);
+		probabilities.emplace_back(probability);
+		if (debug_message)
+			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
+			<< " nnrate:" << sorted_uct_childs[i]->nnrate << " win_rate:" << sorted_uct_childs[i]->win / (sorted_uct_childs[i]->move_count)
+			<< " probability:" << probability << std::endl;
+	}
+
+	// 訪問回数に応じた確率で選択
+	discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
+	const auto selected_index = dist(*random_mt_64);
+	return static_cast<unsigned int>(sorted_uct_childs[selected_index] - uct_child);
+}
+
+std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 {
 	const uct_node_t* current_root = tree->GetCurrentHead();
 
@@ -748,7 +915,16 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 	if (multi_pv == 1) {
 		// 最大の子ノードを取得
-		const unsigned int best_root_child_index = select_max_child_node(current_root);
+		unsigned int best_root_child_index = select_max_child_node(current_root);
+
+		if (use_random && pos_root->gamePly() <= random2_ply
+			&& std::abs(current_root->child[best_root_child_index].win / current_root->child[best_root_child_index].move_count) < random2_value_limit
+			&& random2_dist(*random_mt_64) < random2_probability) {
+			best_root_child_index = select_random_child_node(current_root, random2_cutoff, random2_temperature);
+		}
+		else if (use_random && pos_root->gamePly() <= random_ply) {
+			best_root_child_index = select_random_child_node(current_root, random_cutoff, random_temperature, random_cutoff_drop, random_temperature_drop);
+		}
 
 		// PV表示
 		std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(current_root, best_root_child_index);
@@ -767,7 +943,7 @@ std::tuple<Move, float, Move> get_and_print_pv()
 
 		// info文字列の共通部分
 		std::stringstream info_ss;
-		info_ss << " nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull << " score cp ";
+		info_ss << " nps " << nps << " time " << finish_time << " nodes " << po_info.count << " hashfull " << hashfull;
 		const std::string info_string = info_ss.str();
 
 		Move move_tmp;
@@ -777,10 +953,13 @@ std::tuple<Move, float, Move> get_and_print_pv()
 		// Multi PV表示
 		for (int i = 0; i < multipv_num; i++) {
 			const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
-			const unsigned int best_root_child_index = best_root_uct_child - root_uct_child;
+			const unsigned int best_root_child_index = static_cast<unsigned int>(best_root_uct_child - root_uct_child);
 
 			std::tie(pv, cp, depth, move_tmp, best_wp_tmp, ponderMove_tmp) = get_pv(current_root, best_root_child_index);
-			std::cout << "info multipv " << i + 1 << info_string << cp << " depth " << depth << " pv " << pv << "\n";
+			std::cout << "info multipv " << i + 1 << info_string;
+			if (best_root_uct_child->move_count > 0)
+				std::cout << " score cp " << cp;
+			std::cout << " depth " << depth << " pv " << pv << "\n";
 
 			if (i == 0) {
 				move = move_tmp;
@@ -789,19 +968,52 @@ std::tuple<Move, float, Move> get_and_print_pv()
 			}
 		}
 		std::cout << std::flush;
+
+		// 訪問回数に応じた確率で選択する場合
+		if (use_random && pos_root->gamePly() <= random2_ply
+			&& sorted_root_uct_childs[0]->win / sorted_root_uct_childs[0]->move_count < random2_value_limit
+			&& random2_dist(*random_mt_64) < random2_probability) {
+			const unsigned int best_root_child_index = select_random_child_node(current_root, random2_cutoff, random2_temperature);
+			std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(current_root, best_root_child_index);
+		}
+		else if (use_random && pos_root->gamePly() <= random_ply) {
+			const unsigned int best_root_child_index = select_random_child_node(current_root, random_cutoff, random_temperature, random_cutoff_drop, random_temperature_drop);
+			std::tie(pv, cp, depth, move, best_wp, ponderMove) = get_pv(current_root, best_root_child_index);
+		}
 	}
 
 	return std::make_tuple(move, best_wp, ponderMove);
 }
 
+#ifdef MULTI_PONDER
+bool GetMultiPonderMove(std::vector<Move>& moves, int num)
+{
+	const uct_node_t* current_root = tree->GetCurrentHead();
+	// 部分ソート
+	const child_node_t* root_uct_child = current_root->child.get();
+	const int child_num = current_root->child_num;
+	if (child_num <= 1) return false;
+	const int multipv_num = std::min(num, child_num);
+	std::vector<const child_node_t*> sorted_root_uct_childs;
+	sorted_root_uct_childs.reserve(child_num);
+	for (int i = 0; i < child_num; i++)
+		sorted_root_uct_childs.emplace_back(&root_uct_child[i]);
+	std::partial_sort(sorted_root_uct_childs.begin(), sorted_root_uct_childs.begin() + multipv_num, sorted_root_uct_childs.end(), compare_child_node_ptr_descending);
+
+	for (int i = 0; i < multipv_num; i++) {
+		const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
+		moves.emplace_back(best_root_uct_child->move);
+	}
+	return true;
+}
+#endif
 
 /////////////////////////////////////
 //  UCTアルゴリズムによる着手生成  //
 /////////////////////////////////////
 Move
-UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove, bool ponder)
+UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove)
 {
-	uct_search_stop = false;
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
 		searcher.Stop(false);
@@ -809,6 +1021,11 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	init_search_begin_time = false;
 	interruption = false;
+
+	if (!reuse_subtree) {
+		// ゲーム木を再利用しない場合クリア
+		tree->DeallocateTree();
+	}
 
 	// ゲーム木を現在の局面にリセット
 	tree->ResetToPosition(starting_pos_key, moves);
@@ -818,13 +1035,16 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	
 	const uct_node_t* current_root = tree->GetCurrentHead();
 
-	pondering = ponder;
-
 	// 探索情報をクリア
 	po_info.count = 0;
 
 	// UCTの初期化
 	ExpandRoot(pos);
+
+#ifdef MULTI_PONDER
+	if (pondering)
+		PrepareMultiPonder();
+#endif
 
 	// 詰みのチェック
 	const int child_num = current_root->child_num;
@@ -853,16 +1073,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	for (int i = 0; i < max_gpu; i++)
 		search_groups[i].Join();
 
-	if (pondering) {
-#ifdef PV_MATE_SEARCH
-		// PVの詰み探索スレッド終了待機
-		for (auto& searcher : pv_mate_searchers)
-			searcher.Join();
-#endif
-
-		return Move::moveNone();
-	}
-
 #ifdef PV_MATE_SEARCH
 	// PVの詰み探索スレッド停止
 	for (auto& searcher : pv_mate_searchers)
@@ -875,7 +1085,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	// PV取得と表示
 	Move move;
 	float best_wp;
-	std::tie(move, best_wp, ponderMove) = get_and_print_pv();
+	std::tie(move, best_wp, ponderMove) = get_and_print_pv(random_ply > 0 || random2_ply > 0);
 
 	if (best_wp < RESIGN_THRESHOLD) {
 		move = Move::moveNone();
@@ -931,10 +1141,15 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		std::cout << "error" << std::endl;
 	}*/
 	// set all zero
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), 0);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), 0);
+#if defined(ONNXRUNTIME) || defined(LIBTORCH)
+	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
+	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+#else
+	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
+	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+#endif
 
-	make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #ifdef MAKE_BOOK
 	policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -942,6 +1157,28 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	current_policy_value_batch_index++;
 }
 
+// 探索回数が最も多い手と次に多い手を求める
+inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* current_root, const child_node_t* uct_child)
+{
+	int max_searched = 0, second_searched = 0;
+	int max_index = 0, second_index = 0;
+
+	const int child_num = current_root->child_num;
+	for (int i = 0; i < child_num; i++) {
+		if (uct_child[i].move_count > max_searched) {
+			second_searched = max_searched;
+			second_index = max_index;
+			max_searched = uct_child[i].move_count;
+			max_index = i;
+		}
+		else if (uct_child[i].move_count > second_searched) {
+			second_searched = uct_child[i].move_count;
+			second_index = i;
+		}
+	}
+
+	return std::make_tuple(max_searched, second_searched, max_index, second_index);
+}
 
 //////////////////////////
 //  探索打ち止めの確認  //
@@ -955,24 +1192,13 @@ InterruptionCheck(void)
 		return false;
 	}
 
-	int max_searched = 0, second_searched = 0;
-	int max_index = 0, second_index = 0;
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
-	const int child_num = current_root->child_num;
-	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].move_count > max_searched) {
-			second_searched = max_searched;
-			max_searched = uct_child[i].move_count;
-			max_index = i;
-		}
-		else if (uct_child[i].move_count > second_searched) {
-			second_searched = uct_child[i].move_count;
-			second_index = i;
-		}
-	}
+	int max_searched, second_searched;
+	int max_index, second_index;
+	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
 	// 詰みが見つかった場合は探索を打ち切る
 	if (uct_child[max_index].IsLose())
@@ -1075,7 +1301,7 @@ UCTSearcher::ParallelUctSearch()
 
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto trajectories : trajectories_batch_discarded) {
-			for (int i = trajectories->size() - 1; i >= 0; i--) {
+			for (int i = static_cast<int>(trajectories->size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories->at(i);
 				uct_node_t* current = current_next.first;
 				child_node_t* uct_child = current->child.get();
@@ -1088,7 +1314,7 @@ UCTSearcher::ParallelUctSearch()
 		for (auto& visitor : visitor_batch) {
 			auto& trajectories = visitor->trajectories;
 			float result = 1.0f - visitor->value_win;
-			for (int i = trajectories.size() - 1; i >= 0; i--) {
+			for (int i = static_cast<int>(trajectories.size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
 				const unsigned int next_index = current_next.second;
@@ -1116,15 +1342,32 @@ UCTSearcher::ParallelUctSearch()
 						cout << "info string interrupt_node_limit" << endl;*/
 					break;
 				}
+#ifdef MAKE_BOOK
+				if (use_interruption && monitoring_thread) {
+					const child_node_t* uct_child = current_root->child.get();
+
+					// 探索回数が最も多い手と次に多い手を求める
+					int max_searched, second_searched;
+					int max_index, second_index;
+					std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+
+
+					// 残りの探索で次善手が最善手を超える可能性がない場合は打ち切る
+					const int rest_po = po_info.halt - po_info.count;
+					if (max_searched - second_searched > rest_po) {
+						interruption = true;
+					}
+				}
+#endif
 			}
 			else {
 				// 探索を打ち切るか確認
 				if (monitoring_thread)
 					interruption = InterruptionCheck();
-				// 探索打ち切り
-				if (interruption) {
-					break;
-				}
+			}
+			// 探索打ち切り
+			if (interruption) {
+				break;
 			}
 		}
 
@@ -1344,7 +1587,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrtf(sum);
+	const float sqrt_sum = sqrtf(static_cast<const float>(sum));
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
@@ -1434,44 +1677,40 @@ void UCTSearcher::EvalNode() {
 		child_node_t *uct_child = node->child.get();
 
 		// 合法手一覧
-		std::vector<float> legal_move_probabilities;
-		legal_move_probabilities.reserve(child_num);
 		for (int j = 0; j < child_num; j++) {
 			const Move move = uct_child[j].move;
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (*logits)[move_label];
-			legal_move_probabilities.emplace_back(logit);
+			const float logit = (float)(*logits)[move_label];
+			uct_child[j].nnrate = logit;
 		}
 
 		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
+		softmax_temperature_with_normalize(uct_child, child_num);
 
-		for (int j = 0; j < child_num; j++) {
-			uct_child[j].nnrate = legal_move_probabilities[j];
-		}
-
-		*policy_value_batch[i].value_win = *value;
+		*policy_value_batch[i].value_win = (float)*value;
 
 #ifdef MAKE_BOOK
-		// 定跡作成時は、事前確率に定跡の遷移確率も使用する
-		constexpr float alpha = 0.5f;
-		const Key& key = policy_value_book_key[i];
-		const auto itr = bookMap.find(key);
-		if (itr != bookMap.end()) {
-			const auto& entries = itr->second;
-			// countから分布を作成
-			std::map<u16, u16> count_map;
-			int sum = 0;
-			for (const auto& entry : entries) {
-				count_map.insert(std::make_pair(entry.fromToPro, entry.count));
-				sum += entry.count;
-			}
-			// policyと定跡から作成した分布の加重平均
-			for (int j = 0; j < child_num; ++j) {
-				const Move& move = uct_child[j].move;
-				const auto itr2 = count_map.find((u16)move.proFromAndTo());
-				const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
-				uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+		if (use_book_policy) {
+			// 定跡作成時は、事前確率に定跡の遷移確率も使用する
+			constexpr float alpha = 0.5f;
+			const Key& key = policy_value_book_key[i];
+			const auto itr = bookMap.find(key);
+			if (itr != bookMap.end()) {
+				const auto& entries = itr->second;
+				// countから分布を作成
+				std::map<u16, u16> count_map;
+				int sum = 0;
+				for (const auto& entry : entries) {
+					count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+					sum += entry.count;
+				}
+				// policyと定跡から作成した分布の加重平均
+				for (int j = 0; j < child_num; ++j) {
+					const Move& move = uct_child[j].move;
+					const auto itr2 = count_map.find((u16)move.proFromAndTo());
+					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+				}
 			}
 		}
 #endif

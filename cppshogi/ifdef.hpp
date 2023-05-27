@@ -32,9 +32,9 @@
 // 機械学習を行う時は、複数の局面に対して同時に探索を実行する為に、
 // クラスで持つようにする。
 #define USE_GLOBAL
-#define STATIC static
+#define STATIC_ static
 #else
-#define STATIC
+#define STATIC_
 #endif
 
 #if 0

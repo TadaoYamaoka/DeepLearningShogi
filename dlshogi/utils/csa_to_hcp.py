@@ -6,7 +6,7 @@ import os.path
 MAX_MOVE_COUNT = 512
 
 # process csa
-def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
+def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves, limit_score):
     board = Board()
     parser = Parser()
     num_games = 0
@@ -27,20 +27,27 @@ def process_csa(f, csa_file_list, filter_moves, filter_rating, limit_moves):
             kachi_moves = len(parser.moves) - args.before_kachi_moves
         else:
             kachi_moves = None
-        for i, (move, score) in enumerate(zip(parser.moves, parser.scores)):
+        if limit_score:
+            for i, score in reversed(list(enumerate(parser.scores))):
+                if abs(score) < limit_score:
+                    limit_score_moves = i
+                    break
+        else:
+            limit_score_moves = None
+        for i, move in enumerate(parser.moves):
             if not board.is_legal(move):
                 print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
                 skip = True
                 break
 
             # hcp
-            if i >= limit_moves:
+            board.to_hcp(np.asarray(hcps[i]))
+
+            if i + 1 >= limit_moves or (limit_score_moves and i > limit_score_moves):
                 if kachi_moves and kachi and i <= kachi_moves:
-                    board.to_hcp(np.asarray(hcps[i]))
+                    pass
                 else:
                     break
-            else:
-                board.to_hcp(np.asarray(hcps[i]))
 
             board.push(move)
 
@@ -65,6 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--filter_rating', type=int, default=0, help='filter by rating')
     parser.add_argument('--recursive', '-r', action='store_true')
     parser.add_argument('--limit_moves', type=int, default=40, help='upper limit of move count')
+    parser.add_argument('--limit_score', type=int, help='upper limit of score')
     parser.add_argument('--before_kachi_moves', type=int, help='output the position until N moves before sengen kachi')
 
     args = parser.parse_args()
@@ -76,6 +84,6 @@ if __name__ == '__main__':
     csa_file_list = glob.glob(os.path.join(dir, '*.csa'), recursive=args.recursive)
 
     with open(args.hcp, 'wb') as f:
-        num_games, num_positions = process_csa(f, csa_file_list, args.filter_moves, args.filter_rating, args.limit_moves)
+        num_games, num_positions = process_csa(f, csa_file_list, args.filter_moves, args.filter_rating, args.limit_moves, args.limit_score)
         print(f"games : {num_games}")
         print(f"positions : {num_positions}")
