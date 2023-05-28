@@ -902,6 +902,13 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
+	// αβ探索の代わりにMCTSを使う
+	const bool book_use_mcts = options["Book_Use_Mcts"];
+	book_mcts_playouts = options["Book_Mcts_Playouts"];
+	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
+	book_mcts_debug = options["Book_Mcts_Debug"];
+
 	// 定跡読み込み
 	bookMap.clear();
 	read_book(bookFileName, bookMap);
@@ -913,7 +920,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	make_minmax_book(pos, bookMapMinMax, make_book_color);
+	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry);
 
 	// 出力
 	saveBookMapMinMax(outFileName, bookMapMinMax);

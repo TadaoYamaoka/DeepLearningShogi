@@ -567,7 +567,7 @@ void reset_to_position(const std::vector<Move>& moves) {
 	book_tree.ResetToPosition(moves);
 }
 
-const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
+std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
 	reset_to_position(moves);
 	book_uct_node_t* current_root = book_tree.GetCurrentHead();
 	book_child_node_t parent;
@@ -578,7 +578,6 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 
 	int playout_count = current_root->move_count;
 	std::atomic<bool> interruption = false;
-	static BookEntry tmp; // entries‚É‚È‚¢—v‘f‚ğ•Ô‚·ê‡Astatic•Ï”‚ÉŠi”[‚·‚é
 
 	#pragma omp parallel num_threads(book_mcts_threads)
 	while (playout_count < book_mcts_playouts && !interruption) {
@@ -638,15 +637,12 @@ const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key
 			std::cout << i << ": " << child[i].move.toUSI() << " count: " << child[i].move_count << " value: " << child[i].win / child[i].move_count << " evaled: " << child[i].IsEvaled() << " " << child[i].value << " prob: " << child[i].prob << std::endl;
 		}
 	}
-		
+
 	if (selected_index < entries.size()) {
-		return entries[selected_index];
+		return { selected_index, entries[selected_index].fromToPro, value_to_score(child[selected_index].value) };
 	}
 	else {
-		const float value = child[selected_index].value;
-		tmp.score = value_to_score(value);
-		tmp.fromToPro = (u16)child[selected_index].move.value();
-		return tmp;
+		return { entries.size() - selected_index - 1, (u16)child[selected_index].move.value(), value_to_score(child[selected_index].value) };
 	}
 }
 
