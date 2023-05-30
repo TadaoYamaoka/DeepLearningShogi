@@ -21,9 +21,10 @@ void NNLibTorch::forward(const int batch_size, features1_t* x1, features2_t* x2,
 	};
 
 	const auto y = model.forward(x).toTuple();
+	const auto value = torch::sigmoid(y->elements()[1].toTensor());
 
 	std::memcpy(y1, y->elements()[0].toTensor().cpu().data_ptr<float>(), sizeof(float) * batch_size * MAX_MOVE_LABEL_NUM * (size_t)SquareNum);
-	std::memcpy(y2, y->elements()[1].toTensor().cpu().data_ptr<float>(), sizeof(float) * batch_size);
+	std::memcpy(y2, value.cpu().data_ptr<float>(), sizeof(float) * batch_size);
 }
 
 #endif
