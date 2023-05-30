@@ -5,7 +5,7 @@ LDFLAGS = -flto -Wl,-rpath,/work/libtorch/lib /work/libtorch/lib/libtorch.so /wo
 INCLUDE = -I../usi_libtorch -I../usi -I../cppshogi -I../cppshogi -I/work/libtorch/include -I/work/libtorch/include/torch/csrc/api/include
 LIB = -L/work/libtorch/lib
 
-target = bin/usi
+target = bin/dlshogi_libtorch
 target_make_book = bin/make_book
 sources = nn_libtorch.cpp
 usi_sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp PvMateSearch.cpp
