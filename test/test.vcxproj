@@ -100,33 +100,33 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.4.1.5\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\TensorRT-8.4.1.5\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\TensorRT-8.5.1.7\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\TensorRT-8.5.1.7\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -284,12 +284,12 @@
     <CustomBuild Include="..\usi\unpack.cu">
       <FileType>Document</FileType>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V11_6)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V11_6)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V11_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V11_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V11_6)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V11_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V11_6)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V11_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
     </CustomBuild>
   </ItemGroup>
