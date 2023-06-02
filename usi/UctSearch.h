@@ -116,43 +116,4 @@ void SetPvMateSearch(const int threads, const int depth, const int nodes);
 void SetSuppressCheckRush(const int value);
 
 // 訪問回数が最大の子ノードを選択
-inline unsigned int select_max_child_node(const uct_node_t* uct_node)
-{
-	const child_node_t* uct_child = uct_node->child.get();
-
-	unsigned int select_index = 0;
-	int max_count = 0;
-	const int child_num = uct_node->child_num;
-	int child_win_count = 0;
-	int child_lose_count = 0;
-
-	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].IsWin()) {
-			// 負けが確定しているノードは選択しない
-			if (child_win_count == i && uct_child[i].move_count > max_count) {
-				// すべて負けの場合は、探索回数が最大の手を選択する
-				select_index = i;
-				max_count = uct_child[i].move_count;
-			}
-			child_win_count++;
-			continue;
-		}
-		else if (uct_child[i].IsLose()) {
-			// 子ノードに一つでも負けがあれば、勝ちなので選択する
-			if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-				// すべて勝ちの場合は、探索回数が最大の手を選択する
-				select_index = i;
-				max_count = uct_child[i].move_count;
-			}
-			child_lose_count++;
-			continue;
-		}
-
-		if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-			select_index = i;
-			max_count = uct_child[i].move_count;
-		}
-	}
-
-	return select_index;
-}
+unsigned int select_max_child_node(const uct_node_t* uct_node);

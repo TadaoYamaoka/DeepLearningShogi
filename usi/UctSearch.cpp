@@ -822,6 +822,22 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 	return std::make_tuple(pv, cp, depth, move, best_wp, ponderMove);
 }
 
+// 訪問回数が最大の子ノードを選択
+unsigned int select_max_child_node(const uct_node_t* uct_node)
+{
+	const child_node_t* uct_child = uct_node->child.get();
+	const auto child_num = uct_node->child_num;
+
+	// 訪問回数順にソート
+	std::vector<const child_node_t*> sorted_uct_childs;
+	sorted_uct_childs.reserve(child_num);
+	for (int i = 0; i < child_num; i++)
+		sorted_uct_childs.emplace_back(&uct_child[i]);
+	std::stable_sort(sorted_uct_childs.begin(), sorted_uct_childs.end(), compare_child_node_ptr_descending);
+
+	return sorted_uct_childs[0] - uct_child;
+}
+
 // 訪問回数に応じてランダムに子ノードを選択
 inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 {
@@ -832,7 +848,7 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node)
 	std::vector<const child_node_t*> sorted_uct_childs;
 	sorted_uct_childs.reserve(child_num);
 	for (int i = 0; i < child_num; i++)
-		sorted_uct_childs.emplace_back(&uct_node->child[i]);
+		sorted_uct_childs.emplace_back(&uct_child[i]);
 	std::stable_sort(sorted_uct_childs.begin(), sorted_uct_childs.end(), compare_child_node_ptr_descending);
 
 	// 訪問数が最大のノードの価値の一定以下は除外
@@ -1316,13 +1332,37 @@ UCTSearcher::ParallelUctSearch()
 				if (po_info.count > po_info.halt) {
 					/*if (monitoring_thread)
 						cout << "info string interrupt_node_limit" << endl;*/
-					// 探索回数が最も多い手を求める
-					const child_node_t* uct_child = current_root->child.get();
-					const auto best_index = select_max_child_node(current_root);
-					// 探索回数が0で負けでない手が残っている場合、延長する
-					std::cout << best_index << ":" << uct_child[best_index].move_count << std::endl;
-					if (uct_child[best_index].move_count == 0)
-						continue;
+					// 負け以外で探索回数が最も多い手を求める
+					{
+						const child_node_t* uct_child = current_root->child.get();
+
+						unsigned int select_index = 0;
+						int max_count = 0;
+						const int child_num = current_root->child_num;
+						int child_win_count = 0;
+						int child_lose_count = 0;
+
+						for (int i = 0; i < child_num; i++) {
+							if (uct_child[i].IsWin()) {
+								// 負けが確定しているノードは選択しない
+								child_win_count++;
+								continue;
+							}
+							else if (uct_child[i].IsLose()) {
+								// 子ノードに一つでも負けがあれば、勝ちなので選択する
+								child_lose_count++;
+								break;
+							}
+
+							if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+								select_index = i;
+								max_count = uct_child[i].move_count;
+							}
+						}
+						// 探索回数が0で負けでない手が残っている場合、延長する
+						if (child_lose_count == 0 && child_win_count != child_num && max_count == 0)
+							continue;
+					}
 					break;
 				}
 #ifdef MAKE_BOOK
