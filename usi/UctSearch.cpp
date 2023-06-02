@@ -134,6 +134,9 @@ string model_path[max_gpu];
 // ランダム
 uniform_int_distribution<int> rnd(0, 999);
 
+// 王手ラッシュ抑止
+float suppress_check_rush = 0.0f;
+
 // 末端ノードでの詰み探索の深さ(奇数であること)
 #ifndef MATE_SEARCH_DEPTH
 constexpr int MATE_SEARCH_DEPTH = 5;
@@ -501,6 +504,11 @@ void SetPvMateSearch(const int threads, const int depth, const int nodes)
 }
 #endif
 
+// 王手ラッシュ抑止
+void SetSuppressCheckRush(const int value) {
+	suppress_check_rush = (float)value / 1000.0f;
+}
+
 void
 UCTSearcherGroup::Initialize(const int new_thread, const int gpu_id, const int policy_value_batch_maxsize)
 {
@@ -768,6 +776,10 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 	// すべて負けの場合
 	else if (best_root_uct_child.IsWin()) {
 		best_wp = 0.0f;
+	}
+	// 試した手がすべて負けで、試していない手が選ばれた場合
+	else if (best_root_uct_child.move_count == 0) {
+		best_wp = 0.0f;	
 	}
 
 	const Move move = best_root_uct_child.move;
@@ -1100,6 +1112,47 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 	return std::make_tuple(max_searched, second_searched, max_index, second_index);
 }
 
+bool SuppressCheckRush() {
+	if (po_info.halt > 0) {
+		if (po_info.count < po_info.halt / 4)
+			return false;
+	}
+	else {
+		const auto spend_time = begin_time.elapsed();
+		if (spend_time * 10 < time_limit || spend_time < minimum_time) {
+			return false;
+		}
+		const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
+		if (po_info.count < (po_info.count + rest_po) / 4)
+			return false;
+	}
+
+	uct_node_t* current_root = tree->GetCurrentHead();
+	child_node_t* uct_child = current_root->child.get();
+
+	int max_searched, second_searched;
+	int max_index, second_index;
+	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
+
+	const auto& best_root_uct_child = uct_child[max_index];
+	float best_wp = best_root_uct_child.win / best_root_uct_child.move_count;
+
+	if (best_root_uct_child.IsWin() || best_wp < suppress_check_rush) {
+		// 王手をかける手を負けにする
+		const int child_num = current_root->child_num;
+		for (MoveList<Check> ml(*pos_root); !ml.end(); ++ml) {
+			for (int i = 0; i < child_num; i++) {
+				if (uct_child[i].move == ml.move()) {
+					uct_child[i].SetWin();
+					uct_child[i].move_count = 0;
+					//std::cout << ml.move().toUSI() << std::endl;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 //////////////////////////
 //  探索打ち止めの確認  //
 //////////////////////////
@@ -1176,6 +1229,9 @@ UCTSearcher::ParallelUctSearch()
 		last_pv_print = 0;
 		monitoring_thread = true;
 	}
+
+	// 王手ラッシュ抑止
+	bool need_suppress_check_rush = monitoring_thread && suppress_check_rush > 0.0f;
 
 	// 探索経路のバッチ
 	vector<visitor_t> visitor_pool(policy_value_batch_maxsize);
@@ -1260,6 +1316,13 @@ UCTSearcher::ParallelUctSearch()
 				if (po_info.count > po_info.halt) {
 					/*if (monitoring_thread)
 						cout << "info string interrupt_node_limit" << endl;*/
+					// 探索回数が最も多い手を求める
+					const child_node_t* uct_child = current_root->child.get();
+					const auto best_index = select_max_child_node(current_root);
+					// 探索回数が0で負けでない手が残っている場合、延長する
+					std::cout << best_index << ":" << uct_child[best_index].move_count << std::endl;
+					if (uct_child[best_index].move_count == 0)
+						continue;
 					break;
 				}
 #ifdef MAKE_BOOK
@@ -1288,6 +1351,11 @@ UCTSearcher::ParallelUctSearch()
 			// 探索打ち切り
 			if (interruption) {
 				break;
+			}
+			// 王手ラッシュ抑止
+			if (need_suppress_check_rush) {
+				if (SuppressCheckRush())
+					need_suppress_check_rush = false;
 			}
 		}
 

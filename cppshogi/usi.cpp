@@ -92,7 +92,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["UCT_Threads6"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads7"]                = USIOption(0, 0, 256);
     (*this)["UCT_Threads8"]                = USIOption(0, 0, 256);
-    (*this)["DNN_Model"]                   = USIOption(R"(model.onnx)");
+    (*this)["DNN_Model"]                   = USIOption(R"(model-shogiwars-022.onnx)");
     (*this)["DNN_Model2"]                  = USIOption("");
     (*this)["DNN_Model3"]                  = USIOption("");
     (*this)["DNN_Model4"]                  = USIOption("");
@@ -136,6 +136,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random_Cutoff_Drop"]          = USIOption(30, -1000, 1000);
     (*this)["Random_Ply2"]                 = USIOption(0, 0, 1000);
     (*this)["Random_Cutoff2"]              = USIOption(250, 0, 1000);
+    (*this)["Suppress_Check_Rush"]         = USIOption(50, 0, 1000);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);

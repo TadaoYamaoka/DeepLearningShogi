@@ -112,6 +112,9 @@ void SetDrawPly(const int ply);
 // PVの詰み探索の設定
 void SetPvMateSearch(const int threads, const int depth, const int nodes);
 
+// 王手ラッシュ抑止
+void SetSuppressCheckRush(const int value);
+
 // 訪問回数が最大の子ノードを選択
 inline unsigned int select_max_child_node(const uct_node_t* uct_node)
 {
