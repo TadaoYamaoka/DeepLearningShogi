@@ -32,6 +32,7 @@ struct MySearcher : Searcher {
 	static void makeBookPositions(std::istringstream& ssCmd);
 	static void outpuNoneConnectPositions(std::istringstream& ssCmd);
 	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
+	static void diffEval(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -396,6 +397,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book_positions") makeBookPositions(ssCmd);
 		else if (token == "output_none_connect_positions") outpuNoneConnectPositions(ssCmd);
 		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
+		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -649,22 +651,6 @@ private:
 	std::string filename;
 	bool use_book_lock;
 };
-
-void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, std::vector<BookEntry> >& outMap) {
-	// キーをソート
-	std::set<Key> keySet;
-	for (auto& elem : outMap) {
-		keySet.emplace(elem.first);
-	}
-
-	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-	for (const Key key : keySet) {
-		const auto itr = outMap.find(key);
-		const auto& elem = *itr;
-		for (auto& elel : elem.second)
-			ofs.write(reinterpret_cast<const char*>(&(elel)), sizeof(BookEntry));
-	}
-}
 
 // 定跡作成
 void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) {
@@ -1384,5 +1370,95 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 		}
 		std::cout << "outMap.size:" << outMap.size() << " count: " << count << std::endl;
 	}
+}
+
+// 評価値が割れる局面を延長する
+void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) {
+	// isreadyを先に実行しておくこと。
+
+	std::string bookFileName;
+	std::string outFileName;
+	int playoutNum;
+	int diff;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> playoutNum;
+	ssCmd >> diff;
+
+	// プレイアウト数固定
+	LimitsType limits;
+	limits.nodes = playoutNum;
+
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	book_cutoff = options["Book_Cutoff"] / 1000.0f;
+
+	// 事前確率に定跡の遷移確率も使用する
+	use_book_policy = options["Use_Book_Policy"];
+
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
+
+	SetReuseSubtree(options["ReuseSubtree"]);
+
+	// outFileが存在するときは追加する
+	int input_num = 0;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+				input_num++;
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	book_pos_cmd = "position " + posCmd;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		if (token != "moves")
+			book_pos_cmd += " moves";
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+		}
+	}
+	book_starting_pos_key = pos.getKey();
+
+	// 定跡読み込み
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	diff_eval(pos, bookMap, outMap, limits, (Score)diff, outFileName);
+
+	// 結果表示
+	std::cout << "outMap.size:" << outMap.size() << std::endl;
 }
 #endif

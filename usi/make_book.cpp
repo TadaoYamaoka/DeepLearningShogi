@@ -349,7 +349,7 @@ std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::uno
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, LimitsType& limits, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry) {
+void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry) {
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
@@ -440,7 +440,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::unordered_map<Key, 
 		}
 		else {
 			// 定跡を使用
-			std::vector<BookEntry>* entries;
+			const std::vector<BookEntry>* entries;
 
 			// 局面が定跡にあるか確認
 			if (itr != bookMap.end()) {
@@ -511,7 +511,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::unordered_map<Key, 
 	}
 }
 
-void make_book_alpha_beta(Position& pos, LimitsType& limits, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
+void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
 	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry);
 }
 
@@ -668,6 +668,22 @@ void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& b
 	}
 }
 
+void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, std::vector<BookEntry> >& outMap) {
+	// キーをソート
+	std::set<Key> keySet;
+	for (auto& elem : outMap) {
+		keySet.emplace(elem.first);
+	}
+
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (const Key key : keySet) {
+		const auto itr = outMap.find(key);
+		const auto& elem = *itr;
+		for (auto& elel : elem.second)
+			ofs.write(reinterpret_cast<const char*>(&(elel)), sizeof(BookEntry));
+	}
+}
+
 std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
 	const auto bookMoveScore = book.probeConsideringDraw(pos, fileName);
 	const Move move = std::get<0>(bookMoveScore);
@@ -788,5 +804,115 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 			}
 		}
 	}
+}
+
+// 合流局面を列挙する
+struct Junction {
+	Ply depth;
+	bool searched;
+};
+void enumerate_junctions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Junction>& junctions, std::unordered_map<Key, Ply>& exists) {
+	const Key key = Book::bookKey(pos);
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return;
+
+	// 合流
+	{
+		const auto itr_exists = exists.emplace(key, pos.gamePly());
+		if (!itr_exists.second) {
+			Junction junction = { std::min(pos.gamePly(), itr_exists.first->second), false };
+			auto itr_junction = junctions.emplace(key, junction);
+			if (!itr_junction.second) {
+				auto& junction2 = itr_junction.first->second;
+				if (pos.gamePly() < junction2.depth)
+					junction2.depth = pos.gamePly();
+			}
+			return;
+		}
+	}
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		enumerate_junctions(pos, bookMap, junctions, exists);
+		pos.undoMove(move);
+	}
+}
+
+// 評価値が割れる局面を延長する
+void diff_eval_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, std::unordered_map<Key, Junction>& junctions, LimitsType& limits, const Score diff, std::vector<Move> moves, const std::string& outFileName) {
+	const Key key = Book::bookKey(pos);
+	auto itr = outMap.find(key);
+	if (itr == outMap.end())
+		return;
+
+	// 合流
+	{
+		auto& itr_junction = junctions.find(key);
+		if (itr_junction != junctions.end()) {
+			if (!itr_junction->second.searched && pos.gamePly() == itr_junction->second.depth)
+				itr_junction->second.searched = true;
+			else
+				return;
+		}
+	}
+
+	// 評価値差分
+	{
+		const auto itr_book = bookMap.find(key);
+		if (itr_book != bookMap.end()) {
+			const auto& best_entry = itr_book->second[0];
+			const Score score = itr->second[0].score;
+			if (score * best_entry.score < 0 && std::abs(score - best_entry.score) >= diff) {
+				// 評価値の符号が異なり、差がdiff以上
+				const Move move = move16toMove(Move(best_entry.fromToPro), pos);
+				Key key_after = Book::bookKeyAfter(pos, key, move);
+				if (outMap.find(key_after) == outMap.end()) {
+					// 最善手が定跡にない場合
+					std::cout << "diff: " << score << ", " << best_entry.score << std::endl;
+					// 最善手を指して、定跡を延長
+					StateInfo state;
+					int count = 0;
+					pos.doMove(move, state);
+					moves.emplace_back(move);
+					make_book_entry_with_uct(pos, limits, key_after, outMap, count, moves);
+					moves.pop_back();
+					pos.undoMove(move);
+					// 保存
+					saveOutmap(outFileName, outMap);
+				}
+			}
+		}
+	}
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		moves.emplace_back(move);
+		diff_eval_inner(pos, bookMap, outMap, junctions, limits, diff, moves, outFileName);
+		moves.pop_back();
+		pos.undoMove(move);
+	}
+}
+
+// 評価値が割れる局面を延長する
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName) {
+	// 合流局面を列挙する
+	std::unordered_map<Key, Junction> junctions;
+	{
+		std::unordered_map<Key, Ply> exists;
+		enumerate_junctions(pos, outMap, junctions, exists);
+
+		std::cout << "positions: " << exists.size() << std::endl;
+	}
+
+	// 評価値が割れる局面を延長する
+	std::vector<Move> moves;
+	diff_eval_inner(pos, bookMap, outMap, junctions, limits, diff, moves, outFileName);
 }
 #endif
