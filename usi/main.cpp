@@ -676,9 +676,6 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 1定跡作成ごとのスリープ時間(ガベージコレクションが間に合わない場合に設定する)
 	make_book_sleep = options["Make_Book_Sleep"];
 
-	// 事前確率に定跡の遷移確率も使用する
-	use_book_policy = options["Use_Book_Policy"];
-
 	// 探索打ち切りを使用する
 	use_interruption = options["Use_Interruption"];
 
@@ -1019,9 +1016,6 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 	LimitsType limits;
 	limits.nodes = playoutNum;
 
-	// 事前確率に定跡の遷移確率も使用する
-	use_book_policy = options["Use_Book_Policy"];
-
 	// 探索打ち切りを使用する
 	use_interruption = options["Use_Interruption"];
 
@@ -1162,9 +1156,6 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 
 	// 保存間隔
 	const int save_book_interval = options["Save_Book_Interval"];
-
-	// 事前確率に定跡の遷移確率も使用する
-	use_book_policy = options["Use_Book_Policy"];
 
 	// 探索打ち切りを使用する
 	use_interruption = options["Use_Interruption"];
@@ -1394,9 +1385,6 @@ void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
 
 	book_cutoff = options["Book_Cutoff"] / 1000.0f;
-
-	// 事前確率に定跡の遷移確率も使用する
-	use_book_policy = options["Use_Book_Policy"];
 
 	// 探索打ち切りを使用する
 	use_interruption = options["Use_Interruption"];

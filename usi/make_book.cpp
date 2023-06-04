@@ -35,7 +35,6 @@ Key book_starting_pos_key;
 std::string book_pos_cmd;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
-bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.005;
