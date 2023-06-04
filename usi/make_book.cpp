@@ -740,10 +740,10 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	std::cout << "positions: " << positions.size() << std::endl;
 
 	// USIエンジン初期化
-	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines;
-	usi_book_engines.reserve(engine_num);
+	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num);
+	#pragma omp parallel for num_threads(engine_num)
 	for (int i = 0; i < engine_num; ++i) {
-		usi_book_engines.emplace_back(create_usi_book_engine(engine_path, engine_options));
+		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options);
 	}
 	usi_book_engine_nodes = nodes;
 
