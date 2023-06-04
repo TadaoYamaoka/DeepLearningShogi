@@ -809,7 +809,7 @@ std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map
 	return results;
 }
 
-void enumerate_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists) {
+void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists) {
 	const Key key = Book::bookKey(pos);
 	auto itr = bookMap.find(key);
 	if (itr == bookMap.end())
@@ -830,9 +830,9 @@ void enumerate_positions(Position& pos, std::unordered_map<Key, std::vector<Book
 	}
 }
 
-void make_mcts_book(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap) {
+void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap) {
 	// ‘S‹Ç–Ê‚ð—ñ‹“
-	std::vector<std::pair<HuffmanCodedPos, std::vector<BookEntry>*>> positions;
+	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
 	{
 		std::unordered_set<Key> exists;
 		enumerate_positions(pos, bookMap, positions, exists);
