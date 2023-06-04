@@ -1356,8 +1356,20 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 	std::istringstream ssPosCmd(posCmd);
 	setPosition(pos, ssPosCmd);
 
-	//  USIエンジンで局面を評価する
+	// 出力定跡読み込み
 	std::map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	//  USIエンジンで局面を評価する
 	eval_positions_with_usi_engine(pos, bookMap, outMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num);
 
 	// 出力

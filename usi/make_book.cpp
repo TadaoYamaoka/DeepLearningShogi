@@ -734,6 +734,12 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
 	{
 		std::unordered_set<Key> exists;
+
+		// 出力定跡に含まれる局面は除外する
+		for (const auto& kv : outMap) {
+			exists.emplace(kv.first);
+		}
+
 		enumerate_positions(pos, bookMap, positions, exists);
 	}
 
