@@ -15,6 +15,8 @@
 #include "USIBookEngine.h"
 
 #include <filesystem>
+#include <regex>
+#include <omp.h>
 
 struct child_node_t_copy {
 	Move move;       // 着手する座標
@@ -691,10 +693,7 @@ std::string getBookPV(Position& pos, const std::string& fileName) {
 	return get_book_pv_inner(pos, fileName, book);
 };
 
-void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own) {
-	if (engine_path == "")
-		return;
-
+std::unique_ptr<USIBookEngine> create_usi_book_engine(const std::string& engine_path, const std::string& engine_options) {
 	std::vector<std::pair<std::string, std::string>> usi_engine_options;
 	std::istringstream ss(engine_options);
 	std::string field;
@@ -702,7 +701,13 @@ void init_usi_book_engine(const std::string& engine_path, const std::string& eng
 		const auto p = field.find_first_of(":");
 		usi_engine_options.emplace_back(field.substr(0, p), field.substr(p + 1));
 	}
-	usi_book_engine.reset(new USIBookEngine(engine_path, usi_engine_options));
+	return std::make_unique<USIBookEngine>(engine_path, usi_engine_options);
+}
+
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own) {
+	if (engine_path == "")
+		return;
+	usi_book_engine = create_usi_book_engine(engine_path, engine_options);
 	usi_book_engine_nodes = nodes;
 	usi_book_engine_prob = prob;
 	usi_book_engine_nodes_own = nodes_own;
@@ -720,6 +725,62 @@ void init_book_key_eval_map(const std::string& str) {
 		const Key key = std::stoull(field.substr(0, p));
 		const Score score = (Score)std::stoi(field.substr(p + 1));
 		book_key_eval_map.emplace(key, score);
+	}
+}
+
+// USIエンジンで局面を評価する
+void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num) {
+	// 全局面を列挙
+	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
+	{
+		std::unordered_set<Key> exists;
+		enumerate_positions(pos, bookMap, positions, exists);
+	}
+
+	std::cout << "positions: " << positions.size() << std::endl;
+
+	// USIエンジン初期化
+	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines;
+	usi_book_engines.reserve(engine_num);
+	for (int i = 0; i < engine_num; ++i) {
+		usi_book_engines.emplace_back(create_usi_book_engine(engine_path, engine_options));
+	}
+	usi_book_engine_nodes = nodes;
+
+	// 並列で評価
+	const int positions_size = (int)positions.size();
+	const std::vector<Move> moves = {};
+	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
+	#pragma omp parallel for num_threads(engine_num)
+	for (int i = 0; i < positions_size; ++i) {
+		Position pos;
+		pos.set(positions[i].first);
+		const auto usi_result = usi_book_engines[omp_get_thread_num()]->Go("position " + pos.toSFEN(), moves, usi_book_engine_nodes);
+		if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
+			continue;
+		const Key key = Book::bookKey(pos);
+		#pragma omp critical
+		{
+			BookEntry be;
+			be.key = key;
+			be.fromToPro = (u16)usiToMove(pos, usi_result.bestMove).value();
+			be.count = 1;
+			std::smatch m;
+			if (std::regex_search(usi_result.info, m, re)) {
+				if (m[1].str() == "cp") {
+					be.score = (Score)std::stoi(m[2].str());
+				}
+				else { // mate
+					if (m[2].str()[0] == '-')
+						be.score = -ScoreMaxEvaluate;
+					else
+						be.score = ScoreMaxEvaluate;
+				}
+				outMap[key].emplace_back(be);
+				if (outMap.size() % 10000 == 0)
+					std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
+			}
+		}
 	}
 }
 #endif

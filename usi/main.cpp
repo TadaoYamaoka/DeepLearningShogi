@@ -31,6 +31,7 @@ struct MySearcher : Searcher {
 	static void makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPositions(std::istringstream& ssCmd);
 	static void outpuNoneConnectPositions(std::istringstream& ssCmd);
+	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -394,6 +395,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_book_position") makeBookPosition(ssCmd, posCmd);
 		else if (token == "make_book_positions") makeBookPositions(ssCmd);
 		else if (token == "output_none_connect_positions") outpuNoneConnectPositions(ssCmd);
+		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1333,4 +1335,42 @@ void MySearcher::outpuNoneConnectPositions(std::istringstream& ssCmd) {
 	std::cout << "exists: " << exists.size() << " count: " << count << std::endl;
 }
 
+// USIエンジンで局面を評価する
+void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string outFileName;
+	int engine_num;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> engine_num;
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	//  USIエンジンで局面を評価する
+	std::map<Key, std::vector<BookEntry> > outMap;
+	eval_positions_with_usi_engine(pos, bookMap, outMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num);
+
+	// 出力
+	{
+		size_t count = 0;
+		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+		for (auto& elem : outMap) {
+			for (auto& elel : elem.second) {
+				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+				count++;
+			}
+		}
+		std::cout << "outMap.size:" << outMap.size() << " count: " << count << std::endl;
+	}
+}
 #endif

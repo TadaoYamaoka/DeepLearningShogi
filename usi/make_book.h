@@ -53,4 +53,6 @@ std::string getBookPV(Position& pos, const std::string& fileName);
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own);
 void init_book_key_eval_map(const std::string& str);
 void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_set<Key>& exists, std::ofstream& ofs, int& count);
+void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists);
+void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num);
 #endif
