@@ -759,26 +759,26 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 		if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
 			continue;
 		const Key key = Book::bookKey(pos);
-		#pragma omp critical
-		{
-			BookEntry be;
-			be.key = key;
-			be.fromToPro = (u16)usiToMove(pos, usi_result.bestMove).value();
-			be.count = 1;
-			std::smatch m;
-			if (std::regex_search(usi_result.info, m, re)) {
-				if (m[1].str() == "cp") {
-					be.score = (Score)std::stoi(m[2].str());
-				}
-				else { // mate
-					if (m[2].str()[0] == '-')
-						be.score = -ScoreMaxEvaluate;
-					else
-						be.score = ScoreMaxEvaluate;
-				}
-				outMap[key].emplace_back(be);
-				if (outMap.size() % 10000 == 0)
-					std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
+		BookEntry be;
+		be.key = key;
+		be.fromToPro = (u16)usiToMove(pos, usi_result.bestMove).value();
+		be.count = 1;
+		std::smatch m;
+		if (std::regex_search(usi_result.info, m, re)) {
+			if (m[1].str() == "cp") {
+				be.score = (Score)std::stoi(m[2].str());
+			}
+			else { // mate
+				if (m[2].str()[0] == '-')
+					be.score = -ScoreMaxEvaluate;
+				else
+					be.score = ScoreMaxEvaluate;
+			}
+			#pragma omp critical
+			{
+					outMap[key].emplace_back(be);
+					if (outMap.size() % 10000 == 0)
+						std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
 			}
 		}
 	}
