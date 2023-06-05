@@ -727,6 +727,9 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
+		// 探索回数が0回の手は選択しない
+		if (rhs->move_count == 0)
+			return true;
 		return false;
 	}
 	else if (lhs->IsLose()) {
@@ -747,6 +750,9 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 				return lhs->nnrate > rhs->nnrate;
 			return lhs->move_count > rhs->move_count;
 		}
+		// 探索回数が0回の手は選択しない
+		if (lhs->move_count == 0)
+			return false;
 		return true;
 	}
 	else if (rhs->IsLose()) {
@@ -1332,37 +1338,6 @@ UCTSearcher::ParallelUctSearch()
 				if (po_info.count > po_info.halt) {
 					/*if (monitoring_thread)
 						cout << "info string interrupt_node_limit" << endl;*/
-					// 負け以外で探索回数が最も多い手を求める
-					{
-						const child_node_t* uct_child = current_root->child.get();
-
-						unsigned int select_index = 0;
-						int max_count = 0;
-						const int child_num = current_root->child_num;
-						int child_win_count = 0;
-						int child_lose_count = 0;
-
-						for (int i = 0; i < child_num; i++) {
-							if (uct_child[i].IsWin()) {
-								// 負けが確定しているノードは選択しない
-								child_win_count++;
-								continue;
-							}
-							else if (uct_child[i].IsLose()) {
-								// 子ノードに一つでも負けがあれば、勝ちなので選択する
-								child_lose_count++;
-								break;
-							}
-
-							if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-								select_index = i;
-								max_count = uct_child[i].move_count;
-							}
-						}
-						// 探索回数が0で負けでない手が残っている場合、延長する
-						if (child_lose_count == 0 && child_win_count != child_num && max_count == 0)
-							continue;
-					}
 					break;
 				}
 #ifdef MAKE_BOOK
