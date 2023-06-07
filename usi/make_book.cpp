@@ -850,7 +850,7 @@ void diff_eval_inner(Position& pos, const std::unordered_map<Key, std::vector<Bo
 
 	// 合流
 	{
-		auto& itr_junction = junctions.find(key);
+		const auto& itr_junction = junctions.find(key);
 		if (itr_junction != junctions.end()) {
 			if (!itr_junction->second.searched && pos.gamePly() == itr_junction->second.depth)
 				itr_junction->second.searched = true;
