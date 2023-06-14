@@ -809,7 +809,7 @@ std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map
 	return results;
 }
 
-void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists) {
+void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists, const std::map<Key, std::vector<BookEntry> >& skip) {
 	const Key key = Book::bookKey(pos);
 	auto itr = bookMap.find(key);
 	if (itr == bookMap.end())
@@ -818,7 +818,8 @@ void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vecto
 	if (!exists.emplace(key).second)
 		return;
 
-	positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
+	if (skip.find(key) == skip.end())
+		positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
 
 	// Stack overflow‚ğ”ğ‚¯‚é‚½‚ßƒq[ƒv‚ÉŠm•Û‚·‚é
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
