@@ -826,7 +826,7 @@ void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vecto
 		const Move move = ml->move();
 		auto state = std::make_unique<StateInfo>();
 		pos.doMove(move, *state);
-		enumerate_positions(pos, bookMap, positions, exists);
+		enumerate_positions(pos, bookMap, positions, exists, skip);
 		pos.undoMove(move);
 	}
 }
