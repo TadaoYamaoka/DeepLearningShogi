@@ -33,6 +33,7 @@ struct MySearcher : Searcher {
 	static void outpuNoneConnectPositions(std::istringstream& ssCmd);
 	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 	static void diffEval(std::istringstream& ssCmd, const std::string& posCmd);
+	static void deleteOverMaxEval(std::istringstream& ssCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -398,6 +399,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "output_none_connect_positions") outpuNoneConnectPositions(ssCmd);
 		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
+		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1448,5 +1450,44 @@ void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
+}
+
+// 評価値が最大値を超える局面を削除
+void MySearcher::deleteOverMaxEval(std::istringstream& ssCmd) {
+	std::string outFileName;
+
+	ssCmd >> outFileName;
+
+	int input_num = 0;
+	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	{
+		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
+		if (ifsOutFile) {
+			BookEntry entry;
+			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+				outMap[entry.key].emplace_back(entry);
+				input_num++;
+			}
+			std::cout << "outMap.size: " << outMap.size() << std::endl;
+		}
+	}
+
+	std::vector<Key> delete_keys;
+	for (auto kv : outMap) {
+		const auto& entries = kv.second;
+		for (const auto& entry : entries) {
+			if (entry.score < -ScoreMaxEvaluate || entry.score > ScoreMaxEvaluate) {
+				delete_keys.emplace_back(kv.first);
+				break;
+			}
+		}
+	}
+
+	for (const Key key : delete_keys) {
+		outMap.erase(key);
+	}
+
+	// 保存
+	saveOutmap(outFileName, outMap);
 }
 #endif
