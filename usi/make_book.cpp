@@ -28,6 +28,8 @@ struct child_node_t_copy {
 		this->move_count = child.move_count;
 		this->win = child.win;
 	}
+	bool IsWin() const { return move.value() & VALUE_WIN; }
+	bool IsLose() const { return move.value() & VALUE_LOSE; }
 };
 
 std::unordered_map<Key, std::vector<BookEntry> > bookMap;
@@ -118,7 +120,15 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		// 定跡追加
 		BookEntry be;
 		const auto wintrate = child.win / child.move_count;
-		be.score = Score(int(-log(1.0 / wintrate - 1.0) * 754.3));
+		if (child.IsWin() || wintrate == 0.0) {
+			be.score = -ScoreMaxEvaluate;
+		}
+		else if (child.IsLose() || wintrate == 1.0) {
+			be.score = ScoreMaxEvaluate;
+		}
+		else {
+			be.score = Score(int(-log(1.0 / wintrate - 1.0) * 754.3));
+		}
 		be.key = key;
 		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
 		be.count = (u16)((double)child.move_count / (double)current_root->move_count * 1000.0);
