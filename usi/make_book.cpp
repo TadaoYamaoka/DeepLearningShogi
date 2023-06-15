@@ -860,7 +860,8 @@ void diff_eval_inner(Position& pos, const std::unordered_map<Key, std::vector<Bo
 		if (itr_book != bookMap.end()) {
 			const auto& best_entry = itr_book->second[0];
 			const Score score = itr->second[0].score;
-			if (score * best_entry.score < 0 && best_entry.score - score >= diff) {
+			const auto best_score = std::min(std::max(best_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
+			if (score * best_score < 0 && best_score - score >= diff) {
 				// 評価値の符号が異なり、差がdiff以上
 				const Move move = move16toMove(Move(best_entry.fromToPro), pos);
 				Key key_after = Book::bookKeyAfter(pos, key, move);
