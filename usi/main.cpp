@@ -1489,5 +1489,7 @@ void MySearcher::deleteOverMaxEval(std::istringstream& ssCmd) {
 
 	// 保存
 	saveOutmap(outFileName, outMap);
+
+	std::cout << "outMap.size: " << outMap.size() << std::endl;
 }
 #endif
