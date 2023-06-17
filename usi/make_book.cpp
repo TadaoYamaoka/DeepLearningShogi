@@ -868,26 +868,33 @@ void diff_eval_inner(Position& pos, const std::unordered_map<Key, std::vector<Bo
 	{
 		const auto itr_book = bookMap.find(key);
 		if (itr_book != bookMap.end()) {
-			const auto& best_entry = itr_book->second[0];
-			const Score score = itr->second[0].score;
-			const auto best_score = std::min(std::max(best_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
-			if (score * best_score < 0 && best_score - score >= diff) {
+			const auto& entry = itr->second[0];
+			const Score score = entry.score;
+			const auto& opp_entry = itr_book->second[0];
+			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
+			if (score * opp_score < 0) {
 				// 評価値の符号が異なり、差がdiff以上
-				const Move move = move16toMove(Move(best_entry.fromToPro), pos);
-				Key key_after = Book::bookKeyAfter(pos, key, move);
-				if (outMap.find(key_after) == outMap.end()) {
-					// 最善手が定跡にない場合
-					std::cout << "diff: " << score << ", " << best_entry.score << std::endl;
-					// 最善手を指して、定跡を延長
-					StateInfo state;
-					int count = 0;
-					pos.doMove(move, state);
-					moves.emplace_back(move);
-					make_book_entry_with_uct(pos, limits, key_after, outMap, count, moves);
-					moves.pop_back();
-					pos.undoMove(move);
-					// 保存
-					saveOutmap(outFileName, outMap);
+				if (std::abs(opp_score - score) >= diff) {
+					const Move move = (score < opp_score) ?
+						// 悲観している局面では、相手の指し手を選ぶ
+						move16toMove(Move(opp_entry.fromToPro), pos) :
+						// 楽観している局面では、自分の指し手を選ぶ
+						move16toMove(Move(entry.fromToPro), pos);
+					Key key_after = Book::bookKeyAfter(pos, key, move);
+					if (outMap.find(key_after) == outMap.end()) {
+						// 最善手が定跡にない場合
+						std::cout << "diff: " << score << ", " << opp_entry.score << std::endl;
+						// 最善手を指して、定跡を延長
+						StateInfo state;
+						int count = 0;
+						pos.doMove(move, state);
+						moves.emplace_back(move);
+						make_book_entry_with_uct(pos, limits, key_after, outMap, count, moves);
+						moves.pop_back();
+						pos.undoMove(move);
+						// 保存
+						saveOutmap(outFileName, outMap);
+					}
 				}
 			}
 		}
