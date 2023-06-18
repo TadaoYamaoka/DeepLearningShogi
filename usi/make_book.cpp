@@ -974,7 +974,7 @@ void enumerate_positions_with_move(Position& pos, const std::unordered_map<Key, 
 	}
 
 	// 追加
-	const auto& position = positions.emplace_back(move, depth, parent);
+	const auto& position = positions.emplace_back(PositionWithMove{ move, depth, parent });
 
 	const auto& entries = itr->second;
 	for (const auto& entry : entries) {
@@ -1019,7 +1019,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	assert(positions.size == exists_size);
 
 	std::vector<int> indexes;
-	for (int i = 0; i < positions.size(); ++i) {
+	for (int i = 0; i < (int)positions.size(); ++i) {
 		if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
 			indexes.emplace_back(i);
 		}
@@ -1058,7 +1058,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 		{
 			auto& out_entries = outMap[key];
 			assert(out_entries.size() == 0);
-			out_entries.emplace_back(key, move16, 1, score);
+			out_entries.emplace_back(BookEntry{ key, move16, 1, score });
 			if (outMap.size() % 10000 == 0)
 				std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
 		}
