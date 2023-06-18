@@ -280,7 +280,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
 	const Key key = Book::bookKey(pos);
 
-	Score alpha = -ScoreInfinite;
+	Score alpha = (Score)INT_MIN;
 	const BookEntry* best = nullptr;
 	BookEntry tmp; // entriesにない要素を返す場合
 	std::map<Key, Searched> searched;
@@ -693,6 +693,15 @@ void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, st
 	}
 }
 
+void saveOutmap(const std::string& outFileName, const std::map<Key, std::vector<BookEntry> >& outMap) {
+	std::ofstream ofs(outFileName.c_str(), std::ios::binary);
+	for (auto& elem : outMap) {
+		for (auto& elel : elem.second) {
+			ofs.write(reinterpret_cast<const char*>(&(elel)), sizeof(BookEntry));
+		}
+	}
+}
+
 std::string get_book_pv_inner(Position& pos, const std::string& fileName, Book& book) {
 	const auto bookMoveScore = book.probeConsideringDraw(pos, fileName);
 	const Move move = std::get<0>(bookMoveScore);
@@ -836,9 +845,21 @@ void enumerate_junctions(Position& pos, const std::unordered_map<Key, std::vecto
 		}
 	}
 
+	const auto& entries = itr->second;
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		enumerate_junctions(pos, bookMap, junctions, exists);
+		pos.undoMove(move);
+	}
+
 	// Stack overflowを避けるためヒープに確保する
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
 		const Move move = ml->move();
+		const u16 move16 = (u16)move.value();
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
 		auto state = std::make_unique<StateInfo>();
 		pos.doMove(move, *state);
 		enumerate_junctions(pos, bookMap, junctions, exists);
@@ -857,7 +878,7 @@ void diff_eval_inner(Position& pos, const std::unordered_map<Key, std::vector<Bo
 	{
 		const auto& itr_junction = junctions.find(key);
 		if (itr_junction != junctions.end()) {
-			if (!itr_junction->second.searched && pos.gamePly() == itr_junction->second.depth)
+			if (!itr_junction->second.searched && pos.gamePly() <= itr_junction->second.depth)
 				itr_junction->second.searched = true;
 			else
 				return;
@@ -926,5 +947,121 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 	// 評価値が割れる局面を延長する
 	std::vector<Move> moves;
 	diff_eval_inner(pos, bookMap, outMap, junctions, limits, diff, moves, outFileName);
+}
+
+struct PositionWithMove {
+	Move move;
+	int depth;
+	const PositionWithMove* parent;
+};
+
+// 局面を列挙する
+void enumerate_positions_with_move(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Junction>& junctions, std::vector<PositionWithMove>& positions, const PositionWithMove* parent, const Move move, const int depth) {
+	const Key key = Book::bookKey(pos);
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return;
+
+	// 合流
+	{
+		const auto& itr_junction = junctions.find(key);
+		if (itr_junction != junctions.end()) {
+			if (!itr_junction->second.searched && pos.gamePly() <= itr_junction->second.depth)
+				itr_junction->second.searched = true;
+			else
+				return;
+		}
+	}
+
+	// 追加
+	const auto& position = positions.emplace_back(move, depth, parent);
+
+	const auto& entries = itr->second;
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		enumerate_positions_with_move(pos, bookMap, junctions, positions, &position, move, depth + 1);
+		pos.undoMove(move);
+	}
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		const u16 move16 = (u16)move.value();
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		enumerate_positions_with_move(pos, bookMap, junctions, positions, &position, move, depth + 1);
+		pos.undoMove(move);
+	}
+}
+
+
+// 全ての局面についてαβで定跡を作る
+void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads) {
+	// 合流局面を列挙する
+	size_t exists_size;
+	std::unordered_map<Key, Junction> junctions;
+	{
+		std::unordered_map<Key, Ply> exists;
+		enumerate_junctions(pos, bookMap, junctions, exists);
+
+		std::cout << "positions: " << exists.size() << std::endl;
+		exists_size = exists.size();
+	}
+
+	// 局面を列挙する
+	std::vector<PositionWithMove> positions;
+	positions.reserve(exists_size); // 追加で要素のpointerが無効にならないようにする
+	enumerate_positions_with_move(pos, bookMap, junctions, positions, nullptr, Move::moveNone(), 0);
+	assert(positions.size == exists_size);
+
+	std::vector<int> indexes;
+	for (int i = 0; i < positions.size(); ++i) {
+		if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
+			indexes.emplace_back(i);
+		}
+	}
+
+	// 並列でminmax定跡作成
+	const int indexes_size = (int)indexes.size();
+	#pragma omp parallel for num_threads(threads)
+	for (int i = 0; i < indexes_size; ++i) {
+		Position pos_copy(pos);
+
+		const PositionWithMove* position = &positions[indexes[i]];
+		std::vector<Move> moves(position->depth);
+		for (int j = position->depth - 1; j >= 0; --j) {
+			moves[j] = position->move;
+			position = position->parent;
+		}
+		assert(position->parent == nullptr);
+
+		// move
+		auto states = StateListPtr(new std::deque<StateInfo>(1));
+		for (const Move move : moves) {
+			states->emplace_back(StateInfo());
+			pos_copy.doMove(move, states->back());
+		}
+
+		const Key key = Book::bookKey(pos_copy);
+		const auto itr = bookMap.find(key);
+		assert(itr != bookMap.end());
+		const auto& entries = itr->second;
+		int index;
+		u16 move16;
+		Score score;
+		std::tie(index, move16, score) = select_best_book_entry(pos_copy, bookMap, entries, moves);
+		#pragma omp critical
+		{
+			auto& out_entries = outMap[key];
+			assert(out_entries.size() == 0);
+			out_entries.emplace_back(key, move16, 1, score);
+			if (outMap.size() % 10000 == 0)
+				std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
+		}
+	}
 }
 #endif

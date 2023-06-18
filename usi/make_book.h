@@ -49,6 +49,7 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color, select_best_book_entry_t select_best_book_entry);
 void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap);
 void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, std::vector<BookEntry> >& outMap);
+void saveOutmap(const std::string& outFileName, const std::map<Key, std::vector<BookEntry> >& outMap);
 std::string getBookPV(Position& pos, const std::string& fileName);
 void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own);
 void init_book_key_eval_map(const std::string& str);
@@ -56,4 +57,5 @@ void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::v
 void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists, const std::map<Key, std::vector<BookEntry> >& skip = {});
 void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num);
 void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName);
+void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads);
 #endif

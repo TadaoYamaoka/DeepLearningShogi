@@ -34,6 +34,7 @@ struct MySearcher : Searcher {
 	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 	static void diffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
+	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -400,6 +401,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
+		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -879,7 +881,6 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
 
 	// 千日手の評価値
-	SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 	SetEvalCoef(options["Eval_Coef"]);
 	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
 	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
@@ -1352,17 +1353,8 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 	eval_positions_with_usi_engine(pos, bookMap, outMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num);
 
 	// 出力
-	{
-		size_t count = 0;
-		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-		for (auto& elem : outMap) {
-			for (auto& elel : elem.second) {
-				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-				count++;
-			}
-		}
-		std::cout << "outMap.size:" << outMap.size() << " count: " << count << std::endl;
-	}
+	saveOutmap(outFileName, outMap);
+	std::cout << "outMap.size:" << outMap.size() << std::endl;
 }
 
 // 評価値が割れる局面を延長する
@@ -1491,5 +1483,49 @@ void MySearcher::deleteOverMaxEval(std::istringstream& ssCmd) {
 	saveOutmap(outFileName, outMap);
 
 	std::cout << "outMap.size: " << outMap.size() << std::endl;
+}
+
+void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	std::string bookFileName;
+	std::string outFileName;
+	int threads;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> threads;
+
+	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
+
+	// 千日手の評価値
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// αβ探索で特定局面の評価値を置き換える
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	// 定跡をmin-max探索
+	std::map<Key, std::vector<BookEntry> > outMap;
+	make_all_minmax_book(pos, outMap, make_book_color, threads);
+
+	// 出力
+	saveOutmap(outFileName, outMap);
+	std::cout << "outMap.size:" << outMap.size() << std::endl;
+
+	// PV出力
+	const auto pv = getBookPV(pos, outFileName);
+	std::cout << "pv " << pv << std::endl;
 }
 #endif
