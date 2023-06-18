@@ -35,6 +35,7 @@ struct MySearcher : Searcher {
 	static void diffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -402,6 +403,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
+		else if (token == "book_move") bookMove(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1527,5 +1529,58 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);
 	std::cout << "pv " << pv << std::endl;
+}
+
+void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) {
+	std::string bookFileName;
+
+	ssCmd >> bookFileName;
+
+	// 千日手の評価値
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// αβ探索で特定局面の評価値を置き換える
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	// αβ探索の代わりにMCTSを使う
+	const bool book_use_mcts = options["Book_Use_Mcts"];
+	book_mcts_playouts = options["Book_Mcts_Playouts"];
+	book_mcts_threads = options["Book_Mcts_Threads"];
+	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
+	book_mcts_debug = options["Book_Mcts_Debug"];
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	// 定跡をmin-max探索
+	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
+	const auto select_best_function = book_use_mcts ? parallel_uct_search : select_best_book_entry;
+	const Key key = Book::bookKey(pos);
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		std::cout << "no entry" << std::endl;
+		return;
+	}
+	const auto entries = itr->second;
+	std::vector<Move> moves;
+	int index;
+	u16 move16;
+	Score score;
+	std::tie(index, move16, score) = select_best_function(pos, bookMap, entries, moves);
+
+	// 出力
+	std::cout << "index: " << index << std::endl;
+	std::cout << "move: " << move16toMove(Move(move16), pos).toUSI() << std::endl;
+	std::cout << "score: " << score << std::endl;
 }
 #endif
