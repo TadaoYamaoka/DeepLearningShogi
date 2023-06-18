@@ -280,7 +280,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
 	const Key key = Book::bookKey(pos);
 
-	Score alpha = (Score)INT_MIN;
+	Score alpha = -ScoreInfinite;
 	const BookEntry* best = nullptr;
 	BookEntry tmp; // entriesにない要素を返す場合
 	std::map<Key, Searched> searched;
