@@ -1362,6 +1362,7 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 // 評価値が割れる局面を延長する
 void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
+	HuffmanCodedPos::init();
 
 	std::string bookFileName;
 	std::string outFileName;
@@ -1488,6 +1489,7 @@ void MySearcher::deleteOverMaxEval(std::istringstream& ssCmd) {
 }
 
 void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
 	std::string bookFileName;
 	std::string outFileName;
 	int threads;
