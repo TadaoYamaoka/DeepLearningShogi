@@ -786,6 +786,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	const int positions_size = (int)positions.size();
 	const std::vector<Move> moves = {};
 	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
+	int count = 0;
 	#pragma omp parallel for num_threads(engine_num)
 	for (int i = 0; i < positions_size; ++i) {
 		Position pos;
@@ -811,9 +812,10 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 			}
 			#pragma omp critical
 			{
-					outMap[key].emplace_back(be);
-					if (outMap.size() % 10000 == 0)
-						std::cout << "progress: " << outMap.size() * 100 / positions.size() << "%" << std::endl;
+				++count;
+				outMap[key].emplace_back(be);
+				if (count % 10000 == 0)
+					std::cout << "progress: " << count * 100 / positions_size << "%" << std::endl;
 			}
 		}
 	}
