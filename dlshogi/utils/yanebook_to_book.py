@@ -8,7 +8,7 @@ parser.add_argument('yanebook')
 parser.add_argument('book')
 args = parser.parse_args()
 
-ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]) ([0-9PLNSGRB][a-i*][0-9][a-i]) (\d+) (\d+) (\d+)$')
+ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none) (-?\d+) (\d+) (\d+)')
 
 board = Board()
 
@@ -32,6 +32,8 @@ for line in open(args.yanebook, encoding='utf_8_sig'):
                 # move, count, score
                 entries.append((move, m.group(5), m.group(3)))
                 count += 1
+        else:
+            raise
 
 print(count)
 
