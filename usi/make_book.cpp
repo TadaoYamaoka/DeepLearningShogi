@@ -896,7 +896,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			const Score score = entry.score;
 			const auto& opp_entry = itr_book->second[0];
 			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
-			if (score * opp_score < 0) {
+			if ((score + 100) * opp_score < 0 || (score - 100) * opp_score < 0) {
 				// 評価値の符号が異なり、差がdiff以上
 				if (std::abs(opp_score - score) >= diff) {
 					Position pos_copy(pos);
