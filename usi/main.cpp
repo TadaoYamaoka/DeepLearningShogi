@@ -32,7 +32,8 @@ struct MySearcher : Searcher {
 	static void makeBookPositions(std::istringstream& ssCmd);
 	static void outpuNoneConnectPositions(std::istringstream& ssCmd);
 	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
-	static void diffEval(std::istringstream& ssCmd, const std::string& posCmd);
+	static bool diffEval(std::istringstream& ssCmd, const std::string& posCmd);
+	static void diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
@@ -401,6 +402,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "output_none_connect_positions") outpuNoneConnectPositions(ssCmd);
 		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
+		else if (token == "diff_eval_with_usi_engine") diffEvalWithUsiEngine(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
@@ -1330,7 +1332,7 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 	ssCmd >> engine_num;
 
 	// 定跡読み込み
-	bookMap.clear();
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
 	// 開始局面設定
@@ -1360,7 +1362,7 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 }
 
 // 評価値が割れる局面を延長する
-void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) {
+bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
 	HuffmanCodedPos::init();
 
@@ -1402,6 +1404,7 @@ void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 			std::cout << "outMap.size: " << outMap.size() << std::endl;
 		}
 	}
+	const auto prev_size = outMap.size();
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1445,6 +1448,35 @@ void MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
+	return prev_size != outMap.size();
+}
+
+// eval_positions_with_usi_engineとdiff_evalを交互に繰り返す
+void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd) {
+	std::string bookFileName;
+	std::string evalOutFileName;
+	int engine_num;
+
+	ssCmd >> bookFileName;
+	ssCmd >> evalOutFileName;
+	ssCmd >> engine_num;
+
+	int playoutNum;
+	int diff;
+
+	ssCmd >> playoutNum;
+	ssCmd >> diff;
+
+	while (true) {
+		std::istringstream ssCmdEvalPos(bookFileName + " " + evalOutFileName + " " + std::to_string(engine_num));
+		evalPositionsWithUsiEngine(ssCmdEvalPos, posCmd);
+
+		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff));
+		const auto ret = diffEval(ssCmdEvalDiff, posCmd);
+		if (!ret)
+			break;
+	}
+	std::cout << "done" << std::endl;
 }
 
 // 評価値が最大値を超える局面を削除
