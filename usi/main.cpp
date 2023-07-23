@@ -1425,7 +1425,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 				sfen += token + " ";
 		}
 		else
-			return;
+			return false;
 
 		pos.set(sfen);
 		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
