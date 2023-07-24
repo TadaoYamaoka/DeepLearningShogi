@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\book_to_positions.py</StartupFile>
+    <StartupFile>utils\kif_to_csa.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\book\HoneyWaffleBook.book R:\positions.txt</CommandLineArguments>
+    <CommandLineArguments>R:\kif R:\csa --encoding cp932</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -69,6 +69,7 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\kif_to_csa.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
