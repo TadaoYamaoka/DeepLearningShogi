@@ -158,6 +158,10 @@ size_t __hcpe3_load_cache(const std::string& filepath) {
 	return num;
 }
 
+size_t __hcpe3_get_cache_num() {
+	return cache_pos.size() > 0 ? cache_pos.size() - 1 : 0;
+}
+
 TrainingData get_cache(const size_t i) {
 	const size_t pos = cache_pos[i];
 	const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
