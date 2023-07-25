@@ -1,4 +1,4 @@
-#ifdef MAKE_BOOK
+ï»¿#ifdef MAKE_BOOK
 #include "init.hpp"
 #include "position.hpp"
 #include "usi.hpp"
@@ -26,7 +26,7 @@ int book_mcts_threads = 32;
 float book_mcts_temperature = 1.0f;
 bool book_mcts_debug = false;
 
-// “Á’è‹Ç–Ê‚Ì•]‰¿’l‚ğ’u‚«Š·‚¦‚é
+// ç‰¹å®šå±€é¢ã®è©•ä¾¡å€¤ã‚’ç½®ãæ›ãˆã‚‹
 extern std::map<Key, Score> book_key_eval_map;
 
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -44,10 +44,10 @@ struct book_child_node_t {
 	book_child_node_t() : move(moveNone()), move_count(0), win(0.0), prob(0.0f), value(VALUE_NAN) {}
 	book_child_node_t(const Move move)
 		: move(move), move_count(0), win(0.0), prob(0.0f), value(VALUE_NAN) {}
-	// ƒ€[ƒuƒRƒ“ƒXƒgƒ‰ƒNƒ^
+	// ãƒ ãƒ¼ãƒ–ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 	book_child_node_t(book_child_node_t&& o) noexcept
 		: move(o.move), move_count((int)o.move_count), win((double)o.win), prob(o.prob), value(o.value) {}
-	// ƒ€[ƒu‘ã“ü‰‰Zq
+	// ãƒ ãƒ¼ãƒ–ä»£å…¥æ¼”ç®—å­
 	book_child_node_t& operator=(book_child_node_t&& o) noexcept {
 		move = o.move;
 		value = o.value;
@@ -57,13 +57,13 @@ struct book_child_node_t {
 		return *this;
 	}
 
-	// ƒƒ‚ƒŠß–ñ‚Ì‚½‚ßAmove‚ÌÅãˆÊƒoƒCƒg‚Å•]‰¿Ï‚İ‚Ìó‘Ô‚ğ•\‚·
+	// ãƒ¡ãƒ¢ãƒªç¯€ç´„ã®ãŸã‚ã€moveã®æœ€ä¸Šä½ãƒã‚¤ãƒˆã§è©•ä¾¡æ¸ˆã¿ã®çŠ¶æ…‹ã‚’è¡¨ã™
 	bool IsEvaled() const { return move.value() & VALUE_EVALED; }
 	void SetEvaled() { move |= Move(VALUE_EVALED); }
 
 	Move move;
-	float prob; // –‘OŠm—¦
-	float value; // ‰¿’l
+	float prob; // äº‹å‰ç¢ºç‡
+	float value; // ä¾¡å€¤
 	std::atomic<int> move_count;
 	std::atomic<double> win;
 };
@@ -72,17 +72,17 @@ struct book_uct_node_t {
 	book_uct_node_t()
 		: move_count(NOT_EXPANDED), win(0), child_num(0) {}
 
-	// qƒm[ƒhì¬
+	// å­ãƒãƒ¼ãƒ‰ä½œæˆ
 	book_uct_node_t* CreateChildNode(int i) {
 		return (child_nodes[i] = std::make_unique<book_uct_node_t>()).get();
 	}
-	// qƒm[ƒhˆê‚Â‚Ì‚İ‚Å‰Šú‰»‚·‚é
+	// å­ãƒãƒ¼ãƒ‰ä¸€ã¤ã®ã¿ã§åˆæœŸåŒ–ã™ã‚‹
 	void CreateSingleChildNode(const Move move) {
 		child_num = 1;
 		child = std::make_unique<book_child_node_t[]>(1);
 		child[0].move = move;
 	}
-	// Œó•âè‚Ì“WŠJ
+	// å€™è£œæ‰‹ã®å±•é–‹
 	bool ExpandNode(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, book_child_node_t* parent) {
 		const Key key = Book::bookKey(pos);
 		const auto itr = outMap.find(key);
@@ -110,7 +110,7 @@ struct book_uct_node_t {
 					max = x;
 				}
 			}
-			// ƒI[ƒo[ƒtƒ[‚ğ–h~‚·‚é‚½‚ßÅ‘å’l‚Åˆø‚­
+			// ã‚ªãƒ¼ãƒãƒ¼ãƒ•ãƒ­ãƒ¼ã‚’é˜²æ­¢ã™ã‚‹ãŸã‚æœ€å¤§å€¤ã§å¼•ã
 			float sum = 0.0f;
 			for (size_t i = 0; i < child_num; i++) {
 				float& x = child_entries[i].prob;
@@ -131,20 +131,20 @@ struct book_uct_node_t {
 			Score score;
 			float value;
 			bool is_evaled;
-			// –K–â‰ñ”‚ª­‚È‚¢•]‰¿’l‚ÍM—Š‚µ‚È‚¢
+			// è¨ªå•å›æ•°ãŒå°‘ãªã„è©•ä¾¡å€¤ã¯ä¿¡é ¼ã—ãªã„
 			if (entry.score < trusted_score)
 				trusted_score = entry.score;
 			StateInfo state;
 			pos.doMove(move, state);
 			const Key key = Book::bookKey(pos);
-			// “Á’è‹Ç–Ê‚Ì•]‰¿’l‚ğ’u‚«Š·‚¦‚é
+			// ç‰¹å®šå±€é¢ã®è©•ä¾¡å€¤ã‚’ç½®ãæ›ãˆã‚‹
 			if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
 				score = -book_key_eval_map[key];
 				value = score_to_value(score);
 				is_evaled = true;
 			}
 			else {
-				// ç“úè
+				// åƒæ—¥æ‰‹
 				switch (pos.isDraw()) {
 				case RepetitionDraw:
 					score = pos.turn() == Black ? draw_score_white : draw_score_black;
@@ -169,7 +169,7 @@ struct book_uct_node_t {
 						is_evaled = true;
 					}
 					else {
-						// 1èæ‚Ì•]‰¿’l‚ğg—p‚·‚é
+						// 1æ‰‹å…ˆã®è©•ä¾¡å€¤ã‚’ä½¿ç”¨ã™ã‚‹
 						score = -itr_next->second[0].score;
 						is_evaled = false;
 					}
@@ -193,14 +193,14 @@ struct book_uct_node_t {
 			bool is_evaled;
 			StateInfo state;
 			pos.doMove(move, state);
-			// “Á’è‹Ç–Ê‚Ì•]‰¿’l‚ğ’u‚«Š·‚¦‚é
+			// ç‰¹å®šå±€é¢ã®è©•ä¾¡å€¤ã‚’ç½®ãæ›ãˆã‚‹
 			if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
 				score = -book_key_eval_map[key];
 				value = score_to_value(score);
 				is_evaled = true;
 			}
 			else {
-				// ç“úè
+				// åƒæ—¥æ‰‹
 				switch (pos.isDraw()) {
 				case RepetitionDraw:
 					score = pos.turn() == Black ? draw_score_white : draw_score_black;
@@ -253,13 +253,13 @@ struct book_uct_node_t {
 		move_count = 0;
 		return true;
 	}
-	// qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚Ì‰Šú‰»
+	// å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ã®åˆæœŸåŒ–
 	void InitChildNodes() {
 		child_nodes = std::make_unique<std::unique_ptr<book_uct_node_t>[]>(child_num);
 	}
-	// 1‚Â‚ğœ‚­‚·‚×‚Ä‚Ìq‚ğíœ‚·‚é
-	// 1‚Â‚àŒ©‚Â‚©‚ç‚È‚¢ê‡AV‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
-	// c‚µ‚½ƒm[ƒh‚ğ•Ô‚·
+	// 1ã¤ã‚’é™¤ãã™ã¹ã¦ã®å­ã‚’å‰Šé™¤ã™ã‚‹
+	// 1ã¤ã‚‚è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã€æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
+	// æ®‹ã—ãŸãƒãƒ¼ãƒ‰ã‚’è¿”ã™
 	book_uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
 	std::atomic<int> move_count;
@@ -273,7 +273,7 @@ NodeGarbageCollector<book_uct_node_t> gBookNodeGc;
 
 book_uct_node_t* book_uct_node_t::ReleaseChildrenExceptOne(const Move move) {
 	if (child_num > 0 && child_nodes) {
-		// ˆê‚Â‚ğc‚µ‚Äíœ‚·‚é
+		// ä¸€ã¤ã‚’æ®‹ã—ã¦å‰Šé™¤ã™ã‚‹
 		bool found = false;
 		for (int i = 0; i < child_num; ++i) {
 			auto& uct_child = child[i];
@@ -281,39 +281,39 @@ book_uct_node_t* book_uct_node_t::ReleaseChildrenExceptOne(const Move move) {
 			if (uct_child.move == move) {
 				found = true;
 				if (!child_node) {
-					// V‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
+					// æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
 					child_node = std::make_unique<book_uct_node_t>();
 				}
-				// 0”Ô–Ú‚Ì—v‘f‚ÉˆÚ“®‚·‚é
+				// 0ç•ªç›®ã®è¦ç´ ã«ç§»å‹•ã™ã‚‹
 				if (i != 0) {
 					child[0] = std::move(uct_child);
 					child_nodes[0] = std::move(child_node);
 				}
 			}
 			else {
-				// qƒm[ƒh‚ğíœiƒKƒx[ƒWƒRƒŒƒNƒ^‚É’Ç‰Áj
+				// å­ãƒãƒ¼ãƒ‰ã‚’å‰Šé™¤ï¼ˆã‚¬ãƒ™ãƒ¼ã‚¸ã‚³ãƒ¬ã‚¯ã‚¿ã«è¿½åŠ ï¼‰
 				if (child_node)
 					gBookNodeGc.AddToGcQueue(std::move(child_node));
 			}
 		}
 
 		if (found) {
-			// qƒm[ƒh‚ğˆê‚Â‚É‚·‚é
+			// å­ãƒãƒ¼ãƒ‰ã‚’ä¸€ã¤ã«ã™ã‚‹
 			child_num = 1;
 			return child_nodes[0].get();
 		}
 		else {
-			// ‡–@è‚É•s¬‚ğ¶¬‚µ‚Ä‚¢‚È‚¢‚½‚ßAƒm[ƒh‚ª‘¶İ‚µ‚Ä‚àŒ©‚Â‚©‚ç‚È‚¢ê‡‚ª‚ ‚é
-			// qƒm[ƒh‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½ê‡AV‚µ‚¢ƒm[ƒh‚ğì¬‚·‚é
+			// åˆæ³•æ‰‹ã«ä¸æˆã‚’ç”Ÿæˆã—ã¦ã„ãªã„ãŸã‚ã€ãƒãƒ¼ãƒ‰ãŒå­˜åœ¨ã—ã¦ã‚‚è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆãŒã‚ã‚‹
+			// å­ãƒãƒ¼ãƒ‰ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸå ´åˆã€æ–°ã—ã„ãƒãƒ¼ãƒ‰ã‚’ä½œæˆã™ã‚‹
 			CreateSingleChildNode(move);
 			InitChildNodes();
 			return (child_nodes[0] = std::make_unique<book_uct_node_t>()).get();
 		}
 	}
 	else {
-		// qƒm[ƒh–¢“WŠJA‚Ü‚½‚Íqƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ª–¢‰Šú‰»‚Ìê‡
+		// å­ãƒãƒ¼ãƒ‰æœªå±•é–‹ã€ã¾ãŸã¯å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ãŒæœªåˆæœŸåŒ–ã®å ´åˆ
 		CreateSingleChildNode(move);
-		// qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ğ‰Šú‰»‚·‚é
+		// å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ã‚’åˆæœŸåŒ–ã™ã‚‹
 		InitChildNodes();
 		return (child_nodes[0] = std::make_unique<book_uct_node_t>()).get();
 	}
@@ -323,9 +323,9 @@ book_uct_node_t* book_uct_node_t::ReleaseChildrenExceptOne(const Move move) {
 class BookNodeTree {
 public:
 	~BookNodeTree() { DeallocateTree(); }
-	// ƒcƒŠ[“à‚ÌˆÊ’u‚ğİ’è‚µAƒcƒŠ[‚ÌÄ—˜—p‚ğ‚İ‚é
-	// V‚µ‚¢ˆÊ’u‚ªŒÃ‚¢ˆÊ’u‚Æ“¯‚¶ƒQ[ƒ€‚Å‚ ‚é‚©‚Ç‚¤‚©‚ğ•Ô‚·i‚¢‚­‚Â‚©‚Ì’…è“®‚ª’Ç‰Á‚³‚ê‚Ä‚¢‚éj
-	// ˆÊ’u‚ªŠ®‘S‚ÉˆÙ‚È‚éê‡A‚Ü‚½‚ÍˆÈ‘O‚æ‚è‚à’Z‚¢ê‡‚ÍAfalse‚ğ•Ô‚·
+	// ãƒ„ãƒªãƒ¼å†…ã®ä½ç½®ã‚’è¨­å®šã—ã€ãƒ„ãƒªãƒ¼ã®å†åˆ©ç”¨ã‚’è©¦ã¿ã‚‹
+	// æ–°ã—ã„ä½ç½®ãŒå¤ã„ä½ç½®ã¨åŒã˜ã‚²ãƒ¼ãƒ ã§ã‚ã‚‹ã‹ã©ã†ã‹ã‚’è¿”ã™ï¼ˆã„ãã¤ã‹ã®ç€æ‰‹å‹•ãŒè¿½åŠ ã•ã‚Œã¦ã„ã‚‹ï¼‰
+	// ä½ç½®ãŒå®Œå…¨ã«ç•°ãªã‚‹å ´åˆã€ã¾ãŸã¯ä»¥å‰ã‚ˆã‚Šã‚‚çŸ­ã„å ´åˆã¯ã€falseã‚’è¿”ã™
 	bool ResetToPosition(const std::vector<Move>& moves) {
 		if (!gamebegin_node_) {
 			gamebegin_node_ = std::make_unique<book_uct_node_t>();
@@ -338,15 +338,15 @@ public:
 		bool seen_old_head = (gamebegin_node_.get() == old_head);
 		for (const auto& move : moves) {
 			prev_head = current_head_;
-			// current_head_‚É’…è‚ğ’Ç‰Á‚·‚é
+			// current_head_ã«ç€æ‰‹ã‚’è¿½åŠ ã™ã‚‹
 			current_head_ = current_head_->ReleaseChildrenExceptOne(move);
 			if (old_head == current_head_) seen_old_head = true;
 		}
 
-		// MakeMove‚ÍŒZ’í‚ª‘¶İ‚µ‚È‚¢‚±‚Æ‚ğ•ÛØ‚·‚é 
-		// ‚½‚¾‚µAŒÃ‚¢ƒwƒbƒh‚ªŒ»‚ê‚È‚¢ê‡‚ÍAˆÈ‘O‚ÉŒŸõ‚³‚ê‚½ˆÊ’u‚Ì‘cæ‚Å‚ ‚éˆÊ’u‚ª‚ ‚é‰Â”\«‚ª‚ ‚é‚±‚Æ‚ğˆÓ–¡‚·‚é
-		// ‚Â‚Ü‚èAŒÃ‚¢q‚ªˆÈ‘O‚ÉƒgƒŠƒ~ƒ“ƒO‚³‚ê‚Ä‚¢‚Ä‚àAcurrent_head_‚ÍŒÃ‚¢ƒf[ƒ^‚ğ•Û‚·‚é‰Â”\«‚ª‚ ‚é
-		// ‚»‚Ìê‡Acurrent_head_‚ğƒŠƒZƒbƒg‚·‚é•K—v‚ª‚ ‚é
+		// MakeMoveã¯å…„å¼ŸãŒå­˜åœ¨ã—ãªã„ã“ã¨ã‚’ä¿è¨¼ã™ã‚‹ 
+		// ãŸã ã—ã€å¤ã„ãƒ˜ãƒƒãƒ‰ãŒç¾ã‚Œãªã„å ´åˆã¯ã€ä»¥å‰ã«æ¤œç´¢ã•ã‚ŒãŸä½ç½®ã®ç¥–å…ˆã§ã‚ã‚‹ä½ç½®ãŒã‚ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹ã“ã¨ã‚’æ„å‘³ã™ã‚‹
+		// ã¤ã¾ã‚Šã€å¤ã„å­ãŒä»¥å‰ã«ãƒˆãƒªãƒŸãƒ³ã‚°ã•ã‚Œã¦ã„ã¦ã‚‚ã€current_head_ã¯å¤ã„ãƒ‡ãƒ¼ã‚¿ã‚’ä¿æŒã™ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹
+		// ãã®å ´åˆã€current_head_ã‚’ãƒªã‚»ãƒƒãƒˆã™ã‚‹å¿…è¦ãŒã‚ã‚‹
 		if (!seen_old_head && current_head_ != old_head) {
 			if (prev_head) {
 				assert(prev_head->child_num == 1);
@@ -356,7 +356,7 @@ public:
 				current_head_ = prev_uct_child_node.get();
 			}
 			else {
-				// ŠJn‹Ç–Ê‚É–ß‚Á‚½ê‡
+				// é–‹å§‹å±€é¢ã«æˆ»ã£ãŸå ´åˆ
 				DeallocateTree();
 			}
 		}
@@ -364,16 +364,16 @@ public:
 	}
 	book_uct_node_t* GetCurrentHead() const { return current_head_; }
 	void DeallocateTree() {
-		// gamebegin_node_.resetij‚Æ“¯‚¶‚¾‚ªAÀÛ‚ÌŠ„‚è“–‚Ä‰ğœ‚ÍGCƒXƒŒƒbƒh‚Ås‚í‚ê‚é
+		// gamebegin_node_.resetï¼ˆï¼‰ã¨åŒã˜ã ãŒã€å®Ÿéš›ã®å‰²ã‚Šå½“ã¦è§£é™¤ã¯GCã‚¹ãƒ¬ãƒƒãƒ‰ã§è¡Œã‚ã‚Œã‚‹
 		gBookNodeGc.AddToGcQueue(std::move(gamebegin_node_));
 		gamebegin_node_ = std::make_unique<book_uct_node_t>();
 		current_head_ = gamebegin_node_.get();
 	}
 
 private:
-	// ’Tõ‚ğŠJn‚·‚éƒm[ƒh
+	// æ¢ç´¢ã‚’é–‹å§‹ã™ã‚‹ãƒãƒ¼ãƒ‰
 	book_uct_node_t* current_head_ = nullptr;
-	// ƒQ[ƒ€–Ø‚Ìƒ‹[ƒgƒm[ƒh
+	// ã‚²ãƒ¼ãƒ æœ¨ã®ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰
 	std::unique_ptr<book_uct_node_t> gamebegin_node_;
 } book_tree;
 
@@ -396,7 +396,7 @@ int select_max_ucb_child(book_child_node_t* parent, book_uct_node_t* current)
 	const float parent_q = sum_win > 0 ? (float)(sum_win / sum) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
-	// UCB’lÅ‘å‚Ìè‚ğ‹‚ß‚é
+	// UCBå€¤æœ€å¤§ã®æ‰‹ã‚’æ±‚ã‚ã‚‹
 	for (int i = 0; i < child_num; i++) {
 		const double win = uct_child[i].win;
 		const int move_count = uct_child[i].move_count;
@@ -404,11 +404,11 @@ int select_max_ucb_child(book_child_node_t* parent, book_uct_node_t* current)
 		if (uct_child[i].IsEvaled()) {
 			child_evaled_count++;
 			child_max_value = std::max(child_max_value, uct_child[i].value);
-			q = uct_child[i].value; // Šm’è‚µ‚½’l
+			q = uct_child[i].value; // ç¢ºå®šã—ãŸå€¤
 			u = sqrt_sum / (1 + move_count);
 		}
 		else if (move_count == 0) {
-			// –¢’Tõ‚Ìƒm[ƒh‚Ì‰¿’l‚ÉAeƒm[ƒh‚Ì‰¿’l‚ğg—p‚·‚é
+			// æœªæ¢ç´¢ã®ãƒãƒ¼ãƒ‰ã®ä¾¡å€¤ã«ã€è¦ªãƒãƒ¼ãƒ‰ã®ä¾¡å€¤ã‚’ä½¿ç”¨ã™ã‚‹
 			q = parent_q;
 			u = init_u;
 		}
@@ -428,7 +428,7 @@ int select_max_ucb_child(book_child_node_t* parent, book_uct_node_t* current)
 	}
 
 	if (child_evaled_count == child_num) {
-		// qƒm[ƒh‚ª‚·‚×‚Ä•]‰¿Ï‚İ‚Ì‚½‚ßAeƒm[ƒh‚ğXV
+		// å­ãƒãƒ¼ãƒ‰ãŒã™ã¹ã¦è©•ä¾¡æ¸ˆã¿ã®ãŸã‚ã€è¦ªãƒãƒ¼ãƒ‰ã‚’æ›´æ–°
 		parent->value = 1.0f - child_max_value;
 		parent->SetEvaled();
 	}
@@ -441,19 +441,19 @@ float uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* curr
 	float result;
 	book_child_node_t* uct_child = current->child.get();
 
-	// Œ»İŒ©‚Ä‚¢‚éƒm[ƒh‚ğƒƒbƒN
+	// ç¾åœ¨è¦‹ã¦ã„ã‚‹ãƒãƒ¼ãƒ‰ã‚’ãƒ­ãƒƒã‚¯
 	auto& mutex = GetPositionMutex(pos);
 	mutex.lock();
-	// qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ª‰Šú‰»‚³‚ê‚Ä‚¢‚È‚¢ê‡A‰Šú‰»‚·‚é
+	// å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ãŒåˆæœŸåŒ–ã•ã‚Œã¦ã„ãªã„å ´åˆã€åˆæœŸåŒ–ã™ã‚‹
 	if (!current->child_nodes) current->InitChildNodes();
-	// UCB’lÅ‘å‚Ìè‚ğ‹‚ß‚é
+	// UCBå€¤æœ€å¤§ã®æ‰‹ã‚’æ±‚ã‚ã‚‹
 	const unsigned int next_index = select_max_ucb_child(parent, current);
-	// •]‰¿Ï‚İ
+	// è©•ä¾¡æ¸ˆã¿
 	if (uct_child[next_index].IsEvaled()) {
 		mutex.unlock();
 		result = uct_child[next_index].value;
 
-		// ’TõŒ‹‰Ê‚ÌXV
+		// æ¢ç´¢çµæœã®æ›´æ–°
 		atomic_fetch_add(&current->win, (double)result);
 		current->move_count++;
 		atomic_fetch_add(&uct_child[next_index].win, (double)result);
@@ -461,14 +461,14 @@ float uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* curr
 
 		return 1.0f - result;
 	}
-	// ‘I‚ñ‚¾è‚ğ’…è
+	// é¸ã‚“ã æ‰‹ã‚’ç€æ‰‹
 	StateInfo st;
 	pos.doMove(uct_child[next_index].move, st);
 
-	// Virtual Loss‚ğ‰ÁZ
+	// Virtual Lossã‚’åŠ ç®—
 	current->move_count += VIRTUAL_LOSS;
 	uct_child[next_index].move_count += VIRTUAL_LOSS;
-	// ƒm[ƒh‚Ì“WŠJ‚ÌŠm”F
+	// ãƒãƒ¼ãƒ‰ã®å±•é–‹ã®ç¢ºèª
 	if (!current->child_nodes[next_index]) {
 		result = uct_child[next_index].value;
 
@@ -478,26 +478,26 @@ float uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* curr
 			uct_child[next_index].SetEvaled();
 		}
 		else {
-			// ƒm[ƒh‚Ìì¬
+			// ãƒãƒ¼ãƒ‰ã®ä½œæˆ
 			book_uct_node_t* child_node = current->CreateChildNode(next_index);
 
-			// Œó•âè‚ğ“WŠJ‚·‚é
+			// å€™è£œæ‰‹ã‚’å±•é–‹ã™ã‚‹
 			child_node->ExpandNode(pos, outMap, &uct_child[next_index]);
 		}
-		// Œ»İŒ©‚Ä‚¢‚éƒm[ƒh‚ÌƒƒbƒN‚ğ‰ğœ
+		// ç¾åœ¨è¦‹ã¦ã„ã‚‹ãƒãƒ¼ãƒ‰ã®ãƒ­ãƒƒã‚¯ã‚’è§£é™¤
 		mutex.unlock();
 	}
 	else {
-		// Œ»İŒ©‚Ä‚¢‚éƒm[ƒh‚ÌƒƒbƒN‚ğ‰ğœ
+		// ç¾åœ¨è¦‹ã¦ã„ã‚‹ãƒãƒ¼ãƒ‰ã®ãƒ­ãƒƒã‚¯ã‚’è§£é™¤
 		mutex.unlock();
 
 		book_uct_node_t* next_node = current->child_nodes[next_index].get();
 
-		// è”Ô‚ğ“ü‚ê‘Ö‚¦‚Ä1è[‚­“Ç‚Ş
+		// æ‰‹ç•ªã‚’å…¥ã‚Œæ›¿ãˆã¦1æ‰‹æ·±ãèª­ã‚€
 		result = uct_search(pos, &uct_child[next_index], next_node, outMap);
 	}
 
-	// ’TõŒ‹‰Ê‚Ì”½‰f
+	// æ¢ç´¢çµæœã®åæ˜ 
 	atomic_fetch_add(&current->win, (double)result);
 	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
 	atomic_fetch_add(&uct_child[next_index].win, (double)result);
@@ -506,14 +506,14 @@ float uct_search(Position& pos, book_child_node_t* parent, book_uct_node_t* curr
 	return 1.0f - result;
 }
 
-// –K–â‰ñ”‚ªÅ‘å‚Ìqƒm[ƒh‚ğ‘I‘ğ
+// è¨ªå•å›æ•°ãŒæœ€å¤§ã®å­ãƒãƒ¼ãƒ‰ã‚’é¸æŠ
 unsigned int book_select_max_child_node(const book_child_node_t* parent, const book_uct_node_t* uct_node)
 {
 	const auto child = uct_node->child.get();
 	const int child_num = uct_node->child_num;
 
 	if (parent->IsEvaled()) {
-		// qƒm[ƒh‚ª‚·‚×‚Ä•]‰¿Ï‚İ‚Ìê‡A‰¿’l‚ªÅ‘å‚Ìè‚ğ‘I‚Ô
+		// å­ãƒãƒ¼ãƒ‰ãŒã™ã¹ã¦è©•ä¾¡æ¸ˆã¿ã®å ´åˆã€ä¾¡å€¤ãŒæœ€å¤§ã®æ‰‹ã‚’é¸ã¶
 		float child_max_value = -FLT_MAX;
 		int child_evaled_max_index = 0;
 
@@ -527,7 +527,7 @@ unsigned int book_select_max_child_node(const book_child_node_t* parent, const b
 		return child_evaled_max_index;
 	}
 	else {
-		// –K–â‰ñ”‚ªÅ‘å‚Ìè‚ğ‘I‚Ô
+		// è¨ªå•å›æ•°ãŒæœ€å¤§ã®æ‰‹ã‚’é¸ã¶
 		int max_move_count = -1;
 		int max_index = 0;
 		for (int i = 0; i < child_num; ++i) {
@@ -552,7 +552,7 @@ std::string get_pv(const book_uct_node_t* root_uct_node, const unsigned int best
 		if (!best_node || best_node->child_num == 0)
 			break;
 
-		// Å‘å‚Ìqƒm[ƒh
+		// æœ€å¤§ã®å­ãƒãƒ¼ãƒ‰
 		best_index = book_select_max_child_node(best_uct_child, best_node);
 		best_uct_child = &best_node->child[best_index];
 
@@ -571,7 +571,7 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 	reset_to_position(moves);
 	book_uct_node_t* current_root = book_tree.GetCurrentHead();
 	book_child_node_t parent;
-	// ƒ‹[ƒgƒm[ƒh‚Ì“WŠJ
+	// ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰ã®å±•é–‹
 	if (current_root->child_num == 0) {
 		current_root->ExpandNode(pos, outMap, &parent);
 	}
@@ -581,10 +581,10 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 
 	#pragma omp parallel num_threads(book_mcts_threads)
 	while (playout_count < book_mcts_playouts && !interruption) {
-		// ”Õ–Ê‚ÌƒRƒs[
+		// ç›¤é¢ã®ã‚³ãƒ”ãƒ¼
 		Position pos_copy(pos);
 
-		// 1‰ñƒvƒŒƒCƒAƒEƒg‚·‚é
+		// 1å›ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã™ã‚‹
 		uct_search(pos_copy, &parent, current_root, outMap);
 
 		#pragma omp atomic
@@ -592,7 +592,7 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 
 		#pragma omp master
 		{
-			// ‘Å‚¿Ø‚è‚ÌŠm”F
+			// æ‰“ã¡åˆ‡ã‚Šã®ç¢ºèª
 			if (parent.IsEvaled()) {
 				interruption = true;
 			}
@@ -614,7 +614,7 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 						second_index = i;
 					}
 				}
-				// c‚è‚Ì’Tõ‚ÅŸ‘Pè‚ªÅ‘Pè‚ğ’´‚¦‚é‰Â”\«‚ª‚È‚¢ê‡‚Í‘Å‚¿Ø‚é
+				// æ®‹ã‚Šã®æ¢ç´¢ã§æ¬¡å–„æ‰‹ãŒæœ€å–„æ‰‹ã‚’è¶…ãˆã‚‹å¯èƒ½æ€§ãŒãªã„å ´åˆã¯æ‰“ã¡åˆ‡ã‚‹
 				const int rest_po = book_mcts_playouts - playout_count;
 				if (max_searched - second_searched > rest_po) {
 					interruption = true;
@@ -655,15 +655,15 @@ float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_
 	float result;
 	book_child_node_t* uct_child = current->child.get();
 
-	// qƒm[ƒh‚Ö‚Ìƒ|ƒCƒ“ƒ^”z—ñ‚ª‰Šú‰»‚³‚ê‚Ä‚¢‚È‚¢ê‡A‰Šú‰»‚·‚é
+	// å­ãƒãƒ¼ãƒ‰ã¸ã®ãƒã‚¤ãƒ³ã‚¿é…åˆ—ãŒåˆæœŸåŒ–ã•ã‚Œã¦ã„ãªã„å ´åˆã€åˆæœŸåŒ–ã™ã‚‹
 	if (!current->child_nodes) current->InitChildNodes();
-	// UCB’lÅ‘å‚Ìè‚ğ‹‚ß‚é
+	// UCBå€¤æœ€å¤§ã®æ‰‹ã‚’æ±‚ã‚ã‚‹
 	const unsigned int next_index = select_max_ucb_child(parent, current);
-	// •]‰¿Ï‚İ
+	// è©•ä¾¡æ¸ˆã¿
 	if (uct_child[next_index].IsEvaled()) {
 		result = uct_child[next_index].value;
 
-		// ’TõŒ‹‰Ê‚ÌXV
+		// æ¢ç´¢çµæœã®æ›´æ–°
 		atomic_fetch_add(&current->win, (double)result);
 		current->move_count++;
 		atomic_fetch_add(&uct_child[next_index].win, (double)result);
@@ -671,11 +671,11 @@ float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_
 
 		return 1.0f - result;
 	}
-	// ‘I‚ñ‚¾è‚ğ’…è
+	// é¸ã‚“ã æ‰‹ã‚’ç€æ‰‹
 	StateInfo st;
 	pos.doMove(uct_child[next_index].move, st);
 
-	// ƒm[ƒh‚Ì“WŠJ‚ÌŠm”F
+	// ãƒãƒ¼ãƒ‰ã®å±•é–‹ã®ç¢ºèª
 	if (!current->child_nodes[next_index]) {
 		result = uct_child[next_index].value;
 
@@ -685,21 +685,21 @@ float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_
 			uct_child[next_index].SetEvaled();
 		}
 		else {
-			// ƒm[ƒh‚Ìì¬
+			// ãƒãƒ¼ãƒ‰ã®ä½œæˆ
 			book_uct_node_t* child_node = current->CreateChildNode(next_index);
 
-			// Œó•âè‚ğ“WŠJ‚·‚é
+			// å€™è£œæ‰‹ã‚’å±•é–‹ã™ã‚‹
 			child_node->ExpandNode(pos, outMap, &uct_child[next_index]);
 		}
 	}
 	else {
 		book_uct_node_t* next_node = current->child_nodes[next_index].get();
 
-		// è”Ô‚ğ“ü‚ê‘Ö‚¦‚Ä1è[‚­“Ç‚Ş
+		// æ‰‹ç•ªã‚’å…¥ã‚Œæ›¿ãˆã¦1æ‰‹æ·±ãèª­ã‚€
 		result = single_uct_search(pos, &uct_child[next_index], next_node, outMap);
 	}
 
-	// ’TõŒ‹‰Ê‚Ì”½‰f
+	// æ¢ç´¢çµæœã®åæ˜ 
 	atomic_fetch_add(&current->win, (double)result);
 	current->move_count++;
 	atomic_fetch_add(&uct_child[next_index].win, (double)result);
@@ -711,28 +711,28 @@ float single_uct_search(Position& pos, book_child_node_t* parent, book_uct_node_
 std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::vector<BookEntry>& entries) {
 	book_uct_node_t current_root;
 	book_child_node_t parent;
-	// ƒ‹[ƒgƒm[ƒh‚Ì“WŠJ
+	// ãƒ«ãƒ¼ãƒˆãƒãƒ¼ãƒ‰ã®å±•é–‹
 	if (current_root.child_num == 0) {
 		current_root.ExpandNode(pos, bookMap, &parent);
 	}
 
 	if (parent.IsEvaled()) {
-		// ‚»‚Ì‚à‚Ì‚ğo—Í
+		// ãã®ã‚‚ã®ã‚’å‡ºåŠ›
 		return std::vector<BookEntry>(entries.begin(), entries.end());
 	}
 
 	int playout_count = current_root.move_count;
 
 	while (playout_count < book_mcts_playouts) {
-		// ”Õ–Ê‚ÌƒRƒs[
+		// ç›¤é¢ã®ã‚³ãƒ”ãƒ¼
 		Position pos_copy(pos);
 
-		// 1‰ñƒvƒŒƒCƒAƒEƒg‚·‚é
+		// 1å›ãƒ—ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã™ã‚‹
 		single_uct_search(pos_copy, &parent, &current_root, bookMap);
 
 		playout_count++;
 
-		// ‘Å‚¿Ø‚è‚ÌŠm”F
+		// æ‰“ã¡åˆ‡ã‚Šã®ç¢ºèª
 		if (parent.IsEvaled()) {
 			break;
 		}
@@ -754,7 +754,7 @@ std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map
 					second_index = i;
 				}
 			}
-			// c‚è‚Ì’Tõ‚ÅŸ‘Pè‚ªÅ‘Pè‚ğ’´‚¦‚é‰Â”\«‚ª‚È‚¢ê‡‚Í‘Å‚¿Ø‚é
+			// æ®‹ã‚Šã®æ¢ç´¢ã§æ¬¡å–„æ‰‹ãŒæœ€å–„æ‰‹ã‚’è¶…ãˆã‚‹å¯èƒ½æ€§ãŒãªã„å ´åˆã¯æ‰“ã¡åˆ‡ã‚‹
 			const int rest_po = book_mcts_playouts - playout_count;
 			if (max_searched - second_searched > rest_po) {
 				break;
@@ -771,7 +771,7 @@ std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map
 		}
 	}
 
-	// BookEntryì¬
+	// BookEntryä½œæˆ
 	std::vector<BookEntry> results;
 	results.reserve(child_num);
 	std::vector<const book_child_node_t*> sorted_child;
@@ -779,7 +779,7 @@ std::vector<BookEntry> single_uct_search(Position& pos, const std::unordered_map
 	for (size_t i = 0; i < child_num; ++i)
 		sorted_child.emplace_back(child + i);
 	if (parent.IsEvaled()) {
-		// •]‰¿Ï‚İ‚Ìê‡Avalue‚Ì‡‚Éo—Í
+		// è©•ä¾¡æ¸ˆã¿ã®å ´åˆã€valueã®é †ã«å‡ºåŠ›
 		std::stable_sort(sorted_child.begin(), sorted_child.end(), [](const book_child_node_t* lhs, const book_child_node_t* rhs) {
 			return lhs->value > rhs->value;
 		});
@@ -821,7 +821,7 @@ void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vecto
 	if (skip.find(key) == skip.end())
 		positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
 
-	// Stack overflow‚ğ”ğ‚¯‚é‚½‚ßƒq[ƒv‚ÉŠm•Û‚·‚é
+	// Stack overflowã‚’é¿ã‘ã‚‹ãŸã‚ãƒ’ãƒ¼ãƒ—ã«ç¢ºä¿ã™ã‚‹
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
 		const Move move = ml->move();
 		auto state = std::make_unique<StateInfo>();
@@ -832,7 +832,7 @@ void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vecto
 }
 
 void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap) {
-	// ‘S‹Ç–Ê‚ğ—ñ‹“
+	// å…¨å±€é¢ã‚’åˆ—æŒ™
 	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
 	{
 		std::unordered_set<Key> exists;
@@ -841,7 +841,7 @@ void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<Boo
 
 	std::cout << "positions: " << positions.size() << std::endl;
 
-	// •À—ñ‚ÅMCTS‚Å’èÕì¬
+	// ä¸¦åˆ—ã§MCTSã§å®šè·¡ä½œæˆ
 	const int positions_size = (int)positions.size();
 	#pragma omp parallel for num_threads(book_mcts_threads)
 	for (int i = 0; i < positions_size; ++i) {
@@ -889,7 +889,7 @@ void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::v
 	if (!exists.emplace(key).second)
 		return;
 
-	// Stack overflow‚ğ”ğ‚¯‚é‚½‚ßƒq[ƒv‚ÉŠm•Û‚·‚é
+	// Stack overflowã‚’é¿ã‘ã‚‹ãŸã‚ãƒ’ãƒ¼ãƒ—ã«ç¢ºä¿ã™ã‚‹
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
 		const Move move = ml->move();
 		auto state = std::make_unique<StateInfo>();
