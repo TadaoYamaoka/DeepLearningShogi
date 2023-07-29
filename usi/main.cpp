@@ -732,6 +732,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
+	// 反復進化を使う
+	const bool book_use_iddfs = options["Book_Use_IDDFS"];
+
 	// αβ探索の代わりにMCTSを使う
 	const bool book_use_mcts = options["Book_Use_Mcts"];
 	book_mcts_playouts = options["Book_Mcts_Playouts"];
@@ -758,6 +761,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::vector<Move> moves;
 	book_pos_cmd = "position " + posCmd;
 	{
 		std::istringstream ssPosCmd(posCmd);
@@ -786,6 +790,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			const Move move = usiToMove(pos, token);
 			if (!move) break;
 			pos.doMove(move, pos.searcher()->states->emplace_back());
+			moves.emplace_back(move);
 		}
 	}
 	book_starting_pos_key = pos.getKey();
@@ -804,8 +809,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int black_num = 0;
 	int white_num = 0;
 	size_t prev_num = outMap.size();
-	std::vector<Move> moves;
-	const auto make_book_search = book_use_mcts ? make_book_mcts : make_book_alpha_beta;
+	const auto make_book_search = book_use_mcts ? make_book_mcts : (book_use_iddfs ? make_book_iddfs : make_book_alpha_beta);
 	for (int trial = 0; trial < limitTrialNum;) {
 		// 進捗状況表示
 		std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
@@ -813,7 +817,6 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		// 先手番
 		if (make_book_color == Black || make_book_color == ColorNum) {
 			int count = 0;
-			moves.clear();
 			// 探索
 			Position pos_copy(pos);
 			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, moves);
@@ -824,7 +827,6 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		// 後手番
 		if (make_book_color == White || make_book_color == ColorNum) {
 			int count = 0;
-			moves.clear();
 			// 探索
 			Position pos_copy(pos);
 			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, moves);
@@ -1580,6 +1582,9 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
+	// 反復進化を使う
+	const bool book_use_iddfs = options["Book_Use_IDDFS"];
+
 	// αβ探索の代わりにMCTSを使う
 	const bool book_use_mcts = options["Book_Use_Mcts"];
 	book_mcts_playouts = options["Book_Mcts_Playouts"];
@@ -1593,12 +1598,42 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	std::istringstream ssPosCmd(posCmd);
-	setPosition(pos, ssPosCmd);
+	std::vector<Move> moves;
+	book_pos_cmd = "position " + posCmd;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		if (token != "moves")
+			book_pos_cmd += " moves";
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+			moves.emplace_back(move);
+		}
+	}
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	const auto select_best_function = book_use_mcts ? parallel_uct_search : select_best_book_entry;
+	const auto select_best_function = book_use_mcts ? parallel_uct_search : (book_use_iddfs ? book_search_iddfs : select_best_book_entry);
 	const Key key = Book::bookKey(pos);
 	const auto itr = bookMap.find(key);
 	if (itr == bookMap.end()) {
@@ -1606,7 +1641,6 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 		return;
 	}
 	const auto entries = itr->second;
-	std::vector<Move> moves;
 	int index;
 	u16 move16;
 	Score score;

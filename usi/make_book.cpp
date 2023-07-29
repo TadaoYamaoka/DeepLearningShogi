@@ -311,7 +311,7 @@ std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::uno
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
-		//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+		std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
 		if (value > alpha) {
 			best = &entry;
@@ -346,7 +346,7 @@ std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::uno
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
-		//std::cout << move.toUSI() << "\t" << ScoreNotEvaluated << "\t" << value << std::endl;
+		std::cout << move.toUSI() << "\t" << ScoreNotEvaluated << "\t" << value << std::endl;
 
 		if (value > alpha) {
 			tmp.fromToPro = move16;
@@ -521,7 +521,8 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 }
 
 void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
-	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry);
+	std::vector<Move> moves_tmp;
+	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves_tmp, select_best_book_entry);
 }
 
 // 定跡読み込み
