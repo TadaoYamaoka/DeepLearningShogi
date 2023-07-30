@@ -996,4 +996,51 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 		}
 	}
 }
+
+// 評価値が30000以上の局面を再評価
+void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits) {
+	// 局面を列挙する
+	std::vector<PositionWithMove> positions;
+	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
+	enumerate_positions_with_move(pos, bookMap, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	assert(positions.size() <= bookMap.size());
+
+	// 評価値が30000以上の局面を再評価
+	for (const auto& position : positions) {
+		const Key key = position.key;
+
+		const auto itr_book = bookMap.find(key);
+		if (itr_book != bookMap.end()) {
+			const auto& entry = itr_book->second[0];
+			if (std::abs(entry.score) >= 30000) {
+				Position pos_copy(pos);
+				const PositionWithMove* position_ptr = &position;
+				std::vector<Move> moves(position_ptr->depth);
+				for (int j = position_ptr->depth - 1; j >= 0; --j) {
+					moves[j] = position_ptr->move;
+					position_ptr = position_ptr->parent;
+				}
+				assert(position_ptr->parent == nullptr);
+
+				// move
+				auto states = StateListPtr(new std::deque<StateInfo>(1));
+				for (const Move move : moves) {
+					states->emplace_back(StateInfo());
+					pos_copy.doMove(move, states->back());
+				}
+
+				const auto prev_score = entry.score;
+				int count = 0;
+				bookMap.erase(key);
+				make_book_entry_with_uct(pos_copy, limits, key, bookMap, count, moves);
+
+				const auto after_score = bookMap[key][0].score;
+
+				std::cout << prev_score << ", " << after_score << std::endl;
+
+			}
+		}
+	}
+}
 #endif

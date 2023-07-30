@@ -37,6 +37,7 @@ struct MySearcher : Searcher {
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
+	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -406,6 +407,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
+		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1616,5 +1618,78 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::cout << "index: " << index << std::endl;
 	std::cout << "move: " << move16toMove(Move(move16), pos).toUSI() << std::endl;
 	std::cout << "score: " << score << std::endl;
+}
+
+// 評価値が30000以上の局面を再評価
+void MySearcher::fixEval(std::istringstream& ssCmd, const std::string& posCmd) {
+	// isreadyを先に実行しておくこと。
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string outFileName;
+	int playoutNum;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> playoutNum;
+
+	// プレイアウト数固定
+	LimitsType limits;
+	limits.nodes = playoutNum;
+
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	book_cutoff = options["Book_Cutoff"] / 1000.0f;
+
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
+
+	SetReuseSubtree(options["ReuseSubtree"]);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	book_pos_cmd = "position " + posCmd;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+		else
+			return;
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		if (token != "moves")
+			book_pos_cmd += " moves";
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+		}
+	}
+	book_starting_pos_key = pos.getKey();
+
+	// 定跡読み込み
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	fix_eval(pos, bookMap, limits);
+
+	saveOutmap(outFileName, bookMap);
+
+	// 結果表示
+	std::cout << "bookMap.size:" << bookMap.size() << std::endl;
 }
 #endif
