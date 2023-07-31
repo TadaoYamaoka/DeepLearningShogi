@@ -896,9 +896,11 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			const Score score = entry.score;
 			const auto& opp_entry = itr_book->second[0];
 			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
-			if ((score + 100) * opp_score < 0 || (score - 100) * opp_score < 0) {
-				// 評価値の符号が異なり、差がdiff以上
-				if (std::abs(opp_score - score) >= diff) {
+			// 相手が詰みを見つけているか
+			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
+			if ((score + 100) * opp_score < 0 || (score - 100) * opp_score < 0 || opp_mate) {
+				// 評価値の符号が異なり、差がdiff以上、もしくは詰み
+				if (std::abs(opp_score - score) >= diff || opp_mate) {
 					Position pos_copy(pos);
 					const PositionWithMove* position_ptr = &position;
 					std::vector<Move> moves(position_ptr->depth);
@@ -915,7 +917,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 						pos_copy.doMove(move, states->back());
 					}
 
-					const Move move = (score < opp_score) ?
+					const Move move = (score < opp_score) || opp_mate ?
 						// 悲観している局面では、相手の指し手を選ぶ
 						move16toMove(Move(opp_entry.fromToPro), pos_copy) :
 						// 楽観している局面では、自分の指し手を選ぶ
