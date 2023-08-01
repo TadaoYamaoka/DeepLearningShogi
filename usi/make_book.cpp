@@ -917,7 +917,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 						pos_copy.doMove(move, states->back());
 					}
 
-					const Move move = (score < opp_score) || opp_mate ?
+					const Move move = (score < opp_score) ?
 						// 悲観している局面では、相手の指し手を選ぶ
 						move16toMove(Move(opp_entry.fromToPro), pos_copy) :
 						// 楽観している局面では、自分の指し手を選ぶ
