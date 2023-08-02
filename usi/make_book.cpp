@@ -173,7 +173,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		std::cout << key << "\t" << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << "\t" << itr_searched->second.score << std::endl;
 		__debugbreak();
 	}*/
-	if (itr_searched != searched.end()/* && itr_searched->second.depth <= pos.gamePly()*/ && itr_searched->second.beta >= beta) {
+	if (itr_searched != searched.end() && itr_searched->second.depth <= pos.gamePly() && itr_searched->second.beta >= beta) {
 		/*if (key == 12668901208309554908UL)
 			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
 		return -itr_searched->second.score;
