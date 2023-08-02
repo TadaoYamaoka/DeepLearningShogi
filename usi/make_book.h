@@ -29,6 +29,7 @@ extern int book_mcts_playouts;
 extern int book_mcts_threads;
 extern float book_mcts_temperature;
 extern bool book_mcts_debug;
+extern std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
 
 
 struct MinMaxBookEntry {

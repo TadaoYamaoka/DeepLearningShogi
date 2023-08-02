@@ -740,6 +740,11 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	book_mcts_threads = options["Book_Mcts_Threads"];
 	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
 	book_mcts_debug = options["Book_Mcts_Debug"];
+	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
+	if (book_mcts_minmax_book != "") {
+		minmaxBookMap.clear();
+		read_book(book_mcts_minmax_book, minmaxBookMap);
+	}
 
 	SetReuseSubtree(options["ReuseSubtree"]);
 
@@ -902,6 +907,11 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	book_mcts_threads = options["Book_Mcts_Threads"];
 	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
 	book_mcts_debug = options["Book_Mcts_Debug"];
+	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
+	if (book_mcts_minmax_book != "") {
+		minmaxBookMap.clear();
+		read_book(book_mcts_minmax_book, minmaxBookMap);
+	}
 
 	// 定跡読み込み
 	bookMap.clear();
@@ -1588,6 +1598,11 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	book_mcts_threads = options["Book_Mcts_Threads"];
 	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
 	book_mcts_debug = options["Book_Mcts_Debug"];
+	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
+	if (book_mcts_minmax_book != "") {
+		minmaxBookMap.clear();
+		read_book(book_mcts_minmax_book, minmaxBookMap);
+	}
 
 	// 定跡読み込み
 	bookMap.clear();
@@ -1595,8 +1610,33 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	std::istringstream ssPosCmd(posCmd);
-	setPosition(pos, ssPosCmd);
+	std::vector<Move> moves;
+	{
+		std::istringstream ssPosCmd(posCmd);
+		std::string token;
+		std::string sfen;
+
+		ssPosCmd >> token;
+
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			ssPosCmd >> token; // "moves" が入力されるはず。
+		}
+		else if (token == "sfen") {
+			while (ssPosCmd >> token && token != "moves")
+				sfen += token + " ";
+		}
+
+		pos.set(sfen);
+		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+		while (ssPosCmd >> token) {
+			const Move move = usiToMove(pos, token);
+			if (!move) break;
+			pos.doMove(move, pos.searcher()->states->emplace_back());
+			moves.emplace_back(move);
+		}
+	}
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
@@ -1608,7 +1648,6 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 		return;
 	}
 	const auto entries = itr->second;
-	std::vector<Move> moves;
 	int index;
 	u16 move16;
 	Score score;

@@ -29,6 +29,9 @@ bool book_mcts_debug = false;
 // 特定局面の評価値を置き換える
 extern std::map<Key, Score> book_key_eval_map;
 
+// MinMax定跡の方策
+std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
+
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex book_mutexes[MUTEX_NUM];
 inline std::mutex& GetPositionMutex(const Position& pos)
@@ -228,6 +231,20 @@ struct book_uct_node_t {
 		}
 		softmax_temperature_with_normalize(child_entries);
 		//for (auto entry : child_entries) std::cout << entry.prob << std::endl;
+		// MinMax定跡の方策をマージする場合
+		if (minmaxBookMap.size() > 0) {
+			const auto itr_minmax = minmaxBookMap.find(key);
+			if (itr_minmax != minmaxBookMap.end()) {
+				for (auto& entry : child_entries) {
+					if ((u16)entry.move.value() == itr_minmax->second[0].fromToPro) {
+						entry.prob = (1.0f + entry.prob) / 2.0f;
+					}
+					else {
+						entry.prob /= 2.0f;
+					}
+				}
+			}
+		}
 		child = std::make_unique<book_child_node_t[]>(child_entries.size());
 		auto* child_node = child.get();
 		bool is_all_evaled = true;
