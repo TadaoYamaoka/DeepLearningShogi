@@ -137,8 +137,6 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	std::cout << "movelist.size: " << num << std::endl;
 	gpu_lock.unlock();
 
-	if (outMap.find(key) != outMap.end())
-		return true;
 	auto& entries = outMap[key];
 	for (int i = 0; i < num; i++) {
 		const auto& child = movelist[i];
