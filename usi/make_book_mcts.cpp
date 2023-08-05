@@ -663,7 +663,8 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 	}
 }
 
-void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
+void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack) {
+	std::vector<Move> moves;
 	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search);
 }
 

@@ -57,7 +57,7 @@ extern float eval_coef;
 Score draw_score_black;
 Score draw_score_white;
 // 相手定跡から外れた場合USIエンジンを使う
-std::unique_ptr<USIBookEngine> usi_book_engine;
+std::deque<std::unique_ptr<USIBookEngine>> usi_book_engines;
 int usi_book_engine_nodes;
 double usi_book_engine_prob = 1.0;
 // 自分の手番でも一定確率でUSIエンジンを使う
@@ -66,13 +66,36 @@ double usi_book_engine_prob_own = 0.0;
 // αβ探索で特定局面の評価値を置き換える
 std::map<Key, Score> book_key_eval_map;
 
+// 定跡用mutex
+std::shared_mutex book_mutex;
+std::mutex save_book_mutex;
+std::mutex gpu_mutex;
+std::mutex usi_mutex;
+std::condition_variable usi_cond;
+
+
+std::unique_ptr<USIBookEngine> get_usi_book_engine() {
+	std::unique_lock<std::mutex> lock(usi_mutex);
+	usi_cond.wait(lock, [] { return !usi_book_engines.empty(); });
+	std::unique_ptr<USIBookEngine> front = std::move(usi_book_engines.front());
+	usi_book_engines.pop_front();
+	return std::move(front);
+}
+
+void reuse_usi_book_engine(std::unique_ptr<USIBookEngine> usi_engine) {
+	std::lock_guard<std::mutex> lock(usi_mutex);
+	usi_book_engines.emplace_back(std::move(usi_engine));
+	usi_cond.notify_one();
+}
+
 inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves) {
-	std::cout << book_pos_cmd;
+	std::unique_lock<std::mutex> gpu_lock(gpu_mutex);
+	std::cout << omp_get_thread_num() << "# " << book_pos_cmd;
 	for (Move move : moves) {
 		std::cout << " " << move.toUSI();
 	}
@@ -114,7 +137,12 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	}
 
 	std::cout << "movelist.size: " << num << std::endl;
+	gpu_lock.unlock();
 
+	std::unique_lock<std::shared_mutex> lock(book_mutex);
+	if (outMap.find(key) != outMap.end())
+		return true;
+	auto& entries = outMap[key];
 	for (int i = 0; i < num; i++) {
 		const auto& child = movelist[i];
 		// 定跡追加
@@ -132,10 +160,11 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		be.key = key;
 		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
 		be.count = (u16)((double)child.move_count / (double)current_root->move_count * 1000.0);
-		outMap[key].emplace_back(be);
+		entries.emplace_back(be);
 
 		count++;
 	}
+	lock.unlock();
 
 	if (make_book_sleep > 0)
 		std::this_thread::sleep_for(std::chrono::milliseconds(make_book_sleep));
@@ -179,7 +208,9 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		return -itr_searched->second.score;
 	}
 	
+	std::shared_lock<std::shared_mutex> lock(book_mutex);
 	const auto itr = outMap.find(key);
+	lock.unlock();
 	if (itr == outMap.end()) {
 		// エントリがない場合、自身の評価値を返す
 		return score;
@@ -235,8 +266,10 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
+		std::shared_lock<std::shared_mutex> lock(book_mutex);
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
+		lock.unlock();
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -323,8 +356,10 @@ std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::uno
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
+		std::shared_lock<std::shared_mutex> lock(book_mutex);
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
+		lock.unlock();
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -362,7 +397,9 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
+		book_mutex.lock_shared();
 		const auto itr = outMap.find(key);
+		book_mutex.unlock_shared();
 		if (itr == outMap.end()) {
 			// 先端ノード
 			// UCT探索で定跡作成
@@ -374,8 +411,10 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				Move move;
 				if (dist_minmax(g_randomTimeSeed) < usi_book_engine_prob_own) {
 					// 自分の手番でも一定確率でUSIエンジンを使う
+					auto usi_book_engine = get_usi_book_engine();
 					const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes_own);
-					std::cout << "usi move : " << depth << " " << usi_result.info << std::endl;
+					reuse_usi_book_engine(std::move(usi_book_engine));
+					std::cout << omp_get_thread_num() << "# usi move : " << depth << " " << usi_result.info << std::endl;
 					if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
 						return;
 					move = usiToMove(pos, usi_result.bestMove);
@@ -390,7 +429,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 
 					// 評価値が閾値を超えた場合、探索終了
 					if (std::abs(score) > book_eval_threshold) {
-						std::cout << book_pos_cmd;
+						std::cout << omp_get_thread_num() << "# " << book_pos_cmd;
 						for (Move move : moves) {
 							std::cout << " " << move.toUSI();
 						}
@@ -400,7 +439,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 
 					move = move16toMove(Move(move16), pos);
 					if (index != 0)
-						std::cout << "best move : " << depth << " " << index << " " << move.toUSI() << std::endl;
+						std::cout << omp_get_thread_num() << "# best move : " << depth << " " << index << " " << move.toUSI() << std::endl;
 				}
 
 				StateInfo state;
@@ -426,7 +465,10 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 	else {
 		// MinMaxのために相手定跡の手番でも探索する
 		if (make_book_for_minmax) {
-			if (outMap.find(key) == outMap.end()) {
+			book_mutex.lock_shared();
+			const auto itr_out = outMap.find(key);
+			book_mutex.unlock_shared();
+			if (itr_out == outMap.end()) {
 				// 未探索の局面の場合
 				// UCT探索で定跡作成
 				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
@@ -439,10 +481,12 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 
 		Move move;
 		const auto itr = bookMap.find(key);
-		if (itr == bookMap.end() && usi_book_engine && dist_minmax(g_randomTimeSeed) < usi_book_engine_prob) {
+		if (itr == bookMap.end() && usi_book_engine_nodes > 0 && dist_minmax(g_randomTimeSeed) < usi_book_engine_prob) {
 			// 相手定跡から外れた場合USIエンジンを使う
+			auto usi_book_engine = get_usi_book_engine();
 			const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes);
-			std::cout << "usi move : " << depth << " " << usi_result.info << std::endl;
+			reuse_usi_book_engine(std::move(usi_book_engine));
+			std::cout << omp_get_thread_num() << "# usi move : " << depth << " " << usi_result.info << std::endl;
 			if (usi_result.bestMove == "resign" || usi_result.bestMove == "win")
 				return;
 			move = usiToMove(pos, usi_result.bestMove);
@@ -457,7 +501,9 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			}
 			else {
 				// 定跡にない場合、探索結果を使う
+				book_mutex.lock_shared();
 				const auto itr_out = outMap.find(key);
+				book_mutex.unlock_shared();
 
 				if (itr_out == outMap.end()) {
 					// 定跡になく未探索の局面の場合
@@ -469,7 +515,9 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					}
 				}
 
+				book_mutex.lock_shared();
 				entries = &outMap[key];
+				book_mutex.unlock_shared();
 			}
 
 			u16 selected_move16;
@@ -520,7 +568,8 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 	}
 }
 
-void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves) {
+void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack) {
+	std::vector<Move> moves;
 	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry);
 }
 
@@ -738,10 +787,12 @@ std::unique_ptr<USIBookEngine> create_usi_book_engine(const std::string& engine_
 	return std::make_unique<USIBookEngine>(engine_path, usi_engine_options);
 }
 
-void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own) {
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own, const int num_engines) {
 	if (engine_path == "")
 		return;
-	usi_book_engine = create_usi_book_engine(engine_path, engine_options);
+	for (int i = 0; i < num_engines; ++i) {
+		usi_book_engines.emplace_back(create_usi_book_engine(engine_path, engine_options));
+	}
 	usi_book_engine_nodes = nodes;
 	usi_book_engine_prob = prob;
 	usi_book_engine_nodes_own = nodes_own;

@@ -860,8 +860,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			prev_num = outMap.size();
 			{
 				BookLock book_lock(outFileName, use_book_lock);
-				std::lock_guard<std::mutex> save_book_lock(save_book_mutex);
+				save_book_mutex.lock();
 				saveOutmap(outFileName, outMap);
+				save_book_mutex.unlock();
 			}
 		}
 	}
