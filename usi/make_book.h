@@ -32,9 +32,6 @@ extern float book_mcts_temperature;
 extern bool book_mcts_debug;
 extern std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
 
-extern std::shared_mutex book_mutex;
-extern std::mutex save_book_mutex;
-
 struct MinMaxBookEntry {
 	u16 move16;
 	Score score;
@@ -44,6 +41,7 @@ struct MinMaxBookEntry {
 
 void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vector<BookEntry> >& bookMap);
 int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time=true);
+void merge_book_map(std::unordered_map<Key, std::vector<BookEntry> >& dstMap, const std::unordered_map<Key, std::vector<BookEntry> >& srctMap);
 typedef std::tuple<int, u16, Score>(*select_best_book_entry_t)(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
 void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry);
 void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack);

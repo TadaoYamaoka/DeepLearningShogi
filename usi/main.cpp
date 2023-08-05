@@ -753,16 +753,16 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// outFileが存在するときは追加する
 	int input_num = 0;
-	std::unordered_map<Key, std::vector<BookEntry> > outMap;
+	std::unordered_map<Key, std::vector<BookEntry> > outMapMaster;
 	{
 		std::ifstream ifsOutFile(outFileName.c_str(), std::ios::binary);
 		if (ifsOutFile) {
 			BookEntry entry;
 			while (ifsOutFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-				outMap[entry.key].emplace_back(entry);
+				outMapMaster[entry.key].emplace_back(entry);
 				input_num++;
 			}
-			std::cout << "outMap.size: " << outMap.size() << std::endl;
+			std::cout << "outMap.size: " << outMapMaster.size() << std::endl;
 		}
 	}
 
@@ -808,18 +808,24 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int merged = 0;
 	if (merge_file != "") {
 		BookLock book_lock(merge_file, use_book_lock);
-		merged += merge_book(outMap, merge_file);
+		merged += merge_book(outMapMaster, merge_file);
 	}
 
 	int trial = 0;
 	int black_num = 0;
 	int white_num = 0;
-	size_t prev_num = outMap.size();
+	size_t prev_num = outMapMaster.size();
 	const auto make_book_search = book_use_mcts ? make_book_mcts : make_book_alpha_beta;
+	std::mutex book_map_mutex;
 	#pragma omp parallel num_threads(make_book_threads)
-	for (; trial < limitTrialNum;) {
+	for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
 		// 進捗状況表示
 		std::cout << omp_get_thread_num() << "# " << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
+
+		// outMapMasterをマージ
+		book_map_mutex.lock();
+		merge_book_map(outMap, outMapMaster);
+		book_map_mutex.unlock();
 
 		// 先手番
 		if (make_book_color == Black || make_book_color == ColorNum) {
@@ -843,27 +849,27 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		#pragma omp atomic
 		trial++;
 
+		// outMapMasterへマージ
+		book_map_mutex.lock();
+		merge_book_map(outMapMaster, outMap);
+
 		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		std::shared_lock<std::shared_mutex> sh_lock(book_mutex);
-		if (outMap.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
+		if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 		{
-			sh_lock.unlock();
 			// 定跡マージ
 			#pragma omp master
 			if (merge_file != "") {
 				BookLock book_lock(merge_file, use_book_lock);
-				std::unique_lock<std::shared_mutex> uniq_lock(book_mutex);
-				merged += merge_book(outMap, merge_file);
+				merged += merge_book(outMapMaster, merge_file);
 			}
 
-			sh_lock.lock();
-			prev_num = outMap.size();
+			prev_num = outMapMaster.size();
 			{
 				BookLock book_lock(outFileName, use_book_lock);
-				std::lock_guard<std::mutex> save_book_lock(save_book_mutex);
-				saveOutmap(outFileName, outMap);
+				saveOutmap(outFileName, outMapMaster);
 			}
 		}
+		book_map_mutex.unlock();
 	}
 
 	// 結果表示
@@ -871,7 +877,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::cout << "black\t" << black_num << std::endl;
 	std::cout << "white\t" << white_num << std::endl;
 	std::cout << "sum\t" << black_num + white_num << std::endl;
-	std::cout << "entries\t" << outMap.size() << std::endl;
+	std::cout << "entries\t" << outMapMaster.size() << std::endl;
 	std::cout << "merged entries\t" << merged << std::endl;
 }
 

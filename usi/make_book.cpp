@@ -67,8 +67,6 @@ double usi_book_engine_prob_own = 0.0;
 std::map<Key, Score> book_key_eval_map;
 
 // 定跡用mutex
-std::shared_mutex book_mutex;
-std::mutex save_book_mutex;
 std::mutex gpu_mutex;
 std::mutex usi_mutex;
 std::condition_variable usi_cond;
@@ -139,7 +137,6 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	std::cout << "movelist.size: " << num << std::endl;
 	gpu_lock.unlock();
 
-	std::unique_lock<std::shared_mutex> lock(book_mutex);
 	if (outMap.find(key) != outMap.end())
 		return true;
 	auto& entries = outMap[key];
@@ -164,7 +161,6 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 
 		count++;
 	}
-	lock.unlock();
 
 	if (make_book_sleep > 0)
 		std::this_thread::sleep_for(std::chrono::milliseconds(make_book_sleep));
@@ -208,9 +204,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		return -itr_searched->second.score;
 	}
 	
-	std::shared_lock<std::shared_mutex> lock(book_mutex);
 	const auto itr = outMap.find(key);
-	lock.unlock();
 	if (itr == outMap.end()) {
 		// エントリがない場合、自身の評価値を返す
 		return score;
@@ -266,10 +260,8 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
-		std::shared_lock<std::shared_mutex> lock(book_mutex);
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
-		lock.unlock();
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -356,10 +348,8 @@ std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::uno
 		const u16 move16 = (u16)(move.value());
 		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
 			continue;
-		std::shared_lock<std::shared_mutex> lock(book_mutex);
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
-		lock.unlock();
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -397,9 +387,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
-		book_mutex.lock_shared();
 		const auto itr = outMap.find(key);
-		book_mutex.unlock_shared();
 		if (itr == outMap.end()) {
 			// 先端ノード
 			// UCT探索で定跡作成
@@ -465,9 +453,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 	else {
 		// MinMaxのために相手定跡の手番でも探索する
 		if (make_book_for_minmax) {
-			book_mutex.lock_shared();
 			const auto itr_out = outMap.find(key);
-			book_mutex.unlock_shared();
 			if (itr_out == outMap.end()) {
 				// 未探索の局面の場合
 				// UCT探索で定跡作成
@@ -501,9 +487,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			}
 			else {
 				// 定跡にない場合、探索結果を使う
-				book_mutex.lock_shared();
 				const auto itr_out = outMap.find(key);
-				book_mutex.unlock_shared();
 
 				if (itr_out == outMap.end()) {
 					// 定跡になく未探索の局面の場合
@@ -515,9 +499,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					}
 				}
 
-				book_mutex.lock_shared();
 				entries = &outMap[key];
-				book_mutex.unlock_shared();
 			}
 
 			u16 selected_move16;
@@ -624,6 +606,17 @@ int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const s
 	}
 	std::cout << "merged: " << merged << std::endl;
 	return merged;
+}
+
+void merge_book_map(std::unordered_map<Key, std::vector<BookEntry> >& dstMap, const std::unordered_map<Key, std::vector<BookEntry> >& srctMap) {
+	for (const auto& src : srctMap) {
+		auto itr_dst = dstMap.find(src.first);
+		if (itr_dst == dstMap.end()) {
+			auto& entries = dstMap[src.first];
+			entries.reserve(src.second.size());
+			std::copy(src.second.begin(), src.second.end(), std::back_inserter(entries));
+		}
+	}
 }
 
 void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry);
