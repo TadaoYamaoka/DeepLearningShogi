@@ -816,60 +816,105 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int white_num = 0;
 	size_t prev_num = outMapMaster.size();
 	const auto make_book_search = book_use_mcts ? make_book_mcts : make_book_alpha_beta;
-	std::mutex book_map_mutex;
-	#pragma omp parallel num_threads(make_book_threads)
-	for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
-		// 進捗状況表示
-		std::cout << omp_get_thread_num() << "# " << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
+	if (!book_use_mcts && make_book_threads > 1) {
+		std::mutex book_map_mutex;
+		#pragma omp parallel num_threads(make_book_threads)
+		for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
+			// 進捗状況表示
+			std::cout << omp_get_thread_num() << "# " << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
-		// outMapMasterをマージ
-		book_map_mutex.lock();
-		merge_book_map(outMap, outMapMaster);
-		book_map_mutex.unlock();
+			// outMapMasterをマージ
+			book_map_mutex.lock();
+			merge_book_map(outMap, outMapMaster);
+			book_map_mutex.unlock();
 
-		// 先手番
-		if (make_book_color == Black || make_book_color == ColorNum) {
-			int count = 0;
-			// 探索
-			Position pos_copy(pos);
-			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true);
-			#pragma omp atomic
-			black_num += count;
-		}
-
-		// 後手番
-		if (make_book_color == White || make_book_color == ColorNum) {
-			int count = 0;
-			// 探索
-			Position pos_copy(pos);
-			make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false);
-			#pragma omp atomic
-			white_num += count;
-		}
-		#pragma omp atomic
-		trial++;
-
-		// outMapMasterへマージ
-		book_map_mutex.lock();
-		merge_book_map(outMapMaster, outMap);
-
-		// 完了時およびSave_Book_Intervalごとに途中経過を保存
-		if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
-		{
-			// 定跡マージ
-			#pragma omp master
-			if (merge_file != "") {
-				BookLock book_lock(merge_file, use_book_lock);
-				merged += merge_book(outMapMaster, merge_file);
+			// 先手番
+			if (make_book_color == Black || make_book_color == ColorNum) {
+				int count = 0;
+				// 探索
+				Position pos_copy(pos);
+				make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true);
+				#pragma omp atomic
+				black_num += count;
 			}
 
-			prev_num = outMapMaster.size();
+			// 後手番
+			if (make_book_color == White || make_book_color == ColorNum) {
+				int count = 0;
+				// 探索
+				Position pos_copy(pos);
+				make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false);
+				#pragma omp atomic
+				white_num += count;
+			}
+			#pragma omp atomic
+			trial++;
+
+			// outMapMasterへマージ
+			book_map_mutex.lock();
+			merge_book_map(outMapMaster, outMap);
+
+			// 完了時およびSave_Book_Intervalごとに途中経過を保存
+			if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 			{
-				BookLock book_lock(outFileName, use_book_lock);
-				saveOutmap(outFileName, outMapMaster);
+				// 定跡マージ
+				#pragma omp master
+				if (merge_file != "") {
+					BookLock book_lock(merge_file, use_book_lock);
+					merged += merge_book(outMapMaster, merge_file);
+				}
+
+				prev_num = outMapMaster.size();
+				{
+					BookLock book_lock(outFileName, use_book_lock);
+					saveOutmap(outFileName, outMapMaster);
+				}
+			}
+			book_map_mutex.unlock();
+		}
+	}
+	else {
+		for (; trial < limitTrialNum;) {
+			// 進捗状況表示
+			std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
+
+			// 先手番
+			if (make_book_color == Black || make_book_color == ColorNum) {
+				int count = 0;
+				moves.clear();
+				// 探索
+				Position pos_copy(pos);
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true);
+				black_num += count;
+			}
+
+			// 後手番
+			if (make_book_color == White || make_book_color == ColorNum) {
+				int count = 0;
+				moves.clear();
+				// 探索
+				Position pos_copy(pos);
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false);
+				white_num += count;
+			}
+			trial++;
+
+			// 完了時およびSave_Book_Intervalごとに途中経過を保存
+			if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
+			{
+				// 定跡マージ
+				if (merge_file != "") {
+					BookLock book_lock(merge_file, use_book_lock);
+					merged += merge_book(outMapMaster, merge_file);
+				}
+
+				prev_num = outMapMaster.size();
+				{
+					BookLock book_lock(outFileName, use_book_lock);
+					saveOutmap(outFileName, outMapMaster);
+				}
 			}
 		}
-		book_map_mutex.unlock();
 	}
 
 	// 結果表示
