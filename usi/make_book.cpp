@@ -74,6 +74,13 @@ std::mutex usi_mutex;
 std::condition_variable usi_cond;
 
 
+void read_minmax_priority_book(const std::string& minmax_priority_book) {
+	if (minmax_priority_book != "") {
+		std::cout << "read minmax_priority_book" << std::endl;
+		read_book(minmax_priority_book, bookMapBest);
+	}
+}
+
 std::unique_ptr<USIBookEngine> get_usi_book_engine() {
 	std::unique_lock<std::mutex> lock(usi_mutex);
 	usi_cond.wait(lock, [] { return !usi_book_engines.empty(); });

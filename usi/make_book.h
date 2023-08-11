@@ -19,8 +19,6 @@ extern double book_minmax_prob;
 extern double book_minmax_prob_opp;
 // MinMaxのために相手定跡の手番でも探索する
 extern bool make_book_for_minmax;
-// MinMaxの探索順に使用する定跡
-extern std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -63,4 +61,5 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName);
 void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads);
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits);
+void read_minmax_priority_book(const std::string& minmax_priority_book);
 #endif
