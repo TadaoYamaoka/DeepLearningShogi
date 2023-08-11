@@ -501,7 +501,6 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					const auto& entries = itr->second;
 					// 一定の確率でmin-maxで選ぶ
 					int index;
-					Move move;
 					Score score;
 					std::tie(index, move, score) = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
 
