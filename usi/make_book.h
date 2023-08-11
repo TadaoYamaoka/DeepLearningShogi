@@ -19,6 +19,8 @@ extern double book_minmax_prob;
 extern double book_minmax_prob_opp;
 // MinMaxのために相手定跡の手番でも探索する
 extern bool make_book_for_minmax;
+// MinMaxの探索順に使用する定跡
+extern std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -42,12 +44,12 @@ struct MinMaxBookEntry {
 void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vector<BookEntry> >& bookMap);
 int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::string& merge_file, const bool check_file_time=true);
 void merge_book_map(std::unordered_map<Key, std::vector<BookEntry> >& dstMap, const std::unordered_map<Key, std::vector<BookEntry> >& srctMap);
-typedef std::tuple<int, u16, Score>(*select_best_book_entry_t)(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
+typedef std::tuple<int, Move, Score>(*select_best_book_entry_t)(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
 void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry);
 void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack);
 void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack);
-std::tuple<int, u16, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
-std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
+std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
+std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves);
 void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color, select_best_book_entry_t select_best_book_entry);
 void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap);
 void saveOutmap(const std::string& outFileName, const std::unordered_map<Key, std::vector<BookEntry> >& outMap);

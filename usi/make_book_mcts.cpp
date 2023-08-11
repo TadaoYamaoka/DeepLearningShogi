@@ -584,7 +584,7 @@ void reset_to_position(const std::vector<Move>& moves) {
 	book_tree.ResetToPosition(moves);
 }
 
-std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
+std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
 	reset_to_position(moves);
 	book_uct_node_t* current_root = book_tree.GetCurrentHead();
 	book_child_node_t parent;
@@ -656,10 +656,10 @@ std::tuple<int, u16, Score> parallel_uct_search(Position& pos, const std::unorde
 	}
 
 	if (selected_index < entries.size()) {
-		return { selected_index, entries[selected_index].fromToPro, value_to_score(child[selected_index].value) };
+		return { selected_index, child[selected_index].move, value_to_score(child[selected_index].value) };
 	}
 	else {
-		return { entries.size() - selected_index - 1, (u16)child[selected_index].move.value(), value_to_score(child[selected_index].value) };
+		return { entries.size() - selected_index - 1, child[selected_index].move, value_to_score(child[selected_index].value) };
 	}
 }
 

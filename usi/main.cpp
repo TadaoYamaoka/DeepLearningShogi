@@ -723,6 +723,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// MinMaxのために相手定跡の手番でも探索する
 	make_book_for_minmax = options["Make_Book_For_MinMax"];
 
+	// MinMaxの探索順に使用する定跡
+	const std::string book_minmax_priority_book  = options["Book_MinMix_Priority_Book"];
+
 	// 千日手の評価値
 	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
 	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
@@ -803,6 +806,10 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 定跡読み込み
 	bookMap.clear();
 	read_book(bookFileName, bookMap);
+
+	// MinMaxの探索順に使用する定跡
+	if (book_minmax_priority_book != "")
+		read_book(book_minmax_priority_book, bookMapBest);
 
 	// 定跡マージ
 	int merged = 0;
@@ -1651,6 +1658,9 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
+	// MinMaxの探索順に使用する定跡
+	const std::string book_minmax_priority_book = options["Book_MinMix_Priority_Book"];
+
 	// αβ探索の代わりにMCTSを使う
 	const bool book_use_mcts = options["Book_Use_Mcts"];
 	book_mcts_playouts = options["Book_Mcts_Playouts"];
@@ -1666,6 +1676,10 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 定跡読み込み
 	bookMap.clear();
 	read_book(bookFileName, bookMap);
+
+	// MinMaxの探索順に使用する定跡
+	if (book_minmax_priority_book != "")
+		read_book(book_minmax_priority_book, bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1708,14 +1722,17 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	}
 	const auto entries = itr->second;
 	int index;
-	u16 move16;
+	Move move;
 	Score score;
-	std::tie(index, move16, score) = select_best_function(pos, bookMap, entries, moves);
+	const auto start = std::chrono::system_clock::now();
+	std::tie(index, move, score) = select_best_function(pos, bookMap, entries, moves);
+	const auto end = std::chrono::system_clock::now();
 
 	// 出力
 	std::cout << "index: " << index << std::endl;
-	std::cout << "move: " << move16toMove(Move(move16), pos).toUSI() << std::endl;
+	std::cout << "move: " << move.toUSI() << std::endl;
 	std::cout << "score: " << score << std::endl;
+	std::cout << "elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 }
 
 // 評価値が30000以上の局面を再評価
