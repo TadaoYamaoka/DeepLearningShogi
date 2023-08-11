@@ -210,47 +210,51 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		return score;
 	}
 	const auto& entries = itr->second;
+	Score value = -ScoreInfinite;
 
-	using candidate_t = std::tuple<Move, Score>;
-	std::vector<candidate_t> candidates;
-	{
-		candidates.reserve(entries.size() + 4);
-		// MinMaxの探索順に使用する定跡
-		Move moveBest = Move::moveNone();
-		if (bookMapBest.size() > 0) {
-			const auto itr_best = bookMapBest.find(key);
-			if (itr_best != bookMapBest.end()) {
-				moveBest = move16toMove(Move(itr_best->second[0].fromToPro), pos);
-				candidates.emplace_back(moveBest, ScoreNotEvaluated);
+	// MinMaxの探索順に使用する定跡
+	Move topMove = Move::moveNone();
+	if (bookMapBest.size() > 0) {
+		const auto itr_best = bookMapBest.find(key);
+		if (itr_best != bookMapBest.end()) {
+			topMove = move16toMove(Move(itr_best->second[0].fromToPro), pos);
+			StateInfo state;
+			pos.doMove(topMove, state);
+			//debug_moves.emplace_back(move);
+			switch (pos.isDraw()) {
+			case RepetitionDraw:
+				// 繰り返しになる場合、千日手の評価値
+				value = pos.turn() == Black ? draw_score_white : draw_score_black;
+				break;
+			case RepetitionWin:
+				value = -ScoreInfinite;
+				break;
+			case RepetitionLose:
+				value = ScoreMaxEvaluate;
+				break;
+			default:
+				value = book_search(pos, outMap, -beta, -alpha, itr_best->second[0].score, searched);
 			}
-		}
-		Score trusted_score = entries[0].score;
-		for (const auto& entry : entries) {
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
-			const Move move = move16toMove(Move(entry.fromToPro), pos);
-			if (move == moveBest) {
-				std::get<Score>(candidates[0]) = trusted_score;
+			pos.undoMove(topMove);
+			//debug_moves.pop_back();
+			//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+
+			alpha = std::max(alpha, value);
+			if (alpha >= beta) {
+				searched[key] = { pos.gamePly(), value, beta };
+				return -value;
 			}
-			else {
-				candidates.emplace_back(move, trusted_score);
-			}
-		}
-		const auto size = candidates.size();
-		for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-			const Move& move = ml.move();
-			if (std::any_of(candidates.cbegin(), candidates.cbegin() + size, [move](const auto& candidate) { return std::get<Move>(candidate) == move; }))
-				continue;
-			if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
-				continue;
-			candidates.emplace_back(move, ScoreNotEvaluated);
 		}
 	}
 
-	Score value = -ScoreInfinite;
-	for (const auto& candidate : candidates) {
-		const Move& move = std::get<Move>(candidate);
+	Score trusted_score = entries[0].score;
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		if (move == topMove)
+			continue;
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
 		/*if (key == 7172278114399076909UL && debug_moves[0].toUSI() == "4b5b" && move.toUSI() == "4a5b") {
 			print_debug_moves(entry.score);
@@ -272,13 +276,56 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			value = std::max(value, book_search(pos, outMap, -beta, -alpha, std::get<Score>(candidate), searched));
+			value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched));
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 
 		/*if (key == 10806437342126107775UL && debug_moves.size() > 8 && debug_moves[8].toUSI() == "6c5d")
 			std::cout << "***\t" << move.toUSI() << "\t" << value << "\t" << alpha << "\t" << beta << std::endl;*/
+
+		alpha = std::max(alpha, value);
+		if (alpha >= beta) {
+			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
+			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
+			searched[key] = { pos.gamePly(), value, beta };
+			//}
+			return -value;
+		}
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		const u16 move16 = (u16)(move.value());
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
+		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
+			continue;
+		if (move == topMove)
+			continue;
+		StateInfo state;
+		pos.doMove(move, state);
+		//debug_moves.emplace_back(move);
+		switch (pos.isDraw()) {
+		case RepetitionDraw:
+			// 繰り返しになる場合、千日手の評価値
+			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
+			break;
+		case RepetitionWin:
+			// 相手の勝ち(自分の負け)のためvalueを更新しない
+			break;
+		case RepetitionLose:
+			// 相手の負け(自分の勝ち)
+			value = ScoreMaxEvaluate;
+			break;
+		default:
+			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched);
+			value = std::max(value, ret);
+		}
+		pos.undoMove(move);
+		//debug_moves.pop_back();
+
+		/*if (key == 10806437342126107775UL)
+			std::cout << "***\t" << move.toUSI() << "\t" << value << std::endl;*/
 
 		alpha = std::max(alpha, value);
 		if (alpha >= beta) {
@@ -298,50 +345,56 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
 	const Key key = Book::bookKey(pos);
 
-	using candidate_t = std::tuple<Move, Score, const BookEntry*>;
-	std::vector<candidate_t> candidates;
-	{
-		candidates.reserve(entries.size() + 4);
-		// MinMaxの探索順に使用する定跡
-		Move moveBest = Move::moveNone();
-		if (bookMapBest.size() > 0) {
-			const auto itr_best = bookMapBest.find(key);
-			if (itr_best != bookMapBest.end()) {
-				moveBest = move16toMove(Move(itr_best->second[0].fromToPro), pos);
-				candidates.emplace_back(moveBest, ScoreNotEvaluated, nullptr);
+	Score alpha = -ScoreInfinite;
+	Move bestMove = Move::moveNone();
+	int bestIndex = -1;
+	std::map<Key, Searched> searched;
+
+	// MinMaxの探索順に使用する定跡
+	Move topMove = Move::moveNone();
+	if (bookMapBest.size() > 0) {
+		const auto itr_best = bookMapBest.find(key);
+		if (itr_best != bookMapBest.end()) {
+			topMove = move16toMove(Move(itr_best->second[0].fromToPro), pos);
+			StateInfo state;
+			pos.doMove(topMove, state);
+			//debug_moves.emplace_back(move);
+			Score value;
+			switch (pos.isDraw()) {
+			case RepetitionDraw:
+				// 繰り返しになる場合、千日手の評価値
+				value = pos.turn() == Black ? draw_score_white : draw_score_black;
+				break;
+			case RepetitionWin:
+				value = -ScoreInfinite;
+				break;
+			case RepetitionLose:
+				value = ScoreMaxEvaluate;
+				break;
+			default:
+				value = book_search(pos, outMap, -ScoreInfinite, -alpha, itr_best->second[0].score, searched);
 			}
-		}
-		Score trusted_score = entries[0].score;
-		for (const auto& entry : entries) {
-			// 訪問回数が少ない評価値は信頼しない
-			if (entry.score < trusted_score)
-				trusted_score = entry.score;
-			const Move move = move16toMove(Move(entry.fromToPro), pos);
-			if (move == moveBest) {
-				std::get<Score>(candidates[0]) = trusted_score;
-				std::get<const BookEntry*>(candidates[0]) = &entry;
-			}
-			else {
-				candidates.emplace_back(move, trusted_score, &entry);
-			}
-		}
-		const auto size = candidates.size();
-		for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-			const Move& move = ml.move();
-			if (std::any_of(candidates.cbegin(), candidates.cbegin() + size, [move](const auto& candidate) { return std::get<Move>(candidate) == move; }))
-				continue;
-			if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
-				continue;
-			candidates.emplace_back(move, ScoreNotEvaluated, nullptr);
+			pos.undoMove(topMove);
+			//debug_moves.pop_back();
+			//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+
+			bestIndex = -1;
+			bestMove = topMove;
+			alpha = value;
 		}
 	}
 
-	Score alpha = -ScoreInfinite;
-	const candidate_t* best = nullptr;
-	std::map<Key, Searched> searched;
-
-	for (const auto& candidate : candidates) {
-		const Move& move = std::get<Move>(candidate);
+	Score trusted_score = entries[0].score;
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		if (move == topMove) {
+			if (move == bestMove)
+				bestIndex = (int)(&entry - &entries[0]);
+			continue;
+		}
+		// 訪問回数が少ない評価値は信頼しない
+		if (entry.score < trusted_score)
+			trusted_score = entry.score;
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
 		StateInfo state;
 		pos.doMove(move, state);
@@ -359,19 +412,57 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			value = book_search(pos, outMap, -ScoreInfinite, -alpha, std::get<Score>(candidate), searched);
+			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
 		//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
 		if (value > alpha) {
-			best = &candidate;
+			bestIndex = (int)(&entry - &entries[0]);
+			bestMove = move;
 			alpha = value;
 		}
 	}
-	const auto& best_entry = std::get<const BookEntry*>(*best);
-	return { best_entry != nullptr ? (int)(best_entry - &entries[0]) : -1, std::get<Move>(*best), alpha };
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		const u16 move16 = (u16)(move.value());
+		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+			continue;
+		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
+			continue;
+		if (move == topMove)
+			continue;
+		StateInfo state;
+		pos.doMove(move, state);
+		//debug_moves.emplace_back(move);
+		Score value;
+		switch (pos.isDraw()) {
+		case RepetitionDraw:
+			// 繰り返しになる場合、千日手の評価値
+			value = pos.turn() == Black ? draw_score_white : draw_score_black;
+			break;
+		case RepetitionWin:
+			value = -ScoreInfinite;
+			break;
+		case RepetitionLose:
+			value = ScoreMaxEvaluate;
+			break;
+		default:
+			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched);
+			value = ret;
+		}
+		pos.undoMove(move);
+		//debug_moves.pop_back();
+		//std::cout << move.toUSI() << "\t" << ScoreNotEvaluated << "\t" << value << std::endl;
+
+		if (value > alpha) {
+			bestIndex = -1;
+			bestMove = move;
+			alpha = value;
+		}
+	}
+	return { bestIndex, bestMove, alpha };
 }
 
 // 定跡作成(再帰処理)
