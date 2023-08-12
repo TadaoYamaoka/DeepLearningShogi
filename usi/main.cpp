@@ -862,9 +862,14 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			{
 				// 定跡マージ
 				#pragma omp master
-				if (merge_file != "") {
-					BookLock book_lock(merge_file, use_book_lock);
-					merged += merge_book(outMapMaster, merge_file);
+				{
+					if (merge_file != "") {
+						BookLock book_lock(merge_file, use_book_lock);
+						merged += merge_book(outMapMaster, merge_file);
+					}
+
+					// MinMaxの探索順に使用する定跡更新
+					read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
 				}
 
 				prev_num = outMapMaster.size();

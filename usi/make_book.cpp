@@ -75,10 +75,20 @@ std::condition_variable usi_cond;
 
 
 void read_minmax_priority_book(const std::string& minmax_priority_book) {
-	if (minmax_priority_book != "") {
-		std::cout << "read minmax_priority_book" << std::endl;
-		read_book(minmax_priority_book, bookMapBest);
-	}
+	if (minmax_priority_book == "")
+		return;
+
+	// ファイル更新がある場合のみ処理する
+	static std::filesystem::file_time_type prev_time{};
+	std::error_code ec;
+	const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(minmax_priority_book, ec);
+	if (file_time == prev_time)
+		return;
+	prev_time = file_time;
+
+	bookMapBest.clear();
+	std::cout << "read minmax_priority_book" << std::endl;
+	read_book(minmax_priority_book, bookMapBest);
 }
 
 std::unique_ptr<USIBookEngine> get_usi_book_engine() {
