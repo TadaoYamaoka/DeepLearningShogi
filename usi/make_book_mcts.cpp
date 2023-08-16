@@ -584,7 +584,7 @@ void reset_to_position(const std::vector<Move>& moves) {
 	book_tree.ResetToPosition(moves);
 }
 
-std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves) {
+std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
 	reset_to_position(moves);
 	book_uct_node_t* current_root = book_tree.GetCurrentHead();
 	book_child_node_t parent;
@@ -663,9 +663,9 @@ std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unord
 	}
 }
 
-void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack) {
+void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
 	std::vector<Move> moves;
-	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search);
+	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search, bookMapBest);
 }
 
 

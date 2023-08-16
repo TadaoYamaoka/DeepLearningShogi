@@ -805,7 +805,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	read_book(bookFileName, bookMap);
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBestMaster;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBestMaster);
 
 	// 定跡マージ
 	int merged = 0;
@@ -822,63 +823,70 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	if (!book_use_mcts && make_book_threads > 1) {
 		std::mutex book_map_mutex;
 		#pragma omp parallel num_threads(make_book_threads)
-		for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
-			// 進捗状況表示
-			std::cout << omp_get_thread_num() << "# " << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
+		{
+			std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+			for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
+				// 進捗状況表示
+				std::cout << omp_get_thread_num() << "# " << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
-			// outMapMasterをマージ
-			book_map_mutex.lock();
-			merge_book_map(outMap, outMapMaster);
-			book_map_mutex.unlock();
+				// outMapMasterをマージ
+				book_map_mutex.lock();
+				merge_book_map(outMap, outMapMaster);
+				if (bookMapBestMaster.size() != bookMapBest.size()) {
+					copy_minmax_priority_book(bookMapBestMaster, bookMapBest);
+					std::cout << omp_get_thread_num() << "# copy_minmax_priority_book " << bookMapBest.size() << std::endl;
+				}
+				book_map_mutex.unlock();
 
-			// 先手番
-			if (make_book_color == Black || make_book_color == ColorNum) {
-				int count = 0;
-				// 探索
-				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true);
+				// 先手番
+				if (make_book_color == Black || make_book_color == ColorNum) {
+					int count = 0;
+					// 探索
+					Position pos_copy(pos);
+					make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
+					#pragma omp atomic
+					black_num += count;
+				}
+
+				// 後手番
+				if (make_book_color == White || make_book_color == ColorNum) {
+					int count = 0;
+					// 探索
+					Position pos_copy(pos);
+					make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest);
+					#pragma omp atomic
+					white_num += count;
+				}
 				#pragma omp atomic
-				black_num += count;
-			}
+				trial++;
 
-			// 後手番
-			if (make_book_color == White || make_book_color == ColorNum) {
-				int count = 0;
-				// 探索
-				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false);
-				#pragma omp atomic
-				white_num += count;
-			}
-			#pragma omp atomic
-			trial++;
+				// outMapMasterへマージ
+				book_map_mutex.lock();
+				merge_book_map(outMapMaster, outMap);
 
-			// outMapMasterへマージ
-			book_map_mutex.lock();
-			merge_book_map(outMapMaster, outMap);
-
-			// 完了時およびSave_Book_Intervalごとに途中経過を保存
-			if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
-			{
-				// 定跡マージ
-				#pragma omp master
+				// 完了時およびSave_Book_Intervalごとに途中経過を保存
+				if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
 				{
-					if (merge_file != "") {
-						BookLock book_lock(merge_file, use_book_lock);
-						merged += merge_book(outMapMaster, merge_file);
+					// 定跡マージ
+					#pragma omp master
+					{
+						if (merge_file != "") {
+							BookLock book_lock(merge_file, use_book_lock);
+							merged += merge_book(outMapMaster, merge_file);
+						}
+
+						// MinMaxの探索順に使用する定跡更新
+						read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBestMaster);
 					}
 
-					// MinMaxの探索順に使用する定跡更新
-					read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+					prev_num = outMapMaster.size();
+					{
+						BookLock book_lock(outFileName, use_book_lock);
+						saveOutmap(outFileName, outMapMaster);
+					}
 				}
-
-				prev_num = outMapMaster.size();
-				{
-					BookLock book_lock(outFileName, use_book_lock);
-					saveOutmap(outFileName, outMapMaster);
-				}
+				book_map_mutex.unlock();
 			}
-			book_map_mutex.unlock();
 		}
 	}
 	else {
@@ -892,7 +900,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				moves.clear();
 				// 探索
 				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true);
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true, bookMapBestMaster);
 				black_num += count;
 			}
 
@@ -902,7 +910,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				moves.clear();
 				// 探索
 				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false);
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false, bookMapBestMaster);
 				white_num += count;
 			}
 			trial++;
@@ -987,7 +995,8 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	read_book(bookFileName, bookMap);
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -996,7 +1005,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry);
+	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry, bookMapBest);
 
 	// 出力
 	saveBookMapMinMax(outFileName, bookMapMinMax);
@@ -1173,7 +1182,8 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 	}
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1215,7 +1225,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 				if (outMap.find(key) == outMap.end()) {
 					book_starting_pos_key = pos.getKey();
 					Position pos_copy(pos);
-					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
 				}
 			}
 
@@ -1316,7 +1326,8 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	}
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1364,7 +1375,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 				if (outMap.find(key) == outMap.end()) {
 					book_starting_pos_key = pos.getKey();
 					Position pos_copy(pos);
-					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
 
 					// Save_Book_Intervalごとに途中経過を保存
 					if (++positions % save_book_interval == 0)
@@ -1636,7 +1647,8 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 	read_book(bookFileName, bookMap);
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1645,7 +1657,7 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 
 	// 定跡をmin-max探索
 	std::map<Key, std::vector<BookEntry> > outMap;
-	make_all_minmax_book(pos, outMap, make_book_color, threads);
+	make_all_minmax_book(pos, outMap, make_book_color, threads, bookMapBest);
 
 	// 出力
 	saveOutmap(outFileName, outMap);
@@ -1688,7 +1700,8 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	read_book(bookFileName, bookMap);
 
 	// MinMaxの探索順に使用する定跡
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"]);
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1734,7 +1747,7 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	Move move;
 	Score score;
 	const auto start = std::chrono::system_clock::now();
-	std::tie(index, move, score) = select_best_function(pos, bookMap, entries, moves);
+	std::tie(index, move, score) = select_best_function(pos, bookMap, entries, moves, bookMapBest);
 	const auto end = std::chrono::system_clock::now();
 
 	// 出力
