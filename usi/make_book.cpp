@@ -1294,4 +1294,91 @@ void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<Boo
 		}
 	}
 }
+
+void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath) {
+	std::ifstream cache(filepath, std::ios::binary);
+	size_t num_cache;
+	cache.read((char*)&num_cache, sizeof(num_cache));
+	std::vector<size_t> cache_pos;
+	cache_pos.resize(num_cache + 1);
+	cache.read((char*)cache_pos.data(), sizeof(size_t) * num_cache);
+	cache.seekg(0, std::ios_base::end);
+	cache_pos[num_cache] = cache.tellg();
+
+	std::unordered_map<HuffmanCodedPos, std::pair<Hcpe3CacheBody, std::vector<Hcpe3CacheCandidate>>> cache_map;
+	for (size_t i = 0; i < num_cache; ++i) {
+		cache.seekg(cache_pos[i], std::ios_base::beg);
+		Hcpe3CacheBody body;
+		cache.read((char*)&body, sizeof(body));
+		auto& data = cache_map[body.hcp];
+		data.first = body;
+
+		auto& candidates = data.second;
+		const auto num_candidates = (cache_pos[i + 1] - cache_pos[i] - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+		candidates.resize(num_candidates);
+		cache.read((char*)candidates.data(), sizeof(Hcpe3CacheCandidate) * num_candidates);
+	}
+
+	std::vector<TrainingData> trainingData;
+	std::ifstream original(original_filepath, std::ios::binary);
+	size_t num_original;
+	original.read((char*)&num_original, sizeof(num_original));
+	std::vector<size_t> original_pos;
+	original_pos.resize(num_original + 1);
+	original.read((char*)original_pos.data(), sizeof(size_t) * num_original);
+	original.seekg(0, std::ios_base::end);
+	original_pos[num_original] = original.tellg();
+
+	for (size_t i = 0; i < num_original; ++i) {
+		original.seekg(original_pos[i], std::ios_base::beg);
+		Hcpe3CacheBody body;
+		original.read((char*)&body, sizeof(body));
+
+		auto itr = cache_map.find(body.hcp);
+		if (itr == cache_map.end()) {
+			const auto num_candidates = (original_pos[i + 1] - original_pos[i] - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+			std::vector<Hcpe3CacheCandidate> candidates(num_candidates);
+			original.read((char*)candidates.data(), sizeof(Hcpe3CacheCandidate) * num_candidates);
+			trainingData.emplace_back(body, candidates.data(), num_candidates);
+		}
+		else {
+			// overwrite
+			auto& data = itr->second;
+			trainingData.emplace_back(data.first, data.second.data(), data.second.size());
+		}
+	}
+
+	// 出力
+	std::ofstream ofs(out_filepath, std::ios::binary);
+
+	// インデックス部
+	// 局面数
+	const size_t num = trainingData.size();
+	ofs.write((const char*)&num, sizeof(num));
+	// 各局面の開始位置
+	size_t start_pos = sizeof(num) + sizeof(start_pos) * num;
+	for (const auto& hcpe3 : trainingData) {
+		ofs.write((const char*)&start_pos, sizeof(start_pos));
+		start_pos += sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * hcpe3.candidates.size();
+	}
+
+	// ボディ部
+	for (const auto& hcpe3 : trainingData) {
+		Hcpe3CacheBody body{
+			hcpe3.hcp,
+			hcpe3.value,
+			hcpe3.result,
+			hcpe3.count
+		};
+		ofs.write((const char*)&body, sizeof(body));
+
+		for (const auto kv : hcpe3.candidates) {
+			Hcpe3CacheCandidate candidate{
+				kv.first,
+				kv.second
+			};
+			ofs.write((const char*)&candidate, sizeof(candidate));
+		}
+	}
+}
 #endif

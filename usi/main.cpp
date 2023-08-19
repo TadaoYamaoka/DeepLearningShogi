@@ -39,6 +39,7 @@ struct MySearcher : Searcher {
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
 	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd);
+	static void overwriteHcpe3Cache(std::istringstream& ssCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -410,6 +411,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
 		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
 		else if (token == "minmax_book_to_cache") minmaxBookToCache(ssCmd, posCmd);
+		else if (token == "overwrite_hcpe3_cache") overwriteHcpe3Cache(ssCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1860,6 +1862,23 @@ void MySearcher::minmaxBookToCache(std::istringstream& ssCmd, const std::string&
 	const double temperature = (int)options["Book_To_Cache_Temperature"] / 1000.0;
 
 	minmax_book_to_cache(pos, bookMap, minmaxBookMap, outFileName, 1.0 / temperature);
+
+	// 結果表示
+	std::cout << "done" << std::endl;
+}
+
+void MySearcher::overwriteHcpe3Cache(std::istringstream& ssCmd) {
+	HuffmanCodedPos::init();
+
+	std::string originalFileName;
+	std::string fileName;
+	std::string outFileName;
+
+	ssCmd >> originalFileName;
+	ssCmd >> fileName;
+	ssCmd >> outFileName;
+
+	overwrite_hcpe3_cache(originalFileName, fileName, outFileName);
 
 	// 結果表示
 	std::cout << "done" << std::endl;
