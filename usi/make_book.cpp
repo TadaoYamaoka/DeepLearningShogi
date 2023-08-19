@@ -1192,4 +1192,106 @@ void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& b
 		}
 	}
 }
+
+Score make_hcpe3_cache(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap, std::vector<TrainingData>& trainingData, std::unordered_set<Key>& exists, const double beta) {
+	const Key key = Book::bookKey(pos);
+	const auto itr = minmaxBookMap.find(key);
+	if (itr == minmaxBookMap.end())
+		return ScoreNone;
+
+	if (!exists.emplace(key).second)
+		return -itr->second[0].score;
+
+	std::unordered_map<u16, float> candidates;
+	double sum_value = 0;
+
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		Score score = make_hcpe3_cache(pos, bookMap, minmaxBookMap, trainingData, exists, beta);
+		pos.undoMove(move);
+
+		if (score == ScoreNone) {
+			if ((u16)move.value() != itr->second[0].fromToPro)
+				continue;
+
+			score = itr->second[0].score;
+		}
+
+		const auto value = score_to_value(score);
+		candidates.emplace((u16)move.value(), value);
+		sum_value += pow(value, beta);
+	}
+
+	const auto itr_book = bookMap.find(key);
+	Score trusted_score = itr->second[0].score;
+	for (const BookEntry& entry : itr_book->second) {
+		if (trusted_score > entry.score) {
+			trusted_score = entry.score;
+		}
+		const auto value = score_to_value(trusted_score);
+		if (candidates.emplace(entry.fromToPro, value).second) {
+			sum_value += pow(value, beta);
+		}
+	}
+
+
+	// value to prob
+	if (candidates.size() == 1) {
+		candidates.begin()->second = 1.0f;
+	}
+	else {
+		for (auto& candidate : candidates) {
+			candidate.second = (float)(pow((double)candidate.second, beta) / sum_value);
+		}
+	}
+
+	const auto value = score_to_value(itr->second[0].score);
+	auto& data = trainingData.emplace_back(pos.toHuffmanCodedPos(), value, value);
+	data.candidates = std::move(candidates);
+
+	return -itr->second[0].score;
+}
+
+// make_all_minmax_bookで作成した定跡からhcpe3キャッシュを作成
+void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap, const std::string& filepath, const double beta) {
+	std::vector<TrainingData> trainingData;
+	std::unordered_set<Key> exists;
+	make_hcpe3_cache(pos, bookMap, minmaxBookMap, trainingData, exists, beta);
+
+	std::ofstream ofs(filepath, std::ios::binary);
+
+	// インデックス部
+	// 局面数
+	const size_t num = trainingData.size();
+	ofs.write((const char*)&num, sizeof(num));
+	// 各局面の開始位置
+	size_t start_pos = sizeof(num) + sizeof(start_pos) * num;
+	for (const auto& hcpe3 : trainingData) {
+		ofs.write((const char*)&start_pos, sizeof(start_pos));
+		start_pos += sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * hcpe3.candidates.size();
+	}
+
+	// ボディ部
+	for (const auto& hcpe3 : trainingData) {
+		Hcpe3CacheBody body{
+			hcpe3.hcp,
+			hcpe3.value,
+			hcpe3.result,
+			hcpe3.count
+		};
+		ofs.write((const char*)&body, sizeof(body));
+
+		for (const auto kv : hcpe3.candidates) {
+			Hcpe3CacheCandidate candidate{
+				kv.first,
+				kv.second
+			};
+			ofs.write((const char*)&candidate, sizeof(candidate));
+		}
+	}
+}
 #endif

@@ -38,6 +38,7 @@ struct MySearcher : Searcher {
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
 	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
+	static void minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -408,6 +409,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
 		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
+		else if (token == "minmax_book_to_cache") minmaxBookToCache(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1828,5 +1830,38 @@ void MySearcher::fixEval(std::istringstream& ssCmd, const std::string& posCmd) {
 
 	// 結果表示
 	std::cout << "bookMap.size:" << bookMap.size() << std::endl;
+}
+
+// make_all_minmax_bookで作成した定跡からhcpe3キャッシュを作成
+void MySearcher::minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string minmaxBookFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> minmaxBookFileName;
+	ssCmd >> outFileName;
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	// 定跡読み込み
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	// 定跡読み込み
+	std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
+	read_book(minmaxBookFileName, minmaxBookMap);
+
+	const double temperature = (int)options["Book_To_Cache_Temperature"] / 1000.0;
+
+	minmax_book_to_cache(pos, bookMap, minmaxBookMap, outFileName, 1.0 / temperature);
+
+	// 結果表示
+	std::cout << "done" << std::endl;
 }
 #endif
