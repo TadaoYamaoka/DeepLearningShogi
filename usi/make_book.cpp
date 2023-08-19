@@ -1319,7 +1319,6 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 		cache.read((char*)candidates.data(), sizeof(Hcpe3CacheCandidate) * num_candidates);
 	}
 
-	std::vector<TrainingData> trainingData;
 	std::ifstream original(original_filepath, std::ios::binary);
 	size_t num_original;
 	original.read((char*)&num_original, sizeof(num_original));
@@ -1329,12 +1328,15 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 	original.seekg(0, std::ios_base::end);
 	original_pos[num_original] = original.tellg();
 
+	std::vector<TrainingData> trainingData;
+	trainingData.reserve(num_original + num_cache);
+
 	for (size_t i = 0; i < num_original; ++i) {
 		original.seekg(original_pos[i], std::ios_base::beg);
 		Hcpe3CacheBody body;
 		original.read((char*)&body, sizeof(body));
 
-		auto itr = cache_map.find(body.hcp);
+		const auto itr = cache_map.find(body.hcp);
 		if (itr == cache_map.end()) {
 			const auto num_candidates = (original_pos[i + 1] - original_pos[i] - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
 			std::vector<Hcpe3CacheCandidate> candidates(num_candidates);
@@ -1342,10 +1344,17 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 			trainingData.emplace_back(body, candidates.data(), num_candidates);
 		}
 		else {
-			// overwrite
+			// 上書き
 			auto& data = itr->second;
 			trainingData.emplace_back(data.first, data.second.data(), data.second.size());
+			cache_map.erase(itr);
 		}
+	}
+
+	// 残りを追加
+	for (auto itr = cache_map.cbegin(); itr != cache_map.cend(); ++itr) {
+		const auto& data = itr->second;
+		trainingData.emplace_back(data.first, data.second.data(), data.second.size());
 	}
 
 	// 出力
