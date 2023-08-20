@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\kif_to_csa.py</StartupFile>
+    <StartupFile>train.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\kif R:\csa --encoding cp932</CommandLineArguments>
+    <CommandLineArguments>tmp f:\hcpe3\floodgate.hcpe --network broadcast16x256_relu --cache F:\hcpe3\a.cache --use_amp --val_lambda 0 -e 4 --lr_scheduler "StepLR(step_size=1,gamma=0.1)"</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -37,6 +37,7 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="network\policy_value_network_broadcast.py" />
     <Compile Include="network\policy_value_network_resnet.py" />
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
