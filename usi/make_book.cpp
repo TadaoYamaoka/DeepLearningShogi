@@ -910,7 +910,7 @@ void init_book_key_eval_map(const std::string& str) {
 }
 
 // USIエンジンで局面を評価する
-void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num) {
+void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num, const std::string& outFileName) {
 	// 全局面を列挙
 	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
 	{
@@ -961,8 +961,10 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 			{
 				++count;
 				outMap[key].emplace_back(be);
-				if (count % 10000 == 0)
+				if (count % 10000 == 0) {
 					std::cout << "progress: " << count * 100 / positions_size << "%" << std::endl;
+					saveOutmap(outFileName, outMap);
+				}
 			}
 		}
 	}

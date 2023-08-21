@@ -1457,7 +1457,7 @@ void MySearcher::evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std
 	}
 
 	//  USIエンジンで局面を評価する
-	eval_positions_with_usi_engine(pos, bookMap, outMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num);
+	eval_positions_with_usi_engine(pos, bookMap, outMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num, outFileName);
 
 	// 出力
 	saveOutmap(outFileName, outMap);
