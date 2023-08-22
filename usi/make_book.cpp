@@ -1047,7 +1047,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
 			// 相手が詰みを見つけているか
 			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
-			if ((score + 100) * opp_score < 0 || (score - 100) * opp_score < 0 || opp_mate) {
+			if ((score + 150) * opp_score < 0 || (score - 150) * opp_score < 0 || opp_mate) {
 				// 評価値の符号が異なり、差がdiff以上、もしくは詰み
 				if (std::abs(opp_score - score) >= diff || opp_mate) {
 					Position pos_copy(pos);
