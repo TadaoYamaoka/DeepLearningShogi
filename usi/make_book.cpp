@@ -872,7 +872,7 @@ std::string getBookPV(Position& pos, const std::string& fileName) {
 	return get_book_pv_inner(pos, fileName, book);
 };
 
-std::unique_ptr<USIBookEngine> create_usi_book_engine(const std::string& engine_path, const std::string& engine_options) {
+std::unique_ptr<USIBookEngine> create_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const bool random_nodes) {
 	std::vector<std::pair<std::string, std::string>> usi_engine_options;
 	std::istringstream ss(engine_options);
 	std::string field;
@@ -880,14 +880,14 @@ std::unique_ptr<USIBookEngine> create_usi_book_engine(const std::string& engine_
 		const auto p = field.find_first_of(":");
 		usi_engine_options.emplace_back(field.substr(0, p), field.substr(p + 1));
 	}
-	return std::make_unique<USIBookEngine>(engine_path, usi_engine_options);
+	return std::make_unique<USIBookEngine>(engine_path, usi_engine_options, random_nodes);
 }
 
-void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own, const int num_engines) {
+void init_usi_book_engine(const std::string& engine_path, const std::string& engine_options, const int nodes, const double prob, const int nodes_own, const double prob_own, const int num_engines, const bool random_nodes) {
 	if (engine_path == "")
 		return;
 	for (int i = 0; i < num_engines; ++i) {
-		usi_book_engines.emplace_back(create_usi_book_engine(engine_path, engine_options));
+		usi_book_engines.emplace_back(create_usi_book_engine(engine_path, engine_options, random_nodes));
 	}
 	usi_book_engine_nodes = nodes;
 	usi_book_engine_prob = prob;
@@ -925,7 +925,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num);
 	#pragma omp parallel for num_threads(engine_num)
 	for (int i = 0; i < engine_num; ++i) {
-		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options);
+		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options, false);
 	}
 	usi_book_engine_nodes = nodes;
 

@@ -734,7 +734,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
 	// 相手定跡から外れた場合USIエンジンを使う
-	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"]);
+	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"], options["USI_Book_Engine_Random_Nodes"]);
 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
@@ -1163,7 +1163,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
 	// 相手定跡から外れた場合USIエンジンを使う
-	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"]);
+	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"], options["USI_Book_Engine_Random_Nodes"]);
 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
@@ -1307,7 +1307,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
 
 	// 相手定跡から外れた場合USIエンジンを使う
-	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"]);
+	init_usi_book_engine(options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], options["USI_Book_Engine_Prob"] / 1000.0, options["USI_Book_Engine_Nodes_Own"], options["USI_Book_Engine_Prob_Own"] / 1000.0, options["USI_Book_Engine_Num"], options["USI_Book_Engine_Random_Nodes"]);
 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
