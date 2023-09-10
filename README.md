@@ -34,9 +34,9 @@ http://tadaoyamaoka.hatenablog.com/
 * Ubuntu 18.04 LTS / 20.04 LTS
 * g++
 #### Windows、Linux共通
-* CUDA 11.8
-* cuDNN 8.7
-* TensorRT 8.5
+* CUDA 12.1
+* cuDNN 8.9
+* TensorRT 8.6
 
 ※CUDA 10.0以上であれば変更可
 
