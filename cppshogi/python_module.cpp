@@ -431,7 +431,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
 	#pragma omp parallel for num_threads(2) if (len > 1)
-	for (size_t i = 0; i < len; i++) {
+	for (int i = 0; i < len; i++) {
 		const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
 
 		Position position;
