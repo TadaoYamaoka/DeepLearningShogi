@@ -1204,9 +1204,9 @@ Score make_hcpe3_cache(Position& pos, const std::unordered_map<Key, std::vector<
 	if (!exists.emplace(key).second)
 		return -itr->second[0].score;
 
-	std::unordered_map<u16, float> candidates;
-	double sum_value = 0;
+	std::unordered_map<u16, Score> candidate_score_map;
 
+	Score trusted_score = itr->second[0].score;
 
 	// Stack overflowを避けるためヒープに確保する
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
@@ -1223,31 +1223,37 @@ Score make_hcpe3_cache(Position& pos, const std::unordered_map<Key, std::vector<
 			score = itr->second[0].score;
 		}
 
-		const auto value = score_to_value(score);
-		candidates.emplace((u16)move.value(), value);
-		sum_value += pow(value, beta);
+		candidate_score_map.emplace((u16)move.value(), score > trusted_score ? trusted_score : score);
 	}
 
 	const auto itr_book = bookMap.find(key);
-	Score trusted_score = itr->second[0].score;
 	for (const BookEntry& entry : itr_book->second) {
 		if (trusted_score > entry.score) {
 			trusted_score = entry.score;
 		}
-		const auto value = score_to_value(trusted_score);
-		if (candidates.emplace(entry.fromToPro, value).second) {
-			sum_value += pow(value, beta);
-		}
+		candidate_score_map.emplace(entry.fromToPro, trusted_score);
 	}
 
+	std::unordered_map<u16, float> candidates;
 
-	// value to prob
-	if (candidates.size() == 1) {
-		candidates.begin()->second = 1.0f;
+	// score to prob
+	if (candidate_score_map.size() == 1) {
+		candidates.emplace(candidate_score_map.begin()->first, 1.0f);
 	}
 	else {
-		for (auto& candidate : candidates) {
-			candidate.second = (float)(pow((double)candidate.second, beta) / sum_value);
+		const Score max_score = itr->second[0].score;
+
+		// softmax temperature with normalize
+		float sum = 0.0f;
+		for (const auto& entry : candidate_score_map) {
+			float x = (float)(entry.second - max_score) * beta / 756.0f;
+			x = exp(x);
+			candidates.emplace(entry.first, x);
+			sum += x;
+		}
+		// normalize
+		for (auto& entry : candidates) {
+			entry.second /= sum;
 		}
 	}
 
