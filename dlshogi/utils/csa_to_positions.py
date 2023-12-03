@@ -1,4 +1,5 @@
 from cshogi import *
+from cshogi import CSA
 import argparse
 import os
 import glob
@@ -14,7 +15,7 @@ args = parser.parse_args()
 csa_file_list = glob.glob(os.path.join(args.dir, '**', '*.csa'), recursive=True)
 
 board = Board()
-parser = Parser()
+parser = CSA.Parser()
 num_games = 0
 positions = set()
 for filepath in csa_file_list:
