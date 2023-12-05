@@ -643,7 +643,6 @@ std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unord
 	const auto child = current_root->child.get();
 
 	if (book_mcts_debug) {
-		std::cout << book_pos_cmd;
 		for (Move move : moves) {
 			std::cout << " " << move.toUSI();
 		}
@@ -663,9 +662,9 @@ std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unord
 	}
 }
 
-void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void make_book_mcts(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	std::vector<Move> moves;
-	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search, bookMapBest);
+	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, parallel_uct_search, bookMapBest, book_pos_cmd, book_starting_pos_key);
 }
 
 

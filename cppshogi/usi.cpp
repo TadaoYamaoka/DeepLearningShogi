@@ -156,6 +156,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_Eval_Diff"]              = USIOption(100000, 0, 100000);
     (*this)["Book_Merge_File"]             = USIOption("");
     (*this)["Make_Book_Color"]             = USIOption("both");
+    (*this)["Book_StartPositions"]         = USIOption("");
     (*this)["Book_MinMax_Prob"]            = USIOption(1000, 0, 1000);
     (*this)["Book_MinMax_Prob_Opp"]        = USIOption(100, 0, 1000);
     (*this)["Use_Book_Lock"]               = USIOption(false);

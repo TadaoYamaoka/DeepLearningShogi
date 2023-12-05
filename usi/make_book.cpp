@@ -33,8 +33,6 @@ struct child_node_t_copy {
 };
 
 std::unordered_map<Key, std::vector<BookEntry> > bookMap;
-Key book_starting_pos_key;
-std::string book_pos_cmd;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
 bool use_interruption = true;
@@ -113,12 +111,12 @@ void reuse_usi_book_engine(std::unique_ptr<USIBookEngine> usi_engine) {
 	usi_cond.notify_one();
 }
 
-inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
+inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves, const Key& book_starting_pos_key) {
 	Move move;
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
-bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves) {
+bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const std::vector<Move>& moves, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	std::unique_lock<std::mutex> gpu_lock(gpu_mutex);
 	std::cout << omp_get_thread_num() << "# " << book_pos_cmd;
 	for (Move move : moves) {
@@ -129,7 +127,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	// UCT探索を使用
 	limits.startTime.restart();
 	SetLimits(limits);
-	UctSearchGenmoveNoPonder(&pos, moves);
+	UctSearchGenmoveNoPonder(&pos, moves, book_starting_pos_key);
 
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	if (current_root->child_num == 0) {
@@ -491,7 +489,7 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
@@ -499,7 +497,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 		if (itr == outMap.end()) {
 			// 先端ノード
 			// UCT探索で定跡作成
-			make_book_entry_with_uct(pos, limits, key, outMap, count, moves);
+			make_book_entry_with_uct(pos, limits, key, outMap, count, moves, book_pos_cmd, book_starting_pos_key);
 		}
 		else {
 			// 探索済みの場合
@@ -550,7 +548,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				moves.emplace_back(move);
 
 				// 次の手を探索
-				make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest);
+				make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
 
 				pos.undoMove(move);
 			}
@@ -563,7 +561,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			if (itr_out == outMap.end()) {
 				// 未探索の局面の場合
 				// UCT探索で定跡作成
-				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
+				if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves, book_pos_cmd, book_starting_pos_key))
 				{
 					// 詰みの局面の場合何もしない
 					return;
@@ -598,7 +596,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				if (itr_out == outMap.end()) {
 					// 定跡になく未探索の局面の場合
 					// UCT探索で定跡作成
-					if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves))
+					if (!make_book_entry_with_uct(pos, limits, key, outMap, count, moves, book_pos_cmd, book_starting_pos_key))
 					{
 						// 詰みの局面の場合何もしない
 						return;
@@ -648,15 +646,15 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 		moves.emplace_back(move);
 
 		// 次の手を探索
-		make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest);
+		make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
 
 		pos.undoMove(move);
 	}
 }
 
-void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	std::vector<Move> moves;
-	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry, bookMapBest);
+	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
 }
 
 // 定跡読み込み
@@ -1023,7 +1021,7 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 }
 
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
@@ -1080,7 +1078,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 						int count = 0;
 						pos_copy.doMove(move, state);
 						moves.emplace_back(move);
-						make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, moves);
+						make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, moves, book_pos_cmd, book_starting_pos_key);
 						// 保存
 						saveOutmap(outFileName, outMap);
 					}
@@ -1149,7 +1147,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 }
 
 // 評価値が30000以上の局面を再評価
-void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits) {
+void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
@@ -1184,7 +1182,7 @@ void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& b
 				const auto prev_score = entry.score;
 				int count = 0;
 				bookMap.erase(key);
-				make_book_entry_with_uct(pos_copy, limits, key, bookMap, count, moves);
+				make_book_entry_with_uct(pos_copy, limits, key, bookMap, count, moves, book_pos_cmd, book_starting_pos_key);
 
 				const auto after_score = bookMap[key][0].score;
 

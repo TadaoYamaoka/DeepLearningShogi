@@ -24,6 +24,8 @@ extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 struct MySearcher : Searcher {
 	static void doUSICommandLoop(int argc, char* argv[]);
 #ifdef MAKE_BOOK
+	static std::tuple<std::string, Key> setThisStartPosition(Position& pos, const std::string& posCmd);
+	static std::tuple<std::string, Key, StateListPtr> setStartPosition(Position& pos, const std::string& posCmd);
 	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMctsBook(std::istringstream& ssCmd, const std::string& posCmd);
@@ -667,6 +669,71 @@ private:
 	bool use_book_lock;
 };
 
+// 開始局面設定
+std::tuple<std::string, Key> MySearcher::setThisStartPosition(Position& pos, const std::string &posCmd) {
+	std::string book_pos_cmd = "position " + posCmd;
+	std::istringstream ssPosCmd(posCmd);
+	std::string token;
+	std::string sfen;
+
+	ssPosCmd >> token;
+
+	if (token == "startpos") {
+		sfen = DefaultStartPositionSFEN;
+		ssPosCmd >> token; // "moves" が入力されるはず。
+	}
+	else if (token == "sfen") {
+		while (ssPosCmd >> token && token != "moves")
+			sfen += token + " ";
+	}
+	else
+		throw std::runtime_error("unexcepted position string");
+
+	pos.set(sfen);
+	pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
+
+	if (token != "moves")
+		book_pos_cmd += " moves";
+	while (ssPosCmd >> token) {
+		const Move move = usiToMove(pos, token);
+		if (!move) break;
+		pos.doMove(move, pos.searcher()->states->emplace_back());
+	}
+	return std::make_tuple(book_pos_cmd, pos.getKey());
+}
+
+std::tuple<std::string, Key, StateListPtr> MySearcher::setStartPosition(Position& pos, const std::string& posCmd) {
+	auto states = StateListPtr(new std::deque<StateInfo>(1));
+	std::string book_pos_cmd = "position " + posCmd;
+	std::istringstream ssPosCmd(posCmd);
+	std::string token;
+	std::string sfen;
+
+	ssPosCmd >> token;
+
+	if (token == "startpos") {
+		sfen = DefaultStartPositionSFEN;
+		ssPosCmd >> token; // "moves" が入力されるはず。
+	}
+	else if (token == "sfen") {
+		while (ssPosCmd >> token && token != "moves")
+			sfen += token + " ";
+	}
+	else
+		throw std::runtime_error("unexcepted position string");
+
+	pos.set(sfen);
+
+	if (token != "moves")
+		book_pos_cmd += " moves";
+	while (ssPosCmd >> token) {
+		const Move move = usiToMove(pos, token);
+		if (!move) break;
+		pos.doMove(move, states->emplace_back());
+	}
+	return std::make_tuple(book_pos_cmd, pos.getKey(), std::move(states));
+}
+
 // 定跡作成
 void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	// isreadyを先に実行しておくこと。
@@ -770,39 +837,22 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		}
 	}
 
-	// 開始局面設定
-	Position pos(DefaultStartPositionSFEN, thisptr);
-	book_pos_cmd = "position " + posCmd;
-	{
-		std::istringstream ssPosCmd(posCmd);
-		std::string token;
-		std::string sfen;
-
-		ssPosCmd >> token;
-
-		if (token == "startpos") {
-			sfen = DefaultStartPositionSFEN;
-			ssPosCmd >> token; // "moves" が入力されるはず。
-		}
-		else if (token == "sfen") {
-			while (ssPosCmd >> token && token != "moves")
-				sfen += token + " ";
-		}
-		else
-			return;
-
-		pos.set(sfen);
-		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
-
-		if (token != "moves")
-			book_pos_cmd += " moves";
-		while (ssPosCmd >> token) {
-			const Move move = usiToMove(pos, token);
-			if (!move) break;
-			pos.doMove(move, pos.searcher()->states->emplace_back());
+	// 開始局面
+	std::vector<std::string> positions;
+	if (std::string(options["Book_StartPositions"]) != "") {
+		std::ifstream ifs(options["Book_StartPositions"]);
+		std::string line;
+		while (std::getline(ifs, line)) {
+			if (!line.empty())
+				positions.emplace_back(line);
 		}
 	}
-	book_starting_pos_key = pos.getKey();
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::string book_pos_cmd;
+	Key book_starting_pos_key;
+	std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
 
 	// 定跡読み込み
 	bookMap.clear();
@@ -842,12 +892,25 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				}
 				book_map_mutex.unlock();
 
+                #pragma omp atomic
+				trial++;
+
 				// 先手番
 				if (make_book_color == Black || make_book_color == ColorNum) {
 					int count = 0;
 					// 探索
-					Position pos_copy(pos);
-					make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
+					if (positions.size() > 0) {
+						Position pos_copy;
+						std::string book_pos_cmd_copy;
+						Key book_starting_pos_key_copy;
+						StateListPtr states;
+						std::tie(book_pos_cmd_copy, book_starting_pos_key_copy, states) = setStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
+						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy);
+					}
+					else {
+						Position pos_copy(pos);
+						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd, book_starting_pos_key);
+					}
 					#pragma omp atomic
 					black_num += count;
 				}
@@ -856,13 +919,21 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				if (make_book_color == White || make_book_color == ColorNum) {
 					int count = 0;
 					// 探索
-					Position pos_copy(pos);
-					make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest);
+					if (positions.size() > 0) {
+						Position pos_copy;
+						std::string book_pos_cmd_copy;
+						Key book_starting_pos_key_copy;
+						StateListPtr states;
+						std::tie(book_pos_cmd_copy, book_starting_pos_key_copy, states) = setStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
+						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy);
+					}
+					else {
+						Position pos_copy(pos);
+						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd, book_starting_pos_key);
+					}
 					#pragma omp atomic
 					white_num += count;
 				}
-				#pragma omp atomic
-				trial++;
 
 				// outMapMasterへマージ
 				book_map_mutex.lock();
@@ -898,13 +969,18 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 			// 進捗状況表示
 			std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
 
+			trial++;
+
 			// 先手番
 			if (make_book_color == Black || make_book_color == ColorNum) {
 				int count = 0;
 				moves.clear();
 				// 探索
 				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true, bookMapBestMaster);
+				if (positions.size() > 0) {
+					std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
+				}
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true, bookMapBestMaster, book_pos_cmd, book_starting_pos_key);
 				black_num += count;
 			}
 
@@ -914,10 +990,12 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				moves.clear();
 				// 探索
 				Position pos_copy(pos);
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false, bookMapBestMaster);
+				if (positions.size() > 0) {
+					std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
+				}
+				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false, bookMapBestMaster, book_pos_cmd, book_starting_pos_key);
 				white_num += count;
 			}
-			trial++;
 
 			// 完了時およびSave_Book_Intervalごとに途中経過を保存
 			if (outMapMaster.size() > prev_num && (trial % save_book_interval == 0 || trial >= limitTrialNum))
@@ -1191,7 +1269,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	book_pos_cmd = "position";
+	std::string book_pos_cmd = "position";
 	int count = 0;
 	{
 		std::istringstream ssPosCmd(posCmd);
@@ -1227,9 +1305,9 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 				const Key key = Book::bookKey(pos);
 				const auto itr = outMap.find(key);
 				if (outMap.find(key) == outMap.end()) {
-					book_starting_pos_key = pos.getKey();
+					Key book_starting_pos_key = pos.getKey();
 					Position pos_copy(pos);
-					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd, book_starting_pos_key);
 				}
 			}
 
@@ -1343,7 +1421,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 	while (std::getline(ifsInFile, line)) {
 		if (line == "") continue;
 
-		book_pos_cmd = "position";
+		std::string book_pos_cmd = "position";
 		std::istringstream ssPosCmd(line);
 		std::string token;
 		std::string sfen;
@@ -1377,9 +1455,9 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 				const Key key = Book::bookKey(pos);
 				const auto itr = outMap.find(key);
 				if (outMap.find(key) == outMap.end()) {
-					book_starting_pos_key = pos.getKey();
+					Key book_starting_pos_key = pos.getKey();
 					Position pos_copy(pos);
-					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest);
+					make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd, book_starting_pos_key);
 
 					// Save_Book_Intervalごとに途中経過を保存
 					if (++positions % save_book_interval == 0)
@@ -1511,43 +1589,15 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	book_pos_cmd = "position " + posCmd;
-	{
-		std::istringstream ssPosCmd(posCmd);
-		std::string token;
-		std::string sfen;
-
-		ssPosCmd >> token;
-
-		if (token == "startpos") {
-			sfen = DefaultStartPositionSFEN;
-			ssPosCmd >> token; // "moves" が入力されるはず。
-		}
-		else if (token == "sfen") {
-			while (ssPosCmd >> token && token != "moves")
-				sfen += token + " ";
-		}
-		else
-			return false;
-
-		pos.set(sfen);
-		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
-
-		if (token != "moves")
-			book_pos_cmd += " moves";
-		while (ssPosCmd >> token) {
-			const Move move = usiToMove(pos, token);
-			if (!move) break;
-			pos.doMove(move, pos.searcher()->states->emplace_back());
-		}
-	}
-	book_starting_pos_key = pos.getKey();
+	std::string book_pos_cmd;
+	Key book_starting_pos_key;
+	std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
 
 	// 定跡読み込み
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
-	diff_eval(pos, bookMap, outMap, limits, (Score)diff, outFileName);
+	diff_eval(pos, bookMap, outMap, limits, (Score)diff, outFileName, book_pos_cmd, book_starting_pos_key);
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
@@ -1790,43 +1840,15 @@ void MySearcher::fixEval(std::istringstream& ssCmd, const std::string& posCmd) {
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
-	book_pos_cmd = "position " + posCmd;
-	{
-		std::istringstream ssPosCmd(posCmd);
-		std::string token;
-		std::string sfen;
-
-		ssPosCmd >> token;
-
-		if (token == "startpos") {
-			sfen = DefaultStartPositionSFEN;
-			ssPosCmd >> token; // "moves" が入力されるはず。
-		}
-		else if (token == "sfen") {
-			while (ssPosCmd >> token && token != "moves")
-				sfen += token + " ";
-		}
-		else
-			return;
-
-		pos.set(sfen);
-		pos.searcher()->states = StateListPtr(new std::deque<StateInfo>(1));
-
-		if (token != "moves")
-			book_pos_cmd += " moves";
-		while (ssPosCmd >> token) {
-			const Move move = usiToMove(pos, token);
-			if (!move) break;
-			pos.doMove(move, pos.searcher()->states->emplace_back());
-		}
-	}
-	book_starting_pos_key = pos.getKey();
+	std::string book_pos_cmd;
+	Key book_starting_pos_key;
+	std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
 
 	// 定跡読み込み
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
-	fix_eval(pos, bookMap, limits);
+	fix_eval(pos, bookMap, limits, book_pos_cmd, book_starting_pos_key);
 
 	saveOutmap(outFileName, bookMap);
 
