@@ -1024,10 +1024,11 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
-	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
 	enumerate_positions_with_move(pos, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
-	assert(positions.size() <= bookMap.size());
+	if (positions.size() > bookMap.size() + 1)
+		throw std::runtime_error("positions.size() > bookMap.size()");
 
 	// 評価値が割れる局面を延長する
 	for (const auto& position : positions) {
