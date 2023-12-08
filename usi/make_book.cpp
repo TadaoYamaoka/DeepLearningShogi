@@ -611,7 +611,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				const auto& entry = select_best_book_entry(pos, outMap, *entries, moves, bookMapBest);
 				move = std::get<Move>(entry);
 			}
-			if (itr != bookMap.end() && book_best_move) {
+			else if (itr != bookMap.end() && book_best_move) {
 				// 相手定跡の最善手を選択する
 				size_t selected_index = 0;
 				u16 max_count = entries->at(0).count;
