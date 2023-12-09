@@ -17,6 +17,9 @@ extern double book_minmax_prob;
 extern double book_minmax_prob_opp;
 // MinMaxのために相手定跡の手番でも探索する
 extern bool make_book_for_minmax;
+// 一定の確率でPriorityBookから確率的に選ぶ
+extern double book_priority_prob_opp;
+extern double book_priority_prob_temperature;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;

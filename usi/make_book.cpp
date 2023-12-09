@@ -48,6 +48,9 @@ double book_minmax_prob_opp = 0.1;
 std::uniform_real_distribution<double> dist_minmax(0, 1);
 // MinMaxのために相手定跡の手番でも探索する
 bool make_book_for_minmax = false;
+// 一定の確率でPriorityBookから確率的に選ぶ
+double book_priority_prob_opp = 0;
+double book_priority_prob_temperature = 5.0;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -606,7 +609,52 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				entries = &outMap[key];
 			}
 
-			if (itr == bookMap.end() && dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
+			if (itr == bookMap.end() && bookMapBest.size() > 0 && dist_minmax(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
+				// 一定の確率でPriorityBookから確率的に選ぶ
+				std::vector<Move> moves_priority;
+				std::vector<double> probabilities;
+				const auto itr_best = bookMapBest.find(key);
+				const auto max_score = itr_best->second[0].score;
+				const auto move_best = move16toMove(Move(itr_best->second[0].fromToPro), pos);
+				moves_priority.emplace_back(move_best);
+				probabilities.emplace_back(1.0);
+				for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+					const Move& m = ml.move();
+					if (m == move_best)
+						continue;
+
+					const Key key_priority = Book::bookKeyAfter(pos, key, m);
+					const auto itr_priority = bookMapBest.find(key_priority);
+					if (itr_priority == bookMapBest.end())
+						continue;
+
+					StateInfo state;
+					pos.doMove(m, state);
+					Score score;
+					switch (pos.isDraw()) {
+					case RepetitionDraw:
+						// 繰り返しになる場合、千日手の評価値
+						score = pos.turn() == Black ? draw_score_white : draw_score_black;
+						break;
+					case RepetitionWin:
+						score = -ScoreInfinite;
+						break;
+					case RepetitionLose:
+						score = ScoreMaxEvaluate;
+						break;
+					default:
+						score = -itr_priority->second[0].score;
+					}
+					pos.undoMove(m);
+
+					moves_priority.emplace_back(m);
+					probabilities.emplace_back(std::exp((int)(score - max_score) / book_priority_prob_temperature));
+				}
+				std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
+				const auto selected_index = dist(g_randomTimeSeed);
+				move = moves_priority[selected_index];
+			}
+			else if (itr == bookMap.end() && dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
 				// 一定の確率でmin-maxで選ぶ
 				const auto& entry = select_best_book_entry(pos, outMap, *entries, moves, bookMapBest);
 				move = std::get<Move>(entry);
