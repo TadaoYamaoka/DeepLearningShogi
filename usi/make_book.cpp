@@ -967,10 +967,12 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 
 	std::cout << "positions: " << positions.size() << std::endl;
 
+	const auto engine_num_ = std::min(engine_num, (const int)positions.size());
+
 	// USIエンジン初期化
-	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num);
-#pragma omp parallel for num_threads(engine_num)
-	for (int i = 0; i < engine_num; ++i) {
+	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num_);
+	#pragma omp parallel for num_threads(engine_num_)
+	for (int i = 0; i < engine_num_; ++i) {
 		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options, false);
 	}
 	usi_book_engine_nodes = nodes;
@@ -980,7 +982,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	const std::vector<Move> moves = {};
 	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
 	int count = 0;
-#pragma omp parallel for num_threads(engine_num)
+	#pragma omp parallel for num_threads(engine_num_)
 	for (int i = 0; i < positions_size; ++i) {
 		Position pos;
 		pos.set(positions[i].first);
