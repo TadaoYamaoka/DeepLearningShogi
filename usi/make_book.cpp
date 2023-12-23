@@ -1445,4 +1445,24 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 		}
 	}
 }
+
+void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	// 全局面を列挙
+	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
+	{
+		std::unordered_set<Key> exists;
+
+		enumerate_positions(pos, bookMap, positions, exists);
+	}
+
+	std::cout << "positions: " << positions.size() << std::endl;
+
+	std::ofstream ofs(outFileName, std::ios::binary);
+	for (const auto position : positions) {
+		ofs.write((const char*)position.first.data, sizeof(HuffmanCodedPos));
+	}
+}
 #endif
