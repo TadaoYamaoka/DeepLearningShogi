@@ -180,7 +180,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_Mcts_Debug"]             = USIOption(false);
     (*this)["Book_Mcts_MinMax_Book"]       = USIOption("");
     (*this)["Make_Book_Threads"]           = USIOption(1, 1, 1024);
-    (*this)["Book_To_Cache_Temperature"]   = USIOption(100, 1, 1000);
+    (*this)["Book_To_Prob_Temperature"]    = USIOption(100, 0, 100000);
 #else
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK

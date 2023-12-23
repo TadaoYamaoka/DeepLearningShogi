@@ -43,6 +43,7 @@ struct MySearcher : Searcher {
 	static void minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd);
 	static void overwriteHcpe3Cache(std::istringstream& ssCmd);
 	static void bookToHcp(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makePolicyBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -416,6 +417,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "minmax_book_to_cache") minmaxBookToCache(ssCmd, posCmd);
 		else if (token == "overwrite_hcpe3_cache") overwriteHcpe3Cache(ssCmd);
 		else if (token == "book_to_hcp") bookToHcp(ssCmd, posCmd);
+		else if (token == "make_policy_book") makePolicyBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1887,7 +1889,7 @@ void MySearcher::minmaxBookToCache(std::istringstream& ssCmd, const std::string&
 	std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
 	read_book(minmaxBookFileName, minmaxBookMap);
 
-	const double temperature = (int)options["Book_To_Cache_Temperature"] / 1000.0;
+	const double temperature = (int)options["Book_To_Prob_Temperature"] / 1000.0;
 
 	minmax_book_to_cache(pos, bookMap, minmaxBookMap, outFileName, 1.0 / temperature);
 
@@ -1927,6 +1929,30 @@ void MySearcher::bookToHcp(std::istringstream& ssCmd, const std::string& posCmd)
 	setPosition(pos, ssPosCmd);
 
 	book_to_hcp(pos, bookFileName, outFileName);
+
+	// 結果表示
+	std::cout << "done" << std::endl;
+}
+
+void MySearcher::makePolicyBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string minmaxBookFileName;
+	std::string outFileName;
+
+	ssCmd >> bookFileName;
+	ssCmd >> minmaxBookFileName;
+	ssCmd >> outFileName;
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	const double temperature = (int)options["Book_To_Prob_Temperature"] / 1000.0;
+
+	make_policy_book(pos, bookFileName, minmaxBookFileName, outFileName, 1.0 / temperature);
 
 	// 結果表示
 	std::cout << "done" << std::endl;

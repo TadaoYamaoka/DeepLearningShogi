@@ -969,7 +969,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 
 	// USIエンジン初期化
 	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num);
-	#pragma omp parallel for num_threads(engine_num)
+#pragma omp parallel for num_threads(engine_num)
 	for (int i = 0; i < engine_num; ++i) {
 		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options, false);
 	}
@@ -980,7 +980,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	const std::vector<Move> moves = {};
 	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
 	int count = 0;
-	#pragma omp parallel for num_threads(engine_num)
+#pragma omp parallel for num_threads(engine_num)
 	for (int i = 0; i < positions_size; ++i) {
 		Position pos;
 		pos.set(positions[i].first);
@@ -1291,16 +1291,16 @@ Score make_hcpe3_cache(Position& pos, const std::unordered_map<Key, std::vector<
 		const Score max_score = itr->second[0].score;
 
 		// softmax temperature with normalize
-		float sum = 0.0f;
+		double sum = 0;
 		for (const auto& entry : candidate_score_map) {
-			float x = (float)(entry.second - max_score) * beta / 756.0f;
+			double x = (double)(entry.second - max_score) * beta / 754.3;
 			x = exp(x);
-			candidates.emplace(entry.first, x);
+			candidates.emplace(entry.first, (float)x);
 			sum += x;
 		}
 		// normalize
 		for (auto& entry : candidates) {
-			entry.second /= sum;
+			entry.second = (float)(entry.second / sum);
 		}
 	}
 
@@ -1464,5 +1464,112 @@ void book_to_hcp(Position& pos, const std::string& bookFileName, const std::stri
 	for (const auto position : positions) {
 		ofs.write((const char*)position.first.data, sizeof(HuffmanCodedPos));
 	}
+}
+
+void make_policy_book_inner(Position& pos,
+	const std::unordered_map<Key, std::vector<BookEntry> >& bookMap,
+	const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap,
+	std::unordered_map<Key, std::vector<BookEntry> > &outBookMap,
+	std::unordered_set<Key>& exists, const double beta) {
+	const Key key = Book::bookKey(pos);
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return;
+
+	const auto minmaxItr = minmaxBookMap.find(key);
+	if (minmaxItr == minmaxBookMap.end())
+		return;
+
+	if (!exists.emplace(key).second)
+		return;
+
+	const auto& minmaxEntry = minmaxItr->second[0];
+
+	auto& outEntries = outBookMap[key];
+	outEntries.emplace_back(minmaxEntry);
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		make_policy_book_inner(pos, bookMap, minmaxBookMap, outBookMap, exists, beta);
+
+		if (minmaxEntry.fromToPro != (u16)move.value()) {
+			Key keyAfter = Book::bookKey(pos);
+			const auto itrAfter = minmaxBookMap.find(keyAfter);
+			if (itrAfter != minmaxBookMap.end()) {
+				const auto& entryAfter = itrAfter->second[0];
+				auto& outEntry = outEntries.emplace_back();
+				outEntry.key = key;
+				outEntry.fromToPro = (u16)move.value();
+				outEntry.count = 0;
+				outEntry.score = -entryAfter.score;
+			}
+		}
+
+		pos.undoMove(move);
+	}
+
+	Score trustedScore = minmaxEntry.score;
+	for (const auto& entry : itr->second) {
+		const auto exist = std::find_if(outEntries.cbegin(), outEntries.cend(), [&entry](const BookEntry& outEntry) { return outEntry.fromToPro == entry.fromToPro; });
+		if (exist != outEntries.cend()) {
+			trustedScore = exist->score;
+			continue;
+		}
+		if (entry.score < trustedScore) {
+			trustedScore = entry.score;
+		}
+		auto outEntry = entry;
+		outEntry.score = trustedScore;
+		outEntries.emplace_back(outEntry);
+	}
+
+	// score to prob
+	if (outEntries.size() > 0) {
+		const Score max_score = itr->second[0].score;
+		std::vector<double> prob;
+
+		// softmax temperature with normalize
+		double sum = 0;
+		for (const auto& entry : outEntries) {
+			double x = (double)(entry.score - max_score) * beta / 754.3;
+			x = exp(x);
+			prob.emplace_back(x);
+			sum += x;
+		}
+		// normalize
+		for (auto& x : prob) {
+			x /= sum;
+		}
+
+		for (size_t i = 0; i < outEntries.size(); ++i) {
+			outEntries[i].count = (u16)(prob[i] * USHRT_MAX);
+		}
+
+		std::stable_sort(outEntries.begin(), outEntries.end(), [](const BookEntry& l, const BookEntry& r) { return l.count > r.count; });
+	}
+}
+
+void make_policy_book(Position& pos, const std::string& bookFileName, const std::string& minmaxBookFileName, const std::string& outFileName, const double beta) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;
+	read_book(minmaxBookFileName, minmaxBookMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > outBookMap;
+
+	// 全局面を列挙
+	{
+		std::unordered_set<Key> exists;
+
+		make_policy_book_inner(pos, bookMap, minmaxBookMap, outBookMap, exists, beta);
+	}
+
+	std::cout << "outBookMap.size: " << outBookMap.size() << std::endl;
+
+	saveOutmap(outFileName, outBookMap);
 }
 #endif

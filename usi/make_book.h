@@ -67,4 +67,5 @@ void copy_minmax_priority_book(const std::unordered_map<Key, std::vector<BookEnt
 void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap, const std::string& filepath, const double beta);
 void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath);
 void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName);
+void make_policy_book(Position& pos, const std::string& bookFileName, const std::string& minmaxBookFileName, const std::string& outFileName, const double beta);
 #endif
