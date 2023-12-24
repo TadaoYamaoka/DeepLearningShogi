@@ -1033,8 +1033,10 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 	std::vector<std::pair<HuffmanCodedPos, const PositionWithMove*>> current_positions;
 	std::vector<std::pair<HuffmanCodedPos, const PositionWithMove*>> next_positions;
 
-	PositionWithMove& potision_root = positions.emplace_back(PositionWithMove{ Book::bookKey(pos_root), Move::moveNone(), 0, nullptr });
+	const Key key_root = Book::bookKey(pos_root);
+	PositionWithMove& potision_root = positions.emplace_back(PositionWithMove{ key_root, Move::moveNone(), 0, nullptr });
 	current_positions.push_back({ pos_root.toHuffmanCodedPos(), &potision_root });
+	exists.emplace(key_root);
 
 	int depth = 1;
 	while (current_positions.size() > 0) {
