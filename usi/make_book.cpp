@@ -982,7 +982,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	const std::vector<Move> moves = {};
 	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
 	int count = 0;
-	#pragma omp parallel for num_threads(engine_num_)
+	#pragma omp parallel for num_threads(engine_num_) schedule(dynamic)
 	for (int i = 0; i < positions_size; ++i) {
 		Position pos;
 		pos.set(positions[i].first);
@@ -1159,7 +1159,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 
 	// 並列でminmax定跡作成
 	const int indexes_size = (int)indexes.size();
-	#pragma omp parallel for num_threads(threads)
+	#pragma omp parallel for num_threads(threads) schedule(dynamic)
 	for (int i = 0; i < indexes_size; ++i) {
 		Position pos_copy(pos);
 

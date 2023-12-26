@@ -860,7 +860,7 @@ void make_mcts_book(Position& pos, const std::unordered_map<Key, std::vector<Boo
 
 	// 並列でMCTSで定跡作成
 	const int positions_size = (int)positions.size();
-	#pragma omp parallel for num_threads(book_mcts_threads)
+	#pragma omp parallel for num_threads(book_mcts_threads) schedule(dynamic)
 	for (int i = 0; i < positions_size; ++i) {
 		Searcher s;
 		Position pos(s.thisptr);
