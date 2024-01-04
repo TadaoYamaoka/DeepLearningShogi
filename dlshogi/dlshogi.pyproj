@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\kif_to_csa.py</StartupFile>
+    <StartupFile>train.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>R:\kif R:\csa --encoding cp932</CommandLineArguments>
+    <CommandLineArguments>F:\hcpe3\selfplay_pre33_resnet30x384_relu_b4096lr004-012_floodgate32-36_s5_po10000-01.hcpe3 F:\hcpe3\floodgate.hcpe --network lora30x384_relu --checkpoint R:\model\ckpt-lora_resnet30x384_relu-{epoch:03}.pth --model model-lora_resnet30x384_relu-{epoch:03} -b 1024 --lr 0.0004 -g 0 --val_lambda 0 --use_average -e 2 --lr_scheduler "StepLR(step_size=1,gamma=0.5)" --use_amp --lora_pretrained_model F:\model\ckpt-pre44_resnet30x384_relu_b4096lr004-013.pth --cache R:\a.cache --eval_interval 100</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -37,6 +37,7 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="network\policy_value_network_lora.py" />
     <Compile Include="network\policy_value_network_resnet.py" />
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />

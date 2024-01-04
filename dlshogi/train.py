@@ -54,6 +54,7 @@ def main(*argv):
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--patch', type=str, help='Overwrite with the hcpe')
     parser.add_argument('--cache', type=str, help='training data cache file')
+    parser.add_argument('--lora_pretrained_model', type=str, help='pretrained model for LoRA')
     args = parser.parse_args(argv)
 
     if args.log:
@@ -79,6 +80,10 @@ def main(*argv):
 
     model = policy_value_network(args.network)
     model.to(device)
+    
+    if args.lora_pretrained_model:
+        from dlshogi.network.policy_value_network_lora import load_pretrained_model
+        load_pretrained_model(args.lora_pretrained_model, model, map_location=device)
 
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
@@ -265,7 +270,10 @@ def main(*argv):
                     loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                if args.lora_pretrained_model:
+                    loss = loss1
+                else:                    
+                    loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
 
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
