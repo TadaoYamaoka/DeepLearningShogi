@@ -1577,7 +1577,7 @@ void make_policy_book(Position& pos, const std::string& bookFileName, const std:
 	saveOutmap(outFileName, outBookMap);
 }
 
-void complement_book(Position& pos, std::string& outFileName, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void complement_book(Position& pos, std::string& outFileName, const int save_book_interval, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(outFileName, bookMap);
 
@@ -1586,6 +1586,8 @@ void complement_book(Position& pos, std::string& outFileName, LimitsType& limits
 	enumerate_positions_with_move(pos, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
+
+	int n = 0;
 
 	// 最善手を指した局面が未登録で、最善手以外の手を指した局面が登録されている場合、
 	// 最善手を指した局面を追加
@@ -1631,6 +1633,9 @@ void complement_book(Position& pos, std::string& outFileName, LimitsType& limits
 			pos_copy.doMove(move, state);
 			int count = 0;
 			make_book_entry_with_uct(pos_copy, limits, Book::bookKey(pos_copy), bookMap, count, moves, book_pos_cmd, book_starting_pos_key);
+			n++;
+			if (n % save_book_interval == 0)
+				saveOutmap(outFileName, bookMap);
 		}
 	}
 

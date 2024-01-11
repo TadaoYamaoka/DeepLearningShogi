@@ -1975,6 +1975,9 @@ void MySearcher::complementBook(std::istringstream& ssCmd, const std::string& po
 	LimitsType limits;
 	limits.nodes = playoutNum;
 
+	// 保存間隔
+	const int save_book_interval = options["Save_Book_Interval"];
+
 	// 訪問回数の閾値(1000分率)
 	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
 
@@ -1991,6 +1994,6 @@ void MySearcher::complementBook(std::istringstream& ssCmd, const std::string& po
 	Key book_starting_pos_key;
 	std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
 
-	complement_book(pos, outFileName, limits, book_pos_cmd, book_starting_pos_key);
+	complement_book(pos, outFileName, save_book_interval, limits, book_pos_cmd, book_starting_pos_key);
 }
 #endif
