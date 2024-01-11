@@ -1145,7 +1145,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
-	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
 	enumerate_positions_with_move(pos, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
@@ -1203,7 +1203,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
-	positions.reserve(bookMap.size()); // 追加でparentのポインターが無効にならないようにする
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
 	enumerate_positions_with_move(pos, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
@@ -1575,5 +1575,67 @@ void make_policy_book(Position& pos, const std::string& bookFileName, const std:
 	std::cout << "outBookMap.size: " << outBookMap.size() << std::endl;
 
 	saveOutmap(outFileName, outBookMap);
+}
+
+void complement_book(Position& pos, std::string& outFileName, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(outFileName, bookMap);
+
+	std::vector<PositionWithMove> positions;
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+	enumerate_positions_with_move(pos, bookMap, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	assert(positions.size() <= bookMap.size());
+
+	// 最善手を指した局面が未登録で、最善手以外の手を指した局面が登録されている場合、
+	// 最善手を指した局面を追加
+	for (const auto& position : positions) {
+		const Key key = position.key;
+		const auto itr_book = bookMap.find(key);
+
+		Position pos_copy(pos);
+		const PositionWithMove* position_ptr = &position;
+		std::vector<Move> moves(position_ptr->depth);
+		for (int j = position_ptr->depth - 1; j >= 0; --j) {
+			moves[j] = position_ptr->move;
+			position_ptr = position_ptr->parent;
+		}
+		assert(position_ptr->parent == nullptr);
+
+		// move
+		auto states = StateListPtr(new std::deque<StateInfo>(1));
+		for (const Move move : moves) {
+			states->emplace_back(StateInfo());
+			pos_copy.doMove(move, states->back());
+		}
+		assert(Book::bookKey(pos_copy) == key);
+
+		const auto& entries = itr_book->second;
+
+		// 最善手を指した局面が未登録で、最善手以外の手を指した局面が登録されている場合
+		int found_index = -1;
+		for (int i = 0; i < entries.size(); ++i) {
+			const auto& entry = entries[i];
+			const auto key_after = Book::bookKeyAfter(pos_copy, key, Move(entry.fromToPro));
+			if (bookMap.find(key_after) != bookMap.end()) {
+				found_index = i;
+				break;
+			}
+		}
+
+		// 最善手を指した局面を追加
+		if (found_index > 0) {
+			const auto& entry = entries[0];
+			const Move move = move16toMove(Move(entry.fromToPro), pos_copy);
+			StateInfo state;
+			pos_copy.doMove(move, state);
+			int count = 0;
+			make_book_entry_with_uct(pos_copy, limits, Book::bookKey(pos_copy), bookMap, count, moves, book_pos_cmd, book_starting_pos_key);
+		}
+	}
+
+	std::cout << "bookMap.size: " << bookMap.size() << std::endl;
+
+	saveOutmap(outFileName, bookMap);
 }
 #endif

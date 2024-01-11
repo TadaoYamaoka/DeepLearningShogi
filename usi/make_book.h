@@ -68,4 +68,5 @@ void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<Boo
 void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath);
 void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName);
 void make_policy_book(Position& pos, const std::string& bookFileName, const std::string& minmaxBookFileName, const std::string& outFileName, const double beta);
+void complement_book(Position& pos, std::string& outFileName, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key);
 #endif

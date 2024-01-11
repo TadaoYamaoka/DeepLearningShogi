@@ -44,6 +44,7 @@ struct MySearcher : Searcher {
 	static void overwriteHcpe3Cache(std::istringstream& ssCmd);
 	static void bookToHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makePolicyBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void complementBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -418,6 +419,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "overwrite_hcpe3_cache") overwriteHcpe3Cache(ssCmd);
 		else if (token == "book_to_hcp") bookToHcp(ssCmd, posCmd);
 		else if (token == "make_policy_book") makePolicyBook(ssCmd, posCmd);
+		else if (token == "complement_book") complementBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1956,5 +1958,39 @@ void MySearcher::makePolicyBook(std::istringstream& ssCmd, const std::string& po
 
 	// 結果表示
 	std::cout << "done" << std::endl;
+}
+
+// 定跡補完
+void MySearcher::complementBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	// isreadyを先に実行しておくこと。
+	HuffmanCodedPos::init();
+
+	std::string outFileName;
+	int playoutNum;
+
+	ssCmd >> outFileName;
+	ssCmd >> playoutNum;
+
+	// プレイアウト数固定
+	LimitsType limits;
+	limits.nodes = playoutNum;
+
+	// 訪問回数の閾値(1000分率)
+	book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+	book_cutoff = options["Book_Cutoff"] / 1000.0f;
+
+	// 探索打ち切りを使用する
+	use_interruption = options["Use_Interruption"];
+
+	SetReuseSubtree(options["ReuseSubtree"]);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::string book_pos_cmd;
+	Key book_starting_pos_key;
+	std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
+
+	complement_book(pos, outFileName, limits, book_pos_cmd, book_starting_pos_key);
 }
 #endif
