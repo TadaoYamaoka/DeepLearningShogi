@@ -1577,15 +1577,17 @@ void make_policy_book(Position& pos, const std::string& bookFileName, const std:
 	saveOutmap(outFileName, outBookMap);
 }
 
-void complement_book(Position& pos, std::string& outFileName, const int save_book_interval, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void complement_book(Position& pos, const std::string& bookFileName, std::string& outFileName, const std::string& book_pos_cmd) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
-	read_book(outFileName, bookMap);
+	read_book(bookFileName, bookMap);
 
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
 	enumerate_positions_with_move(pos, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
+
+	std::ofstream ofs(outFileName);
 
 	int n = 0;
 
@@ -1627,20 +1629,15 @@ void complement_book(Position& pos, std::string& outFileName, const int save_boo
 
 		// 最善手を指した局面を追加
 		if (found_index > 0) {
-			const auto& entry = entries[0];
-			const Move move = move16toMove(Move(entry.fromToPro), pos_copy);
-			StateInfo state;
-			pos_copy.doMove(move, state);
-			int count = 0;
-			make_book_entry_with_uct(pos_copy, limits, Book::bookKey(pos_copy), bookMap, count, moves, book_pos_cmd, book_starting_pos_key);
+			ofs << book_pos_cmd;
+			for (const Move move : moves) {
+				ofs << " " << move.toUSI();
+			}
+			ofs << " " << Move(entries[0].fromToPro).toUSI() << std::endl;
 			n++;
-			if (n % save_book_interval == 0)
-				saveOutmap(outFileName, bookMap);
 		}
 	}
 
-	std::cout << "bookMap.size: " << bookMap.size() << std::endl;
-
-	saveOutmap(outFileName, bookMap);
+	std::cout << "num: " << n << std::endl;
 }
 #endif
