@@ -1629,7 +1629,7 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 		// 最善手を指した局面を追加
 		if (found_index > 0) {
-			ofs << book_pos_cmd;
+			ofs << book_pos_cmd.substr(9);
 			for (const Move move : moves) {
 				ofs << " " << move.toUSI();
 			}
