@@ -1047,8 +1047,26 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 			Position pos;
 			pos.set(hcp);
 
-			for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+			// 定跡の指し手の順を優先する
+			MoveList<LegalAll> ml(pos);
+			std::vector<Move> moves;
+			moves.reserve(ml.size());
+			const auto itr_curr = bookMap.find(Book::bookKey(pos));
+			const auto& entries = itr_curr->second;
+			std::vector<Move> book_moves;
+			book_moves.reserve(entries.size());
+			for (const auto& entry : itr_curr->second) {
+				Move move = move16toMove(Move(entry.fromToPro), pos);
+				moves.emplace_back(move);
+				book_moves.emplace_back(move);
+			}
+			for (; !ml.end(); ++ml) {
 				const auto move = ml.move();
+				if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
+					moves.emplace_back(ml.move());
+			}
+
+			for (const auto& move : moves) {
 				StateInfo state;
 				pos.doMove(move, state);
 				const Key key = Book::bookKey(pos);
