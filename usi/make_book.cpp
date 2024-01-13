@@ -1589,6 +1589,7 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 	std::ofstream ofs(outFileName);
 
+	std::set<Key> exists;
 	int n = 0;
 
 	// 最善手を指した局面が未登録で、最善手以外の手を指した局面が登録されている場合、
@@ -1620,7 +1621,7 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 		int found_index = -1;
 		for (int i = 0; i < entries.size(); ++i) {
 			const auto& entry = entries[i];
-			const auto key_after = Book::bookKeyAfter(pos_copy, key, Move(entry.fromToPro));
+			const auto key_after = Book::bookKeyAfter(pos_copy, key, move16toMove(Move(entry.fromToPro), pos_copy));
 			if (bookMap.find(key_after) != bookMap.end()) {
 				found_index = i;
 				break;
@@ -1629,12 +1630,16 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 		// 最善手を指した局面を追加
 		if (found_index > 0) {
-			ofs << book_pos_cmd.substr(9);
-			for (const Move move : moves) {
-				ofs << " " << move.toUSI();
+			const auto& entry = entries[0];
+			const auto key_after = Book::bookKeyAfter(pos_copy, key, move16toMove(Move(entry.fromToPro), pos_copy));
+			if (exists.emplace(key_after).second) {
+				ofs << book_pos_cmd.substr(9);
+				for (const Move move : moves) {
+					ofs << " " << move.toUSI();
+				}
+				ofs << " " << Move(entry.fromToPro).toUSI() << std::endl;
+				n++;
 			}
-			ofs << " " << Move(entries[0].fromToPro).toUSI() << std::endl;
-			n++;
 		}
 	}
 
