@@ -1509,6 +1509,7 @@ void make_policy_book_inner(Position& pos,
 
 	auto& outEntries = outBookMap[key];
 	outEntries.emplace_back(minmaxEntry);
+	Score trustedScore = minmaxEntry.score;
 
 	// Stack overflowを避けるためヒープに確保する
 	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
@@ -1526,14 +1527,13 @@ void make_policy_book_inner(Position& pos,
 				outEntry.key = key;
 				outEntry.fromToPro = (u16)move.value();
 				outEntry.count = 0;
-				outEntry.score = -entryAfter.score;
+				outEntry.score = std::min(-entryAfter.score, trustedScore);
 			}
 		}
 
 		pos.undoMove(move);
 	}
 
-	Score trustedScore = minmaxEntry.score;
 	for (const auto& entry : itr->second) {
 		const auto exist = std::find_if(outEntries.cbegin(), outEntries.cend(), [&entry](const BookEntry& outEntry) { return outEntry.fromToPro == entry.fromToPro; });
 		if (exist != outEntries.cend()) {
