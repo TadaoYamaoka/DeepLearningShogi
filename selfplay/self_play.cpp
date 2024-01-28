@@ -1831,6 +1831,8 @@ int main(int argc, char* argv[]) {
 	HuffmanCodedPos::init();
 	if (use_book_policy) {
 		Book::init();
+		logger->info("use_book_policy");
+		logger->info("book_file:{}", bookFileName);
 		read_book(bookFileName, bookMap);
 	}
 
