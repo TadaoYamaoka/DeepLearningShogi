@@ -746,6 +746,10 @@ int merge_book(std::unordered_map<Key, std::vector<BookEntry> >& outMap, const s
 		BookEntry entry;
 		Key prev_key = 0;
 		while (ifsMerge.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+			if (entry.key == 0) {
+				std::cerr << "book file is corrupted: " << merge_file << std::endl;
+				throw std::runtime_error("book file is corrupted");
+			}
 			if (entry.key == prev_key || outMap.find(entry.key) == outMap.end()) {
 				if (entry.key != prev_key)
 					merged++;
