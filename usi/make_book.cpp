@@ -971,7 +971,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 
 	std::cout << "positions: " << positions.size() << std::endl;
 
-	const auto engine_num_ = std::min(engine_num, (const int)positions.size());
+	const auto engine_num_ = std::min(engine_num, (int)positions.size());
 
 	// USIエンジン初期化
 	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num_);
@@ -1641,7 +1641,7 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 		// 最善手を指した局面が未登録で、最善手以外の手を指した局面が登録されている場合
 		int found_index = -1;
-		for (int i = 0; i < entries.size(); ++i) {
+		for (int i = 0; i < (int)entries.size(); ++i) {
 			const auto& entry = entries[i];
 			const auto key_after = Book::bookKeyAfter(pos_copy, key, move16toMove(Move(entry.fromToPro), pos_copy));
 			if (bookMap.find(key_after) != bookMap.end()) {
