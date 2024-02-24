@@ -55,7 +55,7 @@ def hcpe3_get_hcpe(size_t index, np.ndarray ndhcpe):
 
 def hcpe3_prepare_evalfix(str filepath):
 	cdef size_t size = __load_evalfix(filepath.encode(locale.getpreferredencoding()))
-	ndeval = np.empty(size, np.int32)
-	ndresult = np.empty(size, np.float32)
+	cdef np.ndarray ndeval = np.empty(size, np.int32)
+	cdef np.ndarray ndresult = np.empty(size, np.float32)
 	__hcpe3_prepare_evalfix(ndeval.data, ndresult.data)
 	return ndeval, ndresult
