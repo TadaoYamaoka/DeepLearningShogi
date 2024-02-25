@@ -1023,6 +1023,8 @@ void UCTSearcherGroup::EvalNode() {
 		// Boltzmann distribution
 		softmax_temperature_with_normalize(uct_child, child_num);
 
+		float value_win = (float)*value;
+
 		if (use_book_policy) {
 			// 事前確率に定跡の遷移確率も使用する
 			constexpr float alpha = 0.5f;
@@ -1044,6 +1046,9 @@ void UCTSearcherGroup::EvalNode() {
 					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
 					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
 				}
+
+				// valueと定跡の評価値の加重平均
+				value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
 			}
 		}
 
@@ -1051,8 +1056,6 @@ void UCTSearcherGroup::EvalNode() {
 		for (int j = 0; j < child_num; j++) {
 			req->nnrate[j] = uct_child[j].nnrate;
 		}
-
-		const float value_win = (float)*value;
 
 		req->value_win = value_win;
 		nn_cache.Insert(policy_value_batch[i].key, std::move(req));

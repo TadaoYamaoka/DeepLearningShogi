@@ -1702,6 +1702,9 @@ void UCTSearcher::EvalNode() {
 					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
 					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
 				}
+
+				// valueと定跡の評価値の加重平均
+				*policy_value_batch[i].value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
 			}
 		}
 		node->SetEvaled();
