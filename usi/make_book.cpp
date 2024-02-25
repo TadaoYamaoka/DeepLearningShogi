@@ -239,36 +239,38 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	Score value = -ScoreInfinite;
 
 	// MinMaxの探索順に使用する定跡
-	Move topMove = Move::moveNone();
+	auto itr_best = bookMapBest.end();
 	if (bookMapBest.size() > 0) {
-		const auto itr_best = bookMapBest.find(key);
+		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
-			topMove = move16toMove(Move(itr_best->second[0].fromToPro), pos);
-			StateInfo state;
-			pos.doMove(topMove, state);
-			//debug_moves.emplace_back(move);
-			switch (pos.isDraw()) {
-			case RepetitionDraw:
-				// 繰り返しになる場合、千日手の評価値
-				value = pos.turn() == Black ? draw_score_white : draw_score_black;
-				break;
-			case RepetitionWin:
-				value = -ScoreInfinite;
-				break;
-			case RepetitionLose:
-				value = ScoreMaxEvaluate;
-				break;
-			default:
-				value = book_search(pos, outMap, -beta, -alpha, itr_best->second[0].score, searched, bookMapBest);
-			}
-			pos.undoMove(topMove);
-			//debug_moves.pop_back();
-			//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+			for (const auto& entry : itr_best->second) {
+				Move move = move16toMove(Move(entry.fromToPro), pos);
+				StateInfo state;
+				pos.doMove(move, state);
+				//debug_moves.emplace_back(move);
+				switch (pos.isDraw()) {
+				case RepetitionDraw:
+					// 繰り返しになる場合、千日手の評価値
+					value = pos.turn() == Black ? draw_score_white : draw_score_black;
+					break;
+				case RepetitionWin:
+					value = -ScoreInfinite;
+					break;
+				case RepetitionLose:
+					value = ScoreMaxEvaluate;
+					break;
+				default:
+					value = book_search(pos, outMap, -beta, -alpha, entry.score, searched, bookMapBest);
+				}
+				pos.undoMove(move);
+				//debug_moves.pop_back();
+				//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
-			alpha = std::max(alpha, value);
-			if (alpha >= beta) {
-				searched[key] = { pos.gamePly(), value, beta };
-				return -value;
+				alpha = std::max(alpha, value);
+				if (alpha >= beta) {
+					searched[key] = { pos.gamePly(), value, beta };
+					return -value;
+				}
 			}
 		}
 	}
@@ -276,8 +278,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
-		if (move == topMove)
-			continue;
+		if (itr_best != bookMapBest.end()) {
+			const auto& entries_best = itr_best->second;
+			if (std::find_if(entries_best.begin(), entries_best.end(),
+				[&entry](const BookEntry& entry_best) { return entry_best.fromToPro == entry.fromToPro; }) != entries_best.end()) {
+				// 探索済み
+				continue;
+			}
+		}
 		// 訪問回数が少ない評価値は信頼しない
 		if (entry.score < trusted_score)
 			trusted_score = entry.score;
@@ -326,8 +334,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			continue;
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
-		if (move == topMove)
-			continue;
+		if (itr_best != bookMapBest.end()) {
+			const auto& entries_best = itr_best->second;
+			if (std::find_if(entries_best.begin(), entries_best.end(),
+				[&move16](const BookEntry& entry_best) { return entry_best.fromToPro == move16; }) != entries_best.end()) {
+				// 探索済み
+				continue;
+			}
+		}
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
@@ -378,45 +392,55 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 
 	// MinMaxの探索順に使用する定跡
 	Move topMove = Move::moveNone();
+	auto itr_best = bookMapBest.end();
 	if (bookMapBest.size() > 0) {
-		const auto itr_best = bookMapBest.find(key);
+		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
-			topMove = move16toMove(Move(itr_best->second[0].fromToPro), pos);
-			StateInfo state;
-			pos.doMove(topMove, state);
-			//debug_moves.emplace_back(move);
-			Score value;
-			switch (pos.isDraw()) {
-			case RepetitionDraw:
-				// 繰り返しになる場合、千日手の評価値
-				value = pos.turn() == Black ? draw_score_white : draw_score_black;
-				break;
-			case RepetitionWin:
-				value = -ScoreInfinite;
-				break;
-			case RepetitionLose:
-				value = ScoreMaxEvaluate;
-				break;
-			default:
-				value = book_search(pos, outMap, -ScoreInfinite, -alpha, itr_best->second[0].score, searched, bookMapBest);
-			}
-			pos.undoMove(topMove);
-			//debug_moves.pop_back();
-			//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+			for (const auto& entry : itr_best->second) {
+				Move move = move16toMove(Move(entry.fromToPro), pos);
+				StateInfo state;
+				pos.doMove(move, state);
+				//debug_moves.emplace_back(move);
+				Score value;
+				switch (pos.isDraw()) {
+				case RepetitionDraw:
+					// 繰り返しになる場合、千日手の評価値
+					value = pos.turn() == Black ? draw_score_white : draw_score_black;
+					break;
+				case RepetitionWin:
+					value = -ScoreInfinite;
+					break;
+				case RepetitionLose:
+					value = ScoreMaxEvaluate;
+					break;
+				default:
+					value = book_search(pos, outMap, -ScoreInfinite, -alpha, entry.score, searched, bookMapBest);
+				}
+				pos.undoMove(move);
+				//debug_moves.pop_back();
+				//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
-			bestIndex = -1;
-			bestMove = topMove;
-			alpha = value;
+				if (value > alpha) {
+					bestMove = move;
+					alpha = value;
+				}
+			}
+			topMove = bestMove;
 		}
 	}
 
 	Score trusted_score = entries[0].score;
 	for (const auto& entry : entries) {
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
-		if (move == topMove) {
-			if (move == bestMove)
-				bestIndex = (int)(&entry - &entries[0]);
-			continue;
+		if (itr_best != bookMapBest.end()) {
+			const auto& entries_best = itr_best->second;
+			if (std::find_if(entries_best.begin(), entries_best.end(),
+				[&entry](const BookEntry& entry_best) { return entry_best.fromToPro == entry.fromToPro; }) != entries_best.end()) {
+				// 探索済み
+				if (move == topMove && move == bestMove)
+					bestIndex = (int)(&entry - &entries[0]);
+				continue;
+			}
 		}
 		// 訪問回数が少ない評価値は信頼しない
 		if (entry.score < trusted_score)
