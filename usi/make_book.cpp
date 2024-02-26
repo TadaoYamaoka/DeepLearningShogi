@@ -96,7 +96,8 @@ void copy_minmax_priority_book(const std::unordered_map<Key, std::vector<BookEnt
 	bookMapBestDst.clear();
 	for (auto itr = bookMapBestSrc.begin(); itr != bookMapBestSrc.end(); itr++) {
 		auto& entries = bookMapBestDst[itr->first];
-		entries.emplace_back(itr->second[0]);
+		for (const auto& entry : itr->second)
+			entries.emplace_back(entry);
 	}
 }
 
