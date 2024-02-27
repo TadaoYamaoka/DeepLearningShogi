@@ -380,7 +380,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	//if (std::abs(value) == 71) print_debug_moves(value);
 
 	// βカットされなかった場合はsearchedに追加しない
-	return -value;
+	return -alpha;
 }
 
 std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
