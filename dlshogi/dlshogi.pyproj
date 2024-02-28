@@ -34,6 +34,7 @@
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="main.py" />
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
