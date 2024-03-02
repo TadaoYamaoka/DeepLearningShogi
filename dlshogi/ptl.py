@@ -291,7 +291,7 @@ class Model(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         for key, val in self.validation_step_outputs.items():
-            self.log(key, torch.stack(val).mean())
+            self.log(key, torch.stack(val).mean(), sync_dist=True)
             val.clear()
 
     def on_test_start(self):
@@ -306,7 +306,7 @@ class Model(pl.LightningModule):
     def on_test_epoch_end(self):
         for key, val in self.validation_step_outputs.items():
             key = "test" + key[3:]
-            self.log(key, torch.stack(val).mean())
+            self.log(key, torch.stack(val).mean(), sync_dist=True)
             val.clear()
 
     def on_test_end(self):
