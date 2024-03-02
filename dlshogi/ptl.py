@@ -1,4 +1,5 @@
-﻿import os
+﻿import logging
+import os
 from collections import defaultdict
 
 import lightning.pytorch as pl
@@ -19,7 +20,10 @@ from dlshogi.network.policy_value_network import policy_value_network
 
 class HcpeDataset(Dataset):
     def __init__(self, files):
-        self.hcpe = HcpeDataLoader.load_files(files)
+        logger = logging.getLogger("lightning.pytorch.core")
+        logger.info("Loading HcpeDataset")
+        self.hcpe = HcpeDataLoader.load_files(files, logger)
+        logger.info("position num = {}".format(len(self.hcpe)))
 
     def __len__(self):
         return len(self.hcpe)
@@ -61,14 +65,20 @@ class Hcpe3Dataset(Dataset):
         self.load()
 
     def load(self):
-        self.len, self.actual_len = Hcpe3DataLoader.load_files(
+        logger = logging.getLogger("lightning.pytorch.core")
+        logger.info("Loading Hcpe3Dataset")
+        self.len, actual_len = Hcpe3DataLoader.load_files(
             self.files,
             self.use_average,
             self.use_evalfix,
             self.temperature,
             self.patch,
             self.cache,
+            logger,
         )
+        if self.use_average:
+            logger.info("position num before preprocessing = {}".format(actual_len))
+        logger.info("position num = {}".format(self.len))
 
     def __len__(self):
         return self.len
