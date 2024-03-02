@@ -11,6 +11,11 @@ trainer:
 model:
   network: resnet10_relu
   val_lambda: 0.333
+  use_ema: true
+  update_bn: true
+  ema_start_epoch: 1
+  ema_freq: 5
+  ema_decay: 0.999
 data:
   train_files:
     - F:\hcpe3\floodgate_2022_0214_r3800_nomate.hcpe3
