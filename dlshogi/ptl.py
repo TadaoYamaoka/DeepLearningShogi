@@ -1,4 +1,5 @@
-﻿from collections import defaultdict
+﻿import os
+from collections import defaultdict
 
 import lightning.pytorch as pl
 import numpy as np
@@ -9,7 +10,7 @@ from lightning.pytorch.cli import LightningCLI
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
 from torch.utils.data import DataLoader, Dataset
 
-from dlshogi import cppshogi
+from dlshogi import cppshogi, serializers
 from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
 from dlshogi.data_loader import DataLoader as HcpeDataLoader
 from dlshogi.data_loader import Hcpe3DataLoader
@@ -191,6 +192,7 @@ class Model(pl.LightningModule):
         ema_start_epoch=1,
         ema_freq=250,
         ema_decay=0.9,
+        model_filename=None,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -245,6 +247,20 @@ class Model(pl.LightningModule):
             with self.trainer.precision_plugin.train_step_context():
                 update_bn(data_loader(), self.ema_model)
             del self.ema_model.forward
+
+    def on_train_end(self):
+        if self.hparams.model_filename:
+            if self.hparams.use_ema:
+                model = self.ema_model
+            else:
+                model = self.model
+            model_filename = self.hparams.model_filename.format(
+                epoch=self.current_epoch, step=self.global_step
+            )
+            serializers.save_npz(
+                os.path.join(self.trainer.log_dir, model_filename),
+                model,
+            )
 
     def validation_step(self, batch, batch_idx):
         features1, features2, move, result, value = batch
