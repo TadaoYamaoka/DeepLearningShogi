@@ -1465,6 +1465,7 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 
 			const auto count = body.count;
 			body.count = 1;
+			body.value = (float)((1 - weight) * body.value / count + weight * data.first.value);
 			body.result = (float)((1 - weight) * body.result / count + weight * data.first.result);
 
 			std::map<u16, float> candidate_map;
