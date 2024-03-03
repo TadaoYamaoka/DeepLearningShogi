@@ -102,7 +102,14 @@ for filepath in csa_file_list:
                 break
             comments = comment.split(',')
             if comments[0].startswith('v='):
-                candidates = comments[1:]
+
+                # AobaZeroの新しい棋譜には、v=xxx, のあとに r=xxx が書いてある。
+                # これは無いものとして扱う。
+                if comments[1].startswith('r='):
+                    candidates = comments[2:]
+                else:
+                    candidates = comments[1:]
+
                 v = float(comments[0].split('=')[1])
                 if v == 1.0:
                     move_info['eval'] = 30000
@@ -122,6 +129,11 @@ for filepath in csa_file_list:
                 m = board.move_from_csa(csa)
                 assert(board.is_legal(m))
                 move_visits[j]['move16'] = move16(m)
+
+                # AobaZeroの新しい棋譜には、訪問回数の末尾にalphabetがあるのでこれは除去する。
+                if visit_num[-1].isalpha():
+                    visit_num = visit_num[:-1]
+
                 move_visits[j]['visitNum'] = visit_num
             move_visits_list.append(move_visits)
             p += 1

@@ -53,6 +53,7 @@
     <Compile Include="utils\aoba_to_hcpe3.py" />
     <Compile Include="utils\append_book.py" />
     <Compile Include="utils\benchmark.py" />
+    <Compile Include="utils\book_to_positions.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_important_position.py" />
@@ -68,6 +69,7 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\kif_to_csa.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
