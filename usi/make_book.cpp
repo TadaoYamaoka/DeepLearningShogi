@@ -1477,7 +1477,7 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 			std::vector<Hcpe3CacheCandidate> new_candidates;
 			new_candidates.reserve(candidate_map.size());
 			for (const auto& kv : candidate_map) {
-				new_candidates.emplace_back(kv.first, kv.second);
+				new_candidates.emplace_back(Hcpe3CacheCandidate{ kv.first, kv.second });
 			}
 
 			trainingData.emplace_back(body, new_candidates.data(), new_candidates.size());
