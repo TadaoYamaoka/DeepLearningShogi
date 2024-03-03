@@ -84,4 +84,7 @@
       <Filter>ソース ファイル\usi</Filter>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

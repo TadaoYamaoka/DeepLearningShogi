@@ -1,14 +1,15 @@
-﻿#include <iostream>
+﻿#include "gtest/gtest.h"
+
+#include <iostream>
 #include <chrono>
+#include <fstream>
 
 #include "cppshogi.h"
 
 using namespace std;
 
-#if 0
-// hcpe作成
-#include <fstream>
-int main() {
+TEST(HcpeTest, make_hcpe) {
+	// hcpe作成
 	initTable();
 	const int num = 2;
 	Position pos[num];
@@ -28,7 +29,6 @@ int main() {
 	}
 	ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 }
-#endif
 
 #if 0
 int main() {
@@ -1843,7 +1843,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include <fstream>
 #include <regex>
 #include "book.hpp"
