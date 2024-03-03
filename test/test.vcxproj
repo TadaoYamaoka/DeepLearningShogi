@@ -294,6 +294,7 @@
     <ClCompile Include="..\usi\UctSearch.cpp" />
     <ClCompile Include="..\usi\USIBookEngine.cpp" />
     <ClCompile Include="gpubenchmark.cpp" />
+    <ClCompile Include="make_book_test.cpp" />
     <ClCompile Include="tensorrt_benchmark.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>

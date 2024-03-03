@@ -96,6 +96,9 @@
     <ClCompile Include="..\usi\make_book_mcts.cpp">
       <Filter>ソース ファイル\usi</Filter>
     </ClCompile>
+    <ClCompile Include="make_book_test.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\usi\unpack.cu">

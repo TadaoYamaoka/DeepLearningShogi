@@ -1948,8 +1948,8 @@ int main(int argc, char* argv[]) {
 #ifdef MAKE_BOOK
 #include "make_book.h"
 
-extern const BookEntry& select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves = {});
-extern const BookEntry& parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves = {});
+extern std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
+extern std::tuple<int, Move, Score> parallel_uct_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
 extern void reset_to_position(const std::vector<Move>& moves);
 extern void set_softmax_temperature(const float temperature);
 extern float c_init;
@@ -2309,7 +2309,7 @@ int main() {
 }
 #endif
 
-#if 1
+#if 0
 int main() {
 	initTable();
 	Position::initZobrist();
@@ -2366,10 +2366,12 @@ int main() {
 	const Key key = Book::bookKey(pos);
 	const auto itr = outMap.find(key);
 	const auto& entries = itr->second;
-	const auto& entry = parallel_uct_search(pos, outMap, entries);
+	int index;
+	Move move;
+	Score score;
+	std::tie(index, move, score) = parallel_uct_search(pos, outMap, entries, {}, {});
 
-	const Move move = move16toMove(Move(entry.fromToPro), pos);
-	std::cout << move.toUSI() << "\t" << entry.score << std::endl;
+	std::cout << move.toUSI() << "\t" << score << std::endl;
 
 	return 0;
 }
