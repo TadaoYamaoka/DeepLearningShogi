@@ -1401,7 +1401,7 @@ void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<Boo
 	}
 }
 
-void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath) {
+void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath, const double weight) {
 	std::ifstream cache(filepath, std::ios::binary);
 	size_t num_cache;
 	cache.read((char*)&num_cache, sizeof(num_cache));
@@ -1449,10 +1449,38 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 			original.read((char*)candidates.data(), sizeof(Hcpe3CacheCandidate) * num_candidates);
 			trainingData.emplace_back(body, candidates.data(), num_candidates);
 		}
-		else {
+		else if (weight == 1) {
 			// 上書き
 			auto& data = itr->second;
 			trainingData.emplace_back(data.first, data.second.data(), data.second.size());
+			cache_map.erase(itr);
+		}
+		else {
+			// 加重平均
+			const auto num_candidates = (original_pos[i + 1] - original_pos[i] - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+			std::vector<Hcpe3CacheCandidate> candidates(num_candidates);
+			original.read((char*)candidates.data(), sizeof(Hcpe3CacheCandidate) * num_candidates);
+
+			auto& data = itr->second;
+
+			const auto count = body.count;
+			body.count = 1;
+			body.result = (float)((1 - weight) * body.result / count + weight * data.first.result);
+
+			std::map<u16, float> candidate_map;
+			for (const auto& candidate : candidates) {
+				candidate_map[candidate.move16] = (float)((1 - weight) * candidate.prob / count);
+			}
+			for (const auto& candidate : data.second) {
+				candidate_map[candidate.move16] += (float)(weight * candidate.prob);
+			}
+			std::vector<Hcpe3CacheCandidate> new_candidates;
+			new_candidates.reserve(candidate_map.size());
+			for (const auto& kv : candidate_map) {
+				new_candidates.emplace_back(kv.first, kv.second);
+			}
+
+			trainingData.emplace_back(body, new_candidates.data(), new_candidates.size());
 			cache_map.erase(itr);
 		}
 	}

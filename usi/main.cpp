@@ -1905,12 +1905,14 @@ void MySearcher::overwriteHcpe3Cache(std::istringstream& ssCmd) {
 	std::string originalFileName;
 	std::string fileName;
 	std::string outFileName;
+	double weight = 1;
 
 	ssCmd >> originalFileName;
 	ssCmd >> fileName;
 	ssCmd >> outFileName;
+	ssCmd >> weight;
 
-	overwrite_hcpe3_cache(originalFileName, fileName, outFileName);
+	overwrite_hcpe3_cache(originalFileName, fileName, outFileName, weight);
 
 	// 結果表示
 	std::cout << "done" << std::endl;

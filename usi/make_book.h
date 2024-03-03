@@ -65,7 +65,7 @@ void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& b
 bool read_minmax_priority_book(const std::string& minmax_priority_book, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
 void copy_minmax_priority_book(const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBestSrc, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBestDst);
 void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap, const std::string& filepath, const double beta);
-void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath);
+void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath, const double weight=1);
 void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName);
 void make_policy_book(Position& pos, const std::string& bookFileName, const std::string& minmaxBookFileName, const std::string& outFileName, const double beta);
 void complement_book(Position& pos, const std::string& bookFileName, std::string& outFileName, const std::string& book_pos_cmd);
