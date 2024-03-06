@@ -1,0 +1,45 @@
+# lightning.pytorch==2.2.0.post0
+seed_everything: 0
+trainer:
+  max_epochs: 4
+  precision: 16-mixed
+  gradient_clip_val: 10.0
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        save_top_k: -1
+        monitor: val/loss
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+model:
+  network: resnet10_relu
+  val_lambda: 0.333
+  use_ema: false
+  update_bn: true
+  ema_start_epoch: 1
+  ema_freq: 5
+  ema_decay: 0.999
+  model_filename: model-{epoch:03}
+data:
+  train_files:
+    - F:\hcpe3\floodgate_2022_0214_r3800_nomate.hcpe3
+  val_files:
+    - F:\hcpe3\floodgate.hcpe
+  batch_size: 1024
+  val_batch_size: 1024
+  use_average: false
+  use_evalfix: false
+  temperature: 1.0
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 1e-4
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1e-08
+    weight_decay: 1e-2
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.StepLR
+  init_args:
+    step_size: 1
+    gamma: 0.5

@@ -9,16 +9,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 import logging
 
+
 class DataLoader:
     @staticmethod
-    def load_files(files):
+    def load_files(files, logger=logging):
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.info(path)
+                logger.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval))
             else:
-                logging.warn('{} not found, skipping'.format(path))
+                logger.warn("{} not found, skipping".format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -27,11 +28,19 @@ class DataLoader:
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
+        self.torch_features1 = torch.empty(
+            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_features2 = torch.empty(
+            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
         self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
-        self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        self.torch_result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
 
         self.features1 = self.torch_features1.numpy()
         self.features2 = self.torch_features2.numpy()
@@ -43,28 +52,34 @@ class DataLoader:
         self.executor = ThreadPoolExecutor(max_workers=1)
 
     def mini_batch(self, hcpevec):
-        cppshogi.hcpe_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value)
+        cppshogi.hcpe_decode_with_value(
+            hcpevec, self.features1, self.features2, self.move, self.result, self.value
+        )
 
-        if self.device.type == 'cpu':
-            return (self.torch_features1.clone(),
-                    self.torch_features2.clone(),
-                    self.torch_move.clone(),
-                    self.torch_result.clone(),
-                    self.torch_value.clone()
-                    )
+        if self.device.type == "cpu":
+            return (
+                self.torch_features1.clone(),
+                self.torch_features2.clone(),
+                self.torch_move.clone(),
+                self.torch_result.clone(),
+                self.torch_value.clone(),
+            )
         else:
-            return (self.torch_features1.to(self.device),
-                    self.torch_features2.to(self.device),
-                    self.torch_move.to(self.device),
-                    self.torch_result.to(self.device),
-                    self.torch_value.to(self.device)
-                    )
+            return (
+                self.torch_features1.to(self.device),
+                self.torch_features2.to(self.device),
+                self.torch_move.to(self.device),
+                self.torch_result.to(self.device),
+                self.torch_value.to(self.device),
+            )
 
     def sample(self):
-        return self.mini_batch(np.random.choice(self.data, self.batch_size, replace=False))
+        return self.mini_batch(
+            np.random.choice(self.data, self.batch_size, replace=False)
+        )
 
     def pre_fetch(self):
-        hcpevec = self.data[self.i:self.i+self.batch_size]
+        hcpevec = self.data[self.i : self.i + self.batch_size]
         self.i += self.batch_size
         if len(hcpevec) < self.batch_size:
             return
@@ -87,16 +102,17 @@ class DataLoader:
 
         return result
 
+
 class Hcpe2DataLoader(DataLoader):
     @staticmethod
-    def load_files(files):
+    def load_files(files, logger=logging):
         data = []
         for path in files:
             if os.path.exists(path):
-                logging.info(path)
+                logger.info(path)
                 data.append(np.fromfile(path, dtype=HuffmanCodedPosAndEval2))
             else:
-                logging.warn('{} not found, skipping'.format(path))
+                logger.warn("{} not found, skipping".format(path))
         return np.concatenate(data)
 
     def __init__(self, data, batch_size, device, shuffle=False):
@@ -105,12 +121,22 @@ class Hcpe2DataLoader(DataLoader):
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
+        self.torch_features1 = torch.empty(
+            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_features2 = torch.empty(
+            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
         self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
-        self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        self.torch_aux = torch.empty((batch_size, 2), dtype=torch.float32, pin_memory=True)
+        self.torch_result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_aux = torch.empty(
+            (batch_size, 2), dtype=torch.float32, pin_memory=True
+        )
 
         self.features1 = self.torch_features1.numpy()
         self.features2 = self.torch_features2.numpy()
@@ -123,26 +149,45 @@ class Hcpe2DataLoader(DataLoader):
         self.executor = ThreadPoolExecutor(max_workers=1)
 
     def mini_batch(self, hcpevec):
-        cppshogi.hcpe2_decode_with_value(hcpevec, self.features1, self.features2, self.move, self.result, self.value, self.aux)
+        cppshogi.hcpe2_decode_with_value(
+            hcpevec,
+            self.features1,
+            self.features2,
+            self.move,
+            self.result,
+            self.value,
+            self.aux,
+        )
 
-        return (self.torch_features1.to(self.device),
-                self.torch_features2.to(self.device),
-                self.torch_move.to(self.device),
-                self.torch_result.to(self.device),
-                self.torch_value.to(self.device),
-                self.torch_aux.to(self.device)
-                )
+        return (
+            self.torch_features1.to(self.device),
+            self.torch_features2.to(self.device),
+            self.torch_move.to(self.device),
+            self.torch_result.to(self.device),
+            self.torch_value.to(self.device),
+            self.torch_aux.to(self.device),
+        )
+
 
 # 評価値から勝率への変換
 def score_to_value(score, a):
     return 1.0 / (1.0 + np.exp(-score / a))
 
+
 class Hcpe3DataLoader(DataLoader):
     @staticmethod
-    def load_files(files, use_average=False, use_evalfix=False, temperature=1.0, patch=None, cache=None):
+    def load_files(
+        files,
+        use_average=False,
+        use_evalfix=False,
+        temperature=1.0,
+        patch=None,
+        cache=None,
+        logger=logging,
+    ):
         # キャッシュが存在する場合、キャッシュから読み込む
         if cache and os.path.isfile(cache):
-            logging.info('Load cache {}'.format(cache))
+            logger.info("Load cache {}".format(cache))
             cache_len = cppshogi.hcpe3_load_cache(cache)
             return cache_len, cache_len
 
@@ -156,27 +201,31 @@ class Hcpe3DataLoader(DataLoader):
                     eval, result = cppshogi.hcpe3_prepare_evalfix(path)
                     if (eval == 0).all():
                         a = 0
-                        logging.info('{}, skip evalfix'.format(path))
+                        logger.info("{}, skip evalfix".format(path))
                     else:
                         popt, _ = curve_fit(score_to_value, eval, result, p0=[300.0])
                         a = popt[0]
-                        logging.info('{}, a={}'.format(path, a))
+                        logger.info("{}, a={}".format(path, a))
                 else:
                     a = 0
-                    logging.info(path)
+                    logger.info(path)
                 sum_len, len_ = cppshogi.load_hcpe3(path, use_average, a, temperature)
                 if len_ == 0:
-                    raise RuntimeError('read error {}'.format(path))
+                    raise RuntimeError("read error {}".format(path))
                 actual_len += len_
             else:
-                logging.warn('{} not found, skipping'.format(path))
+                logger.warn("{} not found, skipping".format(path))
         if patch:
             # パッチを当てる
-            patch_sum_len, patch_add_len = cppshogi.hcpe3_patch_with_hcpe(patch);
-            logging.info('Patch with {}, patched num = {}, added num = {}'.format(patch, patch_sum_len - patch_add_len, patch_add_len))
+            patch_sum_len, patch_add_len = cppshogi.hcpe3_patch_with_hcpe(patch)
+            logger.info(
+                "Patch with {}, patched num = {}, added num = {}".format(
+                    patch, patch_sum_len - patch_add_len, patch_add_len
+                )
+            )
         if cache:
             # キャッシュ作成
-            logging.info('Create cache {}'.format(cache))
+            logger.info("Create cache {}".format(cache))
             cppshogi.hcpe3_create_cache(cache)
             cache_len = cppshogi.hcpe3_load_cache(cache)
             assert sum_len == cache_len
@@ -188,11 +237,23 @@ class Hcpe3DataLoader(DataLoader):
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty((batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_features2 = torch.empty((batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True)
-        self.torch_probability = torch.empty((batch_size, 9*9*MAX_MOVE_LABEL_NUM), dtype=torch.float32, pin_memory=True)
-        self.torch_result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        self.torch_value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        self.torch_features1 = torch.empty(
+            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_features2 = torch.empty(
+            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_probability = torch.empty(
+            (batch_size, 9 * 9 * MAX_MOVE_LABEL_NUM),
+            dtype=torch.float32,
+            pin_memory=True,
+        )
+        self.torch_result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
+        self.torch_value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
 
         self.features1 = self.torch_features1.numpy()
         self.features2 = self.torch_features2.numpy()
@@ -204,11 +265,19 @@ class Hcpe3DataLoader(DataLoader):
         self.executor = ThreadPoolExecutor(max_workers=1)
 
     def mini_batch(self, index):
-        cppshogi.hcpe3_decode_with_value(index, self.features1, self.features2, self.probability, self.result, self.value)
+        cppshogi.hcpe3_decode_with_value(
+            index,
+            self.features1,
+            self.features2,
+            self.probability,
+            self.result,
+            self.value,
+        )
 
-        return (self.torch_features1.to(self.device),
-                self.torch_features2.to(self.device),
-                self.torch_probability.to(self.device),
-                self.torch_result.to(self.device),
-                self.torch_value.to(self.device)
-                )
+        return (
+            self.torch_features1.to(self.device),
+            self.torch_features2.to(self.device),
+            self.torch_probability.to(self.device),
+            self.torch_result.to(self.device),
+            self.torch_value.to(self.device),
+        )
