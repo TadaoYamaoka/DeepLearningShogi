@@ -1465,15 +1465,15 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 
 			const auto count = body.count;
 			body.count = 1;
-			body.value = (float)((1 - weight) * body.value / count + weight * data.first.value);
-			body.result = (float)((1 - weight) * body.result / count + weight * data.first.result);
+			body.value = (float)((1 - weight) * body.value / count + weight * data.first.value / data.first.count);
+			body.result = (float)((1 - weight) * body.result / count + weight * data.first.result / data.first.count);
 
 			std::map<u16, float> candidate_map;
 			for (const auto& candidate : candidates) {
 				candidate_map[candidate.move16] = (float)((1 - weight) * candidate.prob / count);
 			}
 			for (const auto& candidate : data.second) {
-				candidate_map[candidate.move16] += (float)(weight * candidate.prob);
+				candidate_map[candidate.move16] += (float)(weight * candidate.prob / data.first.count);
 			}
 			std::vector<Hcpe3CacheCandidate> new_candidates;
 			new_candidates.reserve(candidate_map.size());
