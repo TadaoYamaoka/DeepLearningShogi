@@ -1468,17 +1468,17 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 			body.value = (float)((1 - weight) * body.value / count + weight * data.first.value / data.first.count);
 			body.result = (float)((1 - weight) * body.result / count + weight * data.first.result / data.first.count);
 
-			std::map<u16, float> candidate_map;
+			std::map<u16, double> candidate_map;
 			for (const auto& candidate : candidates) {
-				candidate_map[candidate.move16] = (float)((1 - weight) * candidate.prob / count);
+				candidate_map[candidate.move16] = (1 - weight) * candidate.prob / count;
 			}
 			for (const auto& candidate : data.second) {
-				candidate_map[candidate.move16] += (float)(weight * candidate.prob / data.first.count);
+				candidate_map[candidate.move16] += weight * candidate.prob / data.first.count;
 			}
 			std::vector<Hcpe3CacheCandidate> new_candidates;
 			new_candidates.reserve(candidate_map.size());
 			for (const auto& kv : candidate_map) {
-				new_candidates.emplace_back(Hcpe3CacheCandidate{ kv.first, kv.second });
+				new_candidates.emplace_back(Hcpe3CacheCandidate{ kv.first, (float)kv.second });
 			}
 
 			trainingData.emplace_back(body, new_candidates.data(), new_candidates.size());
