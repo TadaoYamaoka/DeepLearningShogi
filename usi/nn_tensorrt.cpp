@@ -114,6 +114,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	{
 		config->setFlag(nvinfer1::BuilderFlag::kFP16);
 	}
+	config->setFlag(nvinfer1::BuilderFlag::kSPARSE_WEIGHTS);
 
 #ifdef FP16
 	network->getInput(0)->setType(nvinfer1::DataType::kHALF);
