@@ -1084,7 +1084,7 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 			const auto& entries = itr_curr->second;
 			std::vector<Move> book_moves;
 			book_moves.reserve(entries.size());
-			for (const auto& entry : itr_curr->second) {
+			for (const auto& entry : entries) {
 				Move move = move16toMove(Move(entry.fromToPro), pos);
 				moves.emplace_back(move);
 				book_moves.emplace_back(move);
