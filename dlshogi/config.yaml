@@ -39,7 +39,13 @@ optimizer:
     eps: 1e-08
     weight_decay: 1e-2
 lr_scheduler:
-  class_path: torch.optim.lr_scheduler.StepLR
+  class_path: dlshogi.lr_scheduler.CosineLRScheduler
   init_args:
-    step_size: 1
-    gamma: 0.5
+    t_initial: 100
+    lr_min: 1e-8
+    cycle_mul: 2
+    cycle_limit: 8
+    cycle_decay: 0.5
+    warmup_t: 10
+    warmup_lr_init: 1e-7
+    warmup_prefix: True
