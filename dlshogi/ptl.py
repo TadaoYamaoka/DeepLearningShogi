@@ -6,8 +6,10 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn.functional as F
+from lightning.pytorch import cli
 from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgressBar
 from lightning.pytorch.cli import LightningCLI
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
 from torch.utils.data import DataLoader, Dataset
 
@@ -324,6 +326,25 @@ class Model(pl.LightningModule):
         if self.hparams.use_ema:
             self.model = self.tmp_model
             del self.tmp_model
+
+
+class LightningCLI(cli.LightningCLI):
+    @staticmethod
+    def configure_optimizers(lightning_module, optimizer, lr_scheduler=None):
+        if lr_scheduler is None:
+            return optimizer
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "step",
+                **(
+                    {"monitor": lr_scheduler.monitor}
+                    if isinstance(lr_scheduler, ReduceLROnPlateau)
+                    else {}
+                ),
+            },
+        }
 
 
 def main():
