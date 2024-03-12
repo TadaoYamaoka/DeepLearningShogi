@@ -48,4 +48,4 @@ lr_scheduler:
     cycle_decay: 0.5
     warmup_t: 10
     warmup_lr_init: 1e-7
-    warmup_prefix: True
+    warmup_prefix: true
