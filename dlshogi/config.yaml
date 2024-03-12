@@ -16,8 +16,8 @@ model:
   use_ema: false
   update_bn: true
   ema_start_epoch: 1
-  ema_freq: 5
-  ema_decay: 0.999
+  ema_freq: 250
+  ema_decay: 0.9
   model_filename: model-{epoch:03}
 data:
   train_files:
@@ -26,8 +26,8 @@ data:
     - F:\hcpe3\floodgate.hcpe
   batch_size: 1024
   val_batch_size: 1024
-  use_average: false
-  use_evalfix: false
+  use_average: true
+  use_evalfix: true
   temperature: 1.0
 optimizer:
   class_path: torch.optim.AdamW
