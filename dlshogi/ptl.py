@@ -227,6 +227,9 @@ class Model(pl.LightningModule):
             + self.hparams.val_lambda * loss3
         )
         self.log("train/loss", loss)
+        self.log("train/policy_loss", loss1)
+        self.log("train/result_loss", loss2)
+        self.log("train/value_loss", loss3)
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
@@ -286,6 +289,9 @@ class Model(pl.LightningModule):
             + self.hparams.val_lambda * loss3
         )
         self.validation_step_outputs["val/loss"].append(loss)
+        self.validation_step_outputs["val/policy_loss"].append(loss1)
+        self.validation_step_outputs["val/result_loss"].append(loss2)
+        self.validation_step_outputs["val/value_loss"].append(loss3)
 
         self.validation_step_outputs["val/policy_accuracy"].append(accuracy(y1, move))
         self.validation_step_outputs["val/value_accuracy"].append(
