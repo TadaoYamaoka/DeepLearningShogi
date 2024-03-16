@@ -230,11 +230,6 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
 		return -itr_searched->second.score;
 	}
-
-	// 深さ制限
-	if (pos.gamePly() > 256) {
-		return score;
-	}
 	
 	const auto itr = outMap.find(key);
 	if (itr == outMap.end()) {
