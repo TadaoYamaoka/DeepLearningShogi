@@ -1285,7 +1285,7 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 	for (int i = 0; i < terminal_indexes_size; ++i) {
 		Position pos_copy(pos);
 
-		const PositionWithMove& position = positions[indexes[i]];
+		const PositionWithMove& position = positions[terminal_indexes[i]];
 		const PositionWithMove* position_ptr = &position;
 		std::vector<Move> moves(position_ptr->depth);
 		for (int j = position_ptr->depth - 1; j >= 0; --j) {
