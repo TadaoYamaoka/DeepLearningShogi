@@ -1769,7 +1769,7 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
+	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest, true);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);

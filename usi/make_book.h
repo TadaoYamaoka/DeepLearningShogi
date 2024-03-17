@@ -64,7 +64,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
 typedef void (*make_all_minmax_book_t)(Position&, std::map<Key, std::vector<BookEntry> >&, const Color, const int, const std::unordered_map<Key, std::vector<BookEntry> >&);
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key);
-bool read_minmax_priority_book(const std::string& minmax_priority_book, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
+bool read_minmax_priority_book(const std::string& minmax_priority_book, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const bool force_read=false);
 void copy_minmax_priority_book(const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBestSrc, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBestDst);
 void minmax_book_to_cache(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap, const std::string& filepath, const double beta);
 void overwrite_hcpe3_cache(const std::string& original_filepath, const std::string& filepath, const std::string& out_filepath, const double weight=1);

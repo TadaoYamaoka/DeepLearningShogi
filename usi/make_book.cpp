@@ -74,17 +74,19 @@ std::condition_variable usi_cond;
 
 
 // MinMaxの探索順に使用する定跡読み込み
-bool read_minmax_priority_book(const std::string& minmax_priority_book, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+bool read_minmax_priority_book(const std::string& minmax_priority_book, std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const bool force_read) {
 	if (minmax_priority_book == "")
 		return false;
 
-	// ファイル更新がある場合のみ処理する
-	static std::filesystem::file_time_type prev_time{};
-	std::error_code ec;
-	const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(minmax_priority_book, ec);
-	if (file_time == prev_time)
-		return false;
-	prev_time = file_time;
+	if (!force_read) {
+		// ファイル更新がある場合のみ処理する
+		static std::filesystem::file_time_type prev_time{};
+		std::error_code ec;
+		const std::filesystem::file_time_type file_time = std::filesystem::last_write_time(minmax_priority_book, ec);
+		if (file_time == prev_time)
+			return false;
+		prev_time = file_time;
+	}
 
 	bookMapBest.clear();
 	std::cout << "read minmax_priority_book" << std::endl;
