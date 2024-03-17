@@ -8,7 +8,7 @@ LIB = -L/work/onnxruntime-linux-x64-1.14.1/lib
 target = bin/dlshogi_onnxruntime
 target_makebook = bin/makebook
 sources = nn_onnxruntime.cpp
-usi_sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp PvMateSearch.cpp
+usi_sources = main.cpp dfpn.cpp Message.cpp UctSearch.cpp Node.cpp PvMateSearch.cpp make_book.cpp USIBookEngine.cpp make_book_mcts.cpp
 cppshogi_sources = bitboard.cpp book.cpp common.cpp cppshogi.cpp generateMoves.cpp hand.cpp init.cpp move.cpp mt64bit.cpp position.cpp search.cpp square.cpp usi.cpp dtype.cpp
 objects = $(addprefix obj/, $(sources:.cpp=.o))
 usi_objects = $(addprefix obj/, $(usi_sources:.cpp=.o))
