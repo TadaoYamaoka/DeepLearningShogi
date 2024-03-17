@@ -33,3 +33,10 @@ all: $(target)
 
 clean:
 	rm -f $(objects) $(usi_objects) $(cppshogi_objects) $(target)
+
+$(target_makebook): $(objects) $(usi_objects) $(cppshogi_objects)
+	@[ -d bin ] || mkdir -p bin
+	$(CC) -o $@ $^ $(LIB) $(LDFLAGS) $(CFLAGS)
+
+makebook: CFLAGS += -DMAKE_BOOK
+makebook: $(target_makebook)
