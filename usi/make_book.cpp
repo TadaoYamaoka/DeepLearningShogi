@@ -1058,7 +1058,7 @@ struct PositionWithMove {
 };
 
 // 局面を列挙する
-void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<PositionWithMove>& positions, std::unordered_set<int>& terminals) {
+void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<PositionWithMove>& positions) {
 	// 最短経路をBFSで探索する
 	std::unordered_set<Key> exists;
 
@@ -1098,7 +1098,6 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 					moves.emplace_back(ml.move());
 			}
 
-			bool is_terminal = true;
 			for (const auto& move : moves) {
 				StateInfo state;
 				pos.doMove(move, state);
@@ -1113,21 +1112,14 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 					// 追加
 					PositionWithMove& potision_next = positions.emplace_back(PositionWithMove{ key, move, depth, parent });
 					next_positions.push_back({ pos.toHuffmanCodedPos(), &potision_next });
-					is_terminal = false;
 				}
 				pos.undoMove(move);
 			}
-			if (is_terminal)
-				terminals.emplace((int)(parent - positions.data()));
 		}
 
 		current_positions = std::move(next_positions);
 		++depth;
 	}
-}
-void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<PositionWithMove>& positions) {
-	std::unordered_set<int> terminals;
-	enumerate_positions_with_move(pos_root, bookMap, positions, terminals);
 }
 
 // 評価値が割れる局面を延長する
@@ -1211,12 +1203,14 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	std::vector<int> indexes;
 	for (int i = 0; i < (int)positions.size(); ++i) {
 		if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
-			indexes.emplace_back(i);
+			if (outMap.find(positions[i].key) == outMap.end())
+				indexes.emplace_back(i);
 		}
 	}
 
 	// 並列でminmax定跡作成
 	const int indexes_size = (int)indexes.size();
+	const int initial_size = (int)outMap.size();
 	#pragma omp parallel for num_threads(threads) schedule(dynamic)
 	for (int i = 0; i < indexes_size; ++i) {
 		Position pos_copy(pos);
@@ -1251,8 +1245,63 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 			auto& out_entries = outMap[key];
 			assert(out_entries.size() == 0);
 			out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score});
-			if (outMap.size() % 10000 == 0)
-				std::cout << "progress: " << outMap.size() * 100 / indexes_size << "%" << std::endl;
+			if ((outMap.size() - initial_size) % 10000 == 0)
+				std::cout << "progress: " << (outMap.size() - initial_size) * 100 / indexes_size << "%" << std::endl;
+		}
+	}
+}
+
+struct BookNode;
+struct BookNodeEdge {
+	Key key;
+	Move move;
+	BookNode* child;
+	Score score;
+};
+
+struct BookNode {
+	Key key;
+	std::vector<BookNode*> parents;
+	std::vector<BookNodeEdge> edges;
+};
+
+void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, BookNode>& nodes, BookNode& node, std::unordered_map<Key, int>& ref_counts) {
+	const Key key = node.key;
+	// 定跡の指し手の順を優先する
+	MoveList<LegalAll> ml(pos);
+	std::vector<Move> moves;
+	moves.reserve(ml.size());
+	const auto itr_curr = bookMap.find(Book::bookKey(pos));
+	const auto& entries = itr_curr->second;
+	std::vector<Move> book_moves;
+	book_moves.reserve(entries.size());
+	for (const auto& entry : entries) {
+		Move move = move16toMove(Move(entry.fromToPro), pos);
+		moves.emplace_back(move);
+		book_moves.emplace_back(move);
+	}
+	for (; !ml.end(); ++ml) {
+		const auto move = ml.move();
+		if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
+			moves.emplace_back(ml.move());
+	}
+
+	for (const auto& move : moves) {
+		const Key key_after = Book::bookKeyAfter(pos, key, move);
+		const auto itr = bookMap.find(key_after);
+		if (itr == bookMap.end())
+			continue;
+		auto ret = nodes.try_emplace(key_after, BookNode{ key_after, {}, {} });
+		auto& next_node = ret.first->second;
+		next_node.parents.emplace_back(&node);
+		node.edges.emplace_back(BookNodeEdge{ key_after, move, &next_node, ScoreNone });
+		ref_counts[key_after]++;
+		if (ret.second) {
+			next_node.key = key_after;
+			StateInfo st;
+			pos.doMove(move, st);
+			enumerate_book_nodes(pos, bookMap, nodes, next_node, ref_counts);
+			pos.undoMove(move);
 		}
 	}
 }
@@ -1260,117 +1309,81 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 // 全ての局面についてαβで定跡を作る
 // 速度改善版
 void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
-	// 局面を列挙する
-	std::vector<PositionWithMove> positions;
-	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	std::unordered_set<int> terminals;
-	enumerate_positions_with_move(pos, bookMap, positions, terminals);
-	std::cout << "positions: " << positions.size() << std::endl;
-	assert(positions.size() <= bookMap.size());
+	{
+		// 局面を列挙する
+		Key root_key = Book::bookKey(pos);
+		std::unordered_map<Key, BookNode> nodes;
+		auto ret = nodes.emplace(root_key, BookNode{ root_key, {}, {} });
+		auto& root_node = ret.first->second;
+		std::unordered_map<Key, int> ref_counts;
+		enumerate_book_nodes(pos, bookMap, nodes, root_node, ref_counts);
+		std::cout << "positions: " << nodes.size() << std::endl;
 
-	std::vector<int> indexes;
-	std::vector<int> terminal_indexes;
-	for (int i = 0; i < (int)positions.size(); ++i) {
-		if (terminals.find(i) != terminals.end()) {
-			terminal_indexes.emplace_back(i);
-		}
-		else if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
-			indexes.emplace_back(i);
-		}
-	}
+		// 出次数が0のノードがなくなるまで取り除く
+		while (true) {
+			int count = 0;
+			for (auto itr_node = nodes.begin(); itr_node != nodes.end(); ) {
+				const Key key = itr_node->first;
+				auto& node = itr_node->second;
+				bool terminal = true;
+				Score max_score = -ScoreInfinite;
+				int index = -1;
+				for (int i = 0; i < node.edges.size(); i++) {
+					const auto& edge = node.edges[i];
+					if (edge.child != nullptr) {
+						terminal = false;
+						break;
+					}
+					if (edge.score > max_score) {
+						index = i;
+						max_score = edge.score;
+					}
+				}
+				// 出次数が0の場合
+				if (terminal) {
+					auto itr = bookMap.find(key);
+					auto& entries = outMap[key];
+					if (index < 0) {
+						entries.emplace_back(itr->second[0]);
+						max_score = itr->second[0].score;
+					}
+					else {
+						entries.emplace_back(BookEntry{ key, (u16)node.edges[index].move.value(), 1, max_score });
+						// bookMap更新
+						itr->second.clear();
+						itr->second.emplace_back(entries[0]);
+					}
 
-	// 終端ノードを並列でminmax探索
-	const auto initial_book_key_eval_map_size = book_key_eval_map.size();
-	const int terminal_indexes_size = (int)terminal_indexes.size();
-	std::cout << "terminal indexes: " << terminal_indexes_size << std::endl;
-	#pragma omp parallel for num_threads(threads) schedule(dynamic)
-	for (int i = 0; i < terminal_indexes_size; ++i) {
-		Position pos_copy(pos);
-
-		const PositionWithMove& position = positions[terminal_indexes[i]];
-		const PositionWithMove* position_ptr = &position;
-		std::vector<Move> moves(position_ptr->depth);
-		for (int j = position_ptr->depth - 1; j >= 0; --j) {
-			moves[j] = position_ptr->move;
-			position_ptr = position_ptr->parent;
-		}
-		assert(position_ptr->parent == nullptr);
-
-		// move
-		auto states = StateListPtr(new std::deque<StateInfo>(1));
-		for (const Move move : moves) {
-			states->emplace_back(StateInfo());
-			pos_copy.doMove(move, states->back());
-		}
-
-		const Key key = position.key;
-		assert(Book::bookKey(pos_copy) == key);
-		const auto itr = bookMap.find(key);
-		assert(itr != bookMap.end());
-		const auto& entries = itr->second;
-		int index;
-		Move move;
-		Score score;
-		std::tie(index, move, score) = select_best_book_entry(pos_copy, bookMap, entries, moves, bookMapBest);
-		#pragma omp critical
-		{
-			if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
-				auto& out_entries = outMap[key];
-				assert(out_entries.size() == 0);
-				out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
+					// 親のedgeを更新
+					for (auto& parent : node.parents) {
+						if (parent == nullptr) continue;
+						auto itr_edge = std::find_if(parent->edges.begin(), parent->edges.end(), [&node](const auto& edge) { return edge.child == &node; });
+						itr_edge->child = nullptr;
+						itr_edge->score = -max_score;
+					}
+					// bookMapの遷移先を削除
+					for (const auto& edge : node.edges) {
+						// 参照カウントが0の場合
+						auto& ref_count = ref_counts[edge.key];
+						ref_count--;
+						if (ref_count == 0) {
+							bookMap.erase(edge.key);
+						}
+					}
+					// 自分自身を削除
+					itr_node = nodes.erase(itr_node);
+					count++;
+				}
+				else {
+					++itr_node;
+				}
 			}
-
-			// 終端ノードの評価値を設定
-			book_key_eval_map[key] = score;
-
-			// 進捗状況表示
-			if ((book_key_eval_map.size() - initial_book_key_eval_map_size) % 10000 == 0)
-				std::cout << "[terminal] progress: " << (book_key_eval_map.size() - initial_book_key_eval_map_size) * 100 / terminal_indexes_size << "%" << std::endl;
+			if (count == 0) break;
 		}
+		std::cout << "bookMap: " << bookMap.size() << " outMap: " << outMap.size() << " positions: " << nodes.size() << std::endl;
 	}
 
-	// 残りのノードを並列でminmax探索
-	const auto initial_outmap_size = outMap.size();
-	const int indexes_size = (int)indexes.size();
-	std::cout << "rest indexes: " << indexes_size << std::endl;
-	#pragma omp parallel for num_threads(threads) schedule(dynamic)
-	for (int i = 0; i < indexes_size; ++i) {
-		Position pos_copy(pos);
-
-		const PositionWithMove& position = positions[indexes[i]];
-		const PositionWithMove* position_ptr = &position;
-		std::vector<Move> moves(position_ptr->depth);
-		for (int j = position_ptr->depth - 1; j >= 0; --j) {
-			moves[j] = position_ptr->move;
-			position_ptr = position_ptr->parent;
-		}
-		assert(position_ptr->parent == nullptr);
-
-		// move
-		auto states = StateListPtr(new std::deque<StateInfo>(1));
-		for (const Move move : moves) {
-			states->emplace_back(StateInfo());
-			pos_copy.doMove(move, states->back());
-		}
-
-		const Key key = position.key;
-		assert(Book::bookKey(pos_copy) == key);
-		const auto itr = bookMap.find(key);
-		assert(itr != bookMap.end());
-		const auto& entries = itr->second;
-		int index;
-		Move move;
-		Score score;
-		std::tie(index, move, score) = select_best_book_entry(pos_copy, bookMap, entries, moves, bookMapBest);
-		#pragma omp critical
-		{
-			auto& out_entries = outMap[key];
-			assert(out_entries.size() == 0);
-			out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
-			if ((outMap.size() - initial_outmap_size) % 10000 == 0)
-				std::cout << "progress: " << (outMap.size() - initial_outmap_size) * 100 / indexes_size << "%" << std::endl;
-		}
-	}
+	make_all_minmax_book(pos, outMap, make_book_color, threads, bookMapBest);
 }
 
 // 評価値が30000以上の局面を再評価
