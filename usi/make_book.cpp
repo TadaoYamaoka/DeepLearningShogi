@@ -1265,8 +1265,8 @@ struct BookNode {
 	std::vector<BookNodeEdge> edges;
 };
 
-void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, BookNode>& nodes, BookNode& node, std::unordered_map<Key, int>& ref_counts) {
-	const Key key = node.key;
+void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, std::unique_ptr<BookNode>>& nodes, BookNode* node, std::unordered_map<Key, int>& ref_counts) {
+	const Key key = node->key;
 	// 定跡の指し手の順を優先する
 	MoveList<LegalAll> ml(pos);
 	std::vector<Move> moves;
@@ -1291,13 +1291,13 @@ void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vect
 		const auto itr = bookMap.find(key_after);
 		if (itr == bookMap.end())
 			continue;
-		auto ret = nodes.try_emplace(key_after, BookNode{ key_after, {}, {} });
-		auto& next_node = ret.first->second;
-		next_node.parents.emplace_back(&node);
-		node.edges.emplace_back(BookNodeEdge{ key_after, move, &next_node, ScoreNone });
+		auto ret = nodes.try_emplace(key_after, new BookNode{ key_after, {}, {} });
+		auto next_node = ret.first->second.get();
+		next_node->parents.emplace_back(node);
+		node->edges.emplace_back(BookNodeEdge{ key_after, move, next_node, ScoreNone });
 		ref_counts[key_after]++;
 		if (ret.second) {
-			next_node.key = key_after;
+			next_node->key = key_after;
 			StateInfo st;
 			pos.doMove(move, st);
 			enumerate_book_nodes(pos, bookMap, nodes, next_node, ref_counts);
@@ -1312,9 +1312,9 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 	{
 		// 局面を列挙する
 		Key root_key = Book::bookKey(pos);
-		std::unordered_map<Key, BookNode> nodes;
-		auto ret = nodes.emplace(root_key, BookNode{ root_key, {}, {} });
-		auto& root_node = ret.first->second;
+		std::unordered_map<Key, std::unique_ptr<BookNode>> nodes;
+		auto ret = nodes.emplace(root_key, new BookNode{ root_key, {}, {} });
+		auto root_node = ret.first->second.get();
 		std::unordered_map<Key, int> ref_counts;
 		enumerate_book_nodes(pos, bookMap, nodes, root_node, ref_counts);
 		std::cout << "positions: " << nodes.size() << std::endl;
@@ -1324,12 +1324,12 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 			int count = 0;
 			for (auto itr_node = nodes.begin(); itr_node != nodes.end(); ) {
 				const Key key = itr_node->first;
-				auto& node = itr_node->second;
+				auto node = itr_node->second.get();
 				bool terminal = true;
 				Score max_score = -ScoreInfinite;
 				int index = -1;
-				for (int i = 0; i < node.edges.size(); i++) {
-					const auto& edge = node.edges[i];
+				for (int i = 0; i < node->edges.size(); i++) {
+					const auto& edge = node->edges[i];
 					if (edge.child != nullptr) {
 						terminal = false;
 						break;
@@ -1348,21 +1348,21 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 						max_score = itr->second[0].score;
 					}
 					else {
-						entries.emplace_back(BookEntry{ key, (u16)node.edges[index].move.value(), 1, max_score });
+						entries.emplace_back(BookEntry{ key, (u16)node->edges[index].move.value(), 1, max_score });
 						// bookMap更新
 						itr->second.clear();
 						itr->second.emplace_back(entries[0]);
 					}
 
 					// 親のedgeを更新
-					for (auto& parent : node.parents) {
+					for (auto& parent : node->parents) {
 						if (parent == nullptr) continue;
-						auto itr_edge = std::find_if(parent->edges.begin(), parent->edges.end(), [&node](const auto& edge) { return edge.child == &node; });
+						auto itr_edge = std::find_if(parent->edges.begin(), parent->edges.end(), [node](const auto& edge) { return edge.child == node; });
 						itr_edge->child = nullptr;
 						itr_edge->score = -max_score;
 					}
 					// bookMapの遷移先を削除
-					for (const auto& edge : node.edges) {
+					for (const auto& edge : node->edges) {
 						// 参照カウントが0の場合
 						auto& ref_count = ref_counts[edge.key];
 						ref_count--;
