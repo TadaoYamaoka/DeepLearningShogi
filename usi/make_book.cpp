@@ -1268,22 +1268,24 @@ struct BookNode {
 void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, std::unique_ptr<BookNode>>& nodes, BookNode* node, std::unordered_map<Key, int>& ref_counts) {
 	const Key key = node->key;
 	// 定跡の指し手の順を優先する
-	MoveList<LegalAll> ml(pos);
 	std::vector<Move> moves;
-	moves.reserve(ml.size());
-	const auto itr_curr = bookMap.find(Book::bookKey(pos));
-	const auto& entries = itr_curr->second;
-	std::vector<Move> book_moves;
-	book_moves.reserve(entries.size());
-	for (const auto& entry : entries) {
-		Move move = move16toMove(Move(entry.fromToPro), pos);
-		moves.emplace_back(move);
-		book_moves.emplace_back(move);
-	}
-	for (; !ml.end(); ++ml) {
-		const auto move = ml.move();
-		if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
-			moves.emplace_back(ml.move());
+	{
+		MoveList<LegalAll> ml(pos);
+		moves.reserve(ml.size());
+		const auto itr_curr = bookMap.find(Book::bookKey(pos));
+		const auto& entries = itr_curr->second;
+		std::vector<Move> book_moves;
+		book_moves.reserve(entries.size());
+		for (const auto& entry : entries) {
+			Move move = move16toMove(Move(entry.fromToPro), pos);
+			moves.emplace_back(move);
+			book_moves.emplace_back(move);
+		}
+		for (; !ml.end(); ++ml) {
+			const auto move = ml.move();
+			if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
+				moves.emplace_back(ml.move());
+		}
 	}
 
 	for (const auto& move : moves) {
