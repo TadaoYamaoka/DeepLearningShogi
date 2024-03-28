@@ -27,7 +27,7 @@ float book_mcts_temperature = 1.0f;
 bool book_mcts_debug = false;
 
 // 特定局面の評価値を置き換える
-extern std::map<Key, Score> book_key_eval_map;
+extern std::unordered_map<Key, Score> book_key_eval_map;
 
 // MinMax定跡の方策
 std::unordered_map<Key, std::vector<BookEntry> > minmaxBookMap;

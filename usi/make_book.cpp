@@ -65,7 +65,7 @@ double usi_book_engine_prob = 1.0;
 int usi_book_engine_nodes_own;
 double usi_book_engine_prob_own = 0.0;
 // αβ探索で特定局面の評価値を置き換える
-std::map<Key, Score> book_key_eval_map;
+std::unordered_map<Key, Score> book_key_eval_map;
 
 // 定跡用mutex
 std::mutex gpu_mutex;
@@ -1403,13 +1403,14 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 
 	std::vector<int> indexes;
 	std::vector<int> terminal_indexes;
+	std::vector<std::pair<Key, Score>> book_key_eval_vec;
 	for (int i = 0; i < (int)positions.size(); ++i) {
 		const auto itr_out = outMap.find(positions[i].key);
 		if (terminals.find(i) != terminals.end()) {
 			if (itr_out == outMap.end())
 				terminal_indexes.emplace_back(i);
 			else
-				book_key_eval_map[positions[i].key] = itr_out->second[0].score;
+				book_key_eval_vec.emplace_back(positions[i].key, itr_out->second[0].score);
 		}
 		else if (make_book_color == Black && positions[i].depth % 2 == 0 || make_book_color == White && positions[i].depth % 2 == 1 || make_book_color == ColorNum) {
 			if (itr_out == outMap.end())
@@ -1418,7 +1419,6 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 	}
 
 	// 終端ノードを並列でminmax探索
-	const auto initial_book_key_eval_map_size = book_key_eval_map.size();
 	const int terminal_indexes_size = (int)terminal_indexes.size();
 	std::cout << "terminal indexes: " << terminal_indexes_size << std::endl;
 	#pragma omp parallel for num_threads(threads) schedule(dynamic)
@@ -1459,13 +1459,15 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 			}
 
 			// 終端ノードの評価値を設定
-			book_key_eval_map[key] = score;
+			book_key_eval_vec.emplace_back(key, score);
 
 			// 進捗状況表示
-			if ((book_key_eval_map.size() - initial_book_key_eval_map_size) % 10000 == 0)
-				std::cout << "[terminal] progress: " << (book_key_eval_map.size() - initial_book_key_eval_map_size) * 100 / terminal_indexes_size << "%" << std::endl;
+			if (book_key_eval_vec.size() % 10000 == 0)
+				std::cout << "[terminal] progress: " << book_key_eval_vec.size() * 100 / terminal_indexes_size << "%" << std::endl;
 		}
 	}
+	for (const auto& kv : book_key_eval_vec)
+		book_key_eval_map.emplace(kv.first, kv.second);
 
 	// 残りのノードを並列でminmax探索
 	const auto initial_outmap_size = outMap.size();
