@@ -1419,6 +1419,7 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 	}
 
 	// 終端ノードを並列でminmax探索
+	const auto initial_book_key_eval_vec_size = book_key_eval_vec.size();
 	const int terminal_indexes_size = (int)terminal_indexes.size();
 	std::cout << "terminal indexes: " << terminal_indexes_size << std::endl;
 	#pragma omp parallel for num_threads(threads) schedule(dynamic)
@@ -1462,8 +1463,8 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 			book_key_eval_vec.emplace_back(key, score);
 
 			// 進捗状況表示
-			if (book_key_eval_vec.size() % 10000 == 0)
-				std::cout << "[terminal] progress: " << book_key_eval_vec.size() * 100 / terminal_indexes_size << "%" << std::endl;
+			if ((book_key_eval_vec.size() - initial_book_key_eval_vec_size) % 10000 == 0)
+				std::cout << "[terminal] progress: " << (book_key_eval_vec.size() - initial_book_key_eval_vec_size) * 100 / terminal_indexes_size << "%" << std::endl;
 		}
 	}
 	for (const auto& kv : book_key_eval_vec)
