@@ -1259,59 +1259,61 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	}
 }
 
-struct BookNode;
-struct BookNodeEdge {
-	Key key;
-	Move move;
-	BookNode* child;
-	Score score;
-};
+namespace make_book_v2 {
+	struct BookNode;
+	struct BookNodeEdge {
+		Key key;
+		Move move;
+		BookNode* child;
+		Score score;
+	};
 
-struct BookNode {
-	Key key;
-	std::vector<BookNode*> parents;
-	std::vector<BookNodeEdge> edges;
-};
+	struct BookNode {
+		Key key;
+		std::vector<BookNode*> parents;
+		std::vector<BookNodeEdge> edges;
+	};
 
-void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, std::unique_ptr<BookNode>>& nodes, BookNode* node, std::unordered_map<Key, int>& ref_counts) {
-	const Key key = node->key;
-	// 定跡の指し手の順を優先する
-	std::vector<Move> moves;
-	{
-		MoveList<LegalAll> ml(pos);
-		moves.reserve(ml.size());
-		const auto itr_curr = bookMap.find(Book::bookKey(pos));
-		const auto& entries = itr_curr->second;
-		std::vector<Move> book_moves;
-		book_moves.reserve(entries.size());
-		for (const auto& entry : entries) {
-			Move move = move16toMove(Move(entry.fromToPro), pos);
-			moves.emplace_back(move);
-			book_moves.emplace_back(move);
+	void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::unordered_map<Key, std::unique_ptr<BookNode>>& nodes, BookNode* node, std::unordered_map<Key, int>& ref_counts) {
+		const Key key = node->key;
+		// 定跡の指し手の順を優先する
+		std::vector<Move> moves;
+		{
+			MoveList<LegalAll> ml(pos);
+			moves.reserve(ml.size());
+			const auto itr_curr = bookMap.find(Book::bookKey(pos));
+			const auto& entries = itr_curr->second;
+			std::vector<Move> book_moves;
+			book_moves.reserve(entries.size());
+			for (const auto& entry : entries) {
+				Move move = move16toMove(Move(entry.fromToPro), pos);
+				moves.emplace_back(move);
+				book_moves.emplace_back(move);
+			}
+			for (; !ml.end(); ++ml) {
+				const auto move = ml.move();
+				if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
+					moves.emplace_back(ml.move());
+			}
 		}
-		for (; !ml.end(); ++ml) {
-			const auto move = ml.move();
-			if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
-				moves.emplace_back(ml.move());
-		}
-	}
 
-	for (const auto& move : moves) {
-		const Key key_after = Book::bookKeyAfter(pos, key, move);
-		const auto itr = bookMap.find(key_after);
-		if (itr == bookMap.end())
-			continue;
-		auto ret = nodes.try_emplace(key_after, new BookNode{ key_after, {}, {} });
-		auto next_node = ret.first->second.get();
-		next_node->parents.emplace_back(node);
-		node->edges.emplace_back(BookNodeEdge{ key_after, move, next_node, ScoreNone });
-		ref_counts[key_after]++;
-		if (ret.second) {
-			next_node->key = key_after;
-			StateInfo st;
-			pos.doMove(move, st);
-			enumerate_book_nodes(pos, bookMap, nodes, next_node, ref_counts);
-			pos.undoMove(move);
+		for (const auto& move : moves) {
+			const Key key_after = Book::bookKeyAfter(pos, key, move);
+			const auto itr = bookMap.find(key_after);
+			if (itr == bookMap.end())
+				continue;
+			auto ret = nodes.try_emplace(key_after, new BookNode{ key_after, {}, {} });
+			auto next_node = ret.first->second.get();
+			next_node->parents.emplace_back(node);
+			node->edges.emplace_back(BookNodeEdge{ key_after, move, next_node, ScoreNone });
+			ref_counts[key_after]++;
+			if (ret.second) {
+				next_node->key = key_after;
+				StateInfo st;
+				pos.doMove(move, st);
+				enumerate_book_nodes(pos, bookMap, nodes, next_node, ref_counts);
+				pos.undoMove(move);
+			}
 		}
 	}
 }
@@ -1319,6 +1321,8 @@ void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vect
 // 全ての局面についてαβで定跡を作る
 // 速度改善版
 void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+	using namespace make_book_v2;
+
 	{
 		// 局面を列挙する
 		Key root_key = Book::bookKey(pos);
@@ -1511,6 +1515,308 @@ void make_all_minmax_book_v2(Position& pos, std::map<Key, std::vector<BookEntry>
 			if ((outMap.size() - initial_outmap_size) % 10000 == 0)
 				std::cout << "progress: " << (outMap.size() - initial_outmap_size) * 100 / indexes_size << "%" << std::endl;
 		}
+	}
+}
+
+namespace make_book_ra {
+	constexpr size_t MAX_PLY = 256;
+	constexpr u16 BOOK_DEPTH_INF = 999;
+	struct BookNode;
+	struct ChildEdge {
+		Move move;
+		BookNode* node;
+		Score score;
+		u16 depth;
+		bool is_check;
+	};
+	struct ParentEdge {
+		BookNode* node;
+		ChildEdge* edge;
+	};
+	struct BookNode {
+		Key key;
+		int out_count;
+		Color color;
+		bool in_check;
+		std::vector<std::unique_ptr<ChildEdge>> childs;
+		std::vector< std::unique_ptr<ParentEdge>> parents;
+	};
+	void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::vector<BookNode>& nodes, BookNode* node, std::unordered_map<Key, BookNode*>& searched) {
+		const Key key = node->key;
+		const auto itr = bookMap.find(key);
+
+		std::vector<std::pair<Move, Score>> moves;
+		{
+			const auto itr_curr = bookMap.find(key);
+			const auto& entries = itr_curr->second;
+			moves.reserve(entries.size());
+			Score trusted_score = entries[0].score;
+			for (const auto& entry : entries) {
+				Move move = move16toMove(Move(entry.fromToPro), pos);
+				if (entry.score < trusted_score)
+					trusted_score = entry.score;
+				moves.emplace_back(move, trusted_score);
+			}
+			for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+				const auto move = ml.move();
+				if (std::find_if(entries.begin(), entries.end(), [&move](const auto& entry) { return entry.fromToPro == (u16)move.value(); }) == entries.end())
+					moves.emplace_back(move, ScoreNone);
+			}
+		}
+
+		for (const auto& m : moves) {
+			const auto& move = m.first;
+			const Key key_after = Book::bookKeyAfter(pos, key, move);
+			const auto itr_after = bookMap.find(key_after);
+			if (itr_after == bookMap.end()) {
+				// 定跡の指し手にあるか
+				if (m.second != ScoreNone) {
+					node->childs.emplace_back(new ChildEdge{ move, nullptr, m.second, 0, false });
+				}
+				continue;
+			}
+			BookNode* next_node;
+			const bool not_found = searched.find(key_after) == searched.end();
+			if (not_found) {
+				next_node = &nodes.emplace_back(BookNode{ key_after, 0, oppositeColor(pos.turn()), pos.moveGivesCheck(move), {}, {}});
+				searched[key_after] = next_node;
+			}
+			else {
+				next_node = searched[key_after];
+			}
+			node->out_count++;
+			auto& edge = node->childs.emplace_back(new ChildEdge{ move, next_node, ScoreNone, BOOK_DEPTH_INF, next_node->in_check });
+			next_node->parents.emplace_back(new ParentEdge{ node, edge.get()});
+			if (not_found) {
+				StateInfo st;
+				pos.doMove(move, st);
+				enumerate_book_nodes(pos, bookMap, nodes, next_node, searched);
+				pos.undoMove(move);
+			}
+		}
+	}
+
+	// バッグトラッキングして、連続王手になる手順があるかチェックする
+	bool repetition_check(BookNode* node, const Key key, bool is_evasion, std::unordered_set<Key>& searched) {
+		bool repetition_any = false;
+		for (auto& parent : node->parents) {
+			if (parent->edge->depth == BOOK_DEPTH_INF && parent->node->in_check == is_evasion) {
+				// evasionでなければ王手であること
+				if (!is_evasion && !parent->edge->is_check)
+					continue;
+				bool repetition = false;
+				if (parent->node->key == key) {
+					repetition = true;
+				}
+				else if (searched.find(parent->node->key) != searched.end()) {
+					// ループしているためこれ以上探索しない
+				}
+				else {
+					searched.emplace(parent->node->key);
+					repetition = repetition_check(parent->node, key, !is_evasion, searched);
+				}
+				if (repetition) {
+					return repetition;
+				}
+			}
+		}
+		return false;
+	}
+}
+
+// 後退解析(Retrograde analysis)
+void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const double beta) {
+	using namespace make_book_ra;
+	std::vector<BookNode> nodes;
+	nodes.reserve(bookMap.size());
+	const Key root_key = Book::bookKey(pos);
+	auto& root_node = nodes.emplace_back(BookNode{ Book::bookKey(pos), 0, pos.turn(), pos.inCheck(), {}, {}});
+	{
+		std::unordered_map<Key, BookNode*> searched;
+		searched.emplace(root_key, &root_node);
+		enumerate_book_nodes(pos, bookMap, nodes, &root_node, searched);
+	}
+	std::cout << "nodes: " << nodes.size() << std::endl;
+	assert(positions.size() <= bookMap.size());
+
+
+	// 出次数0のnodeをqueueに追加
+	std::vector<BookNode*> queue;
+	for (auto& node : nodes)
+	{
+		if (node.out_count == 0)
+			queue.emplace_back(&node);
+	}
+	int terminal_count = queue.size();
+
+	// 出次数が0のノードがなくなるまで取り除く
+	while (queue.size() > 0) {
+		auto node = queue.back();
+		queue.pop_back();
+
+		Score max_score = -ScoreInfinite;
+		ChildEdge* best;
+		for (auto& edge : node->childs) {
+			//if (edge->node != nullptr) __debugbreak();
+			if (edge->score > max_score) {
+				max_score = edge->score;
+				best = edge.get();
+			}
+		}
+		//if (max_score == -ScoreInfinite) __debugbreak();
+		//if (best->depth == BOOK_DEPTH_INF) __debugbreak();
+		// 親のedgeを更新
+		for (auto& parent : node->parents) {
+			parent->edge->node = nullptr;
+			parent->edge->score = -max_score;
+			parent->edge->depth = best->depth + 1;
+
+			// 出次数を減らす
+			parent->node->out_count--;
+
+			// 出次数が0になった場合
+			if (parent->node->out_count == 0) {
+				queue.emplace_back(parent->node);
+				terminal_count++;
+			}
+		}
+		// もう親を辿ることはないため、parentsをクリア
+		node->parents.clear();
+	}
+	std::cout << "terminal_count: " << terminal_count << " rest: " << nodes.size() - terminal_count << std::endl;
+
+	// 連続王手の千日手の初期化
+	int repetition_check_count = 0;
+	for (auto& node : nodes) {
+		for (auto& edge : node.childs) {
+			if (edge->depth == BOOK_DEPTH_INF && (edge->is_check || node.in_check)) {
+				// バッグトラッキングして、連続王手になる手順があるかチェックする
+				// 連続王手になる場合、その評価値を初期化する
+				//if (edge->node == nullptr) __debugbreak();
+				std::unordered_set<Key> searched;
+				bool repetition = repetition_check(&node, edge->node->key, !node.in_check, searched);
+				if (repetition) {
+					// 評価値を初期化
+					if (node.in_check)
+						edge->score = ScoreMaxEvaluate;
+					else
+						edge->score = -ScoreMaxEvaluate;
+
+					repetition_check_count++;
+				}
+				/*if (edge->node->key == 833690442675171497UL) {
+					std::cout << "repetition: " << repetition << " key: " << node.key << " score: " << edge->score << std::endl;
+					__debugbreak();
+				}*/
+			}
+		}
+	}
+	std::cout << "repetition_check_count: " << repetition_check_count << std::endl;
+	/*for (auto& edge : root_node.childs) {
+		std::cout << edge->move.toUSI() << " score: " << edge->score << " depth: " << edge->depth << std::endl;
+	}*/
+
+	// MAX_PLY回だけ評価値を伝播させる
+	for (size_t loop = 0; loop < MAX_PLY; ++loop) {
+		int update_count = 0;
+		for (auto& node : nodes) {
+			if (node.parents.size() == 0)
+				continue;
+
+			// 最善手を選択
+			Score max_score = -ScoreInfinite;
+			ChildEdge* best;
+			for (auto& edge : node.childs) {
+				Score score;
+				// 千日手の判定
+				const bool draw = edge->depth == BOOK_DEPTH_INF && edge->score == ScoreNone;
+				if (draw) {
+					score = (node.color == Black) ? draw_score_black : draw_score_white;
+				}
+				else {
+					score = edge->score;
+				}
+				if (score > max_score) {
+					max_score = score;
+					best = edge.get();
+				}
+				else if (score == max_score) {
+					if (draw) {
+						// 先手は千日手を回避、後手は千日手を選択
+						if (node.color == White) {
+							best = edge.get();
+						}
+					}
+					else {
+						// 手順が長い方(定跡が長く続く方)を選択
+						if (edge->depth > best->depth) {
+							best = edge.get();
+						}
+					}
+				}
+			}
+			const auto parent_score = best->score == ScoreNone ? best->score : -best->score;
+			const auto parent_depth = best->depth == BOOK_DEPTH_INF ? best->depth : best->depth + 1;
+			// 親に伝播
+			for (auto& parent : node.parents) {
+				if (parent->edge->score != parent_score) {
+					update_count++;
+					parent->edge->score = parent_score;
+				}
+				parent->edge->depth = parent_depth;
+			}
+		}
+		std::cout << "loop: " << loop << " update_count: " << update_count << std::endl;
+		if (update_count == 0) break;
+	}
+	// 出力
+	for (auto& node : nodes) {
+		for (auto& edge : node.childs) {
+			if (edge->score == ScoreNone) {
+				edge->score = (node.color == Black) ? draw_score_black : draw_score_white;
+			}
+		}
+		std::stable_sort(node.childs.begin(), node.childs.end(), [&node](const auto& l, const auto& r) {
+			if (l->score == r->score) {
+				if (l->depth != BOOK_DEPTH_INF && r->depth == BOOK_DEPTH_INF && node.color == Black)
+					return true;
+				if (l->depth == BOOK_DEPTH_INF && r->depth != BOOK_DEPTH_INF && node.color == White)
+					return true;
+				return l->depth > r->depth;
+			}
+			else {
+				return l->score > r->score;
+			}
+			});
+		auto& entries = outMap[node.key];
+		for (const auto& edge : node.childs) {
+			entries.emplace_back(BookEntry{ node.key, (u16)edge->move.value(), 0, edge->score });
+		}
+
+		// score to prob
+		const Score max_score = entries[0].score;
+		std::vector<double> prob;
+
+		// softmax temperature with normalize
+		double sum = 0;
+		for (const auto& entry : entries) {
+			double x = (double)(entry.score - max_score) * beta / 754.3;
+			x = exp(x);
+			prob.emplace_back(x);
+			sum += x;
+		}
+		// normalize
+		for (auto& x : prob) {
+			x /= sum;
+		}
+
+		for (size_t i = 0; i < entries.size(); ++i) {
+			entries[i].count = (u16)(prob[i] * USHRT_MAX);
+		}
+	}
+
+	for (auto& edge : root_node.childs) {
+		std::cout << edge->move.toUSI() << " score: " << edge->score << " depth: " << edge->depth << std::endl;
 	}
 }
 
