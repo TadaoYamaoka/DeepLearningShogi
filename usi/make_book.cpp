@@ -49,8 +49,10 @@ std::uniform_real_distribution<double> dist_minmax(0, 1);
 // MinMaxのために相手定跡の手番でも探索する
 bool make_book_for_minmax = false;
 // 一定の確率でPriorityBookから確率的に選ぶ
+double book_priority_prob = 0;
+double book_priority_prob_temperature = 0.01;
 double book_priority_prob_opp = 0;
-double book_priority_prob_temperature = 5.0;
+double book_priority_prob_temperature_opp = 5.0;
 // 千日手の評価値
 extern float draw_value_black;
 extern float draw_value_white;
@@ -518,6 +520,43 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	return { bestIndex, bestMove, alpha };
 }
 
+// PriorityBookから確率的に選ぶ
+std::tuple<Move, Score> select_priority_book_entry(Position& pos, const Key key, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, double temperature) {
+	std::vector<Move> moves_priority;
+	std::vector<double> probabilities;
+	const auto itr_best = bookMapBest.find(key);
+	const auto max_score = itr_best->second[0].score;
+	const auto& entries = itr_best->second;
+	for (const auto& entry : entries) {
+		const Move m = move16toMove(Move(entry.fromToPro), pos);
+
+		StateInfo state;
+		pos.doMove(m, state);
+		Score score;
+		switch (pos.isDraw()) {
+		case RepetitionDraw:
+			// 繰り返しになる場合、千日手の評価値
+			score = pos.turn() == Black ? draw_score_white : draw_score_black;
+			break;
+		case RepetitionWin:
+			score = -ScoreMaxEvaluate;
+			break;
+		case RepetitionLose:
+			score = ScoreMaxEvaluate;
+			break;
+		default:
+			score = entry.score;
+		}
+		pos.undoMove(m);
+
+		moves_priority.emplace_back(m);
+		probabilities.emplace_back(std::exp((int)(score - max_score) / temperature));
+	}
+	std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
+	const auto selected_index = dist(g_randomTimeSeed);
+	return { moves_priority[selected_index], entries[selected_index].score };
+}
+
 // 定跡作成(再帰処理)
 void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	const Key key = Book::bookKey(pos);
@@ -545,10 +584,16 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				}
 				else {
 					const auto& entries = itr->second;
-					// 一定の確率でmin-maxで選ぶ
-					int index;
+					int index = 0;
 					Score score;
-					std::tie(index, move, score) = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
+					if (bookMapBest.size() > 0 && dist_minmax(g_randomTimeSeed) < book_priority_prob && bookMapBest.find(key) != bookMapBest.end()) {
+						// 一定の確率でPriorityBookから確率的に選ぶ
+						std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature);
+					}
+					else {
+						// 一定の確率でmin-maxで選ぶ
+						std::tie(index, move, score) = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
+					}
 
 					// 評価値が閾値を超えた場合、探索終了
 					if (std::abs(score) > book_eval_threshold) {
@@ -638,48 +683,8 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 
 			if (itr == bookMap.end() && bookMapBest.size() > 0 && dist_minmax(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
 				// 一定の確率でPriorityBookから確率的に選ぶ
-				std::vector<Move> moves_priority;
-				std::vector<double> probabilities;
-				const auto itr_best = bookMapBest.find(key);
-				const auto max_score = itr_best->second[0].score;
-				const auto move_best = move16toMove(Move(itr_best->second[0].fromToPro), pos);
-				moves_priority.emplace_back(move_best);
-				probabilities.emplace_back(1.0);
-				for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-					const Move& m = ml.move();
-					if (m == move_best)
-						continue;
-
-					const Key key_priority = Book::bookKeyAfter(pos, key, m);
-					const auto itr_priority = bookMapBest.find(key_priority);
-					if (itr_priority == bookMapBest.end())
-						continue;
-
-					StateInfo state;
-					pos.doMove(m, state);
-					Score score;
-					switch (pos.isDraw()) {
-					case RepetitionDraw:
-						// 繰り返しになる場合、千日手の評価値
-						score = pos.turn() == Black ? draw_score_white : draw_score_black;
-						break;
-					case RepetitionWin:
-						score = -ScoreInfinite;
-						break;
-					case RepetitionLose:
-						score = ScoreMaxEvaluate;
-						break;
-					default:
-						score = -itr_priority->second[0].score;
-					}
-					pos.undoMove(m);
-
-					moves_priority.emplace_back(m);
-					probabilities.emplace_back(std::exp((int)(score - max_score) / book_priority_prob_temperature));
-				}
-				std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-				const auto selected_index = dist(g_randomTimeSeed);
-				move = moves_priority[selected_index];
+				Score score;
+				std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature_opp);
 			}
 			else if (itr == bookMap.end() && dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
 				// 一定の確率でmin-maxで選ぶ

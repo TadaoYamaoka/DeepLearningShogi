@@ -807,8 +807,10 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	make_book_for_minmax = options["Make_Book_For_MinMax"];
 
 	// 一定の確率でPriorityBookから確率的に選ぶ
-	book_priority_prob_opp = options["Book_Priority_Prob_Opp"] / 1000.0;
+	book_priority_prob = options["Book_Priority_Prob"] / 1000.0;
 	book_priority_prob_temperature = options["Book_Priority_Prob_Temperature"] / 1000.0;
+	book_priority_prob_opp = options["Book_Priority_Prob_Opp"] / 1000.0;
+	book_priority_prob_temperature_opp = options["Book_Priority_Prob_Temperature_Opp"] / 1000.0;
 
 	// 千日手の評価値
 	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;

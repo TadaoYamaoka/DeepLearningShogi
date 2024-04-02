@@ -171,8 +171,10 @@ void OptionsMap::init(Searcher* s) {
     (*this)["USI_Book_Engine_Random_Nodes"] = USIOption(false);
     (*this)["Book_Key_Eval_Map"]           = USIOption("");
     (*this)["Book_MinMix_Priority_Book"]   = USIOption("");
+    (*this)["Book_Priority_Prob"]          = USIOption(0, 0, 1000);
+    (*this)["Book_Priority_Prob_Temperature"] = USIOption(10, 0, 100000);
     (*this)["Book_Priority_Prob_Opp"]      = USIOption(0, 0, 1000);
-    (*this)["Book_Priority_Prob_Temperature"] = USIOption(10000, 0, 100000);
+    (*this)["Book_Priority_Prob_Temperature_Opp"] = USIOption(10000, 0, 100000);
     (*this)["Book_Use_Mcts"]               = USIOption(false);
     (*this)["Book_Mcts_Playouts"]          = USIOption(10000000, 1, 1000000000);
     (*this)["Book_Mcts_Threads"]           = USIOption(32, 1, 1024);
