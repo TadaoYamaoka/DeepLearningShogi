@@ -1817,6 +1817,10 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 
 		for (size_t i = 0; i < entries.size(); ++i) {
 			entries[i].count = (u16)(prob[i] * USHRT_MAX);
+			if (i > 0 && entries[i].count == entries[0].count) {
+				// 最善手のcountと同じにしない
+				entries[i].count--;
+			}
 		}
 	}
 
