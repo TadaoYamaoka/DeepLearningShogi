@@ -62,8 +62,8 @@ class PolicyValueNetwork(nn.Module):
     def forward(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
-        u1_1_3 = self.l1_1_4(x1)
-        u1_1_4 = self.l1_1_2(x1)
+        u1_1_3 = self.l1_1_3(x1)
+        u1_1_4 = self.l1_1_4(x1)
         u1_2 = self.l1_2(x2)
         u1 = self.act(self.norm1(u1_1_1 + u1_1_2 + u1_1_3 + u1_1_4 + u1_2))
 
