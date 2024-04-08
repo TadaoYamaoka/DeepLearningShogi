@@ -1597,6 +1597,8 @@ namespace make_book_ra {
 		Score score;
 		u16 depth;
 		bool is_check;
+		Score score_for_update;
+		u16 depth_for_update;
 	};
 	struct ParentEdge {
 		BookNode* node;
@@ -1640,7 +1642,7 @@ namespace make_book_ra {
 			if (itr_after == bookMap.end()) {
 				// 定跡の指し手にあるか
 				if (m.second != ScoreNone) {
-					node->childs.emplace_back(new ChildEdge{ move, nullptr, m.second, 0, false });
+					node->childs.emplace_back(new ChildEdge{ move, nullptr, m.second, 0, false, ScoreNotEvaluated, 0 });
 				}
 				continue;
 			}
@@ -1654,7 +1656,7 @@ namespace make_book_ra {
 				next_node = searched[key_after];
 			}
 			node->out_count++;
-			auto& edge = node->childs.emplace_back(new ChildEdge{ move, next_node, ScoreNone, BOOK_DEPTH_INF, next_node->in_check });
+			auto& edge = node->childs.emplace_back(new ChildEdge{ move, next_node, ScoreNone, BOOK_DEPTH_INF, next_node->in_check, ScoreNotEvaluated, 0 });
 			next_node->parents.emplace_back(new ParentEdge{ node, edge.get()});
 			if (not_found) {
 				StateInfo st;
@@ -1830,9 +1832,22 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 			for (auto& parent : node.parents) {
 				if (parent->edge->score != parent_score) {
 					update_count++;
-					parent->edge->score = parent_score;
 				}
-				parent->edge->depth = parent_depth;
+				parent->edge->score_for_update = parent_score;
+				parent->edge->depth_for_update = parent_depth;
+			}
+		}
+
+		// update
+		for (auto& node : nodes) {
+			if (node.parents.size() == 0)
+				continue;
+			for (auto& edge : node.childs) {
+				if (edge->score_for_update != ScoreNotEvaluated) {
+					edge->score = edge->score_for_update;
+					edge->depth = edge->depth_for_update;
+					edge->score_for_update = ScoreNotEvaluated;
+				}
 			}
 		}
 		std::cout << "loop: " << loop << " update_count: " << update_count << std::endl;
