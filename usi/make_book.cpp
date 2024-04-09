@@ -51,6 +51,7 @@ bool make_book_for_minmax = false;
 // 一定の確率でPriorityBookから確率的に選ぶ
 double book_priority_prob = 0;
 double book_priority_prob_temperature = 0.01;
+int book_priority_minmax_depth = 1;
 double book_priority_prob_opp = 0;
 double book_priority_prob_temperature_opp = 5.0;
 // 千日手の評価値
@@ -607,7 +608,7 @@ std::tuple<Move, Score> select_priority_book_entry(Position& pos, const Key key,
 			score = ScoreMaxEvaluate;
 			break;
 		default:
-			const Score ret = minmax_priority_book_score(pos, Book::bookKeyAfter(pos, key, move), move, bookMapBest, -ScoreInfinite, ScoreInfinite, 3);
+			const Score ret = minmax_priority_book_score(pos, Book::bookKeyAfter(pos, key, move), move, bookMapBest, -ScoreInfinite, ScoreInfinite, book_priority_minmax_depth - 1);
 			if (ret != ScoreNone)
 				score = -ret;
 			break;

@@ -20,6 +20,7 @@ extern bool make_book_for_minmax;
 // 一定の確率でPriorityBookから確率的に選ぶ
 extern double book_priority_prob;
 extern double book_priority_prob_temperature;
+extern int book_priority_minmax_depth;
 extern double book_priority_prob_opp;
 extern double book_priority_prob_temperature_opp;
 // 千日手の評価値

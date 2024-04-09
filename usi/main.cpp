@@ -809,6 +809,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// 一定の確率でPriorityBookから確率的に選ぶ
 	book_priority_prob = options["Book_Priority_Prob"] / 1000.0;
 	book_priority_prob_temperature = options["Book_Priority_Prob_Temperature"] / 1000.0;
+	book_priority_minmax_depth = options["Book_Priority_MinMax_Depth"];
 	book_priority_prob_opp = options["Book_Priority_Prob_Opp"] / 1000.0;
 	book_priority_prob_temperature_opp = options["Book_Priority_Prob_Temperature_Opp"] / 1000.0;
 

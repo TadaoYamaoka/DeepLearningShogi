@@ -173,6 +173,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_MinMix_Priority_Book"]   = USIOption("");
     (*this)["Book_Priority_Prob"]          = USIOption(0, 0, 1000);
     (*this)["Book_Priority_Prob_Temperature"] = USIOption(10, 0, 100000);
+    (*this)["Book_Priority_MinMax_Depth"]  = USIOption(9, 1, 1000);
     (*this)["Book_Priority_Prob_Opp"]      = USIOption(0, 0, 1000);
     (*this)["Book_Priority_Prob_Temperature_Opp"] = USIOption(10000, 0, 100000);
     (*this)["Book_Use_Mcts"]               = USIOption(false);
