@@ -1061,9 +1061,11 @@ void saveBookMapMinMax(const std::string& outFileName, const std::unordered_map<
 void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	std::string bookFileName;
 	std::string outFileName;
+	int threads;
 
 	ssCmd >> bookFileName;
 	ssCmd >> outFileName;
+	ssCmd >> threads;
 
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
@@ -1105,7 +1107,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry, bookMapBest);
+	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry, bookMapBest, threads);
 
 	// 出力
 	saveBookMapMinMax(outFileName, bookMapMinMax);

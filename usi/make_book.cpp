@@ -870,8 +870,9 @@ void merge_book_map(std::unordered_map<Key, std::vector<BookEntry> >& dstMap, co
 }
 
 void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest);
+void minmax_book_white_parallel(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int threads);
 
-void minmax_book_black(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void minmax_book_black(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int threads) {
 	// αβで探索
 	const Key key = Book::bookKey(pos);
 
@@ -904,7 +905,10 @@ void minmax_book_black(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& 
 	StateInfo state;
 	pos.doMove(bestMove, state);
 	moves.emplace_back(bestMove);
-	minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+	if (threads == 0)
+		minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+	else
+		minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
 	moves.pop_back();
 	pos.undoMove(bestMove);
 }
@@ -949,22 +953,94 @@ void minmax_book_white(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& 
 			continue;
 		default:
 			moves.emplace_back(move);
-			minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+			minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, 0);
 			moves.pop_back();
 		}
 		pos.undoMove(move);
 	}
 }
 
-void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void minmax_book_white_parallel(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int threads) {
+	// すべての手を試す
+	const Key key = Book::bookKey(pos);
+
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		// エントリがない
+		return;
+	}
+
+	const std::vector<BookEntry>& entries = itr->second;
+
+	std::vector<Move> candidates;
+	candidates.reserve(entries.size());
+	for (const auto& entry : entries) {
+		const Move move = move16toMove(Move(entry.fromToPro), pos);
+		candidates.emplace_back(move);
+	}
+	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
+		const Move& move = ml.move();
+		if (std::find(candidates.begin(), candidates.end(), move) != candidates.end())
+			continue;
+		if (bookMap.find(Book::bookKeyAfter(pos, key, move)) == bookMap.end())
+			continue;
+		candidates.emplace_back(move);
+	}
+
+	const int candidates_size = (int)candidates.size();
+	std::cout << "candidates_size: " << candidates_size << std::endl;
+	int done = 0;
+	#pragma omp parallel for num_threads(threads) schedule(dynamic)
+	for (int i = 0; i < candidates_size; ++i) {
+		Position pos_copy(pos);
+
+		const Move move = candidates[i];
+		StateInfo state;
+		pos_copy.doMove(move, state);
+		switch (pos_copy.isDraw()) {
+		case RepetitionDraw:
+		case RepetitionWin:
+		case RepetitionLose:
+			// 繰り返しになる場合
+			continue;
+		}
+
+		std::unordered_map<Key, MinMaxBookEntry> bookMapMinMaxTmp;
+		std::vector<Move> movesTmp(moves);
+		movesTmp.emplace_back(move);
+		minmax_book_black(pos_copy, bookMapMinMaxTmp, movesTmp, select_best_book_entry, bookMapBest, 0);
+
+		#pragma omp critical
+		{
+			size_t added = 0;
+			size_t copied = 0;
+			for (const auto& kv : bookMapMinMaxTmp) {
+				auto itr_minmax = bookMapMinMax.find(kv.first);
+				if (itr_minmax == bookMapMinMax.end()) {
+					bookMapMinMax[kv.first] = kv.second;
+					added++;
+				}
+				else if (kv.second.depth <= itr_minmax->second.depth) {
+					// 探索済みの場合、深さが同じか浅い場合のみ上書き
+					itr_minmax->second = kv.second;
+					copied++;
+				}
+			}
+			done++;
+			std::cout << done << " " << move.toUSI() << " tmp: " << bookMapMinMaxTmp.size() << " added: " << added << " copied: " << copied << " size: " << bookMapMinMax.size() << std::endl;
+		}
+	}
+}
+
+void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& bookMapMinMax, const Color make_book_color, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int threads) {
 	std::vector<Move> moves;
 	if (make_book_color == Black)
-		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
 	else if (make_book_color == White)
-		minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+		minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
 	else {
-		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
-		minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
+		minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
 	}
 }
 
