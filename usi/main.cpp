@@ -43,7 +43,7 @@ struct MySearcher : Searcher {
 	static bool diffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
-	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd, make_all_minmax_book_t make_all_minmax_book);
+	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
 	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
@@ -419,8 +419,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
 		else if (token == "diff_eval_with_usi_engine") diffEvalWithUsiEngine(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
-		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd, make_all_minmax_book);
-		else if (token == "make_all_minmax_book_v2") makeAllMinMaxBook(ssCmd, posCmd, make_all_minmax_book_v2);
+		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "make_all_minmax_book_ra") makeAllMinMaxBookRA(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
 		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
@@ -1692,7 +1691,7 @@ void MySearcher::deleteOverMaxEval(std::istringstream& ssCmd) {
 	std::cout << "outMap.size: " << outMap.size() << std::endl;
 }
 
-void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd, make_all_minmax_book_t make_all_minmax_book) {
+void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	HuffmanCodedPos::init();
 	std::string bookFileName;
 	std::string outFileName;
