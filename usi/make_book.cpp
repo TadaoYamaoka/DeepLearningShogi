@@ -1262,7 +1262,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 }
 
 // 全ての局面についてαβで定跡を作る
-void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int chunk_num, const int chunk_index) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
@@ -1276,6 +1276,19 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 			if (outMap.find(positions[i].key) == outMap.end())
 				indexes.emplace_back(i);
 		}
+	}
+	std::cout << "indexes.size: " << indexes.size() << std::endl;
+
+	// 分割
+	if (chunk_num > 1) {
+		std::mt19937_64 g(0);
+		std::shuffle(indexes.begin(), indexes.end(), g);
+		const size_t chunk_size = (indexes.size() + chunk_num - 1) / chunk_num;
+		const size_t chunk_start = chunk_size * chunk_index;
+		const size_t chunk_end = std::min(chunk_start + chunk_size, indexes.size());
+		std::vector<int> chunk_indexes(indexes.begin() + chunk_start, indexes.begin() + chunk_end);
+		std::cout << "chunk: " << chunk_num << " " << chunk_index << " chunk_indexes.size: " << chunk_indexes.size() << std::endl;
+		std::swap(indexes, chunk_indexes);
 	}
 
 	// 並列でminmax定跡作成

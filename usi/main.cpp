@@ -1696,10 +1696,14 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 	std::string bookFileName;
 	std::string outFileName;
 	int threads;
+	int chunk_index = 0;
+	int chunk_num = 0;
 
 	ssCmd >> bookFileName;
 	ssCmd >> outFileName;
 	ssCmd >> threads;
+	ssCmd >> chunk_num;
+	ssCmd >> chunk_index;
 
 	// 先手、後手どちらの定跡を作成するか("black":先手、"white":後手、それ以外:両方)
 	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
@@ -1729,7 +1733,7 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 
 	// 定跡をmin-max探索
 	std::map<Key, std::vector<BookEntry> > outMap;
-	make_all_minmax_book(pos, outMap, make_book_color, threads, bookMapBest);
+	make_all_minmax_book(pos, outMap, make_book_color, threads, bookMapBest, chunk_num, chunk_index);
 
 	// 出力
 	saveOutmap(outFileName, outMap);
