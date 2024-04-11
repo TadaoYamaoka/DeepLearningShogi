@@ -30,6 +30,7 @@ struct MySearcher : Searcher {
 #ifdef MAKE_BOOK
 	static void makeBook(std::istringstream& ssCmd);
 #endif
+	static Book book;
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
 	static std::promise<std::pair<Move, Move>> promise;
@@ -43,6 +44,7 @@ struct MySearcher : Searcher {
 #endif
 };
 
+Book MySearcher::book;
 Key MySearcher::starting_pos_key;
 std::vector<Move> MySearcher::moves;
 std::promise<std::pair<Move, Move>> MySearcher::promise;
@@ -362,6 +364,10 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
 
+			// 定跡読み込み
+			if (options["Book_Consider_Draw"] && options["Book_Consider_Draw_Depth"] > 0)
+				book.load(options["Book_File"]);
+
 			// 初回探索をキャッシュ
 			Position pos_tmp(DefaultStartPositionSFEN, thisptr);
 			LimitsType limits;
@@ -462,11 +468,10 @@ void MySearcher::goUct(Position& pos) {
 	Move ponderMove = Move::moveNone();
 
 	// Book使用
-	static Book book;
 	if (options["OwnBook"]) {
 		const std::tuple<Move, Score> bookMoveScore = options["Book_Consider_Draw"] ?
 			(options["Book_Consider_Draw_Depth"] > 0 ?
-				book.probeConsideringDrawDepth(pos, options["Book_File"]) : book.probeConsideringDraw(pos, options["Book_File"]))
+				book.probeConsideringDrawDepth(pos) : book.probeConsideringDraw(pos, options["Book_File"]))
 			: book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"

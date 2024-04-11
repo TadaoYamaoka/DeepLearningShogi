@@ -257,25 +257,38 @@ std::tuple<Move, Score> Book::probeConsideringDraw(const Position& pos, const st
     return std::make_tuple(move, score);
 }
 
+void Book::load(const std::string& fName) {
+    if (fileName_ == fName || !open(fName.c_str()))
+        return;
+
+    BookEntry entry;
+    seekg(0, std::ios_base::beg);
+    auto itr = map_.end();
+    Key prev = 0;
+    while (read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+        if (entry.key != prev) {
+            auto ret = map_.emplace(entry.key, std::vector<BookEntry>{});
+            if (ret.second)
+                itr = ret.first;
+            else
+                throw std::runtime_error("key already exists");
+        }
+        itr->second.emplace_back(entry);
+        prev = entry.key;
+    }
+    fileName_ = fName;
+}
+
+
 Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth, const Score drawScoreBlack, const Score drawScoreWhite) {
     const Key key = bookKey(pos);
-    Score trustedScore = ScoreInfinite;
-
-    binary_search(key);
-
-    std::vector<BookEntry> entries;
-    {
-        BookEntry entry;
-        while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
-            entries.emplace_back(entry);
-            if (tellg() == size_ * sizeof(BookEntry))
-                break;
-        }
-    }
-    if (entries.size() == 0)
+    
+    auto itr = map_.find(key);
+    if (itr == map_.end())
         return ScoreNone;
 
-    for (auto& entry : entries) {
+    Score trustedScore = ScoreInfinite;
+    for (auto& entry : itr->second) {
         const Move move16 = Move(entry.fromToPro);
 
         // 回数が少ない評価値は信頼しない
@@ -315,9 +328,6 @@ Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth
         if (alpha >= beta) {
             return alpha;
         }
-
-        if (tellg() == size_ * sizeof(BookEntry))
-            break;
     }
     return alpha;
 }
@@ -325,7 +335,7 @@ Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth
 // 数手先の千日手の評価値を考慮する
 // countの降順にソートされていること
 // countが少ない評価値は信頼しない
-std::tuple<Move, Score> Book::probeConsideringDrawDepth(Position& pos, const std::string& fName) {
+std::tuple<Move, Score> Book::probeConsideringDrawDepth(Position& pos) {
     const int evalCoef = static_cast<int>(pos.searcher()->options["Eval_Coef"]);
     const float drawValueBlack = pos.searcher()->options["Draw_Value_Black"] / 1000.0f;
     const float drawValueWhite = pos.searcher()->options["Draw_Value_White"] / 1000.0f;
@@ -337,25 +347,14 @@ std::tuple<Move, Score> Book::probeConsideringDrawDepth(Position& pos, const std
     Move move = Move::moveNone();
     const Key key = bookKey(pos);
     Score score = ScoreZero;
+
+    auto itr = map_.find(key);
+    if (itr == map_.end())
+        return std::make_tuple(move, score);
+
     Score trusted_score = ScoreInfinite;
     Score alpha = -ScoreInfinite;
-
-    if (fileName_ != fName && !open(fName.c_str()))
-        return std::make_tuple(Move::moveNone(), ScoreNone);
-
-    binary_search(key);
-
-    std::vector<BookEntry> entries;
-    {
-        BookEntry entry;
-        while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
-            entries.emplace_back(entry);
-            if (tellg() == size_ * sizeof(BookEntry))
-                break;
-        }
-    }
-
-    for (auto& entry : entries) {
+    for (auto& entry : itr->second) {
         const Move tmpMove = move16toMove(Move(entry.fromToPro), pos);
 
         // 回数が少ない評価値は信頼しない
