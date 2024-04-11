@@ -28,6 +28,7 @@ parser.add_argument('hcpe3')
 parser.add_argument('--out_maxmove', action='store_true')
 parser.add_argument('--out_noeval', action='store_true')
 parser.add_argument('--out_mate', action='store_true')
+parser.add_argument('--out_brinkmate', action='store_true')
 parser.add_argument('--uniq', action='store_true')
 parser.add_argument('--filter_moves', type=int, default=50)
 parser.add_argument('--filter_rating', type=int, default=3800)
@@ -81,12 +82,24 @@ for filepath in csa_file_list:
             if not args.out_maxmove:
                 continue
             hcpe['result'] += 16
-
-        move_info_vec['candidateNum'] = 1
-
-        board.set_sfen(kif.sfen)
-        board.to_hcp(hcpe['hcp'])
+            
         try:
+            if args.out_brinkmate and endgame == '%TORYO':
+                board.set_sfen(kif.sfen)
+                for move in kif.moves:
+                    assert board.is_legal(move)
+                    board.push(move)
+                while board.is_check():
+                    board.pop()
+                    board.pop()
+                brinkmate_i = board.move_number
+            else:
+                brinkmate_i = 0
+
+            move_info_vec['candidateNum'] = 1
+
+            board.set_sfen(kif.sfen)
+            board.to_hcp(hcpe['hcp'])
             for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
                 move_info = move_info_vec[i]
@@ -100,7 +113,10 @@ for filepath in csa_file_list:
                     move_info['candidateNum'] = 0
                 else:
                     move_visits['move16'] = move16(move)
-                if not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
+                if brinkmate_i > 0:
+                    if i == brinkmate_i:
+                        break
+                elif not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
                     break
                 board.push(move)
         except:
