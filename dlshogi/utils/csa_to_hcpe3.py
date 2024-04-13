@@ -84,17 +84,17 @@ for filepath in csa_file_list:
             hcpe['result'] += 16
             
         try:
-            if args.out_brinkmate and endgame == '%TORYO':
-                board.set_sfen(kif.sfen)
-                for move in kif.moves:
-                    assert board.is_legal(move)
-                    board.push(move)
-                while board.is_check():
-                    board.pop()
-                    board.pop()
-                brinkmate_i = board.move_number
-            else:
-                brinkmate_i = 0
+            if args.out_brinkmate:
+                brinkmate_i = -1
+                if endgame == '%TORYO':
+                    board.set_sfen(kif.sfen)
+                    for move in kif.moves:
+                        assert board.is_legal(move)
+                        board.push(move)
+                    while board.is_check():
+                        board.pop()
+                        board.pop()
+                    brinkmate_i = board.move_number
 
             move_info_vec['candidateNum'] = 1
 
@@ -113,7 +113,7 @@ for filepath in csa_file_list:
                     move_info['candidateNum'] = 0
                 else:
                     move_visits['move16'] = move16(move)
-                if brinkmate_i > 0:
+                if args.out_brinkmate:
                     if i == brinkmate_i:
                         break
                 elif not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
