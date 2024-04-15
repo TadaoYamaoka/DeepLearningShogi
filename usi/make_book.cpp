@@ -2035,6 +2035,10 @@ void make_policy_book_inner(Position& pos,
 
 		for (size_t i = 0; i < outEntries.size(); ++i) {
 			outEntries[i].count = (u16)(prob[i] * USHRT_MAX);
+			if (i > 0 && outEntries[i].count == outEntries[0].count) {
+				// 最善手のcountと同じにしない
+				outEntries[i].count--;
+			}
 		}
 
 		std::stable_sort(outEntries.begin(), outEntries.end(), [](const BookEntry& l, const BookEntry& r) { return l.count > r.count; });
