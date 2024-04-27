@@ -398,7 +398,8 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
-			// 相手の勝ち(自分の負け)のためvalueを更新しない
+			// 相手の勝ち(自分の負け)
+			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
 			// 相手の負け(自分の勝ち)
