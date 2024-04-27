@@ -291,11 +291,11 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 				//debug_moves.pop_back();
 				//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
 
-				alpha = std::max(alpha, value);
-				if (alpha >= beta) {
+				if (value >= beta) {
 					searched[key] = { pos.gamePly(), value, beta };
 					return -value;
 				}
+				alpha = std::max(alpha, value);
 				max_value = std::max(max_value, value);
 			}
 		}
@@ -363,14 +363,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		/*if (key == 10806437342126107775UL && debug_moves.size() > 8 && debug_moves[8].toUSI() == "6c5d")
 			std::cout << "***\t" << move.toUSI() << "\t" << value << "\t" << alpha << "\t" << beta << std::endl;*/
 
-		alpha = std::max(alpha, value);
-		if (alpha >= beta) {
+		if (value >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
 			searched[key] = { pos.gamePly(), value, beta };
 			//}
 			return -value;
 		}
+		alpha = std::max(alpha, value);
 		max_value = std::max(max_value, value);
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
@@ -431,14 +431,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		/*if (key == 10806437342126107775UL)
 			std::cout << "***\t" << move.toUSI() << "\t" << value << std::endl;*/
 
-		alpha = std::max(alpha, value);
-		if (alpha >= beta) {
+		if (value >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
 			searched[key] = { pos.gamePly(), value, beta };
 			//}
 			return -value;
 		}
+		alpha = std::max(alpha, value);
 		max_value = std::max(max_value, value);
 	}
 	//if (std::abs(value) == 71) print_debug_moves(value);
