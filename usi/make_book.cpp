@@ -242,7 +242,8 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		return score;
 	}
 	const auto& entries = itr->second;
-	Score value = -ScoreInfinite;
+	Score max_value = -ScoreInfinite;
+	bool first = true;
 
 	// MinMaxの探索順に使用する定跡
 	auto itr_best = bookMapBest.end();
@@ -250,6 +251,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
 			for (const auto& entry : itr_best->second) {
+				Score value;
 				Move move = move16toMove(Move(entry.fromToPro), pos);
 				StateInfo state;
 				pos.doMove(move, state);
@@ -266,6 +268,23 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 					value = ScoreMaxEvaluate;
 					break;
 				default:
+					if (!first) {
+						// Null window search
+						value = book_search(pos, outMap, -alpha - 1, -alpha, entry.score, searched, bookMapBest);
+						if (value >= beta) {
+							pos.undoMove(move);
+							searched[key] = { pos.gamePly(), value, beta };
+							return -value;
+						}
+						if (value <= alpha) {
+							pos.undoMove(move);
+							continue;
+						}
+						alpha = value;
+					}
+					else {
+						first = false;
+					}
 					value = book_search(pos, outMap, -beta, -alpha, entry.score, searched, bookMapBest);
 				}
 				pos.undoMove(move);
@@ -277,6 +296,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 					searched[key] = { pos.gamePly(), value, beta };
 					return -value;
 				}
+				max_value = std::max(max_value, value);
 			}
 		}
 	}
@@ -300,23 +320,42 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			print_debug_moves(entry.score);
 			__debugbreak();
 		}*/
+		Score value;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
 		switch (pos.isDraw()) {
 		case RepetitionDraw:
 			// 繰り返しになる場合、千日手の評価値
-			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
+			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
-			// 相手の勝ち(自分の負け)のためvalueを更新しない
+			// 相手の勝ち(自分の負け)
+			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
 			// 相手の負け(自分の勝ち)
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			value = std::max(value, book_search(pos, outMap, -beta, -alpha, trusted_score, searched, bookMapBest));
+			if (!first) {
+				// Null window search
+				value = book_search(pos, outMap, -alpha - 1, -alpha, trusted_score, searched, bookMapBest);
+				if (value >= beta) {
+					pos.undoMove(move);
+					searched[key] = { pos.gamePly(), value, beta };
+					return -value;
+				}
+				if (value <= alpha) {
+					pos.undoMove(move);
+					continue;
+				}
+				alpha = value;
+			}
+			else {
+				first = false;
+			}
+			value = book_search(pos, outMap, -beta, -alpha, trusted_score, searched, bookMapBest);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -332,6 +371,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			//}
 			return -value;
 		}
+		max_value = std::max(max_value, value);
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
@@ -348,13 +388,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 				continue;
 			}
 		}
+		Score value;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
 		switch (pos.isDraw()) {
 		case RepetitionDraw:
 			// 繰り返しになる場合、千日手の評価値
-			value = std::max(value, pos.turn() == Black ? draw_score_white : draw_score_black);
+			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
 			// 相手の勝ち(自分の負け)のためvalueを更新しない
@@ -364,8 +405,24 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			const auto ret = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched, bookMapBest);
-			value = std::max(value, ret);
+			if (!first) {
+				// Null window search
+				value = book_search(pos, outMap, -alpha - 1, -alpha, ScoreNotEvaluated, searched, bookMapBest);
+				if (value >= beta) {
+					pos.undoMove(move);
+					searched[key] = { pos.gamePly(), value, beta };
+					return -value;
+				}
+				if (value <= alpha) {
+					pos.undoMove(move);
+					continue;
+				}
+				alpha = value;
+			}
+			else {
+				first = false;
+			}
+			value = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched, bookMapBest);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -381,11 +438,12 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			//}
 			return -value;
 		}
+		max_value = std::max(max_value, value);
 	}
 	//if (std::abs(value) == 71) print_debug_moves(value);
 
 	// βカットされなかった場合はsearchedに追加しない
-	return -alpha;
+	return -max_value;
 }
 
 std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
