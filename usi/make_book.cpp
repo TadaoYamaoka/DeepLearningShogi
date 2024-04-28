@@ -212,6 +212,7 @@ void print_debug_moves(Score score= ScoreNotEvaluated) {
 struct Searched {
 	int depth;
 	Score score;
+	Score alpha;
 	Score beta;
 };
 Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
@@ -230,7 +231,10 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		std::cout << key << "\t" << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << "\t" << itr_searched->second.score << std::endl;
 		__debugbreak();
 	}*/
-	if (itr_searched != searched.end() && itr_searched->second.depth <= pos.gamePly() && itr_searched->second.beta >= beta) {
+	if (itr_searched != searched.end() && itr_searched->second.depth <= pos.gamePly() && (
+		itr_searched->second.score > itr_searched->second.beta && itr_searched->second.beta >= beta
+		|| itr_searched->second.score <= itr_searched->second.beta && itr_searched->second.score >= itr_searched->second.alpha
+		|| itr_searched->second.score < itr_searched->second.alpha && itr_searched->second.alpha <= alpha)) {
 		/*if (key == 12668901208309554908UL)
 			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
 		return -itr_searched->second.score;
@@ -280,7 +284,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 
 				alpha = std::max(alpha, value);
 				if (alpha >= beta) {
-					if (!draw) searched[key] = { pos.gamePly(), value, beta };
+					if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
 					return -value;
 				}
 				max_value = std::max(max_value, value);
@@ -342,7 +346,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			if (!draw) searched[key] = { pos.gamePly(), value, beta };
+			if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
 			//}
 			return -value;
 		}
@@ -398,7 +402,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			if (!draw) searched[key] = { pos.gamePly(), value, beta };
+			if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
 			//}
 			return -value;
 		}
@@ -406,7 +410,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	}
 	//if (std::abs(value) == 71) print_debug_moves(value);
 
-	searched[key] = { pos.gamePly(), max_value, max_value };
+	searched[key] = { pos.gamePly(), max_value, alpha, beta };
 	return -max_value;
 }
 
