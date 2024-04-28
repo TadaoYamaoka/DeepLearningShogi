@@ -256,26 +256,21 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			for (const auto& entry : itr_best->second) {
 				Move move = move16toMove(Move(entry.fromToPro), pos);
 				Score value;
-				bool draw;
 				StateInfo state;
 				pos.doMove(move, state);
 				//debug_moves.emplace_back(move);
 				switch (pos.isDraw()) {
 				case RepetitionDraw:
 					// 繰り返しになる場合、千日手の評価値
-					draw = true;
 					value = pos.turn() == Black ? draw_score_white : draw_score_black;
 					break;
 				case RepetitionWin:
-					draw = true;
 					value = -ScoreInfinite;
 					break;
 				case RepetitionLose:
-					draw = true;
 					value = ScoreMaxEvaluate;
 					break;
 				default:
-					draw = false;
 					value = book_search(pos, outMap, -beta, -alpha, entry.score, searched, bookMapBest);
 				}
 				pos.undoMove(move);
@@ -284,7 +279,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 
 				alpha = std::max(alpha, value);
 				if (alpha >= beta) {
-					if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
+					searched[key] = { pos.gamePly(), value, alpha, beta };
 					return -value;
 				}
 				max_value = std::max(max_value, value);
@@ -312,28 +307,23 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			__debugbreak();
 		}*/
 		Score value;
-		bool draw;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
 		switch (pos.isDraw()) {
 		case RepetitionDraw:
 			// 繰り返しになる場合、千日手の評価値
-			draw = true;
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
 			// 相手の勝ち(自分の負け)
-			draw = true;
 			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
 			// 相手の負け(自分の勝ち)
-			draw = true;
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			draw = false;
 			value = book_search(pos, outMap, -beta, -alpha, trusted_score, searched, bookMapBest);
 		}
 		pos.undoMove(move);
@@ -346,7 +336,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
+			searched[key] = { pos.gamePly(), value, alpha, beta };
 			//}
 			return -value;
 		}
@@ -368,28 +358,23 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			}
 		}
 		Score value;
-		bool draw;
 		StateInfo state;
 		pos.doMove(move, state);
 		//debug_moves.emplace_back(move);
 		switch (pos.isDraw()) {
 		case RepetitionDraw:
 			// 繰り返しになる場合、千日手の評価値
-			draw = true;
 			value = pos.turn() == Black ? draw_score_white : draw_score_black;
 			break;
 		case RepetitionWin:
 			// 相手の勝ち(自分の負け)
-			draw = true;
 			value = -ScoreInfinite;
 			break;
 		case RepetitionLose:
 			// 相手の負け(自分の勝ち)
-			draw = true;
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			draw = false;
 			value = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched, bookMapBest);
 		}
 		pos.undoMove(move);
@@ -402,7 +387,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (alpha >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			if (!draw) searched[key] = { pos.gamePly(), value, alpha, beta };
+			searched[key] = { pos.gamePly(), value, alpha, beta };
 			//}
 			return -value;
 		}
