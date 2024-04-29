@@ -242,7 +242,6 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		return score;
 	}
 	const auto& entries = itr->second;
-	Score max_value = -ScoreInfinite;
 	bool first = true;
 
 	// MinMaxの探索順に使用する定跡
@@ -296,7 +295,6 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 					return -value;
 				}
 				alpha = std::max(alpha, value);
-				max_value = std::max(max_value, value);
 			}
 		}
 	}
@@ -371,7 +369,6 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			return -value;
 		}
 		alpha = std::max(alpha, value);
-		max_value = std::max(max_value, value);
 	}
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
@@ -439,12 +436,11 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			return -value;
 		}
 		alpha = std::max(alpha, value);
-		max_value = std::max(max_value, value);
 	}
 	//if (std::abs(value) == 71) print_debug_moves(value);
 
 	// βカットされなかった場合はsearchedに追加しない
-	return -max_value;
+	return -alpha;
 }
 
 std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
