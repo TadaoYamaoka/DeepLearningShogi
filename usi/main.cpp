@@ -1092,6 +1092,9 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 		read_book(book_mcts_minmax_book, minmaxBookMap);
 	}
 
+	// 深さ制限
+	make_minmax_book_depth = options["Make_MinMax_Book_Depth"];
+
 	// 定跡読み込み
 	bookMap.clear();
 	read_book(bookFileName, bookMap);

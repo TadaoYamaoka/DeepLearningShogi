@@ -69,6 +69,8 @@ int usi_book_engine_nodes_own;
 double usi_book_engine_prob_own = 0.0;
 // αβ探索で特定局面の評価値を置き換える
 std::unordered_map<Key, Score> book_key_eval_map;
+// make_minmax_bookの深さ制限
+int make_minmax_book_depth = INT_MAX;
 
 // 定跡用mutex
 std::mutex gpu_mutex;
@@ -934,7 +936,7 @@ void minmax_book_black(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& 
 
 	// 探索済みの場合、深さが同じか浅い場合、打ち切る
 	const auto itr_minmax = bookMapMinMax.find(key);
-	if (itr_minmax != bookMapMinMax.end() && itr_minmax->second.depth <= pos.gamePly()) {
+	if (itr_minmax != bookMapMinMax.end() && itr_minmax->second.depth <= pos.gamePly() || pos.gamePly() > make_minmax_book_depth) {
 		return;
 	}
 
