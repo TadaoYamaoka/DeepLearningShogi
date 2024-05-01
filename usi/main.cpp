@@ -878,7 +878,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBestMaster;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBestMaster);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBestMaster);
 
 	// 定跡マージ
 	int merged = 0;
@@ -969,7 +969,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 						}
 
 						// MinMaxの探索順に使用する定跡更新
-						read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBestMaster);
+						read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBestMaster);
 					}
 
 					prev_num = outMapMaster.size();
@@ -1101,7 +1101,7 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1288,7 +1288,7 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1432,7 +1432,7 @@ void MySearcher::makeBookPositions(std::istringstream& ssCmd) {
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1729,7 +1729,7 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
@@ -1821,7 +1821,7 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 
 	// MinMaxの探索順に使用する定跡
 	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
-	read_minmax_priority_book(options["Book_MinMix_Priority_Book"], bookMapBest, true);
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest, true);
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
