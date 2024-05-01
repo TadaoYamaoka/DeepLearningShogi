@@ -1061,7 +1061,7 @@ void saveBookMapMinMax(const std::string& outFileName, const std::unordered_map<
 void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd) {
 	std::string bookFileName;
 	std::string outFileName;
-	int threads;
+	int threads = 0;
 
 	ssCmd >> bookFileName;
 	ssCmd >> outFileName;
