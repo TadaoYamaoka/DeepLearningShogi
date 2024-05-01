@@ -1092,11 +1092,18 @@ void make_minmax_book(Position& pos, std::unordered_map<Key, MinMaxBookEntry>& b
 	std::vector<Move> moves;
 	if (make_book_color == Black)
 		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
-	else if (make_book_color == White)
-		minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
+	else if (make_book_color == White) {
+		if (threads == 0)
+			minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+		else
+			minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
+	}
 	else {
 		minmax_book_black(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
-		minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
+		if (threads == 0)
+			minmax_book_white(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest);
+		else
+			minmax_book_white_parallel(pos, bookMapMinMax, moves, select_best_book_entry, bookMapBest, threads);
 	}
 }
 
