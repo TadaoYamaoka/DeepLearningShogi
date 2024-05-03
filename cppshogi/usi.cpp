@@ -157,7 +157,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
 #ifdef MULTI_PONDER
-    (*this)["Multi_Ponder"]                = USIOption(0, 0, 8);
+    (*this)["Multi_Ponder"]                = USIOption(0, 0, 9);
     (*this)["Multi_Ponder_Engine1"]        = USIOption("");
     (*this)["Multi_Ponder_Engine2"]        = USIOption("");
     (*this)["Multi_Ponder_Engine3"]        = USIOption("");
@@ -166,6 +166,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Multi_Ponder_Engine6"]        = USIOption("");
     (*this)["Multi_Ponder_Engine7"]        = USIOption("");
     (*this)["Multi_Ponder_Engine8"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine9"]        = USIOption("");
     (*this)["Multi_Ponder_Engine1_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine2_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine3_Options"] = USIOption("");
@@ -174,6 +175,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Multi_Ponder_Engine6_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine7_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine8_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine9_Options"] = USIOption("");
 #endif
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
