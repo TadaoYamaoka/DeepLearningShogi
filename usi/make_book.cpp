@@ -2289,6 +2289,10 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 
 	std::ofstream ofs(outFileName);
 
+	std::string pos_cmd{ posCmd };
+	if (pos_cmd == "startpos")
+		pos_cmd + " moves";
+
 	int count = 0;
 	for (const auto& position : positions) {
 		const PositionWithMove* position_ptr = &position;
@@ -2306,7 +2310,7 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 			const auto& entry = itr_book->second[0];
 			const auto score = entry.score;
 			if (std::abs(score) <= diff) {
-				ofs << posCmd;
+				ofs << pos_cmd;
 				for (const auto move : moves) {
 					ofs << " " << move.toUSI();
 				}
