@@ -51,6 +51,7 @@ std::future<std::pair<Move, Move>> MySearcher::future;
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
 
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 std::map<Key, std::vector<BookEntry> > bookMap;
 bool use_book_policy = true;
 
@@ -76,6 +77,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 	}
 	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
 }
+#endif
 
 int main(int argc, char* argv[]) {
 	initTable();
@@ -385,12 +387,14 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"], options["Random_Cutoff_Drop"]);
 			SetRandomMove2(options["Random2_Ply"], options["Random2_Probability"], options["Random2_Temperature"], options["Random2_Cutoff"], options["Random2_Value_Limit"]);
 
+#ifdef BOOK_POLICY
 			// 事前確率に定跡の遷移確率も使用する
 			use_book_policy = options["Use_Book_Policy"];
 			if (use_book_policy) {
 				// 定跡読み込み
 				read_book(options["Book_File"], bookMap);
 			}
+#endif
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);

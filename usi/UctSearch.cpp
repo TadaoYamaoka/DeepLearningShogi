@@ -91,11 +91,13 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 //  大域変数  //
 ////////////////
 
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 #include "book.hpp"
 extern std::map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_book_policy;
 #ifdef MAKE_BOOK
 extern bool use_interruption;
+#endif
 #endif
 
 // 持ち時間
@@ -331,9 +333,11 @@ public:
 		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 		if (use_book_policy)
 			policy_value_book_key = new Key[policy_value_batch_maxsize];
 
+#endif
 	}
 	UCTSearcher(UCTSearcher&& o) :
 		grp(o.grp),
@@ -452,7 +456,9 @@ private:
 	DType* y1;
 	DType* y2;
 	batch_element_t* policy_value_batch;
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 	Key* policy_value_book_key;
+#endif
 	int current_policy_value_batch_index;
 };
 
@@ -1144,8 +1150,10 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
+#endif
 	current_policy_value_batch_index++;
 }
 
@@ -1681,6 +1689,7 @@ void UCTSearcher::EvalNode() {
 
 		*policy_value_batch[i].value_win = (float)*value;
 
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 		if (use_book_policy) {
 			// 定跡作成時は、事前確率に定跡の遷移確率も使用する
 			constexpr float alpha = 0.5f;
@@ -1707,6 +1716,7 @@ void UCTSearcher::EvalNode() {
 				*policy_value_batch[i].value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
 			}
 		}
+#endif
 		node->SetEvaled();
 	}
 }

@@ -96,6 +96,7 @@ bool OUT_MAX_MOVE = false; // 最大手数に達した対局の局面を出力�
 constexpr int EXTENSION_TIMES = 2; // 探索延長回数
 bool REUSE_SUBTREE = false; // 探索済みノードを再利用するか
 
+#ifdef BOOK_POLICY
 // 事前確率に定跡の遷移確率も使用する
 std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 bool use_book_policy = false;
@@ -122,6 +123,7 @@ void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vec
 	}
 	logger->info("book entries:{} count:{}", bookMap.size(), count);
 }
+#endif
 
 struct CachedNNRequest {
 	CachedNNRequest(size_t size) : nnrate(size) {}
@@ -326,7 +328,9 @@ private:
 	packed_features1_t* features1;
 	packed_features2_t* features2;
 	batch_element_t* policy_value_batch;
+#ifdef BOOK_POLICY
 	Key* policy_value_book_key;
+#endif
 	int current_policy_value_batch_index;
 
 	// UCTSearcher
@@ -547,8 +551,10 @@ UCTSearcherGroup::Initialize()
 	checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
+#ifdef BOOK_POLICY
 	if (use_book_policy)
 		policy_value_book_key = new Key[policy_value_batch_maxsize];
+#endif
 
 	// UCTSearcher
 	searchers.clear();
@@ -942,8 +948,10 @@ UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* valu
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
+#ifdef BOOK_POLICY
 	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
+#endif
 	current_policy_value_batch_index++;
 }
 
@@ -1025,6 +1033,7 @@ void UCTSearcherGroup::EvalNode() {
 
 		float value_win = (float)*value;
 
+#ifdef BOOK_POLICY
 		if (use_book_policy) {
 			// 事前確率に定跡の遷移確率も使用する
 			constexpr float alpha = 0.5f;
@@ -1051,6 +1060,7 @@ void UCTSearcherGroup::EvalNode() {
 				value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
 			}
 		}
+#endif
 
 		auto req = make_unique<CachedNNRequest>(child_num);
 		for (int j = 0; j < child_num; j++) {
@@ -1700,8 +1710,10 @@ int main(int argc, char* argv[]) {
 			("usi_options", "USIEngine options", cxxopts::value<std::string>(usi_options))
 			("usi_byoyomi", "USI byoyomi", cxxopts::value<int>(usi_byoyomi)->default_value("500"))
 			("usi_turn", "USIEngine turn", cxxopts::value<int>(usi_turn)->default_value("-1"))
+#ifdef BOOK_POLICY
 			("use_book_policy", "use book policy", cxxopts::value<bool>(use_book_policy)->default_value("false"))
 			("book_file", "book file name", cxxopts::value<std::string>(bookFileName))
+#endif
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
@@ -1832,12 +1844,14 @@ int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
 	HuffmanCodedPos::init();
+#ifdef BOOK_POLICY
 	if (use_book_policy) {
 		Book::init();
 		logger->info("use_book_policy");
 		logger->info("book_file:{}", bookFileName);
 		read_book(bookFileName, bookMap);
 	}
+#endif
 
 	set_softmax_temperature(temperature);
 
