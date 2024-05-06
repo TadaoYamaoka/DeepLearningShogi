@@ -2274,4 +2274,47 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 	std::cout << "num: " << n << std::endl;
 }
+
+void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& outFileName, const int diff) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	// 局面を列挙する
+	std::vector<PositionWithMove> positions;
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+	enumerate_positions_with_move(pos, bookMap, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	if (positions.size() > bookMap.size() + 1)
+		throw std::runtime_error("positions.size() > bookMap.size()");
+
+	std::ofstream ofs(outFileName);
+
+	int count = 0;
+	for (const auto& position : positions) {
+		const PositionWithMove* position_ptr = &position;
+		std::vector<Move> moves(position_ptr->depth);
+		for (int j = position_ptr->depth - 1; j >= 0; --j) {
+			moves[j] = position_ptr->move;
+			position_ptr = position_ptr->parent;
+		}
+		assert(position_ptr->parent == nullptr);
+
+		const Key key = position.key;
+
+		const auto itr_book = bookMap.find(key);
+		if (itr_book != bookMap.end()) {
+			const auto& entry = itr_book->second[0];
+			const auto score = entry.score;
+			if (std::abs(score) <= diff) {
+				ofs << posCmd;
+				for (const auto move : moves) {
+					ofs << " " << move.toUSI();
+				}
+				ofs << "\n";
+				count++;
+			}
+		}
+	}
+	std::cout << "output: " << count << std::endl;
+}
 #endif

@@ -52,6 +52,7 @@ struct MySearcher : Searcher {
 	static void bookToHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makePolicyBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void complementBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makeGokakuSfen(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -428,6 +429,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "book_to_hcp") bookToHcp(ssCmd, posCmd);
 		else if (token == "make_policy_book") makePolicyBook(ssCmd, posCmd);
 		else if (token == "complement_book") complementBook(ssCmd, posCmd);
+		else if (token == "make_gokaku_sfen") makeGokakuSfen(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2038,6 +2040,28 @@ void MySearcher::complementBook(std::istringstream& ssCmd, const std::string& po
 	complement_book(pos, bookFileName, outFileName, book_pos_cmd);
 
 	// 結果表示
+	std::cout << "done" << std::endl;
+}
+
+// 互角局面集作成
+void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string outFileName;
+	int diff;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> diff;
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	make_gokaku_sfen(pos, posCmd, bookFileName, outFileName, diff);
+
 	std::cout << "done" << std::endl;
 }
 #endif
