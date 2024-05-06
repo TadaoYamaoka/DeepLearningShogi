@@ -2291,7 +2291,7 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 
 	std::string pos_cmd{ posCmd };
 	if (pos_cmd == "startpos")
-		pos_cmd + " moves";
+		pos_cmd += " moves";
 
 	int count = 0;
 	for (const auto& position : positions) {
