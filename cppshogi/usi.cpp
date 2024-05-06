@@ -141,11 +141,11 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random2_Temperature"]         = USIOption(10000, 0, 100000);
     (*this)["Random2_Cutoff"]              = USIOption(30, 0, 1000);
     (*this)["Random2_Value_Limit"]         = USIOption(750, 0, 1000);
+    (*this)["Use_Book_Policy"]             = USIOption(false);
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
     (*this)["Make_Book_Sleep"]             = USIOption(0, 0, INT_MAX);
-    (*this)["Use_Book_Policy"]             = USIOption(true);
     (*this)["Use_Interruption"]            = USIOption(true);
     (*this)["Book_Eval_Threshold"]         = USIOption(INT_MAX, 1, INT_MAX);
     (*this)["Book_Visit_Threshold"]        = USIOption(5, 0, 1000);
