@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import os
 from collections import defaultdict
 
@@ -6,7 +6,6 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn.functional as F
-from lightning.pytorch import cli
 from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgressBar
 from lightning.pytorch.cli import LightningCLI
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -204,6 +203,7 @@ class Model(pl.LightningModule):
         ema_start_epoch=1,
         ema_freq=250,
         ema_decay=0.9,
+        lr_scheduler_interval="epoch",
         model_filename=None,
     ):
         super().__init__()
@@ -334,9 +334,13 @@ class Model(pl.LightningModule):
             del self.tmp_model
 
 
-class LightningCLI(cli.LightningCLI):
+class CustomLightningCLI(LightningCLI):
     @staticmethod
     def configure_optimizers(lightning_module, optimizer, lr_scheduler=None):
+        if lightning_module.hparams.lr_scheduler_interval == "epoch":
+            return LightningCLI.configure_optimizers(
+                lightning_module, optimizer, lr_scheduler
+            )
         if lr_scheduler is None:
             return optimizer
         return {
@@ -354,7 +358,7 @@ class LightningCLI(cli.LightningCLI):
 
 
 def main():
-    LightningCLI(Model, DataModule)
+    CustomLightningCLI(Model, DataModule)
 
 
 if __name__ == "__main__":

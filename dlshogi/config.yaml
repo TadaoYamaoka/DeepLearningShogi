@@ -19,6 +19,7 @@ model:
   ema_freq: 250
   ema_decay: 0.9
   model_filename: model-{epoch:03}
+  lr_scheduler_interval: step
 data:
   train_files:
     - F:\hcpe3\floodgate_2022_0214_r3800_nomate.hcpe3
