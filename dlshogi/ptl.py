@@ -217,6 +217,7 @@ class Model(pl.LightningModule):
             self.ema_model = AveragedModel(
                 self.model, multi_avg_fn=get_ema_multi_avg_fn(ema_decay)
             )
+            self.ema_model.requires_grad_(False)
         self.validation_step_outputs = defaultdict(list)
 
     def training_step(self, batch, batch_idx):
@@ -267,7 +268,7 @@ class Model(pl.LightningModule):
                 update_bn(data_loader(), self.ema_model)
             del self.ema_model.forward
 
-    def on_train_end(self):
+    def on_fit_end(self):
         if self.hparams.model_filename:
             if self.hparams.use_ema:
                 model = self.ema_model
