@@ -1,13 +1,16 @@
-# lightning.pytorch==2.2.0.post0
+﻿# lightning.pytorch==2.2.0.post0
 seed_everything: 0
 trainer:
   max_epochs: 4
+  sync_batchnorm: false
+  val_check_interval: 0.5
   precision: 16-mixed
   gradient_clip_val: 10.0
   callbacks:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         save_top_k: -1
+        save_on_train_epoch_end: true
         monitor: val/loss
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
 model:
@@ -30,6 +33,7 @@ data:
   use_average: true
   use_evalfix: true
   temperature: 1.0
+  cache: null
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
