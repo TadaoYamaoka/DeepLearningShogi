@@ -205,10 +205,14 @@ class Model(pl.LightningModule):
         ema_decay=0.9,
         lr_scheduler_interval="epoch",
         model_filename=None,
+        resume_model=None,
     ):
         super().__init__()
         self.save_hyperparameters()
         self.model = policy_value_network(network)
+        if resume_model:
+            checkpoint = torch.load(resume_model, map_location="cpu")
+            self.model.load_state_dict(checkpoint["model"])
         if use_ema:
             self.ema_model = AveragedModel(
                 self.model, multi_avg_fn=get_ema_multi_avg_fn(ema_decay)
