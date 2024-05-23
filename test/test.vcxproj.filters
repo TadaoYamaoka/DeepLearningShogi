@@ -72,17 +72,12 @@
     <ClCompile Include="tensorrt_benchmark.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\nn_tensorrt.cpp">
-      <Filter>ソース ファイル\usi</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\dtype.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="..\usi\unpack.cu">
-      <Filter>ソース ファイル\usi</Filter>
-    </CustomBuild>
+    <ClCompile Include="cppshogi_test.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

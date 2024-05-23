@@ -31,24 +31,19 @@ inline T is_nyugyoku(const uint8_t result) {
 	return static_cast<T>(result & GAMERESULT_NYUGYOKU ? 1 : 0);
 }
 
-void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {
+void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndbags, char* ndmove, char* ndresult, char* ndvalue) {
 	HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
+	bags_t* bags = reinterpret_cast<bags_t*>(ndbags);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
 
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-
 	Position position;
-	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++) {
+	for (size_t i = 0; i < len; i++, hcpe++, bags++, value++, move++, result++) {
 		position.set(hcpe->hcp);
 
 		// input features
-		make_input_features(position, *features1, *features2);
+		make_input_features(position, *bags);
 
 		// move
 		*move = make_move_label(hcpe->bestMove16, position.turn());
@@ -61,25 +56,20 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 	}
 }
 
-void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndaux) {
+void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndbags, char* ndmove, char* ndresult, char* ndvalue, char* ndaux) {
 	HuffmanCodedPosAndEval2* hcpe = reinterpret_cast<HuffmanCodedPosAndEval2*>(ndhcpe2);
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
+	bags_t* bags = reinterpret_cast<bags_t*>(ndbags);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
 	auto aux = reinterpret_cast<float(*)[2]>(ndaux);
 
-	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-
 	Position position;
-	for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, move++, result++, aux++) {
+	for (size_t i = 0; i < len; i++, hcpe++, bags++, value++, move++, result++, aux++) {
 		position.set(hcpe->hcp);
 
 		// input features
-		make_input_features(position, *features1, *features2);
+		make_input_features(position, *bags);
 
 		// move
 		*move = make_move_label(hcpe->bestMove16, position.turn());
@@ -417,18 +407,15 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndbags, char* ndprobability, char* ndresult, char* ndvalue) {
 	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
-	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
-	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
-	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
+	bags_t* bags = reinterpret_cast<bags_t*>(ndbags);
+	auto probability = reinterpret_cast<float(*)[MAX_LEGAL_MOVEL_LABL_NUM]>(ndprobability);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
 
 	// set all zero
-	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
-	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
+	std::fill_n((float*)probability, MAX_LEGAL_MOVEL_LABL_NUM * len, 0.0f);
 
 	#pragma omp parallel for num_threads(2) if (len > 1)
 	for (int64_t i = 0; i < len; i++) {
@@ -438,12 +425,12 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 		position.set(hcpe3.hcp);
 
 		// input features
-		make_input_features(position, features1[i], features2[i]);
+		make_input_features(position, bags[i]);
 
 		// move probability
 		for (const auto kv : hcpe3.candidates) {
 			const auto label = make_move_label(kv.first, position.turn());
-			assert(label < 9 * 9 * MAX_MOVE_LABEL_NUM);
+			assert(label < MAX_LEGAL_MOVEL_LABL_NUM);
 			probability[i][label] = kv.second / hcpe3.count;
 		}
 

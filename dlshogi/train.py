@@ -158,8 +158,8 @@ def main(*argv):
 
     # for SWA update_bn
     def hcpe_loader(data, batchsize):
-        for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
-            yield { 'x1':x1, 'x2':x2 }
+        for x, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
+            yield x
 
     def accuracy(y, t):
         return (torch.max(y, 1)[1] == t).sum().item() / len(t)
@@ -181,8 +181,8 @@ def main(*argv):
         sum_test_entropy2 = 0
         model.eval()
         with torch.no_grad():
-            for x1, x2, t1, t2, value in test_dataloader:
-                y1, y2 = model(x1, x2)
+            for x, t1, t2, value in test_dataloader:
+                y1, y2 = model(x)
 
                 steps += 1
                 loss1 = cross_entropy_loss(y1, t1).mean()
@@ -246,13 +246,13 @@ def main(*argv):
         sum_loss2_epoch = 0
         sum_loss3_epoch = 0
         sum_loss_epoch = 0
-        for x1, x2, t1, t2, value in train_dataloader:
+        for x, t1, t2, value in train_dataloader:
             t += 1
             steps += 1
             with torch.cuda.amp.autocast(enabled=args.use_amp):
                 model.train()
 
-                y1, y2 = model(x1, x2)
+                y1, y2 = model(x)
 
                 model.zero_grad()
                 loss1 = cross_entropy_loss_with_soft_target(y1, t1)
@@ -286,9 +286,9 @@ def main(*argv):
             if t % eval_interval == 0:
                 model.eval()
 
-                x1, x2, t1, t2, value = test_dataloader.sample()
+                x, t1, t2, value = test_dataloader.sample()
                 with torch.no_grad():
-                    y1, y2 = model(x1, x2)
+                    y1, y2 = model(x)
 
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)

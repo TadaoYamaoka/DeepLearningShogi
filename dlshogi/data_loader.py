@@ -28,11 +28,8 @@ class DataLoader:
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
-        )
-        self.torch_features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        self.torch_bags = torch.empty(
+            (batch_size, MAX_BAG_SIZE), dtype=torch.int8, pin_memory=True
         )
         self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
         self.torch_result = torch.empty(
@@ -42,8 +39,7 @@ class DataLoader:
             (batch_size, 1), dtype=torch.float32, pin_memory=True
         )
 
-        self.features1 = self.torch_features1.numpy()
-        self.features2 = self.torch_features2.numpy()
+        self.bags = self.torch_bags.numpy()
         self.move = self.torch_move.numpy()
         self.result = self.torch_result.numpy().reshape(-1)
         self.value = self.torch_value.numpy().reshape(-1)
@@ -53,21 +49,19 @@ class DataLoader:
 
     def mini_batch(self, hcpevec):
         cppshogi.hcpe_decode_with_value(
-            hcpevec, self.features1, self.features2, self.move, self.result, self.value
+            hcpevec, self.bags, self.move, self.result, self.value
         )
 
         if self.device.type == "cpu":
             return (
-                self.torch_features1.clone(),
-                self.torch_features2.clone(),
+                self.torch_bags.clone(),
                 self.torch_move.clone(),
                 self.torch_result.clone(),
                 self.torch_value.clone(),
             )
         else:
             return (
-                self.torch_features1.to(self.device),
-                self.torch_features2.to(self.device),
+                self.torch_bags.to(self.device),
                 self.torch_move.to(self.device),
                 self.torch_result.to(self.device),
                 self.torch_value.to(self.device),
@@ -121,11 +115,8 @@ class Hcpe2DataLoader(DataLoader):
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
-        )
-        self.torch_features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        self.torch_bags = torch.empty(
+            (batch_size, MAX_BAG_SIZE), dtype=torch.int8, pin_memory=True
         )
         self.torch_move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
         self.torch_result = torch.empty(
@@ -138,8 +129,7 @@ class Hcpe2DataLoader(DataLoader):
             (batch_size, 2), dtype=torch.float32, pin_memory=True
         )
 
-        self.features1 = self.torch_features1.numpy()
-        self.features2 = self.torch_features2.numpy()
+        self.bags = self.torch_bags.numpy()
         self.move = self.torch_move.numpy()
         self.result = self.torch_result.numpy().reshape(-1)
         self.value = self.torch_value.numpy().reshape(-1)
@@ -151,8 +141,7 @@ class Hcpe2DataLoader(DataLoader):
     def mini_batch(self, hcpevec):
         cppshogi.hcpe2_decode_with_value(
             hcpevec,
-            self.features1,
-            self.features2,
+            self.bags,
             self.move,
             self.result,
             self.value,
@@ -160,8 +149,7 @@ class Hcpe2DataLoader(DataLoader):
         )
 
         return (
-            self.torch_features1.to(self.device),
-            self.torch_features2.to(self.device),
+            self.torch_bags.to(self.device),
             self.torch_move.to(self.device),
             self.torch_result.to(self.device),
             self.torch_value.to(self.device),
@@ -237,14 +225,11 @@ class Hcpe3DataLoader(DataLoader):
         self.device = device
         self.shuffle = shuffle
 
-        self.torch_features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
-        )
-        self.torch_features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+        self.torch_bags = torch.empty(
+            (batch_size, MAX_BAG_SIZE), dtype=torch.int8, pin_memory=True
         )
         self.torch_probability = torch.empty(
-            (batch_size, 9 * 9 * MAX_MOVE_LABEL_NUM),
+            (batch_size, MAX_LEGAL_MOVEL_LABL_NUM),
             dtype=torch.float32,
             pin_memory=True,
         )
@@ -255,8 +240,7 @@ class Hcpe3DataLoader(DataLoader):
             (batch_size, 1), dtype=torch.float32, pin_memory=True
         )
 
-        self.features1 = self.torch_features1.numpy()
-        self.features2 = self.torch_features2.numpy()
+        self.bags = self.torch_bags.numpy()
         self.probability = self.torch_probability.numpy()
         self.result = self.torch_result.numpy().reshape(-1)
         self.value = self.torch_value.numpy().reshape(-1)
@@ -267,16 +251,14 @@ class Hcpe3DataLoader(DataLoader):
     def mini_batch(self, index):
         cppshogi.hcpe3_decode_with_value(
             index,
-            self.features1,
-            self.features2,
+            self.bags,
             self.probability,
             self.result,
             self.value,
         )
 
         return (
-            self.torch_features1.to(self.device),
-            self.torch_features2.to(self.device),
+            self.torch_bags.to(self.device),
             self.torch_probability.to(self.device),
             self.torch_result.to(self.device),
             self.torch_value.to(self.device),

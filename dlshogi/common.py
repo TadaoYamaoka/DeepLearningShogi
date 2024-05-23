@@ -8,6 +8,7 @@ MOVE_DIRECTION = [
 
 # 指し手を表すラベルの数
 MAX_MOVE_LABEL_NUM = len(MOVE_DIRECTION) + 7 # 7はhand piece
+MAX_LEGAL_MOVEL_LABL_NUM = 1496
 
 MAX_PIECES_IN_HAND = [
     8, # 歩の持ち駒の上限
@@ -25,6 +26,8 @@ PIECETYPE_NUM = 14 # 駒の種類
 MAX_ATTACK_NUM = 3 # 利き数の最大値
 FEATURES1_NUM = 2 * (PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM)
 FEATURES2_NUM = 2 * MAX_PIECES_IN_HAND_SUM + 1
+MAX_BAG_SIZE = 3360
+
 
 HuffmanCodedPosAndEval = np.dtype([
     ('hcp', np.uint8, 32),

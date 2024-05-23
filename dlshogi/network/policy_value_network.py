@@ -9,6 +9,8 @@ def policy_value_network(network, add_sigmoid=False):
         from dlshogi.network.policy_value_network_wideresnet10 import PolicyValueNetwork
     elif network == 'resnet10_swish':
         from dlshogi.network.policy_value_network_resnet10_swish import PolicyValueNetwork
+    elif network == 'transformer':
+        from dlshogi.network.policy_value_network_transformer import PolicyValueNetwork
     elif m:
         from importlib import import_module
         module = import_module(f'dlshogi.network.policy_value_network_{m[1]}')
@@ -33,7 +35,7 @@ def policy_value_network(network, add_sigmoid=False):
 
         PolicyValueNetwork = PolicyValueNetworkAddSigmoid
 
-    if network in [ 'wideresnet10', 'resnet10_swish' ]:
+    if network in [ 'wideresnet10', 'resnet10_swish', 'transformer' ]:
         return PolicyValueNetwork()
     elif m:
         # blocks
