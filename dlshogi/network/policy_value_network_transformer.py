@@ -12,18 +12,18 @@ class PositionalEncoding(nn.Module):
 
 
 class PolicyValueNetwork(nn.Module):
-    def __init__(self, ntoken=96, d_model=512, nhead=8, dim_feedforward=256, num_layers=8, dropout=0.1):
+    def __init__(self, ntoken=96, d_model=256, nhead=8, dim_feedforward=256, num_layers=8, dropout=0.1):
         super(PolicyValueNetwork, self).__init__()
         self.encoder = nn.EmbeddingBag(2892, d_model, mode="sum", padding_idx=0)
         self.pos_encoder = PositionalEncoding(d_model, ntoken)
         transformer_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation="gelu", batch_first=True)
         self.transformer = nn.TransformerEncoder(transformer_layer, num_layers)
-        self.policy_conv = nn.Conv1d(ntoken, 16, 1, bias=False)
-        self.policy_norm = nn.BatchNorm1d(d_model * 16)
-        self.policy_fc = nn.Linear(d_model * 16, 1496)
-        self.value_conv = nn.Conv1d(ntoken, 16, 1, bias=False)
-        self.value_norm1 = nn.BatchNorm1d(d_model * 16)
-        self.value_fc1 = nn.Linear(d_model * 16, 256, bias=False)
+        self.policy_conv = nn.Conv1d(d_model, d_model // 8, 1, bias=False)
+        self.policy_norm = nn.BatchNorm1d(ntoken * d_model // 8)
+        self.policy_fc = nn.Linear(ntoken * d_model // 8, 1496)
+        self.value_conv = nn.Conv1d(d_model, d_model // 8, 1, bias=False)
+        self.value_norm1 = nn.BatchNorm1d(ntoken * d_model // 8)
+        self.value_fc1 = nn.Linear(ntoken * d_model // 8, 256, bias=False)
         self.value_norm2 = nn.BatchNorm1d(256)
         self.value_fc2 = nn.Linear(256, 1)
         self.ntoken = ntoken
@@ -35,6 +35,7 @@ class PolicyValueNetwork(nn.Module):
         x = x.view(-1, self.ntoken, self.d_model)
         x = self.pos_encoder(x)
         x = self.transformer(x)
+        x = x.transpose(1, 2)
         policy = self.policy_conv(x)
         policy = F.relu(self.policy_norm(policy.flatten(1)))
         policy = self.policy_fc(policy)
