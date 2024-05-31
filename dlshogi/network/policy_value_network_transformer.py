@@ -1,15 +1,17 @@
 ﻿import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import math
 
 from dlshogi.common import *
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=81):
+    def __init__(self, channels):
         super(PositionalEncoding, self).__init__()
-        self.pos_encoding = nn.Parameter(torch.zeros(1, max_len, d_model))
+        self.pos_encoding = nn.Parameter(torch.zeros(1, channels, 9, 9))
 
     def forward(self, x):
-        return x + self.pos_encoding[:, :x.size(1)]
+        return x + self.pos_encoding
     
 class Bias(nn.Module):
     def __init__(self, shape):
@@ -49,8 +51,54 @@ class ResNetBlock(nn.Module):
 
         return self.act(out + x)
 
+
+class TransformerEncoderLayer(nn.Module):
+    def __init__(self, channels, d_model, nhead, dim_feedforward=256, dropout=0.1, activation=nn.GELU()):
+        super(TransformerEncoderLayer, self).__init__()
+        assert d_model % nhead == 0
+        self.d_model = d_model
+        self.nhead = nhead
+        self.depth = d_model // nhead
+        self.dim_feedforward = dim_feedforward
+        self.dropout = dropout
+        self.activation = activation
+
+        self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
+
+        self.attention_dropout = nn.Dropout(dropout)
+        self.linear1 = nn.Conv2d(d_model, dim_feedforward, kernel_size=1, bias=False)
+        self.linear2 = nn.Conv2d(dim_feedforward, channels, kernel_size=1, bias=False)
+        self.final_dropout = nn.Dropout(dropout)
+        self.layer_norm1 = nn.BatchNorm2d(d_model)
+        self.layer_norm2 = nn.BatchNorm2d(channels)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+
+        qkv = self.qkv_linear(x).squeeze(-1)
+        q, k, v = qkv.chunk(3, dim=1)
+
+        q = q.view(batch_size, self.nhead, self.depth, 81).transpose(2, 3)
+        k = k.view(batch_size, self.nhead, self.depth, 81)
+        v = v.view(batch_size, self.nhead, self.depth, 81).transpose(2, 3)
+
+        scores = torch.matmul(q, k) / math.sqrt(self.depth)
+        attention_weights = F.softmax(scores, dim=-1)
+        attention_weights = self.attention_dropout(attention_weights)
+
+        attended = torch.matmul(attention_weights, v)
+        attended = attended.transpose(2, 3).contiguous().view(batch_size, self.d_model, 9, 9)
+
+        x = self.layer_norm1(attended + x)
+        feedforward = self.activation(self.linear1(x))
+        feedforward = self.linear2(feedforward)
+        feedforward = self.final_dropout(feedforward)
+        x = self.layer_norm2(feedforward + x)
+
+        return x
+
 class PolicyValueNetwork(nn.Module):
-    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256):
+    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256, num_layers=8):
         super(PolicyValueNetwork, self).__init__()
         self.l1_1_1 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=channels, kernel_size=3, padding=1, bias=False)
         self.l1_1_2 = nn.Conv2d(in_channels=FEATURES1_NUM, out_channels=channels, kernel_size=1, padding=0, bias=False)
@@ -62,9 +110,8 @@ class PolicyValueNetwork(nn.Module):
         self.blocks = nn.Sequential(*[ResNetBlock(channels, activation) for _ in range(blocks)])
         
         # Transformer
-        self.pos_encoder = PositionalEncoding(channels, 81)
-        transformer_layer = nn.TransformerEncoderLayer(channels, nhead=8, dim_feedforward=256, dropout=0.1, activation="gelu", batch_first=True)
-        self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=8)
+        self.pos_encoder = PositionalEncoding(channels)
+        self.transformer = nn.Sequential(*[TransformerEncoderLayer(channels, d_model=256, nhead=8, dim_feedforward=256, dropout=0.1, activation=nn.GELU()) for _ in range(num_layers)])
 
         # policy network
         self.policy = nn.Conv2d(in_channels=channels, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
@@ -86,12 +133,8 @@ class PolicyValueNetwork(nn.Module):
         h = self.blocks(u1)
         
         # Transformer
-        h = h.flatten(2)
-        h = h.transpose(1, 2)
         h = self.pos_encoder(h)
         h = self.transformer(h)
-        h = h.transpose(1, 2)
-        h = h.view(h.size(0), -1, 9, 9)
         
         # policy network
         h_policy = self.policy(h)
