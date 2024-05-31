@@ -64,13 +64,14 @@ class TransformerEncoderLayer(nn.Module):
         self.activation = activation
 
         self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
+        self.o_linear = nn.Conv2d(d_model, d_model, kernel_size=1, bias=False)
 
         self.attention_dropout = nn.Dropout(dropout)
         self.linear1 = nn.Conv2d(d_model, dim_feedforward, kernel_size=1, bias=False)
         self.linear2 = nn.Conv2d(dim_feedforward, channels, kernel_size=1, bias=False)
         self.final_dropout = nn.Dropout(dropout)
-        self.layer_norm1 = nn.BatchNorm2d(d_model)
-        self.layer_norm2 = nn.BatchNorm2d(channels)
+        self.norm1 = nn.BatchNorm2d(d_model)
+        self.norm2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
         batch_size = x.size(0)
@@ -88,12 +89,13 @@ class TransformerEncoderLayer(nn.Module):
 
         attended = torch.matmul(attention_weights, v)
         attended = attended.transpose(2, 3).contiguous().view(batch_size, self.d_model, 9, 9)
+        attended = self.o_linear(attended)
 
-        x = self.layer_norm1(attended + x)
+        x = self.norm1(attended + x)
         feedforward = self.activation(self.linear1(x))
         feedforward = self.linear2(feedforward)
         feedforward = self.final_dropout(feedforward)
-        x = self.layer_norm2(feedforward + x)
+        x = self.norm2(feedforward + x)
 
         return x
 
