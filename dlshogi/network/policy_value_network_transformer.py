@@ -74,21 +74,19 @@ class TransformerEncoderLayer(nn.Module):
         self.norm2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
-        batch_size = x.size(0)
+        qkv = self.qkv_linear(x)
+        q, k, v = qkv.split((self.d_model, self.d_model, self.d_model), dim=1)
 
-        qkv = self.qkv_linear(x).squeeze(-1)
-        q, k, v = qkv.chunk(3, dim=1)
-
-        q = q.view(batch_size, self.nhead, self.depth, 81).transpose(2, 3)
-        k = k.view(batch_size, self.nhead, self.depth, 81)
-        v = v.view(batch_size, self.nhead, self.depth, 81).transpose(2, 3)
+        q = q.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
+        k = k.view(-1, self.nhead, self.depth, 81)
+        v = v.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
 
         scores = torch.matmul(q, k) / math.sqrt(self.depth)
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.attention_dropout(attention_weights)
 
         attended = torch.matmul(attention_weights, v)
-        attended = attended.transpose(2, 3).contiguous().view(batch_size, self.d_model, 9, 9)
+        attended = attended.transpose(2, 3).contiguous().view(-1, self.d_model, 9, 9)
         attended = self.o_linear(attended)
 
         x = self.norm1(attended + x)
