@@ -63,7 +63,8 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout = dropout
         self.activation = activation
 
-        self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
+        self.qkvr_linear = nn.Conv2d(channels, 4 * d_model, kernel_size=1, groups=nhead, bias=False)
+        self.relative = nn.Parameter(torch.zeros(self.nhead, 81, self.depth))
         self.o_linear = nn.Conv2d(d_model, d_model, kernel_size=1, bias=False)
 
         self.attention_dropout = nn.Dropout(dropout)
@@ -74,15 +75,17 @@ class TransformerEncoderLayer(nn.Module):
         self.norm2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
-        qkv = self.qkv_linear(x)
-        q, k, v = qkv.split((self.d_model, self.d_model, self.d_model), dim=1)
+        qkvr = self.qkvr_linear(x)
+        q, k, v, r = qkvr.split((self.d_model, self.d_model, self.d_model, self.d_model), dim=1)
 
         q = q.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
         k = k.view(-1, self.nhead, self.depth, 81)
         v = v.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
+        r = r.view(-1, self.nhead, self.depth, 81)
 
         scores = torch.matmul(q, k) / math.sqrt(self.depth)
-        attention_weights = F.softmax(scores, dim=-1)
+        relative = torch.matmul(self.relative, r)
+        attention_weights = F.softmax(scores + relative, dim=-1)
         attention_weights = self.attention_dropout(attention_weights)
 
         attended = torch.matmul(attention_weights, v)
