@@ -66,6 +66,7 @@ class TransformerEncoderLayer(nn.Module):
         self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
         self.relative_linear1 = nn.Linear(channels * 81, 32, bias=False)
         self.relative_linear2 = nn.Linear(32, 32 * 81, bias=False)
+        self.relative_norm = nn.LayerNorm(81)
         self.relative = nn.Parameter(torch.zeros(self.nhead, 81, 32))
         self.o_linear = nn.Conv2d(d_model, d_model, kernel_size=1, bias=False)
 
@@ -87,6 +88,7 @@ class TransformerEncoderLayer(nn.Module):
         r = self.relative_linear1(x.flatten(1))
         r = self.relative_linear2(r)
         r = r.view(-1, 1, 32, 81)
+        r = F.relu(self.relative_norm(r))
         r = torch.matmul(self.relative, r)
 
         scores = torch.matmul(q, k) / math.sqrt(self.depth)
