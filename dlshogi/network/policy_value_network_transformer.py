@@ -64,8 +64,8 @@ class TransformerEncoderLayer(nn.Module):
         self.activation = activation
 
         self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
-        self.relative_linear1 = nn.Linear(channels * 81, 64, bias=False)
-        self.relative_linear2 = nn.Linear(64, 32 * 81, bias=False)
+        self.relative_linear1 = nn.Linear(channels * 81, 32, bias=False)
+        self.relative_linear2 = nn.Linear(32, 32 * 81, bias=False)
         self.relative = nn.Parameter(torch.randn(self.nhead, 81, 32))
         self.o_linear = nn.Conv2d(d_model, d_model, kernel_size=1, bias=False)
 
