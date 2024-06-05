@@ -64,9 +64,6 @@ class TransformerEncoderLayer(nn.Module):
         self.activation = activation
 
         self.qkv_linear = nn.Conv2d(channels, 3 * d_model, kernel_size=1, groups=nhead, bias=False)
-        self.relative_linear1 = nn.Linear(channels * 81, 32, bias=False)
-        self.relative_linear2 = nn.Linear(32, 32 * 81, bias=False)
-        self.relative = nn.Parameter(torch.randn(self.nhead, 81, 32))
         self.o_linear = nn.Conv2d(d_model, d_model, kernel_size=1, bias=False)
 
         self.attention_dropout = nn.Dropout(dropout)
@@ -84,13 +81,8 @@ class TransformerEncoderLayer(nn.Module):
         k = k.view(-1, self.nhead, self.depth, 81)
         v = v.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
 
-        r = self.relative_linear1(x.flatten(1))
-        r = self.relative_linear2(r)
-        r = r.view(-1, 1, 32, 81)
-        r = torch.matmul(self.relative, r)
-
         scores = torch.matmul(q, k) / math.sqrt(self.depth)
-        attention_weights = F.softmax(scores + r, dim=-1)
+        attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.attention_dropout(attention_weights)
 
         attended = torch.matmul(attention_weights, v)
