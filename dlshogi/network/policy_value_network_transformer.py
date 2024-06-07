@@ -53,7 +53,7 @@ class ResNetBlock(nn.Module):
 
 
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, channels, d_model, nhead, dim_feedforward=256, dropout=0.1, activation=nn.GELU()):
+    def __init__(self, channels, d_model, nhead, dim_feedforward=256, dropout=0.1, activation=SwiGLU()):
         super(TransformerEncoderLayer, self).__init__()
         assert d_model % nhead == 0
         self.d_model = d_model
