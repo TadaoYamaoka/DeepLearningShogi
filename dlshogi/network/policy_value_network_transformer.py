@@ -78,7 +78,6 @@ class TransformerEncoderLayer(nn.Module):
         
         N = 8
         nn.init.xavier_normal_(self.o_linear.weight, gain=math.pow(8*N, -1/4))
-        nn.init.xavier_normal_(self.linear1.weight, gain=math.pow(8*N, -1/4))
         nn.init.xavier_normal_(self.linear2.weight, gain=math.pow(8*N, -1/4))
         self.alpha = math.pow(2*N, 1/4)
 
