@@ -53,7 +53,7 @@ class ResNetBlock(nn.Module):
 
 
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, channels, d_model, nhead, dim_feedforward=256, dropout=0.1, activation=SwiGLU()):
+    def __init__(self, channels, d_model, nhead, dim_feedforward=256, dropout=0.1, activation=nn.GELU()):
         super(TransformerEncoderLayer, self).__init__()
         assert d_model % nhead == 0
         self.d_model = d_model
@@ -75,6 +75,12 @@ class TransformerEncoderLayer(nn.Module):
         self.final_dropout = nn.Dropout(dropout)
         self.norm1 = nn.BatchNorm2d(d_model)
         self.norm2 = nn.BatchNorm2d(channels)
+        
+        N = 8
+        nn.init.xavier_normal_(self.o_linear.weight, gain=math.pow(8*N, -1/4))
+        nn.init.xavier_normal_(self.linear1.weight, gain=math.pow(8*N, -1/4))
+        nn.init.xavier_normal_(self.linear2.weight, gain=math.pow(8*N, -1/4))
+        self.alpha = math.pow(2*N, 1/4)
 
     def forward(self, x):
         qkv = self.qkv_linear(x)
@@ -97,11 +103,11 @@ class TransformerEncoderLayer(nn.Module):
         attended = attended.transpose(2, 3).contiguous().view(-1, self.d_model, 9, 9)
         attended = self.o_linear(attended)
 
-        x = self.norm1(attended + x)
+        x = self.norm1(attended + x * self.alpha)
         feedforward = self.activation(self.linear1(x))
         feedforward = self.linear2(feedforward)
         feedforward = self.final_dropout(feedforward)
-        x = self.norm2(feedforward + x)
+        x = self.norm2(feedforward + x * self.alpha)
 
         return x
 
