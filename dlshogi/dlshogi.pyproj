@@ -86,6 +86,7 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
+    <Compile Include="utils\make_hcpe3_cache.py" />
     <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
