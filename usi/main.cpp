@@ -1981,16 +1981,18 @@ void MySearcher::bookToHcp(std::istringstream& ssCmd, const std::string& posCmd)
 
 	std::string bookFileName;
 	std::string outFileName;
+	int limitScore = ScoreInfinite;
 
 	ssCmd >> bookFileName;
 	ssCmd >> outFileName;
+	ssCmd >> limitScore;
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	std::istringstream ssPosCmd(posCmd);
 	setPosition(pos, ssPosCmd);
 
-	book_to_hcp(pos, bookFileName, outFileName);
+	book_to_hcp(pos, bookFileName, outFileName, limitScore);
 
 	// 結果表示
 	std::cout << "done" << std::endl;

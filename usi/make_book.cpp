@@ -2075,7 +2075,7 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 	}
 }
 
-void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName) {
+void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
@@ -2090,9 +2090,14 @@ void book_to_hcp(Position& pos, const std::string& bookFileName, const std::stri
 	std::cout << "positions: " << positions.size() << std::endl;
 
 	std::ofstream ofs(outFileName, std::ios::binary);
+	size_t output_num = 0;
 	for (const auto position : positions) {
-		ofs.write((const char*)position.first.data, sizeof(HuffmanCodedPos));
+		if (std::abs(position.second->begin()->score) <= limitScore) {
+			ofs.write((const char*)position.first.data, sizeof(HuffmanCodedPos));
+			output_num++;
+		}
 	}
+	std::cout << "output: " << output_num << std::endl;
 }
 
 void make_policy_book_inner(Position& pos,
