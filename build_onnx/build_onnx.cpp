@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include <string>
+#include <limits>
 #include "cxxopts/cxxopts.hpp"
 
 #include "nn_tensorrt.h"
