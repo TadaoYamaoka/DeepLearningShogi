@@ -40,14 +40,14 @@ class ResNetBlock(nn.Module):
 
 
 class MHSA(nn.Module):
-    def __init__(self, channels, d_model, nhead):
+    def __init__(self, d_model, nhead):
         super(MHSA, self).__init__()
         assert d_model % nhead == 0
         self.d_model = d_model
         self.nhead = nhead
         self.depth = d_model // nhead
 
-        self.qkv = nn.Conv2d(channels, 3 * d_model, kernel_size=1)
+        self.qkv = nn.Conv2d(d_model, 3 * d_model, kernel_size=1)
 
         self.rel_h = nn.Parameter(torch.randn([1, nhead, self.depth, 1, 9]))
         self.rel_w = nn.Parameter(torch.randn([1, nhead, self.depth, 9, 1]))
@@ -80,9 +80,9 @@ class BotNetBlock(nn.Module):
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(channels)
 
-        self.mhsa = MHSA(channels, channels * 4, 4)
+        self.mhsa = MHSA(channels, 4)
 
-        self.conv2 = nn.Conv2d(channels * 4, channels, kernel_size=1, bias=False)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
         self.bn2 = nn.BatchNorm2d(channels)
         self.act = activation
 
