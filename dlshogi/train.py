@@ -249,7 +249,7 @@ def main(*argv):
         for x1, x2, t1, t2, value in train_dataloader:
             t += 1
             steps += 1
-            with torch.cuda.amp.autocast(enabled=args.use_amp):
+            with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=torch.bfloat16):
                 model.train()
 
                 y1, y2 = model(x1, x2)
