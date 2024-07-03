@@ -78,25 +78,25 @@ class BotNetBlock(nn.Module):
     def __init__(self, channels, activation):
         super(BotNetBlock, self).__init__()
         self.conv1 = nn.Linear(channels, channels, bias=False)
-        self.bn1 = nn.BatchNorm1d(channels)
+        self.bn1 = nn.LayerNorm(channels)
 
         self.mhsa = MHSA(channels, 4)
 
         self.conv2 = nn.Linear(channels, channels, bias=False)
-        self.bn2 = nn.BatchNorm1d(channels)
+        self.bn2 = nn.LayerNorm(channels)
         self.act = activation
 
         self.channels = channels
 
     def forward(self, x):
         out = self.conv1(x)
-        out = self.bn1(out.view(-1, self.channels)).view(-1, 81, self.channels)
+        out = self.bn1(out)
         out = self.act(out)
 
         out = self.mhsa(out)
 
         out = self.conv2(out)
-        out = self.bn2(out.view(-1, self.channels)).view(-1, 81, self.channels)
+        out = self.bn2(out)
 
         return self.act(out + x)
 
