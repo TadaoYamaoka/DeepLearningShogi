@@ -47,54 +47,56 @@ class MHSA(nn.Module):
         self.nhead = nhead
         self.depth = d_model // nhead
 
-        self.qkv = nn.Conv2d(d_model, 3 * d_model, kernel_size=1)
+        self.qkv = nn.Linear(d_model, 3 * d_model)
 
         self.rel_h = nn.Parameter(torch.randn([1, nhead, self.depth, 1, 9]))
         self.rel_w = nn.Parameter(torch.randn([1, nhead, self.depth, 9, 1]))
 
     def forward(self, x):
         qkv = self.qkv(x)
-        q, k, v = qkv.split((self.d_model, self.d_model, self.d_model), dim=1)
+        q, k, v = qkv.split((self.d_model, self.d_model, self.d_model), dim=2)
 
-        q = q.view(-1, self.nhead, self.depth, 81).transpose(2, 3)
-        k = k.view(-1, self.nhead, self.depth, 81)
-        v = v.view(-1, self.nhead, self.depth, 81)
+        q = q.view(-1, 81, self.nhead, self.depth).permute(0, 2, 1, 3)
+        k = k.view(-1, 81, self.nhead, self.depth).permute(0, 2, 3, 1)
+        v = v.view(-1, 81, self.nhead, self.depth).permute(0, 2, 1, 3)
 
         content_content = torch.matmul(q, k)
 
-        r = (self.rel_h + self.rel_w).view(1, self.nhead, self.depth, -1)
+        r = (self.rel_h + self.rel_w).view(1, self.nhead, self.depth, 81)
         content_position = torch.matmul(q, r)
 
         scores = content_content + content_position
 
         attention = F.softmax(scores, dim=-1)
 
-        out = torch.matmul(v, attention.transpose(2, 3))
-        out = out.view(-1, self.d_model, 9, 9)
+        out = torch.matmul(attention, v)
+        out = out.transpose(1, 2).contiguous().view(-1, 81, self.d_model)
 
         return out
 
 class BotNetBlock(nn.Module):
     def __init__(self, channels, activation):
         super(BotNetBlock, self).__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv1 = nn.Linear(channels, channels, bias=False)
+        self.bn1 = nn.BatchNorm1d(channels)
 
         self.mhsa = MHSA(channels, 4)
 
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Linear(channels, channels, bias=False)
+        self.bn2 = nn.BatchNorm1d(channels)
         self.act = activation
+
+        self.channels = channels
 
     def forward(self, x):
         out = self.conv1(x)
-        out = self.bn1(out)
+        out = self.bn1(out.view(-1, self.channels)).view(-1, 81, self.channels)
         out = self.act(out)
 
         out = self.mhsa(out)
 
         out = self.conv2(out)
-        out = self.bn2(out)
+        out = self.bn2(out.view(-1, self.channels)).view(-1, 81, self.channels)
 
         return self.act(out + x)
 
@@ -123,6 +125,8 @@ class PolicyValueNetwork(nn.Module):
         self.value_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.value_fc2 = nn.Linear(fcl, 1)
 
+        self.channels = channels
+
     def forward(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
@@ -133,7 +137,9 @@ class PolicyValueNetwork(nn.Module):
         h = self.blocks(u1)
         
         # BotNet blocks
+        h = h.view(-1, self.channels, 81).transpose(1, 2)
         h = self.botnet_blocks(h)
+        h = h.transpose(1, 2).view(-1, self.channels, 9, 9)
         
         # policy network
         h_policy = self.policy(h)
