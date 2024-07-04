@@ -74,29 +74,29 @@ class MHSA(nn.Module):
 
         return out
 
-class BotNetBlock(nn.Module):
+class MHSABlock(nn.Module):
     def __init__(self, channels, activation):
-        super(BotNetBlock, self).__init__()
+        super(MHSABlock, self).__init__()
         self.conv1 = nn.Linear(channels, channels, bias=False)
-        self.bn1 = nn.LayerNorm(channels)
+        self.norm1 = nn.LayerNorm(channels)
 
         self.mhsa = MHSA(channels, 4)
 
         self.conv2 = nn.Linear(channels, channels, bias=False)
-        self.bn2 = nn.LayerNorm(channels)
+        self.norm2 = nn.LayerNorm(channels)
         self.act = activation
 
         self.channels = channels
 
     def forward(self, x):
         out = self.conv1(x)
-        out = self.bn1(out)
+        out = self.norm1(out)
         out = self.act(out)
 
         out = self.mhsa(out)
 
         out = self.conv2(out)
-        out = self.bn2(out)
+        out = self.norm2(out)
 
         return self.act(out + x)
 
@@ -112,8 +112,8 @@ class PolicyValueNetwork(nn.Module):
         # Resnet blocks
         self.blocks = nn.Sequential(*[ResNetBlock(channels, activation) for _ in range(blocks)])
         
-        # BotNet blocks
-        self.botnet_blocks = nn.Sequential(*[BotNetBlock(channels, activation) for _ in range(3)])
+        # MHSA blocks
+        self.mhsa_blocks = nn.Sequential(*[MHSABlock(channels, activation) for _ in range(3)])
 
         # policy network
         self.policy = nn.Conv2d(in_channels=channels, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
@@ -136,9 +136,9 @@ class PolicyValueNetwork(nn.Module):
         # ResNet blocks
         h = self.blocks(u1)
         
-        # BotNet blocks
+        # MHSA blocks
         h = h.view(-1, self.channels, 81).transpose(1, 2)
-        h = self.botnet_blocks(h)
+        h = self.mhsa_blocks(h)
         h = h.transpose(1, 2).view(-1, self.channels, 9, 9)
         
         # policy network
