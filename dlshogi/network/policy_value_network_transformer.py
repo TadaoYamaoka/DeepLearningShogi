@@ -86,8 +86,6 @@ class MHSABlock(nn.Module):
         self.norm2 = nn.LayerNorm(channels)
         self.act = activation
 
-        self.channels = channels
-
     def forward(self, x):
         out = self.conv1(x)
         out = self.norm1(out)
