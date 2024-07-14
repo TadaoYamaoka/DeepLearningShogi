@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -49,6 +49,7 @@ def main(*argv):
     parser.add_argument('--swa_freq', type=int, default=250)
     parser.add_argument('--swa_n_avr', type=int, default=10)
     parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
+    parser.add_argument('--amp_dtype', type=str, default='float16', choices=['float16', 'bfloat16'], help='Data type for automatic mixed precision')
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
@@ -98,7 +99,8 @@ def main(*argv):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
     bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
     if args.use_amp:
-        logging.info('use amp')
+        logging.info(f'use amp dtype={args.amp_dtype}')
+        amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
     scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
     if args.use_evalfix:
@@ -249,7 +251,7 @@ def main(*argv):
         for x1, x2, t1, t2, value in train_dataloader:
             t += 1
             steps += 1
-            with torch.cuda.amp.autocast(enabled=args.use_amp):
+            with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
                 model.train()
 
                 y1, y2 = model(x1, x2)
@@ -342,7 +344,7 @@ def main(*argv):
             logging.info('Updating batch normalization')
             forward_ = swa_model.forward
             swa_model.forward = lambda x : forward_(**x)
-            with torch.cuda.amp.autocast(enabled=args.use_amp):
+            with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
                 update_bn(hcpe_loader(train_data, args.batchsize), swa_model)
             del swa_model.forward
 
