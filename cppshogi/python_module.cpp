@@ -561,3 +561,137 @@ void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult) {
 	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval));
 	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult));
 }
+
+// 2つのhcpe3キャッシュをマージする
+void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, const std::string& out) {
+	// file2のhcpをキーとした辞書を作成
+	std::ifstream cache2(file2, std::ios::binary);
+	size_t num2;
+	cache2.read((char*)&num2, sizeof(num2));
+	std::vector<size_t> cache2_pos(num2 + 1);
+	cache2.read((char*)cache2_pos.data(), sizeof(size_t) * num2);
+	cache2.seekg(0, std::ios_base::end);
+	cache2_pos[num2] = cache2.tellg();
+
+	std::unordered_map<HuffmanCodedPos, std::pair<size_t, size_t>> cache2_map;
+	for (size_t i = 0; i < num2; ++i) {
+		auto pos = cache2_pos[i];
+		cache2.seekg(pos, std::ios_base::beg);
+		HuffmanCodedPos hcp;
+		cache2.read((char*)&hcp, sizeof(HuffmanCodedPos));
+		cache2_map[hcp] = std::make_pair(pos, cache2_pos[i + 1]);
+	}
+
+	// file1のインデックス読み込み
+	std::ifstream cache1(file1, std::ios::binary);
+	size_t num1;
+	cache1.read((char*)&num1, sizeof(num1));
+	std::vector<size_t> cache1_pos(num1 + 1);
+	cache1.read((char*)cache1_pos.data(), sizeof(size_t) * num1);
+	cache1.seekg(0, std::ios_base::end);
+	cache1_pos[num1] = cache1.tellg();
+
+	// 重複しない局面数をカウントしてインデックスのサイズを計算
+	size_t num_out = num2;
+	for (size_t i = 0; i < num1; ++i) {
+		auto pos = cache1_pos[i];
+		cache1.seekg(pos, std::ios_base::beg);
+		HuffmanCodedPos hcp;
+		cache1.read((char*)&hcp, sizeof(HuffmanCodedPos));
+		// file2に存在するか
+		if (cache2_map.find(hcp) == cache2_map.end()) {
+			num_out++;
+		}
+	}
+
+	std::cout << "file1 position num = " << num1 << std::endl;
+	std::cout << "file2 position num = " << num2 << std::endl;
+
+	std::ofstream ofs(out, std::ios::binary);
+
+	// インデックスの領域をシーク
+	ofs.seekp(sizeof(num_out) + sizeof(size_t) * num_out, std::ios_base::beg);
+
+	std::vector<size_t> out_pos;
+	out_pos.reserve(num_out);
+
+	struct Hcpe3CacheBuf {
+		Hcpe3CacheBody body;
+		Hcpe3CacheCandidate candidates[MaxLegalMoves];
+	};
+
+	// file1をシーケンシャルに処理
+	for (size_t i = 0; i < num1; ++i) {
+		auto pos1 = cache1_pos[i];
+		const size_t candidate_num1 = ((cache1_pos[i + 1] - pos1) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+		Hcpe3CacheBuf buf1;
+		cache1.seekg(pos1, std::ios_base::beg);
+		cache1.read((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
+
+		out_pos.emplace_back(ofs.tellp());
+
+		auto itr = cache2_map.find(buf1.body.hcp);
+		if (itr == cache2_map.end()) {
+			// file2の辞書に局面が存在しない場合、そのまま出力
+			ofs.write((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
+		}
+		else {
+			// file2の辞書に局面が存在する場合マージ
+			auto pos2 = itr->second.first;
+			const size_t candidate_num2 = ((itr->second.second - pos2) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+			Hcpe3CacheBuf buf2;
+			cache2.seekg(pos2, std::ios_base::beg);
+			cache2.read((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+
+			buf1.body.value += buf2.body.value;
+			buf1.body.result += buf2.body.result;
+			buf1.body.count += buf2.body.count;
+
+			std::unordered_map<u16, float> candidate_map;
+			for (size_t j = 0; j < candidate_num1; ++j) {
+				candidate_map[buf1.candidates[j].move16] = buf1.candidates[j].prob;
+			}
+			for (size_t j = 0; j < candidate_num2; ++j) {
+				auto ret = candidate_map.try_emplace(buf2.candidates[j].move16, buf2.candidates[j].prob);
+				if (!ret.second) {
+					ret.first->second += buf2.candidates[j].prob;
+				}
+			}
+			size_t candidate_i = 0;
+			for (const auto& kv : candidate_map) {
+				buf1.candidates[candidate_i].move16 = kv.first;
+				buf1.candidates[candidate_i].prob = kv.second;
+				candidate_i++;
+			}
+
+			// 出力
+			ofs.write((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_i);
+
+			// 辞書から削除
+			cache2_map.erase(itr);
+		}
+	}
+
+	// 未出力のfile2の局面を出力
+	for (const auto& kv : cache2_map) {
+		out_pos.emplace_back(ofs.tellp());
+
+		auto pos2 = kv.second.first;
+		const size_t candidate_num2 = ((kv.second.second - pos2) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+		Hcpe3CacheBuf buf2;
+		cache2.seekg(pos2, std::ios_base::beg);
+		cache2.read((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+
+		ofs.write((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+	}
+	assert(out_pos.size() == num_out);
+
+	// インデックスの出力
+	ofs.seekp(0, std::ios_base::beg);
+	ofs.write((char*)&num_out, sizeof(num_out));
+	ofs.write((char*)out_pos.data(), sizeof(size_t) * num_out);
+
+	assert(ofs.tellp() == out_pos[0]);
+
+    std::cout << "out position num = " << num_out << std::endl;
+}

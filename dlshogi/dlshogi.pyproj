@@ -34,6 +34,7 @@
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="lr_scheduler.py" />
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
@@ -42,6 +43,8 @@
     <Compile Include="network\policy_value_network_transformer.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
+    <Compile Include="ptl.py" />
+    <Compile Include="ptl_update_bn.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -87,6 +90,9 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
+    <Compile Include="utils\make_hcpe3_cache.py" />
+    <Compile Include="utils\merge_hcpe3_cache.py" />
+    <Compile Include="utils\print_hcp.py" />
     <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
