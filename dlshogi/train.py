@@ -16,6 +16,7 @@ import random
 import sys
 import os
 import re
+import importlib
 
 import logging
 
@@ -37,6 +38,7 @@ def main(*argv):
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
     parser.add_argument('--lr_scheduler', help='learning rate scheduler')
+    parser.add_argument('--scheduler_step_mode', type=str, default='epoch', choices=['epoch', 'step'], help='Scheduler step mode: epoch or step')
     parser.add_argument('--reset_scheduler', action='store_true')
     parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
     parser.add_argument('--use_critic', action='store_true')
@@ -84,10 +86,23 @@ def main(*argv):
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
     optimizer = eval('optim.' + args.optimizer.replace('(', '(model.parameters(),lr=args.lr,' + 'weight_decay=args.weight_decay,' if args.weight_decay >= 0 else ''))
+
+    def create_scheduler(scheduler_name, optimizer, **kwargs):
+        if '.' in scheduler_name:
+            module_name, class_name = scheduler_name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            scheduler_class = getattr(module, class_name)
+        else:
+            scheduler_class = getattr(optim.lr_scheduler, scheduler_name)
+
+        return scheduler_class(optimizer, **kwargs)
+
     if args.lr_scheduler:
-        if args.lr_scheduler[-1] != ')':
-            args.lr_scheduler += '()'
-        scheduler = eval('optim.lr_scheduler.' + args.lr_scheduler.replace('(', '(optimizer,'))
+        scheduler_name, scheduler_args = args.lr_scheduler.split('(', 1)
+        scheduler_args = eval(f'dict({scheduler_args.rstrip(")")})')
+        scheduler = create_scheduler(scheduler_name, optimizer, **scheduler_args)
+        if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
+            raise TypeError(f"Invalid scheduler type: {type(scheduler)}. Must be a subclass of torch.optim.lr_scheduler.LRScheduler")
     if args.use_swa:
         logging.info(f'use swa(swa_start_epoch={args.swa_start_epoch}, swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
@@ -315,6 +330,9 @@ def main(*argv):
                 sum_loss3 = 0
                 sum_loss = 0
 
+            if args.lr_scheduler and args.scheduler_step_mode == 'step':
+                scheduler.step()
+
         steps_epoch += steps
         sum_loss1_epoch += sum_loss1
         sum_loss2_epoch += sum_loss2
@@ -331,7 +349,7 @@ def main(*argv):
             test_accuracy1, test_accuracy2,
             test_entropy1, test_entropy2))
 
-        if args.lr_scheduler:
+        if args.lr_scheduler and args.scheduler_step_mode == 'epoch':
             scheduler.step()
 
         # save checkpoint
