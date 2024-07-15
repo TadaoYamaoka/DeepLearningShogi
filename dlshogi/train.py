@@ -115,7 +115,7 @@ def main(*argv):
     bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
     if args.use_amp:
         logging.info(f'use amp dtype={args.amp_dtype}')
-        amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
+    amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
     scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
     if args.use_evalfix:
