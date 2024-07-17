@@ -83,11 +83,28 @@ def main(*argv):
     model = policy_value_network(args.network)
     model.to(device)
 
+    def create_optimizer(optimizer_str, model_params, lr, weight_decay):
+        optimizer_name, optimizer_args = optimizer_str.split('(', 1)
+        optimizer_args = eval(f'dict({optimizer_args.rstrip(")")})')
+        if '.' in optimizer_name:
+            module_name, class_name = optimizer_name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            optimizer_class = getattr(module, class_name)
+        else:
+            optimizer_class = getattr(optim, optimizer_name)
+
+        if weight_decay >= 0:
+            optimizer_args["weight_decay"] = weight_decay
+
+        return optimizer_class(model_params, lr=lr, **optimizer_args)
+
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
-    optimizer = eval('optim.' + args.optimizer.replace('(', '(model.parameters(),lr=args.lr,' + 'weight_decay=args.weight_decay,' if args.weight_decay >= 0 else ''))
+    optimizer = create_optimizer(args.optimizer, model.parameters(), args.lr, args.weight_decay)
 
-    def create_scheduler(scheduler_name, optimizer, **kwargs):
+    def create_scheduler(scheduler_str, optimizer):
+        scheduler_name, scheduler_args = scheduler_str.split('(', 1)
+        scheduler_args = eval(f'dict({scheduler_args.rstrip(")")})')
         if '.' in scheduler_name:
             module_name, class_name = scheduler_name.rsplit('.', 1)
             module = importlib.import_module(module_name)
@@ -95,12 +112,10 @@ def main(*argv):
         else:
             scheduler_class = getattr(optim.lr_scheduler, scheduler_name)
 
-        return scheduler_class(optimizer, **kwargs)
+        return scheduler_class(optimizer, **scheduler_args)
 
     if args.lr_scheduler:
-        scheduler_name, scheduler_args = args.lr_scheduler.split('(', 1)
-        scheduler_args = eval(f'dict({scheduler_args.rstrip(")")})')
-        scheduler = create_scheduler(scheduler_name, optimizer, **scheduler_args)
+        scheduler = create_scheduler(args.lr_scheduler, optimizer)
         if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
             raise TypeError(f"Invalid scheduler type: {type(scheduler)}. Must be a subclass of torch.optim.lr_scheduler.LRScheduler")
     if args.use_swa:
