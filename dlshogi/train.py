@@ -96,7 +96,10 @@ def main(*argv):
         if weight_decay >= 0:
             optimizer_args["weight_decay"] = weight_decay
 
-        return optimizer_class(model_params, lr=lr, **optimizer_args)
+        optimizer = optimizer_class(model_params, lr=lr, **optimizer_args)
+        if not isinstance(optimizer, torch.optim.Optimizer):
+            raise TypeError(f"Invalid optimizer type: {type(optimizer)}. Must be a subclass of torch.optim.Optimizer")
+        return optimizer
 
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
@@ -112,12 +115,13 @@ def main(*argv):
         else:
             scheduler_class = getattr(optim.lr_scheduler, scheduler_name)
 
-        return scheduler_class(optimizer, **scheduler_args)
+        scheduler = scheduler_class(optimizer, **scheduler_args)
+        if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
+            raise TypeError(f"Invalid scheduler type: {type(scheduler)}. Must be a subclass of torch.optim.lr_scheduler.LRScheduler")
+        return scheduler
 
     if args.lr_scheduler:
         scheduler = create_scheduler(args.lr_scheduler, optimizer)
-        if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
-            raise TypeError(f"Invalid scheduler type: {type(scheduler)}. Must be a subclass of torch.optim.lr_scheduler.LRScheduler")
     if args.use_swa:
         logging.info(f'use swa(swa_start_epoch={args.swa_start_epoch}, swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
