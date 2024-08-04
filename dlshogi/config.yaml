@@ -1,4 +1,4 @@
-﻿# lightning.pytorch==2.2.0.post0
+# lightning.pytorch==2.2.0.post0
 seed_everything: 0
 trainer:
   max_epochs: 4
