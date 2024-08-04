@@ -16,6 +16,7 @@ trainer:
 model:
   network: resnet10_relu
   val_lambda: 0.333
+  val_lambda_decay_epoch: 3
   use_ema: false
   update_bn: false
   ema_start_epoch: 1

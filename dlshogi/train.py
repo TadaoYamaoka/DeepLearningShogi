@@ -44,6 +44,7 @@ def main(*argv):
     parser.add_argument('--use_critic', action='store_true')
     parser.add_argument('--beta', type=float, help='entropy regularization coeff')
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
+    parser.add_argument('--val_lambda_decay_epoch', type=int, help='Number of total epochs to decay val_lambda to 0')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
     parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
     parser.add_argument('--use_swa', action='store_true')
@@ -74,6 +75,7 @@ def main(*argv):
     if args.beta:
         logging.info('entropy regularization coeff={}'.format(args.beta))
     logging.info('val_lambda={}'.format(args.val_lambda))
+    val_lambda = args.val_lambda
 
     if args.gpu >= 0:
         device = torch.device(f"cuda:{args.gpu}")
@@ -224,7 +226,7 @@ def main(*argv):
                 loss1 = cross_entropy_loss(y1, t1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
                 sum_test_loss1 += loss1.item()
                 sum_test_loss2 += loss2.item()
                 sum_test_loss3 += loss3.item()
@@ -276,6 +278,13 @@ def main(*argv):
     for e in range(args.epoch):
         if args.lr_scheduler:
             logging.info('lr_scheduler lr={}'.format(scheduler.get_last_lr()[0]))
+        if args.val_lambda_decay_epoch:
+            # update val_lambda
+            val_lambda = max(
+                0,
+                args.val_lambda * (1 - epoch / args.val_lambda_decay_epoch)
+            )
+            logging.info('update val_lambda={}'.format(val_lambda))
         epoch += 1
         steps_epoch = 0
         sum_loss1_epoch = 0
@@ -301,7 +310,7 @@ def main(*argv):
                     loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
 
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
@@ -329,7 +338,7 @@ def main(*argv):
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)
                     loss3 = bce_with_logits_loss(y2, value)
-                    loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                    loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
 
                     logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
                         epoch, t,

@@ -198,6 +198,7 @@ class Model(pl.LightningModule):
         self,
         network="resnet10_relu",
         val_lambda=0.333,
+        val_lambda_decay_epoch=None,
         use_ema=False,
         update_bn=True,
         ema_start_epoch=1,
@@ -219,6 +220,16 @@ class Model(pl.LightningModule):
             )
             self.ema_model.requires_grad_(False)
         self.validation_step_outputs = defaultdict(list)
+        self.val_lambda = val_lambda
+
+    def on_train_epoch_start(self):
+        # update val_lambda
+        if self.hparams.val_lambda_decay_epoch:
+            self.val_lambda = max(
+                0,
+                self.hparams.val_lambda * (1 - self.current_epoch / self.hparams.val_lambda_decay_epoch)
+            )
+            self.log("val_lambda", self.val_lambda)
 
     def training_step(self, batch, batch_idx):
         features1, features2, probability, result, value = batch
