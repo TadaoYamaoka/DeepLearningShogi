@@ -2367,4 +2367,60 @@ void make_important_hcp(Position& pos, const std::string& posCmd, const std::str
 	}
 	std::cout << "output: " << count << std::endl;
 }
+
+void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+	read_book(policyFileName, policyMap);
+
+	// 局面を列挙する
+	std::vector<PositionWithMove> positions;
+	positions.reserve(policyMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+	enumerate_positions_with_move(pos, policyMap, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	if (positions.size() > policyMap.size() + 1)
+		throw std::runtime_error("positions.size() > policyMap.size()");
+
+	std::ofstream ofs(outFileName);
+
+	std::string pos_cmd{ posCmd };
+	if (pos_cmd == "startpos")
+		pos_cmd += " moves";
+
+	int count = 0;
+	for (const auto& position : positions) {
+		const PositionWithMove* position_ptr = &position;
+		std::vector<Move> moves(position_ptr->depth);
+		for (int j = position_ptr->depth - 1; j >= 0; --j) {
+			moves[j] = position_ptr->move;
+			position_ptr = position_ptr->parent;
+		}
+		assert(position_ptr->parent == nullptr);
+
+		const Key key = position.key;
+
+		const auto itrPolicy = policyMap.find(key);
+		const auto itrBook = bookMap.find(key);
+		if (itrBook != bookMap.end()) {
+			const auto& entryPolicy = itrPolicy->second[0];
+			const auto scorePolicy = entryPolicy.score;
+			const auto& entryBook = itrBook->second[0];
+			const auto scoreBook = entryBook.score;
+			// 符号
+			const auto sign = (scoreBook + 150) * scorePolicy < 0 || (scoreBook - 150) * scorePolicy < 0;
+			// 評価値の符号が異なり、差がdiff以上
+			if (sign && std::abs(scorePolicy - scoreBook) >= diff) {
+				ofs << pos_cmd;
+				for (const auto move : moves) {
+					ofs << " " << move.toUSI();
+				}
+				ofs << "\n";
+				count++;
+			}
+		}
+	}
+	std::cout << "output: " << count << std::endl;
+}
 #endif

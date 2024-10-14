@@ -76,4 +76,5 @@ void make_policy_book(Position& pos, const std::string& bookFileName, const std:
 void complement_book(Position& pos, const std::string& bookFileName, std::string& outFileName, const std::string& book_pos_cmd);
 void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& outFileName, const int diff);
 void make_important_hcp(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
+void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 #endif
