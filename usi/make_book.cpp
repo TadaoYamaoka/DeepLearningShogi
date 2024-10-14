@@ -2326,4 +2326,45 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 	}
 	std::cout << "output: " << count << std::endl;
 }
+
+
+void make_important_hcp(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+	read_book(policyFileName, policyMap);
+
+	// 全局面を列挙
+	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
+	{
+		std::unordered_set<Key> exists;
+		enumerate_positions(pos, policyMap, positions, exists);
+	}
+	std::cout << "positions: " << positions.size() << std::endl;
+
+	std::ofstream ofs(outFileName, std::ios::binary);
+
+	int count = 0;
+	for (const auto& position : positions) {
+		const auto& entryPolicy = position.second->front();
+		const Key key = entryPolicy.key;
+
+		const auto itrBook = bookMap.find(key);
+		if (itrBook != bookMap.end()) {
+			const auto& entryBook = itrBook->second[0];
+			const auto scoreBook = entryBook.score;
+			const auto scorePolicy = entryPolicy.score;
+
+			// 符号
+			const auto sign = (scoreBook + 150) * scorePolicy < 0 || (scoreBook - 150) * scorePolicy < 0;
+			// 評価値の符号が異なり、差がdiff以上
+			if (sign && std::abs(scorePolicy - scoreBook) >= diff) {
+				ofs.write((const char*)&position.first, sizeof(HuffmanCodedPos));
+				count++;
+			}
+		}
+	}
+	std::cout << "output: " << count << std::endl;
+}
 #endif
