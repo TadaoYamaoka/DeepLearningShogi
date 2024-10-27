@@ -207,6 +207,9 @@ class Model(pl.LightningModule):
         lr_scheduler_interval="epoch",
         model_filename=None,
         resume_model=None,
+        distillation_model=None,
+        distillation_network=None,
+        distillation_alpha=0.95,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -221,6 +224,12 @@ class Model(pl.LightningModule):
             self.ema_model.requires_grad_(False)
         self.validation_step_outputs = defaultdict(list)
         self.val_lambda = val_lambda
+        if distillation_model:
+            self.distillation_model = policy_value_network(distillation_network)
+            if distillation_network[-6:] == '_swish':
+                distillation_model.set_swish(False)
+            serializers.load_npz(distillation_model, self.distillation_model)
+            self.distillation_model.requires_grad_(False)
 
     def on_train_epoch_start(self):
         # update val_lambda
@@ -242,10 +251,17 @@ class Model(pl.LightningModule):
             + (1 - self.hparams.val_lambda) * loss2
             + self.hparams.val_lambda * loss3
         )
+        if self.hparams.distillation_model:
+            distillation_y1, distillation_y2 = self.distillation_model(features1, features2)
+            distillation_loss1 = cross_entropy_loss_with_soft_target(y1, distillation_y1.softmax(dim=1)).mean()
+            distillation_loss2 = bce_with_logits_loss(y2, distillation_y2.sigmoid())
+            loss = (1 - self.hparams.distillation_alpha) * loss + self.hparams.distillation_alpha * (distillation_loss1 + distillation_loss2)
         self.log("train/loss", loss)
         self.log("train/policy_loss", loss1)
         self.log("train/result_loss", loss2)
         self.log("train/value_loss", loss3)
+        self.log("train/distillation_policy_loss", distillation_loss1)
+        self.log("train/distillation_value_loss", distillation_loss2)
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):

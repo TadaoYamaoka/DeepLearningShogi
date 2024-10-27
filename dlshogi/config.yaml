@@ -14,9 +14,8 @@ trainer:
         monitor: val/loss
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
 model:
-  network: resnet10_relu
-  val_lambda: 0.333
-  val_lambda_decay_epoch: 3
+  network: exp___f30x384_relu
+  val_lambda: 0
   use_ema: false
   update_bn: false
   ema_start_epoch: 1
@@ -24,6 +23,9 @@ model:
   ema_decay: 0.9
   model_filename: model-{epoch:03}
   lr_scheduler_interval: step
+  distillation_model: F:\model\model-pre55-012
+  distillation_network: exp___f40x512_relu
+  distillation_alpha: 0.5
 data:
   train_files:
     - F:\hcpe3\floodgate_2022_0214_r3800_nomate.hcpe3
@@ -34,7 +36,7 @@ data:
   use_average: true
   use_evalfix: true
   temperature: 1.0
-  cache: null
+  cache: cache
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
