@@ -1801,6 +1801,35 @@ RepetitionType Position::isDraw(const int checkMaxPly) const {
     return NotRepetition;
 }
 
+RepetitionType Position::moveIsDraw(const Move move) const {
+    const int Start = 4;
+    int i = Start;
+    const int e = st_->pliesFromNull + 1;
+
+    // 4手掛けないと千日手には絶対にならない。
+    if (i <= e) {
+        // 現在の局面と、少なくとも 4 手戻らないと同じ局面にならない。
+        // ここでまず 1 手戻る。
+        StateInfo* stp = st_->previous;
+        Key key = getKeyAfter(move);
+
+        do {
+            // 更に 2 手戻る。
+            stp = stp->previous->previous;
+            if (stp->key() == key) {
+                if (i <= st_->continuousCheck[turn()])
+                    return RepetitionWin;
+                else if (i <= st_->continuousCheck[oppositeColor(turn())])
+                    return RepetitionLose;
+                else
+                    return RepetitionDraw;
+            }
+            i += 2;
+        } while (i <= e);
+    }
+    return NotRepetition;
+}
+
 namespace {
     void printHandPiece(const Position& pos, const HandPiece hp, const Color c, const std::string& str) {
         if (pos.hand(c).numOf(hp)) {

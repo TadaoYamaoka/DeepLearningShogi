@@ -21,65 +21,72 @@ nodes = {}
 kif_num = 0
 duplicates = set()
 for filepath in glob.glob(os.path.join(args.csa_dir, '**', '*.csa'), recursive=True):
-    for kif in CSA.Parser.parse_file(filepath):
-        endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI'):
-            continue
-        # 重複削除
-        if args.uniq:
-            dup_key = ''.join([move_to_usi(move) for move in kif.moves])
-            if dup_key in duplicates:
-                # print(f'duplicate {filepath}')
+    try:
+        for kif in CSA.Parser.parse_file(filepath):
+            endgame = kif.endgame
+            if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI'):
                 continue
-            duplicates.add(dup_key)
+            # 重複削除
+            if args.uniq:
+                dup_key = ''.join([move_to_usi(move) for move in kif.moves])
+                if dup_key in duplicates:
+                    # print(f'duplicate {filepath}')
+                    continue
+                duplicates.add(dup_key)
 
-        board.set_sfen(kif.sfen)
-        try:
-            for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
-                assert board.is_legal(move)
+            board.set_sfen(kif.sfen)
+            try:
+                for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
+                    assert board.is_legal(move)
 
-                key = board.book_key()
-                if key in nodes:
-                    node = nodes[key]
-                else:
-                    node = { 'win': 0, 'draw': 0, 'num': 0, 'value': None, 'candidates': {} }
-                    nodes[key] = node
+                    key = board.book_key()
+                    if key in nodes:
+                        node = nodes[key]
+                    else:
+                        node = { 'win': 0, 'draw': 0, 'num': 0, 'value': None, 'candidates': {} }
+                        nodes[key] = node
 
-                node['num'] += 1
-                if board.turn == kif.win - 1:
-                    node['win'] += 1
-                elif kif.win == DRAW:
-                    node['draw'] += 1
+                    node['num'] += 1
+                    if board.turn == kif.win - 1:
+                        node['win'] += 1
+                    elif kif.win == DRAW:
+                        node['draw'] += 1
 
-                assert abs(score) <= 1000000
-                eval = min(32767, max(score, -32767))
-                eval = eval if board.turn == BLACK else -eval
+                    assert abs(score) <= 1000000
+                    eval = min(32767, max(score, -32767))
+                    eval = eval if board.turn == BLACK else -eval
 
-                candidates = node['candidates']
-                if move in candidates:
-                    candidate = candidates[move]
-                else:
-                    candidate = { 'sum_eval': 0, 'num': 0 }
-                    candidates[move] = candidate
+                    candidates = node['candidates']
+                    if move in candidates:
+                        candidate = candidates[move]
+                    else:
+                        candidate = { 'sum_eval': 0, 'num': 0 }
+                        candidates[move] = candidate
 
-                candidate['sum_eval'] += eval
-                candidate['num'] += 1
+                    candidate['sum_eval'] += eval
+                    candidate['num'] += 1
 
-                board.push(move)
-                if board.is_draw() == REPETITION_DRAW:
-                    break
-        except:
-            print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
-            continue
+                    board.push(move)
+                    if board.is_draw() == REPETITION_DRAW:
+                        break
+            except:
+                print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
+                continue
 
-        kif_num += 1
+            kif_num += 1
+    except:
+        print(f'skip {filepath}')
 
 print('kif num', kif_num)
 
-
+visited = set()
 def minmax(board):
     key = board.book_key()
-    assert key in nodes
+    if key not in nodes:
+        return None
+    if key in visited:
+        return None
+    visited.add(key)
 
     node = nodes[key]
     if node['num'] < args.th:
@@ -119,32 +126,41 @@ if args.side == 'black':
     side = BLACK
 elif args.side == 'white':
     side = WHITE
-def make_book(board, book):
+visited = set()
+def make_book(board, book, draw):
     key = board.book_key()
+    if key not in nodes:
+        return None, None
+    sfen = board.sfen()
+    if sfen in visited:
+        return None, None
+    visited.add(sfen)
 
     node = nodes[key]
     if node['value'] is None:
         return None, None
 
     if board.is_draw() == REPETITION_DRAW:
-        return node['value'], None
+        draw += 1
+        if draw == 4:
+            return node['value'], None
 
     candidates = []
     for move, candidate in node['candidates'].items():
         board.push(move)
-        value, next_move = make_book(board, book)
+        value, next_move = make_book(board, book, draw)
         if value is not None:
             candidates.append({ 'move': move, 'next_move': next_move, 'value': 1 - value, 'eval': int(candidate['sum_eval'] / candidate['num']) })
         board.pop()
 
     if args.side == 'both' or board.turn == side:
         candidates.sort(key=lambda x: x['value'], reverse=True)
-        book[board.sfen()] = candidates
+        book[sfen] = candidates
 
     return node['value'], candidates[0]['move'] if len(candidates) > 0 else None
 
 book = {}
-make_book(board, book)
+make_book(board, book, 0)
 
 print('book position num', len(book))
 
@@ -167,4 +183,4 @@ with open(args.book, 'w') as f:
         for candidate in candidates:
             next_move = move_to_usi(candidate['next_move']) if candidate['next_move'] is not None else 'none'
             score = value_to_score(candidate['value'])
-            f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 0\n")
+            f.write(f"{move_to_usi(candidate['move'])} {next_move} {score} 0 1\n")

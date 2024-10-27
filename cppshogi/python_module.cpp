@@ -32,12 +32,12 @@ inline T is_nyugyoku(const uint8_t result) {
 }
 
 void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue) {
-	HuffmanCodedPosAndEval *hcpe = reinterpret_cast<HuffmanCodedPosAndEval *>(ndhcpe);
+	HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
-	float *result = reinterpret_cast<float *>(ndresult);
-	float *value = reinterpret_cast<float *>(ndvalue);
+	float* result = reinterpret_cast<float*>(ndresult);
+	float* value = reinterpret_cast<float*>(ndvalue);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -62,7 +62,7 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 }
 
 void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndaux) {
-	HuffmanCodedPosAndEval2 *hcpe = reinterpret_cast<HuffmanCodedPosAndEval2 *>(ndhcpe2);
+	HuffmanCodedPosAndEval2* hcpe = reinterpret_cast<HuffmanCodedPosAndEval2*>(ndhcpe2);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	int64_t* move = reinterpret_cast<int64_t*>(ndmove);
@@ -120,7 +120,7 @@ void __hcpe3_create_cache(const std::string& filepath) {
 	for (const auto& hcpe3 : trainingData) {
 		Hcpe3CacheBody body{
 			hcpe3.hcp,
-			hcpe3.eval,
+			hcpe3.value,
 			hcpe3.result,
 			hcpe3.count
 		};
@@ -144,31 +144,47 @@ void __hcpe3_create_cache(const std::string& filepath) {
 }
 
 // hcpe3キャッシュ
-std::ifstream cache;
+std::ifstream* cache;
 std::vector<size_t> cache_pos;
-std::mutex cache_mutex;
 size_t __hcpe3_load_cache(const std::string& filepath) {
-	cache.open(filepath, std::ios::binary);
+	cache = new std::ifstream(filepath, std::ios::binary);
 	size_t num;
-	cache.read((char*)&num, sizeof(num));
+	cache->read((char*)&num, sizeof(num));
 	cache_pos.resize(num + 1);
-	cache.read((char*)cache_pos.data(), sizeof(size_t) * num);
-	cache.seekg(0, std::ios_base::end);
-	cache_pos[num] = cache.tellg();
+	cache->read((char*)cache_pos.data(), sizeof(size_t) * num);
+	cache->seekg(0, std::ios_base::end);
+	cache_pos[num] = cache->tellg();
 	return num;
+}
+
+size_t __hcpe3_get_cache_num() {
+	return cache_pos.size() > 0 ? cache_pos.size() - 1 : 0;
 }
 
 TrainingData get_cache(const size_t i) {
 	const size_t pos = cache_pos[i];
 	const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
-	cache_mutex.lock();
-	cache.seekg(pos, std::ios_base::beg);
 	struct Hcpe3CacheBuf {
 		Hcpe3CacheBody body;
 		Hcpe3CacheCandidate candidates[MaxLegalMoves];
 	} buf;
-	cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
-	cache_mutex.unlock();
+	cache->seekg(pos, std::ios_base::beg);
+	cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
+	return TrainingData(buf.body, buf.candidates, candidateNum);
+}
+
+TrainingData get_cache_with_lock(const size_t i) {
+	const size_t pos = cache_pos[i];
+	const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+	struct Hcpe3CacheBuf {
+		Hcpe3CacheBody body;
+		Hcpe3CacheCandidate candidates[MaxLegalMoves];
+	} buf;
+	#pragma omp critical
+	{
+		cache->seekg(pos, std::ios_base::beg);
+		cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
+	}
 	return TrainingData(buf.body, buf.candidates, candidateNum);
 }
 
@@ -181,13 +197,13 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			break;
 		}
 
-		const int eval = (int)(hcpe.eval * eval_scale);
+		const float value = score_to_value((Score)(hcpe.eval * eval_scale));
 		if (use_average) {
 			auto ret = duplicates.emplace(hcpe.hcp, trainingData.size());
 			if (ret.second) {
 				auto& data = trainingData.emplace_back(
 					hcpe.hcp,
-					eval,
+					value,
 					make_result(hcpe.gameResult, hcpe.hcp.color())
 				);
 				data.candidates[hcpe.bestMove16] = 1;
@@ -195,7 +211,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			else {
 				// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 				auto& data = trainingData[ret.first->second];
-				data.eval += eval;
+				data.value += value;
 				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
 				data.candidates[hcpe.bestMove16] += 1;
 				data.count++;
@@ -204,7 +220,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 		else {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
-				eval,
+				value,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
@@ -324,13 +340,13 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
 				const auto hcp = pos.toHuffmanCodedPos();
-				const int eval = (int)(moveInfo.eval * eval_scale);
+				const float value = score_to_value((Score)(moveInfo.eval * eval_scale));
 				if (use_average) {
 					auto ret = duplicates.emplace(hcp, trainingData.size());
 					if (ret.second) {
 						auto& data = trainingData.emplace_back(
 							hcp,
-							eval,
+							value,
 							make_result(hcpe3.result, pos.turn())
 						);
 						visits_to_proberbility<false>(data, candidates, temperature);
@@ -338,7 +354,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 					else {
 						// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
 						auto& data = trainingData[ret.first->second];
-						data.eval += eval;
+						data.value += value;
 						data.result += make_result(hcpe3.result, pos.turn());
 						visits_to_proberbility<true>(data, candidates, temperature);
 						data.count++;
@@ -348,7 +364,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 				else {
 					auto& data = trainingData.emplace_back(
 						hcp,
-						eval,
+						value,
 						make_result(hcpe3.result, pos.turn())
 					);
 					visits_to_proberbility<false>(data, candidates, temperature);
@@ -374,11 +390,12 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 			break;
 		}
 		bool found = false;
+		const float value = score_to_value((Score)hcpe.eval);
 		for (auto& data : trainingData) {
 			if (data.hcp == hcpe.hcp) {
 				found = true;
 				data.count = 1;
-				data.eval = hcpe.eval;
+				data.value = value;
 				data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
 				data.candidates.clear();
 				data.candidates[hcpe.bestMove16] = 1;
@@ -387,7 +404,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 		if (!found) {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
-				hcpe.eval,
+				value,
 				make_result(hcpe.gameResult, hcpe.hcp.color())
 			);
 			data.candidates[hcpe.bestMove16] = 1;
@@ -413,9 +430,9 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 	std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
 	std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
-	#pragma omp parallel for num_threads(2)
+	#pragma omp parallel for num_threads(2) if (len > 1)
 	for (int64_t i = 0; i < len; i++) {
-		const auto& hcpe3 = cache.is_open() ? get_cache(index[i]) : trainingData[index[i]];
+		const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
 
 		Position position;
 		position.set(hcpe3.hcp);
@@ -434,7 +451,7 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 		result[i] = hcpe3.result / hcpe3.count;
 
 		// eval
-		value[i] = score_to_value((Score)(hcpe3.eval / hcpe3.count));
+		value[i] = hcpe3.value / hcpe3.count;
 	}
 }
 
@@ -442,10 +459,10 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
 	HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
 
-	const auto& hcpe3 = cache.is_open() ? get_cache(index) : trainingData[index];
+	const auto& hcpe3 = cache ? get_cache(index) : trainingData[index];
 
 	hcpe->hcp = hcpe3.hcp;
-	float max_prob = FLT_MIN ;
+	float max_prob = FLT_MIN;
 	for (const auto kv : hcpe3.candidates) {
 		const auto& move16 = kv.first;
 		const auto& prob = kv.second;
@@ -454,7 +471,7 @@ void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
 			max_prob = prob;
 		}
 	}
-	hcpe->eval = (s16)(hcpe3.eval / hcpe3.count);
+	hcpe->eval = s16(-logf(1.0f / (hcpe3.value / hcpe3.count) - 1.0f) * 756.0f);
 	const auto result = (hcpe3.result / hcpe3.count);
 	if (result < 0.5f) {
 		hcpe->gameResult = hcpe3.hcp.color() == Black ? WhiteWin : BlackWin;
@@ -543,4 +560,138 @@ size_t __load_evalfix(const std::string& filepath) {
 void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult) {
 	std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval));
 	std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult));
+}
+
+// 2つのhcpe3キャッシュをマージする
+void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, const std::string& out) {
+	// file2のhcpをキーとした辞書を作成
+	std::ifstream cache2(file2, std::ios::binary);
+	size_t num2;
+	cache2.read((char*)&num2, sizeof(num2));
+	std::vector<size_t> cache2_pos(num2 + 1);
+	cache2.read((char*)cache2_pos.data(), sizeof(size_t) * num2);
+	cache2.seekg(0, std::ios_base::end);
+	cache2_pos[num2] = cache2.tellg();
+
+	std::unordered_map<HuffmanCodedPos, std::pair<size_t, size_t>> cache2_map;
+	for (size_t i = 0; i < num2; ++i) {
+		auto pos = cache2_pos[i];
+		cache2.seekg(pos, std::ios_base::beg);
+		HuffmanCodedPos hcp;
+		cache2.read((char*)&hcp, sizeof(HuffmanCodedPos));
+		cache2_map[hcp] = std::make_pair(pos, cache2_pos[i + 1]);
+	}
+
+	// file1のインデックス読み込み
+	std::ifstream cache1(file1, std::ios::binary);
+	size_t num1;
+	cache1.read((char*)&num1, sizeof(num1));
+	std::vector<size_t> cache1_pos(num1 + 1);
+	cache1.read((char*)cache1_pos.data(), sizeof(size_t) * num1);
+	cache1.seekg(0, std::ios_base::end);
+	cache1_pos[num1] = cache1.tellg();
+
+	// 重複しない局面数をカウントしてインデックスのサイズを計算
+	size_t num_out = num2;
+	for (size_t i = 0; i < num1; ++i) {
+		auto pos = cache1_pos[i];
+		cache1.seekg(pos, std::ios_base::beg);
+		HuffmanCodedPos hcp;
+		cache1.read((char*)&hcp, sizeof(HuffmanCodedPos));
+		// file2に存在するか
+		if (cache2_map.find(hcp) == cache2_map.end()) {
+			num_out++;
+		}
+	}
+
+	std::cout << "file1 position num = " << num1 << std::endl;
+	std::cout << "file2 position num = " << num2 << std::endl;
+
+	std::ofstream ofs(out, std::ios::binary);
+
+	// インデックスの領域をシーク
+	ofs.seekp(sizeof(num_out) + sizeof(size_t) * num_out, std::ios_base::beg);
+
+	std::vector<size_t> out_pos;
+	out_pos.reserve(num_out);
+
+	struct Hcpe3CacheBuf {
+		Hcpe3CacheBody body;
+		Hcpe3CacheCandidate candidates[MaxLegalMoves];
+	};
+
+	// file1をシーケンシャルに処理
+	for (size_t i = 0; i < num1; ++i) {
+		auto pos1 = cache1_pos[i];
+		const size_t candidate_num1 = ((cache1_pos[i + 1] - pos1) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+		Hcpe3CacheBuf buf1;
+		cache1.seekg(pos1, std::ios_base::beg);
+		cache1.read((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
+
+		out_pos.emplace_back(ofs.tellp());
+
+		auto itr = cache2_map.find(buf1.body.hcp);
+		if (itr == cache2_map.end()) {
+			// file2の辞書に局面が存在しない場合、そのまま出力
+			ofs.write((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
+		}
+		else {
+			// file2の辞書に局面が存在する場合マージ
+			auto pos2 = itr->second.first;
+			const size_t candidate_num2 = ((itr->second.second - pos2) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+			Hcpe3CacheBuf buf2;
+			cache2.seekg(pos2, std::ios_base::beg);
+			cache2.read((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+
+			buf1.body.value += buf2.body.value;
+			buf1.body.result += buf2.body.result;
+			buf1.body.count += buf2.body.count;
+
+			std::unordered_map<u16, float> candidate_map;
+			for (size_t j = 0; j < candidate_num1; ++j) {
+				candidate_map[buf1.candidates[j].move16] = buf1.candidates[j].prob;
+			}
+			for (size_t j = 0; j < candidate_num2; ++j) {
+				auto ret = candidate_map.try_emplace(buf2.candidates[j].move16, buf2.candidates[j].prob);
+				if (!ret.second) {
+					ret.first->second += buf2.candidates[j].prob;
+				}
+			}
+			size_t candidate_i = 0;
+			for (const auto& kv : candidate_map) {
+				buf1.candidates[candidate_i].move16 = kv.first;
+				buf1.candidates[candidate_i].prob = kv.second;
+				candidate_i++;
+			}
+
+			// 出力
+			ofs.write((char*)&buf1, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_i);
+
+			// 辞書から削除
+			cache2_map.erase(itr);
+		}
+	}
+
+	// 未出力のfile2の局面を出力
+	for (const auto& kv : cache2_map) {
+		out_pos.emplace_back(ofs.tellp());
+
+		auto pos2 = kv.second.first;
+		const size_t candidate_num2 = ((kv.second.second - pos2) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+		Hcpe3CacheBuf buf2;
+		cache2.seekg(pos2, std::ios_base::beg);
+		cache2.read((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+
+		ofs.write((char*)&buf2, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+	}
+	assert(out_pos.size() == num_out);
+
+	// インデックスの出力
+	ofs.seekp(0, std::ios_base::beg);
+	ofs.write((char*)&num_out, sizeof(num_out));
+	ofs.write((char*)out_pos.data(), sizeof(size_t) * num_out);
+
+	assert(ofs.tellp() == out_pos[0]);
+
+    std::cout << "out position num = " << num_out << std::endl;
 }

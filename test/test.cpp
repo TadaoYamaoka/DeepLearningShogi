@@ -1,14 +1,15 @@
-﻿#include <iostream>
+﻿#include "gtest/gtest.h"
+
+#include <iostream>
 #include <chrono>
+#include <fstream>
 
 #include "cppshogi.h"
 
 using namespace std;
 
-#if 0
-// hcpe作成
-#include <fstream>
-int main() {
+TEST(HcpeTest, make_hcpe) {
+	// hcpe作成
 	initTable();
 	const int num = 2;
 	Position pos[num];
@@ -28,7 +29,143 @@ int main() {
 	}
 	ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 }
-#endif
+
+TEST(Hcpe3Test, merge_cache) {
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+
+	// hcpe3作成
+	Position pos[3];
+	pos[0].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+	pos[1].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w - 2");
+	pos[2].set("lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w - 2");
+
+	u16 move_2g2f = (u16)usiToMove(pos[0], "2g2f").value();
+	u16 move_9g9f = (u16)usiToMove(pos[0], "9g9f").value();
+	u16 move_7g7f = (u16)usiToMove(pos[0], "7g7f").value();
+	u16 move_8c8d = (u16)usiToMove(pos[1], "8c8d").value();
+	u16 move_4a3b = (u16)usiToMove(pos[1], "4a3b").value();
+	u16 move_8b3b = (u16)usiToMove(pos[2], "8b3b").value();
+
+	std::vector<MoveVisits> candidates1_1;
+	candidates1_1.emplace_back(MoveVisits{ move_2g2f, 3 });
+	candidates1_1.emplace_back(MoveVisits{ move_9g9f, 1 });
+
+	std::vector<MoveVisits> candidates1_2;
+	candidates1_2.emplace_back(MoveVisits{ move_2g2f, 5 });
+	candidates1_2.emplace_back(MoveVisits{ move_7g7f, 7 });
+
+	std::vector<MoveVisits> candidates2;
+	candidates2.emplace_back(MoveVisits{ move_8c8d, 4 });
+	candidates2.emplace_back(MoveVisits{ move_4a3b, 1 });
+
+	std::vector<MoveVisits> candidates3;
+	candidates3.emplace_back(MoveVisits{ move_8b3b, 11 });
+
+	std::ofstream ofs_hcpe3_1("test1.hcpe3", std::ios::binary);
+	std::ofstream ofs_hcpe3_2("test2.hcpe3", std::ios::binary);
+
+	HuffmanCodedPosAndEval3 hcpe3_1{ pos[0].toHuffmanCodedPos(), 2, BlackWin, 0 };
+	ofs_hcpe3_1.write(reinterpret_cast<char*>(&hcpe3_1), sizeof(HuffmanCodedPosAndEval3));
+	MoveInfo move_info1_1{ move_2g2f, 200, 2 };
+	ofs_hcpe3_1.write(reinterpret_cast<char*>(&move_info1_1), sizeof(MoveInfo));
+	ofs_hcpe3_1.write(reinterpret_cast<char*>(candidates1_1.data()), sizeof(MoveVisits) * candidates1_1.size());
+	MoveInfo move_info2{ move_8c8d, 210, 2 };
+	ofs_hcpe3_1.write(reinterpret_cast<char*>(&move_info2), sizeof(MoveInfo));
+	ofs_hcpe3_1.write(reinterpret_cast<char*>(candidates2.data()), sizeof(MoveVisits) * candidates2.size());
+
+	HuffmanCodedPosAndEval3 hcpe3_2{ pos[0].toHuffmanCodedPos(), 2, WhiteWin, 0 };
+	ofs_hcpe3_2.write(reinterpret_cast<char*>(&hcpe3_2), sizeof(HuffmanCodedPosAndEval3));
+	MoveInfo move_info1_2{ move_7g7f, 220, 2 };
+	ofs_hcpe3_2.write(reinterpret_cast<char*>(&move_info1_2), sizeof(MoveInfo));
+	ofs_hcpe3_2.write(reinterpret_cast<char*>(candidates1_2.data()), sizeof(MoveVisits) * candidates1_2.size());
+	MoveInfo move_info3{ move_8b3b, 230, 1 };
+	ofs_hcpe3_2.write(reinterpret_cast<char*>(&move_info3), sizeof(MoveInfo));
+	ofs_hcpe3_2.write(reinterpret_cast<char*>(candidates3.data()), sizeof(MoveVisits) * candidates3.size());
+
+	ofs_hcpe3_1.close();
+	ofs_hcpe3_2.close();
+
+	// cache作成
+	extern size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, double temperature, size_t &len);
+	extern void __hcpe3_create_cache(const std::string& filepath);
+	size_t len = 0;
+	__load_hcpe3("test1.hcpe3", false, 600, 1, len);
+	EXPECT_EQ(2, len);
+	__hcpe3_create_cache("test1.cache");
+
+	// __hcpe3_create_cacheはtrainingDataをクリアする
+	len = 0;
+	__load_hcpe3("test2.hcpe3", false, 600, 1, len);
+	EXPECT_EQ(2, len);
+	__hcpe3_create_cache("test2.cache");
+
+	// merge_cache
+	extern void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, const std::string& out);
+	__hcpe3_merge_cache("test1.cache", "test2.cache", "out.cache");
+
+	// マージしたcache読み込み
+	// インデックス読み込み
+	std::ifstream cache("out.cache", std::ios::binary);
+	size_t num;
+	cache.read((char*)&num, sizeof(num));
+	std::vector<size_t> cache_pos(num + 1);
+	cache.read((char*)cache_pos.data(), sizeof(size_t) * num);
+	cache.seekg(0, std::ios_base::end);
+	cache_pos[num] = cache.tellg();
+	EXPECT_EQ(3, num);
+
+	struct Hcpe3CacheBuf {
+		Hcpe3CacheBody body;
+		Hcpe3CacheCandidate candidates[MaxLegalMoves];
+	} buf;
+
+	// pos1
+	auto pos1 = cache_pos[0];
+	const size_t candidate_num1 = ((cache_pos[1] - pos1) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+	cache.seekg(pos1, std::ios_base::beg);
+	cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
+	EXPECT_EQ(pos[0].toHuffmanCodedPos(), buf.body.hcp);
+	EXPECT_EQ(1.17314f, buf.body.value);
+	EXPECT_EQ(1.0f, buf.body.result);
+	EXPECT_EQ(2, buf.body.count);
+	EXPECT_EQ(3, candidate_num1);
+	EXPECT_EQ(move_2g2f, buf.candidates[0].move16);
+	EXPECT_EQ(3.0f / (3.0f + 1.0f) + 5.0f / (5.0f + 7.0f), buf.candidates[0].prob);
+	EXPECT_EQ(move_9g9f, buf.candidates[1].move16);
+	EXPECT_EQ(1.0f / (3.0f + 1.0f), buf.candidates[1].prob);
+	EXPECT_EQ(move_7g7f, buf.candidates[2].move16);
+	EXPECT_EQ(7.0f / (5.0f + 7.0f), buf.candidates[2].prob);
+
+	// pos2
+	auto pos2 = cache_pos[1];
+	const size_t candidate_num2 = ((cache_pos[2] - pos2) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+	cache.seekg(pos2, std::ios_base::beg);
+	cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num2);
+	EXPECT_EQ(pos[1].toHuffmanCodedPos(), buf.body.hcp);
+	EXPECT_EQ(0.586415410f, buf.body.value);
+	EXPECT_EQ(0.0f, buf.body.result);
+	EXPECT_EQ(1, buf.body.count);
+	EXPECT_EQ(2, candidate_num2);
+	EXPECT_EQ(move_8c8d, buf.candidates[0].move16);
+	EXPECT_EQ(4.0f / (4.0f + 1.0f), buf.candidates[0].prob);
+	EXPECT_EQ(move_4a3b, buf.candidates[1].move16);
+	EXPECT_EQ(1.0f / (4.0f + 1.0f), buf.candidates[1].prob);
+
+	// pos3
+	auto pos3 = cache_pos[2];
+	const size_t candidate_num3 = ((cache_pos[3] - pos3) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+	cache.seekg(pos3, std::ios_base::beg);
+	cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num3);
+	EXPECT_EQ(pos[2].toHuffmanCodedPos(), buf.body.hcp);
+	EXPECT_EQ(0.594411194f, buf.body.value);
+	EXPECT_EQ(1.0f, buf.body.result);
+	EXPECT_EQ(1, buf.body.count);
+	EXPECT_EQ(1, candidate_num3);
+	EXPECT_EQ(move_8b3b, buf.candidates[0].move16);
+	EXPECT_EQ(1.0f, buf.candidates[0].prob);
+}
 
 #if 0
 int main() {
@@ -1843,7 +1980,7 @@ int main()
 }
 #endif
 
-#if 1
+#if 0
 #include <fstream>
 #include <regex>
 #include "book.hpp"

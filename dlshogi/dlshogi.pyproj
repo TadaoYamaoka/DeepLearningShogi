@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>train.py</StartupFile>
+    <StartupFile>ptl.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\hcpe3\floodgate_2021_0909_r3800_nomate.hcpe3 f:\selfplay\floodgate.hcpe --network resnet15_relu --model model.onnx --use_average --use_amp --distillation_model F:\model\model-pre28_resnet20_swish_b4096lr004-015 --distillation_network resnet20_swish --eval_interval 100</CommandLineArguments>
+    <CommandLineArguments>fit --config config.yaml</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -34,6 +34,7 @@
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="lr_scheduler.py" />
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
@@ -41,6 +42,8 @@
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
+    <Compile Include="ptl.py" />
+    <Compile Include="ptl_update_bn.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -53,9 +56,12 @@
     <Compile Include="utils\aoba_to_hcpe3.py" />
     <Compile Include="utils\append_book.py" />
     <Compile Include="utils\benchmark.py" />
+    <Compile Include="utils\book.py" />
+    <Compile Include="utils\book_to_positions.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_important_position.py" />
+    <Compile Include="utils\csa_to_positions.py" />
     <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_csv.py">
       <SubType>Code</SubType>
@@ -67,6 +73,7 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\kif_to_csa.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
       <SubType>Code</SubType>
@@ -82,7 +89,10 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
-    <Compile Include="utils\hcp_uniq.py" />
+    <Compile Include="utils\make_hcpe3_cache.py" />
+    <Compile Include="utils\merge_hcpe3_cache.py" />
+    <Compile Include="utils\print_hcp.py" />
+    <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
     <Compile Include="utils\matches.py" />

@@ -51,6 +51,34 @@ std::future<std::pair<Move, Move>> MySearcher::future;
 DfPn dfpn;
 int dfpn_min_search_millisecs = 300;
 
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+std::map<Key, std::vector<BookEntry> > bookMap;
+bool use_book_policy = true;
+
+// 定跡読み込み
+void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
+	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
+	if (!ifs) {
+		std::cerr << "Error: cannot open " << bookFileName << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	BookEntry entry;
+	size_t count = 0;
+	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
+		count++;
+		auto itr = bookMap.find(entry.key);
+		if (itr != bookMap.end()) {
+			// すでにある場合、追加
+			itr->second.emplace_back(entry);
+		}
+		else {
+			bookMap[entry.key].emplace_back(entry);
+		}
+	}
+	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
+}
+#endif
+
 int main(int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
@@ -359,6 +387,15 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"], options["Random_Cutoff_Drop"]);
 			SetRandomMove2(options["Random2_Ply"], options["Random2_Probability"], options["Random2_Temperature"], options["Random2_Cutoff"], options["Random2_Value_Limit"]);
 
+#ifdef BOOK_POLICY
+			// 事前確率に定跡の遷移確率も使用する
+			use_book_policy = options["Use_Book_Policy"];
+			if (use_book_policy) {
+				// 定跡読み込み
+				read_book(options["Book_File"], bookMap);
+			}
+#endif
+
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
 
@@ -464,7 +501,10 @@ void MySearcher::goUct(Position& pos) {
 	// Book使用
 	static Book book;
 	if (options["OwnBook"]) {
-		const std::tuple<Move, Score> bookMoveScore = book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
+		const std::tuple<Move, Score> bookMoveScore = options["Book_Consider_Draw"] ?
+			(options["Book_Consider_Draw_Depth"] > 0 ?
+				book.probeConsideringDrawDepth(pos, options["Book_File"]) : book.probeConsideringDraw(pos, options["Book_File"]))
+			: book.probe(pos, options["Book_File"], options["Best_Book_Move"]);
 		if (std::get<0>(bookMoveScore)) {
 			std::cout << "info"
 				<< " score cp " << std::get<1>(bookMoveScore)
@@ -627,11 +667,9 @@ struct child_node_t_copy {
 	}
 };
 
-std::map<Key, std::vector<BookEntry> > bookMap;
 Key book_starting_pos_key;
 extern std::unique_ptr<NodeTree> tree;
 int make_book_sleep = 0;
-bool use_book_policy = true;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
 double book_visit_threshold = 0.005;
@@ -799,29 +837,6 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 
 		pos.undoMove(move);
 	}
-}
-
-// 定跡読み込み
-void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
-	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
-	if (!ifs) {
-		std::cerr << "Error: cannot open " << bookFileName << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	BookEntry entry;
-	size_t count = 0;
-	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-		count++;
-		auto itr = bookMap.find(entry.key);
-		if (itr != bookMap.end()) {
-			// すでにある場合、追加
-			itr->second.emplace_back(entry);
-		}
-		else {
-			bookMap[entry.key].emplace_back(entry);
-		}
-	}
-	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
 }
 
 // 定跡マージ

@@ -36,12 +36,16 @@ class Book : private std::ifstream {
 public:
     Book() : random_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()) {}
     std::tuple<Move, Score> probe(const Position& pos, const std::string& fName, const bool pickBest);
+    std::tuple<Move, Score> probeConsideringDraw(const Position& pos, const std::string& fName);
+    std::tuple<Move, Score> probeConsideringDrawDepth(Position& pos, const std::string& fName);
     static void init();
     static Key bookKey(const Position& pos);
+    static Key bookKeyAfter(const Position& pos, const Key key, const Move move);
 
 private:
     bool open(const char* fName);
     void binary_search(const Key key);
+    Score getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth, const Score drawScoreBlack, const Score drawScoreWhite);
 
     static MT64bit mt64bit_; // 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
     MT64bit random_; // 時刻をseedにして色々指すようにする。
