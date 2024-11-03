@@ -159,6 +159,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_StartPositions"]         = USIOption("");
     (*this)["Book_MinMax_Prob"]            = USIOption(1000, 0, 1000);
     (*this)["Book_MinMax_Prob_Opp"]        = USIOption(100, 0, 1000);
+    (*this)["Book_Use_Prob"]               = USIOption(1000, 0, 1000);
     (*this)["Use_Book_Lock"]               = USIOption(false);
     (*this)["Make_Book_For_MinMax"]        = USIOption(false);
     (*this)["USI_Book_Engine"]             = USIOption("");

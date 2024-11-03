@@ -811,6 +811,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// MinMaxのために相手定跡の手番でも探索する
 	make_book_for_minmax = options["Make_Book_For_MinMax"];
 
+	// 定跡にある場合も一定確率で定跡を使用しない
+	book_use_prob = options["Book_Use_Prob"] / 1000.0;
+
 	// 一定の確率でPriorityBookから確率的に選ぶ
 	book_priority_prob = options["Book_Priority_Prob"] / 1000.0;
 	book_priority_prob_temperature = options["Book_Priority_Prob_Temperature"] / 1000.0;

@@ -17,6 +17,8 @@ extern double book_minmax_prob;
 extern double book_minmax_prob_opp;
 // MinMaxのために相手定跡の手番でも探索する
 extern bool make_book_for_minmax;
+// 定跡にある場合も一定確率で定跡を使用しない
+extern double book_use_prob;
 // 一定の確率でPriorityBookから確率的に選ぶ
 extern double book_priority_prob;
 extern double book_priority_prob_temperature;

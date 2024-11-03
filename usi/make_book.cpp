@@ -45,9 +45,11 @@ Score book_eval_diff = Score(10000);
 // MinMaxで選ぶ確率
 double book_minmax_prob = 1.0;
 double book_minmax_prob_opp = 0.1;
-std::uniform_real_distribution<double> dist_minmax(0, 1);
+std::uniform_real_distribution<double> dist_prob(0, 1);
 // MinMaxのために相手定跡の手番でも探索する
 bool make_book_for_minmax = false;
+// 定跡にある場合も一定確率で定跡を使用しない
+double book_use_prob = 1.0;
 // 一定の確率でPriorityBookから確率的に選ぶ
 double book_priority_prob = 0;
 double book_priority_prob_temperature = 0.01;
@@ -694,7 +696,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			// 探索済みの場合
 			{
 				Move move;
-				if (dist_minmax(g_randomTimeSeed) < usi_book_engine_prob_own) {
+				if (dist_prob(g_randomTimeSeed) < usi_book_engine_prob_own) {
 					// 自分の手番でも一定確率でUSIエンジンを使う
 					auto usi_book_engine = get_usi_book_engine();
 					const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes_own);
@@ -708,13 +710,13 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					const auto& entries = itr->second;
 					int index = 0;
 					Score score;
-					if (bookMapBest.size() > 0 && dist_minmax(g_randomTimeSeed) < book_priority_prob && bookMapBest.find(key) != bookMapBest.end()) {
+					if (bookMapBest.size() > 0 && dist_prob(g_randomTimeSeed) < book_priority_prob && bookMapBest.find(key) != bookMapBest.end()) {
 						// 一定の確率でPriorityBookから確率的に選ぶ
 						std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature);
 					}
 					else {
 						// 一定の確率でmin-maxで選ぶ
-						std::tie(index, move, score) = (dist_minmax(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
+						std::tie(index, move, score) = (dist_prob(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
 					}
 
 					// 評価値が閾値を超えた場合、探索終了
@@ -768,7 +770,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 
 		Move move;
 		const auto itr = bookMap.find(key);
-		if (itr == bookMap.end() && usi_book_engine_nodes > 0 && dist_minmax(g_randomTimeSeed) < usi_book_engine_prob) {
+		if (itr == bookMap.end() && usi_book_engine_nodes > 0 && dist_prob(g_randomTimeSeed) < usi_book_engine_prob) {
 			// 相手定跡から外れた場合USIエンジンを使う
 			auto usi_book_engine = get_usi_book_engine();
 			const auto usi_result = usi_book_engine->Go(book_pos_cmd, moves, usi_book_engine_nodes);
@@ -783,7 +785,8 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			const std::vector<BookEntry>* entries;
 
 			// 局面が定跡にあるか確認
-			if (itr != bookMap.end()) {
+			bool use_book = itr != bookMap.end() && (book_use_prob == 1.0 || dist_prob(g_randomTimeSeed) < book_use_prob);
+			if (use_book) {
 				entries = &itr->second;
 			}
 			else {
@@ -803,12 +806,12 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				entries = &outMap[key];
 			}
 
-			if (itr == bookMap.end() && bookMapBest.size() > 0 && dist_minmax(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
+			if (!use_book && bookMapBest.size() > 0 && dist_prob(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
 				// 一定の確率でPriorityBookから確率的に選ぶ
 				Score score;
 				std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature_opp);
 			}
-			else if (itr == bookMap.end() && dist_minmax(g_randomTimeSeed) < book_minmax_prob_opp) {
+			else if (!use_book && dist_prob(g_randomTimeSeed) < book_minmax_prob_opp) {
 				// 一定の確率でmin-maxで選ぶ
 				const auto& entry = select_best_book_entry(pos, outMap, *entries, moves, bookMapBest);
 				move = std::get<Move>(entry);
