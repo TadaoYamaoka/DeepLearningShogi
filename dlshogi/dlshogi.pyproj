@@ -113,6 +113,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\usi_policy_only.py" />
     <Compile Include="utils\usi_repeater.py" />
     <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />
