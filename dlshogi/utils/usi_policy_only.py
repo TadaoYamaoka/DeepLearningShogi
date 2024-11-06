@@ -93,10 +93,10 @@ def select_move(board):
     if use_mate:
         mate_move = board.mate_move(3)
         if mate_move:
-            return mate_move
+            return move_to_usi(mate_move)
     if use_dfpn:
         if dfpn.search(board):
-            return dfpn.get_move(board)
+            return move_to_usi(dfpn.get_move(board))
     temperature = (
         temperature1 if board.move_number <= temperature_threshold else temperature2
     )
