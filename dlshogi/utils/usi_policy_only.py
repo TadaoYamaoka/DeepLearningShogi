@@ -87,7 +87,9 @@ def softmax(logits, temperature):
 
 def select_move(board):
     if board.is_game_over():
-        return None
+        return "resign"
+    if board.is_nyugyoku():
+        return "win"
     if use_mate:
         mate_move = board.mate_move(3)
         if mate_move:
@@ -105,7 +107,7 @@ def select_move(board):
         legal_moves, logits = predict_logits(board)
         probabilities = softmax(logits, temperature)
     move = random.choices(legal_moves, weights=probabilities)[0]
-    return move
+    return move_to_usi(move)
 
 
 def main():
@@ -156,10 +158,7 @@ def main():
             board.set_position(args)
         elif command == "go":
             move = select_move(board)
-            if move:
-                print(f"bestmove {move_to_usi(move)}", flush=True)
-            else:
-                print("bestmove resign", flush=True)
+            print(f"bestmove {move}", flush=True)
         elif command == "quit":
             break
 
