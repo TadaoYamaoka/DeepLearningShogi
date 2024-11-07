@@ -20,6 +20,7 @@ use_value_network = False
 use_mate = False
 use_dfpn = False
 use_cuda = False
+onnx_threads = 0
 
 dfpn = DfPn()
 
@@ -33,6 +34,10 @@ def load_model(path):
     global session
     if use_cuda:
         session = ort.InferenceSession(path, providers=["CUDAExecutionProvider"])
+    elif onnx_threads:
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = onnx_threads
+        session = ort.InferenceSession(path, sess_options)
     else:
         session = ort.InferenceSession(path)
 
@@ -111,7 +116,7 @@ def select_move(board):
 
 
 def main():
-    global temperature1, temperature2, temperature_threshold, model_path, use_value_network, use_mate, use_dfpn, use_cuda
+    global temperature1, temperature2, temperature_threshold, model_path, use_value_network, use_mate, use_dfpn, use_cuda, onnx_threads
 
     board = Board()
     while True:
@@ -130,6 +135,7 @@ def main():
             print("option name UseMate type check default false")
             print("option name UseDfPn type check default false")
             print("option name UseCUDA type check default false")
+            print("option name OnnxThreads type spin default 0 min 0 max 1024")
             print("usiok", flush=True)
         elif command == "isready":
             load_model(model_path)
@@ -154,6 +160,8 @@ def main():
                 use_dfpn = option_value.lower() == "true"
             elif option_name == "UseCUDA":
                 use_cuda = option_value.lower() == "true"
+            elif option_name == "OnnxThreads":
+                onnx_threads = int(option_value)
         elif command == "position":
             board.set_position(args)
         elif command == "go":
