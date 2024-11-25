@@ -25,6 +25,7 @@ MoveVisits = np.dtype([
 parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
 parser.add_argument('hcpe')
+parser.add_argument('--nyugyoku', action='store_true')
 args = parser.parse_args()
 
 f = open(args.hcpe3, 'rb')
@@ -45,12 +46,15 @@ while True:
     result = hcpe3['result'] & 3
 
     p = 0
+    nyugyoku = False
     for i in range(move_num):
         move_info = np.frombuffer(f.read(MoveInfo.itemsize), MoveInfo, 1)[0]
         candidate_num = move_info['candidateNum']
         f.seek(MoveVisits.itemsize * candidate_num, 1)
         move = board.move_from_move16(move_info['selectedMove16'])
-        if candidate_num > 0:
+        if args.nyugyoku and not nyugyoku and (board.king_square(BLACK) % 9 <= 2 or board.king_square(WHITE) % 9 >= 6):
+            nyugyoku = True
+        if candidate_num > 0 and (not args.nyugyoku or nyugyoku):
             hcpe = hcpes[p]
             board.to_hcp(hcpe['hcp'])
             hcpe['eval'] = move_info['eval']
