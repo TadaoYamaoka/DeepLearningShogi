@@ -1,4 +1,4 @@
-﻿import torch
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
@@ -46,6 +46,7 @@ class MHSA(nn.Module):
         self.d_model = d_model
         self.nhead = nhead
         self.depth = d_model // nhead
+        self.scale = self.depth ** -0.5
 
         self.qkv = nn.Linear(d_model, 3 * d_model)
 
@@ -60,7 +61,7 @@ class MHSA(nn.Module):
         k = k.view(-1, 81, self.nhead, self.depth).permute(0, 2, 3, 1)
         v = v.view(-1, 81, self.nhead, self.depth).permute(0, 2, 1, 3)
 
-        content_content = torch.matmul(q, k)
+        content_content = torch.matmul(q, k) * self.scale
 
         r = (self.rel_h + self.rel_w).view(1, self.nhead, self.depth, 81)
         content_position = torch.matmul(q, r)
