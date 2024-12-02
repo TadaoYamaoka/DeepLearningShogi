@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>F:\hcpe3\floodgate_2022_0328_r3800_nomate.hcpe3 F:\hcpe3\floodgate.hcpe --network transformer12x256_relu -e 1 --use_amp --eval_interval 100 --model model</CommandLineArguments>
+    <CommandLineArguments>F:\hcpe3\floodgate_2022_0328_r3800_nomate.hcpe3 F:\hcpe3\floodgate.hcpe --network exp_y20x256_relu -e 1 --use_amp --amp_dtype bfloat16 --eval_interval 100 --model model</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -38,8 +38,33 @@
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="network\policy_value_network_exp_y.py" />
+    <Compile Include="network\policy_value_network_exp_x.py" />
+    <Compile Include="network\policy_value_network_exp_w.py" />
+    <Compile Include="network\policy_value_network_exp_v.py" />
+    <Compile Include="network\policy_value_network_exp_u.py" />
+    <Compile Include="network\policy_value_network_exp_t.py" />
+    <Compile Include="network\policy_value_network_exp_s.py" />
+    <Compile Include="network\policy_value_network_exp_r.py" />
+    <Compile Include="network\policy_value_network_exp_q.py" />
+    <Compile Include="network\policy_value_network_exp_p.py" />
+    <Compile Include="network\policy_value_network_exp_o.py" />
+    <Compile Include="network\policy_value_network_exp_n.py" />
+    <Compile Include="network\policy_value_network_exp_m.py" />
+    <Compile Include="network\policy_value_network_exp_l.py" />
+    <Compile Include="network\policy_value_network_exp_k.py" />
+    <Compile Include="network\policy_value_network_exp_j.py" />
+    <Compile Include="network\policy_value_network_exp_i.py" />
+    <Compile Include="network\policy_value_network_exp_c.py" />
+    <Compile Include="network\policy_value_network_exp_b.py" />
+    <Compile Include="network\policy_value_network_exp_a.py" />
+    <Compile Include="network\policy_value_network_exp_h.py" />
     <Compile Include="network\policy_value_network_resnet.py" />
     <Compile Include="network\policy_value_network_senet.py" />
+    <Compile Include="network\policy_value_network_exp_d.py" />
+    <Compile Include="network\policy_value_network_exp_e.py" />
+    <Compile Include="network\policy_value_network_exp_f.py" />
+    <Compile Include="network\policy_value_network_exp_g.py" />
     <Compile Include="network\policy_value_network_transformer.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
