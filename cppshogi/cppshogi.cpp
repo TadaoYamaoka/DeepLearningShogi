@@ -121,7 +121,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 
         // 玉が敵陣三段目以内に入っている
         int kingCount = 0;
-        if (!position.bbOf(King, c).andIsAny(opponentsField)) {
+        if (position.bbOf(King, c).andIsAny(opponentsField)) {
             set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM);
             kingCount = 1;
         }
