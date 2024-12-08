@@ -30,8 +30,7 @@ def main(*argv):
     logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
 
     if args.gpu >= 0:
-        torch.cuda.set_device(args.gpu)
-        device = torch.device("cuda")
+        device = torch.device(f"cuda:{args.gpu}")
     else:
         device = torch.device("cpu")
 
