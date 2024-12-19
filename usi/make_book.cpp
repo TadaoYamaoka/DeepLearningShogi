@@ -16,6 +16,7 @@
 
 #include <filesystem>
 #include <regex>
+#include <numeric>
 #include <omp.h>
 
 struct child_node_t_copy {
@@ -2425,5 +2426,79 @@ void make_important_sfen(Position& pos, const std::string& posCmd, const std::st
 		}
 	}
 	std::cout << "output: " << count << std::endl;
+}
+
+void stat_book(Position& pos, const std::string& posCmd, const std::string& bookFileName) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	// 局面を列挙する
+	std::vector<PositionWithMove> positions;
+	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+	enumerate_positions_with_move(pos, bookMap, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	if (positions.size() > bookMap.size() + 1)
+		throw std::runtime_error("positions.size() > bookMap.size()");
+
+	std::string pos_cmd{ posCmd };
+	if (pos_cmd == "startpos")
+		pos_cmd += " moves";
+
+	std::vector<int> ply;
+	std::vector<int> black_score;
+	std::vector<int> white_score;
+
+	int count = 0;
+	for (const auto& position : positions) {
+		const Key key = position.key;
+
+		const auto itrBook = bookMap.find(key);
+		if (itrBook != bookMap.end()) {
+			const auto& entryBook = itrBook->second[0];
+			const auto scoreBook = entryBook.score;
+
+			ply.emplace_back(position.depth);
+			if (position.depth % 2 == 0)
+				black_score.emplace_back(scoreBook);
+			else
+				white_score.emplace_back(scoreBook);
+		}
+	}
+
+	const auto printStat = [](std::vector<int>& values) {
+		int sum = std::accumulate(values.begin(), values.end(), 0.0);
+		const auto mean = (double)sum / values.size();
+
+		double variance = std::accumulate(values.begin(), values.end(), 0.0, [mean](double sum, double value) { return sum + std::pow(value - mean, 2); }) / values.size();
+		const auto std = std::sqrt(variance);
+
+		const auto min = *std::min_element(values.begin(), values.end());
+		const auto max = *std::max_element(values.begin(), values.end());
+
+		std::sort(values.begin(), values.end());
+
+		const auto percentile = [](const std::vector<int>& values, const double q) {
+			double q_index = (values.size() - 1) * q;
+			size_t q_low = static_cast<size_t>(q_index);
+			size_t q_high = q_low + 1;
+			return values[q_low] + (q_index - q_low) * (values[q_high] - values[q_low]);
+		};
+
+		std::cout << "\tcount " << values.size() << "\n";
+		std::cout << "\tmean  " << std::fixed << std::setprecision(4) << mean << "\n";
+		std::cout << "\tstd   " << std::fixed << std::setprecision(4) << std << "\n";
+		std::cout << "\tmin   " << min << "\n";
+		std::cout << "\t25%   " << std::fixed << std::setprecision(4) << percentile(values, 0.25) << "\n";
+		std::cout << "\t50%   " << std::fixed << std::setprecision(4) << percentile(values, 0.5) << "\n";
+		std::cout << "\t75%   " << std::fixed << std::setprecision(4) << percentile(values, 0.75) << "\n";
+		std::cout << "\tmax   " << max << std::endl;
+	};
+
+	std::cout << "ply:\n";
+	printStat(ply);
+	std::cout << "black score:\n";
+	printStat(black_score);
+	std::cout << "white score:\n";
+	printStat(white_score);
 }
 #endif

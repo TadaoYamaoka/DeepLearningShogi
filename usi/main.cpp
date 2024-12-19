@@ -55,6 +55,7 @@ struct MySearcher : Searcher {
 	static void makeGokakuSfen(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeImportantHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeImportantSfen(std::istringstream& ssCmd, const std::string& posCmd);
+	static void statBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -434,6 +435,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_gokaku_sfen") makeGokakuSfen(ssCmd, posCmd);
 		else if (token == "make_important_hcp") makeImportantHcp(ssCmd, posCmd);
 		else if (token == "make_important_sfen") makeImportantSfen(ssCmd, posCmd);
+		else if (token == "stat_book") statBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2122,4 +2124,20 @@ void MySearcher::makeImportantSfen(std::istringstream& ssCmd, const std::string&
 	std::cout << "done" << std::endl;
 }
 
+
+// 統計表示
+void MySearcher::statBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+
+	ssCmd >> bookFileName;
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	stat_book(pos, posCmd, bookFileName);
+}
 #endif
