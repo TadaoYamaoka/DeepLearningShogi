@@ -695,3 +695,55 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 
     std::cout << "out position num = " << num_out << std::endl;
 }
+
+std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string& file2) {
+    std::ifstream ifs(file1, std::ifstream::binary);
+    std::ofstream ofs(file2, std::ifstream::binary);
+
+    std::vector<MoveVisits> candidates;
+
+    int positions = 0;
+    int p = 0;
+    for (; ifs; ++p) {
+        HuffmanCodedPosAndEval3 hcpe3;
+        ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+        if (ifs.eof()) {
+            break;
+        }
+        assert(hcpe3.moveNum <= 513);
+
+        // 開始局面
+        Position pos;
+        if (!pos.set(hcpe3.hcp)) {
+            std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
+            ss << file1 << "(" << p << ")";
+            throw std::runtime_error(ss.str());
+        }
+        StateListPtr states{ new std::deque<StateInfo>(1) };
+
+        for (int i = 0; i < hcpe3.moveNum; ++i) {
+            MoveInfo moveInfo;
+            ifs.read((char*)&moveInfo, sizeof(MoveInfo));
+            assert(moveInfo.candidateNum <= 593);
+
+            // candidateNum==0の手は読み飛ばす
+            if (moveInfo.candidateNum > 0) {
+                candidates.resize(moveInfo.candidateNum);
+                ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+
+                HuffmanCodedPosAndEval hcpe = {};
+                hcpe.hcp = pos.toHuffmanCodedPos();
+                hcpe.eval = moveInfo.eval;
+                hcpe.bestMove16 = moveInfo.selectedMove16;
+                hcpe.gameResult = (GameResult)hcpe3.result;
+
+                ofs.write((char*)&hcpe, sizeof(hcpe));
+                positions++;
+            }
+
+            const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+            pos.doMove(move, states->emplace_back(StateInfo()));
+        }
+    }
+    return std::make_pair(p, positions);
+}
