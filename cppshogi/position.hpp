@@ -385,6 +385,7 @@ public:
     Key getKey() const          { return st_->key(); }
 	Key getKeyAfter(const Move m) const;
 	Key getBoardKeyAfter(const Move m) const;
+    std::pair<Key, Key> getKeyAndBoardKeyAfter(const Move m) const;
     Key getKeyExcludeTurn() const {
         static_assert(zobTurn_ == 1, "");
         return getKey() >> 1;
@@ -396,7 +397,7 @@ public:
     HuffmanCodedPos toHuffmanCodedPos() const;
 
     RepetitionType isDraw(const int checkMaxPly = std::numeric_limits<int>::max()) const;
-    RepetitionType moveIsDraw(const Move move) const;
+    RepetitionType moveIsDraw(const Move move, const int checkMaxPly = std::numeric_limits<int>::max()) const;
 
     void setStartPosPly(const Ply ply) { gamePly_ = ply; }
 

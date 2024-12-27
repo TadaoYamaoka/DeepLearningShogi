@@ -726,8 +726,11 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
             ifs.read((char*)&moveInfo, sizeof(MoveInfo));
             assert(moveInfo.candidateNum <= 593);
 
-            // candidateNum==0の手は読み飛ばす
-            if (moveInfo.candidateNum > 0) {
+            const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+            const auto draw = pos.moveIsDraw(move, 16);
+
+            // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
+            if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
                 candidates.resize(moveInfo.candidateNum);
                 ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
@@ -741,7 +744,6 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
                 positions++;
             }
 
-            const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
             pos.doMove(move, states->emplace_back(StateInfo()));
         }
     }
