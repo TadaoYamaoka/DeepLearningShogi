@@ -73,6 +73,8 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\hcpe_re_eval.py" />
+    <Compile Include="utils\hcpe3_re_eval.py" />
     <Compile Include="utils\kif_to_csa.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
