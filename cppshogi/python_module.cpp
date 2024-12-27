@@ -334,8 +334,11 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
 			assert(moveInfo.candidateNum <= 593);
 
-			// candidateNum==0の手は読み飛ばす
-			if (moveInfo.candidateNum > 0) {
+            const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+            const auto draw = pos.moveIsDraw(move, 16);
+
+            // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
+            if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
 				candidates.resize(moveInfo.candidateNum);
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
@@ -372,7 +375,6 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 				++len;
 			}
 
-			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 			pos.doMove(move, states->emplace_back(StateInfo()));
 		}
 	}
@@ -521,8 +523,12 @@ size_t __load_evalfix(const std::string& filepath) {
 				ifs.read((char*)&moveInfo, sizeof(MoveInfo));
 				assert(moveInfo.candidateNum <= 593);
 
-				// candidateNum==0の手は読み飛ばす
-				if (moveInfo.candidateNum > 0) {
+                assert(moveInfo.selectedMove16 <= 0x7fff);
+                const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
+                const auto draw = pos.moveIsDraw(move, 16);
+
+                // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
+                if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
 					ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
 					// 詰みは除く
 					if (std::abs(moveInfo.eval) < 30000) {
@@ -531,8 +537,6 @@ size_t __load_evalfix(const std::string& filepath) {
 					}
 				}
 
-				assert(moveInfo.selectedMove16 <= 0x7fff);
-				const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 				pos.doMove(move, states->emplace_back(StateInfo()));
 			}
 		}
