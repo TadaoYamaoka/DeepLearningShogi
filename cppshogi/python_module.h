@@ -15,3 +15,4 @@ size_t __load_evalfix(const std::string& filepath);
 void __hcpe3_get_hcpe(const size_t index, char* ndhcpe);
 void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult);
 void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, const std::string& out);
+std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string& file2);

@@ -1,4 +1,4 @@
-﻿import torch.onnx
+import torch.onnx
 import torch.nn.functional as F
 
 from dlshogi.common import *
@@ -17,6 +17,7 @@ def main(*argv):
     parser.add_argument('--network', default='resnet10_swish')
     parser.add_argument('--fixed_batchsize', type=int)
     parser.add_argument('--remove_aux', action='store_true')
+    parser.add_argument('--fuse', action='store_true')
     args = parser.parse_args(argv)
 
     if args.gpu >= 0:
@@ -32,6 +33,8 @@ def main(*argv):
 
     serializers.load_npz(args.model, model, args.remove_aux)
     model.eval()
+    if args.fuse:
+        model.fuse()
 
     def mini_batch(hcpevec):
         features1 = np.empty((len(hcpevec), FEATURES1_NUM, 9, 9), dtype=np.float32)
