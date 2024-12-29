@@ -105,16 +105,21 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 
 		// 持ち駒
 		const Hand hand = position.hand(c);
-		int p = 0;
-		for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
-			u32 num = hand.numOf(hp);
-			if (num >= MAX_PIECES_IN_HAND[hp]) {
-				num = MAX_PIECES_IN_HAND[hp];
-			}
-			set_features2(features2, c2, p, num);
-			p += MAX_PIECES_IN_HAND[hp];
-		}
-	}
+        const u32 numHPawn = hand.numOf(HPawn);
+        set_features2(features2, c2, 0, std::min(numHPawn, (u32)MAX_HPAWN_NUM));
+        const u32 numHLance = hand.numOf(HLance);
+        set_features2(features2, c2, MAX_HPAWN_NUM, numHLance);
+        const u32 numHKnight = hand.numOf(HKnight);
+        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM, numHKnight);
+        const u32 numHSilver = hand.numOf(HSilver);
+        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM, numHSilver);
+        const u32 numHGold = hand.numOf(HGold);
+        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM, numHGold);
+        const u32 numHBishop = hand.numOf(HBishop);
+        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM, numHBishop);
+        const u32 numHRook = hand.numOf(HRook);
+        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM, numHRook);
+    }
 
 	// is check
 	if (position.inCheck()) {
