@@ -1,4 +1,4 @@
-﻿import torch
+import torch
 import torch.nn as nn
 
 from dlshogi.common import *
@@ -57,6 +57,12 @@ class PolicyValueNetwork(nn.Module):
         self.value_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
         self.value_fc2 = nn.Linear(fcl, 1)
 
+        # nyugyoku network
+        self.nyugyoku_conv1 = nn.Conv2d(in_channels=channels, out_channels=MAX_MOVE_LABEL_NUM, kernel_size=1, bias=False)
+        self.nyugyoku_norm1 = nn.BatchNorm2d(MAX_MOVE_LABEL_NUM)
+        self.nyugyoku_fc1 = nn.Linear(9*9*MAX_MOVE_LABEL_NUM, fcl)
+        self.nyugyoku_fc2 = nn.Linear(fcl, 1)
+
     def forward(self, x1, x2):
         u1_1_1 = self.l1_1_1(x1)
         u1_1_2 = self.l1_1_2(x1)
@@ -75,7 +81,12 @@ class PolicyValueNetwork(nn.Module):
         h_value = self.act(self.value_fc1(torch.flatten(h_value, 1)))
         h_value = self.value_fc2(h_value)
 
-        return h_policy, h_value
+        # nyugyoku network
+        h_nyugyoku = self.act(self.nyugyoku_norm1(self.nyugyoku_conv1(h)))
+        h_nyugyoku = self.act(self.nyugyoku_fc1(torch.flatten(h_nyugyoku, 1)))
+        h_nyugyoku = self.nyugyoku_fc2(h_nyugyoku)
+
+        return h_policy, h_value, h_nyugyoku
 
     def set_swish(self, memory_efficient=True):
         """Sets swish function as memory efficient (for training) or standard (for export).

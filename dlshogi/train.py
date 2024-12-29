@@ -20,6 +20,48 @@ import importlib
 
 import logging
 
+
+class FocalLoss(torch.nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
+        """
+        Focal Loss for binary classification.
+        Args:
+            alpha (float): Weighting factor for the positive class (default: 0.25).
+            gamma (float): Focusing parameter to reduce the impact of easy samples (default: 2.0).
+            reduction (str): Reduction method to apply to the output ('mean', 'sum', or 'none').
+        """
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        """
+        Args:
+            inputs (torch.Tensor): Predicted probabilities (logits) with shape (N,).
+            targets (torch.Tensor): Ground truth labels (0 or 1) with shape (N,).
+        Returns:
+            torch.Tensor: Computed focal loss.
+        """
+        # Convert logits to probabilities
+        probs = torch.sigmoid(inputs)
+        # Clamp probabilities to avoid numerical issues
+        probs = torch.clamp(probs, min=1e-6, max=1-1e-6)
+
+        # Calculate the focal loss
+        loss_positive = -self.alpha * (1 - probs) ** self.gamma * targets * torch.log(probs)
+        loss_negative = -(1 - self.alpha) * probs ** self.gamma * (1 - targets) * torch.log(1 - probs)
+        loss = loss_positive + loss_negative
+
+        # Apply reduction
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss
+
+
 def main(*argv):
     parser = argparse.ArgumentParser(description='Train policy value network')
     parser.add_argument('train_data', type=str, nargs='+', help='training data file')
@@ -134,6 +176,7 @@ def main(*argv):
         return torch.sum(-soft_targets * F.log_softmax(pred, dim=1), 1)
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
     bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
+    focal_loss = FocalLoss()
     if args.use_amp:
         logging.info(f'use amp dtype={args.amp_dtype}')
     amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
@@ -196,7 +239,7 @@ def main(*argv):
 
     # for SWA update_bn
     def hcpe_loader(data, batchsize):
-        for x1, x2, t1, t2, value in Hcpe3DataLoader(data, batchsize, device):
+        for x1, x2, t1, t2, nyugyoku, value in Hcpe3DataLoader(data, batchsize, device):
             yield { 'x1':x1, 'x2':x2 }
 
     def accuracy(y, t):
@@ -220,7 +263,7 @@ def main(*argv):
         model.eval()
         with torch.no_grad():
             for x1, x2, t1, t2, value in test_dataloader:
-                y1, y2 = model(x1, x2)
+                y1, y2, y3 = model(x1, x2)
 
                 steps += 1
                 loss1 = cross_entropy_loss(y1, t1).mean()
@@ -273,6 +316,7 @@ def main(*argv):
     sum_loss1 = 0
     sum_loss2 = 0
     sum_loss3 = 0
+    sum_loss4 = 0
     sum_loss = 0
     eval_interval = args.eval_interval
     for e in range(args.epoch):
@@ -290,14 +334,15 @@ def main(*argv):
         sum_loss1_epoch = 0
         sum_loss2_epoch = 0
         sum_loss3_epoch = 0
+        sum_loss4_epoch = 0
         sum_loss_epoch = 0
-        for x1, x2, t1, t2, value in train_dataloader:
+        for x1, x2, t1, t2, value, nyugyoku in train_dataloader:
             t += 1
             steps += 1
             with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
                 model.train()
 
-                y1, y2 = model(x1, x2)
+                y1, y2, y3 = model(x1, x2)
 
                 model.zero_grad()
                 loss1 = cross_entropy_loss_with_soft_target(y1, t1)
@@ -310,7 +355,8 @@ def main(*argv):
                     loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
+                loss4 = focal_loss(y3, nyugyoku)
+                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3 + 0.1 * loss4
 
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
@@ -325,6 +371,7 @@ def main(*argv):
             sum_loss1 += loss1.item()
             sum_loss2 += loss2.item()
             sum_loss3 += loss3.item()
+            sum_loss4 += loss4.item()
             sum_loss += loss.item()
 
             # print train loss
@@ -333,16 +380,17 @@ def main(*argv):
 
                 x1, x2, t1, t2, value = test_dataloader.sample()
                 with torch.no_grad():
-                    y1, y2 = model(x1, x2)
+                    y1, y2, y3 = model(x1, x2)
 
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)
                     loss3 = bce_with_logits_loss(y2, value)
-                    loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
+                    loss4 = focal_loss(y3, nyugyoku)
+                    loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3 + loss4
 
-                    logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
+                    logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
                         epoch, t,
-                        sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss / steps,
+                        sum_loss1 / steps, sum_loss2 / steps, sum_loss3 / steps, sum_loss4 / steps, sum_loss / steps,
                         loss1.item(), loss2.item(), loss3.item(), loss.item(),
                         accuracy(y1, t1), binary_accuracy(y2, t2)))
 
@@ -350,12 +398,14 @@ def main(*argv):
                 sum_loss1_epoch += sum_loss1
                 sum_loss2_epoch += sum_loss2
                 sum_loss3_epoch += sum_loss3
+                sum_loss4_epoch += sum_loss4
                 sum_loss_epoch += sum_loss
 
                 steps = 0
                 sum_loss1 = 0
                 sum_loss2 = 0
                 sum_loss3 = 0
+                sum_loss4 = 0
                 sum_loss = 0
 
             if args.lr_scheduler and args.scheduler_step_mode == 'step':
@@ -365,14 +415,15 @@ def main(*argv):
         sum_loss1_epoch += sum_loss1
         sum_loss2_epoch += sum_loss2
         sum_loss3_epoch += sum_loss3
+        sum_loss4_epoch += sum_loss4
         sum_loss_epoch += sum_loss
 
         # print train loss and test loss for each epoch
         test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
 
-        logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
+        logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
             epoch, t,
-            sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
+            sum_loss1_epoch / steps_epoch, sum_loss2_epoch / steps_epoch, sum_loss3_epoch / steps_epoch, sum_loss4_epoch / steps_epoch, sum_loss_epoch / steps_epoch,
             test_loss1, test_loss2, test_loss3, test_loss,
             test_accuracy1, test_accuracy2,
             test_entropy1, test_entropy2))

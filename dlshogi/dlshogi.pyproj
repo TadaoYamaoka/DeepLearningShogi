@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>ptl.py</StartupFile>
+    <StartupFile>train.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>fit --config config.yaml</CommandLineArguments>
+    <CommandLineArguments>F:\floodgate\floodgate_2019-2023_brinkmate.hcpe3 F:\hcpe3\selfplay_pre45_book_policy_s5_po10000-01.hcpe3 F:\hcpe3\bpvsresnet20.hcpe3 F:\hcpe3\bpvspre53.hcpe3 F:\hcpe3\hisuivstanuki.hcpe3 F:\hcpe3\floodgate.hcpe --network resnet20x256_relu -e 4 --use_amp --amp_dtype bfloat16 --use_average --eval_interval 100 --cache cache3</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>

@@ -122,6 +122,7 @@ void __hcpe3_create_cache(const std::string& filepath) {
 			hcpe3.hcp,
 			hcpe3.value,
 			hcpe3.result,
+            hcpe3.nyugyoku,
 			hcpe3.count
 		};
 		ofs.write((const char*)&body, sizeof(body));
@@ -204,7 +205,8 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 				auto& data = trainingData.emplace_back(
 					hcpe.hcp,
 					value,
-					make_result(hcpe.gameResult, hcpe.hcp.color())
+					make_result(hcpe.gameResult, hcpe.hcp.color()),
+                    is_nyugyoku<float>(hcpe.gameResult)
 				);
 				data.candidates[hcpe.bestMove16] = 1;
 			}
@@ -213,6 +215,7 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 				auto& data = trainingData[ret.first->second];
 				data.value += value;
 				data.result += make_result(hcpe.gameResult, hcpe.hcp.color());
+                data.nyugyoku += is_nyugyoku<float>(hcpe.gameResult);
 				data.candidates[hcpe.bestMove16] += 1;
 				data.count++;
 			}
@@ -221,7 +224,8 @@ size_t load_hcpe(const std::string& filepath, std::ifstream& ifs, bool use_avera
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
 				value,
-				make_result(hcpe.gameResult, hcpe.hcp.color())
+				make_result(hcpe.gameResult, hcpe.hcp.color()),
+                is_nyugyoku<float>(hcpe.gameResult)
 			);
 			data.candidates[hcpe.bestMove16] = 1;
 		}
@@ -347,7 +351,8 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 						auto& data = trainingData.emplace_back(
 							hcp,
 							value,
-							make_result(hcpe3.result, pos.turn())
+							make_result(hcpe3.result, pos.turn()),
+                            is_nyugyoku<float>(hcpe3.result)
 						);
 						visits_to_proberbility<false>(data, candidates, temperature);
 					}
@@ -356,6 +361,7 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 						auto& data = trainingData[ret.first->second];
 						data.value += value;
 						data.result += make_result(hcpe3.result, pos.turn());
+                        data.nyugyoku += is_nyugyoku<float>(hcpe3.result);
 						visits_to_proberbility<true>(data, candidates, temperature);
 						data.count++;
 
@@ -365,7 +371,8 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 					auto& data = trainingData.emplace_back(
 						hcp,
 						value,
-						make_result(hcpe3.result, pos.turn())
+						make_result(hcpe3.result, pos.turn()),
+                        is_nyugyoku<float>(hcpe3.result)
 					);
 					visits_to_proberbility<false>(data, candidates, temperature);
 				}
@@ -397,6 +404,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 				data.count = 1;
 				data.value = value;
 				data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
+                data.nyugyoku = is_nyugyoku<float>(hcpe.gameResult);
 				data.candidates.clear();
 				data.candidates[hcpe.bestMove16] = 1;
 			}
@@ -405,7 +413,8 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 			auto& data = trainingData.emplace_back(
 				hcpe.hcp,
 				value,
-				make_result(hcpe.gameResult, hcpe.hcp.color())
+				make_result(hcpe.gameResult, hcpe.hcp.color()),
+                is_nyugyoku<float>(hcpe.gameResult)
 			);
 			data.candidates[hcpe.bestMove16] = 1;
 			++add_len;
@@ -417,13 +426,14 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, char* ndnyugyoku) {
 	unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
 	features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
 	auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
 	float* result = reinterpret_cast<float*>(ndresult);
 	float* value = reinterpret_cast<float*>(ndvalue);
+    float* nyugyoku = reinterpret_cast<float*>(ndnyugyoku);
 
 	// set all zero
 	std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
@@ -452,7 +462,10 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 
 		// eval
 		value[i] = hcpe3.value / hcpe3.count;
-	}
+
+        // nyugyoku
+        nyugyoku[i] = hcpe3.nyugyoku / hcpe3.count;
+    }
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを指定してhcpeを取り出す
@@ -645,6 +658,7 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 
 			buf1.body.value += buf2.body.value;
 			buf1.body.result += buf2.body.result;
+            buf1.body.nyugyoku += buf2.body.nyugyoku;
 			buf1.body.count += buf2.body.count;
 
 			std::unordered_map<u16, float> candidate_map;

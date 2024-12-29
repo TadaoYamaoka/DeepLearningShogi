@@ -254,12 +254,16 @@ class Hcpe3DataLoader(DataLoader):
         self.torch_value = torch.empty(
             (batch_size, 1), dtype=torch.float32, pin_memory=True
         )
+        self.torch_nyugyoku = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=True
+        )
 
         self.features1 = self.torch_features1.numpy()
         self.features2 = self.torch_features2.numpy()
         self.probability = self.torch_probability.numpy()
         self.result = self.torch_result.numpy().reshape(-1)
         self.value = self.torch_value.numpy().reshape(-1)
+        self.nyugyoku = self.torch_nyugyoku.numpy().reshape(-1)
 
         self.i = 0
         self.executor = ThreadPoolExecutor(max_workers=1)
@@ -272,6 +276,7 @@ class Hcpe3DataLoader(DataLoader):
             self.probability,
             self.result,
             self.value,
+            self.nyugyoku,
         )
 
         return (
@@ -280,4 +285,5 @@ class Hcpe3DataLoader(DataLoader):
             self.torch_probability.to(self.device),
             self.torch_result.to(self.device),
             self.torch_value.to(self.device),
+            self.torch_nyugyoku.to(self.device),
         )

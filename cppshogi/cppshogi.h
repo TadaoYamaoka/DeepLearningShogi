@@ -99,6 +99,7 @@ struct Hcpe3CacheBody {
 	HuffmanCodedPos hcp; // 局面
 	float value;
 	float result;
+    float nyugyoku;
 	int count; // 重複カウント
 };
 
@@ -108,10 +109,10 @@ struct Hcpe3CacheCandidate {
 };
 
 struct TrainingData {
-	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result)
-		: hcp(hcp), value(value), result(result), count(1) {};
+	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result, const float nyugyoku)
+		: hcp(hcp), value(value), result(result), nyugyoku(nyugyoku), count(1) {};
 	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)
-		: hcp(body.hcp), value(body.value), result(body.result), count(body.count), candidates(candidateNum) {
+		: hcp(body.hcp), value(body.value), result(body.result), nyugyoku(body.nyugyoku), count(body.count), candidates(candidateNum) {
 		for (size_t i = 0; i < candidateNum; i++) {
 			this->candidates.emplace(candidates[i].move16, candidates[i].prob);
 		}
@@ -120,6 +121,7 @@ struct TrainingData {
 	HuffmanCodedPos hcp;
 	float value;
 	float result;
+    float nyugyoku;
 	std::unordered_map<u16, float> candidates;
 	int count; // 重複カウント
 };

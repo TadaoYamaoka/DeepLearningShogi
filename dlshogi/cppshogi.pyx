@@ -15,7 +15,7 @@ cdef extern from "python_module.h" nogil:
     size_t __hcpe3_get_cache_num()
     size_t __load_hcpe3(const string& filepath, bool use_average, double a, double temperature, size_t& len)
     size_t __hcpe3_patch_with_hcpe(const string& filepath, size_t& add_len)
-    void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue)
+    void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, char* ndnyugyoku)
     size_t __load_evalfix(const string& filepath)
     void __hcpe3_get_hcpe(const size_t index, char* ndhcpe)
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
@@ -48,8 +48,8 @@ def hcpe3_patch_with_hcpe(str filepath):
     cdef size_t sum_len = __hcpe3_patch_with_hcpe(filepath.encode(locale.getpreferredencoding()), add_len)
     return sum_len, add_len
 
-def hcpe3_decode_with_value(np.ndarray ndindex, np.ndarray ndfeatures1, np.ndarray ndfeatures2, np.ndarray ndprobability, np.ndarray ndresult, np.ndarray ndvalue):
-    __hcpe3_decode_with_value(len(ndindex), ndindex.data, ndfeatures1.data, ndfeatures2.data, ndprobability.data, ndresult.data, ndvalue.data)
+def hcpe3_decode_with_value(np.ndarray ndindex, np.ndarray ndfeatures1, np.ndarray ndfeatures2, np.ndarray ndprobability, np.ndarray ndresult, np.ndarray ndvalue, np.ndarray ndnyugyoku):
+    __hcpe3_decode_with_value(len(ndindex), ndindex.data, ndfeatures1.data, ndfeatures2.data, ndprobability.data, ndresult.data, ndvalue.data, ndnyugyoku.data)
 
 def hcpe3_get_hcpe(size_t index, np.ndarray ndhcpe):
     __hcpe3_get_hcpe(index, ndhcpe.data)
