@@ -29,7 +29,7 @@ constexpr u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNI
 constexpr u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 
 constexpr u32 MAX_NYUGYOKU_OPP_FIELD = 10; // 敵陣三段目以内の駒(10枚までの残り枚数)
-constexpr u32 MAX_NYUGYOKU_SCORE = 10; // 点数(先手28点、後手27点までの残り枚数)
+constexpr u32 MAX_NYUGYOKU_SCORE = 20; // 点数(先手28点、後手27点までの残り枚数)
 constexpr u32 MAX_FEATURES2_NYUGYOKU_NUM = 1/*入玉*/ + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE;
 
 constexpr int PIECETYPE_NUM = 14; // 駒の種類
