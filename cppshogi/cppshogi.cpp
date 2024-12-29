@@ -107,49 +107,49 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		const Hand hand = position.hand(c);
 		const u32 numHPawn = hand.numOf(HPawn);
 		set_features2(features2, c2, 0, std::min(numHPawn, (u32)MAX_HPAWN_NUM));
-        const u32 numHLance = hand.numOf(HLance);
-        set_features2(features2, c2, MAX_HPAWN_NUM, numHLance);
-        const u32 numHKnight = hand.numOf(HKnight);
-        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM, numHKnight);
-        const u32 numHSilver = hand.numOf(HSilver);
-        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM, numHSilver);
-        const u32 numHGold = hand.numOf(HGold);
-        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM, numHGold);
-        const u32 numHBishop = hand.numOf(HBishop);
-        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM, numHBishop);
-        const u32 numHRook = hand.numOf(HRook);
-        set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM, numHRook);
+		const u32 numHLance = hand.numOf(HLance);
+		set_features2(features2, c2, MAX_HPAWN_NUM, numHLance);
+		const u32 numHKnight = hand.numOf(HKnight);
+		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM, numHKnight);
+		const u32 numHSilver = hand.numOf(HSilver);
+		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM, numHSilver);
+		const u32 numHGold = hand.numOf(HGold);
+		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM, numHGold);
+		const u32 numHBishop = hand.numOf(HBishop);
+		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM, numHBishop);
+		const u32 numHRook = hand.numOf(HRook);
+		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM, numHRook);
 
-        // 入玉宣言
-        // 敵陣のマスク
-        const Bitboard opponentsField = (c == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
+		// 入玉宣言
+		// 敵陣のマスク
+		const Bitboard opponentsField = (c == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
 
-        // 玉が敵陣三段目以内に入っている
-        int kingCount = 0;
-        if (position.bbOf(King, c).andIsAny(opponentsField)) {
-            set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM);
-            kingCount = 1;
-        }
+		// 玉が敵陣三段目以内に入っている
+		int kingCount = 0;
+		if (position.bbOf(King, c).andIsAny(opponentsField)) {
+			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM);
+			kingCount = 1;
+		}
 
-        // 敵陣三段目以内の駒(10枚までの残り枚数)
-        const int ownPiecesCount = (position.bbOf(c) & opponentsField).popCount() - kingCount;
-        const int restOppFieldNum = 10 - ownPiecesCount;
-        if (restOppFieldNum < MAX_NYUGYOKU_OPP_FIELD) {
-            set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + std::max(0, restOppFieldNum));
-        }
+		// 敵陣三段目以内の駒(10枚までの残り枚数)
+		const int ownPiecesCount = (position.bbOf(c) & opponentsField).popCount() - kingCount;
+		const int restOppFieldNum = 10 - ownPiecesCount;
+		if (restOppFieldNum < MAX_NYUGYOKU_OPP_FIELD) {
+			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + std::max(0, restOppFieldNum));
+		}
 
-        // 点数(先手28点、後手27点までの残り枚数)
-        const int ownBigPiecesCount = (position.bbOf(Rook, Dragon, Bishop, Horse) & opponentsField & position.bbOf(c)).popCount();
-        const int ownSmallPiecesCount = ownPiecesCount - ownBigPiecesCount;
-        const int val = ownSmallPiecesCount
-            + numHPawn + numHLance + numHKnight
-            + numHSilver + numHGold
-            + (ownBigPiecesCount + numHBishop + numHRook) * 5;
-        const int restPoint = (c == Black ? 28 : 27) - val;
-        if (restPoint < MAX_NYUGYOKU_SCORE) {
-            set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + MAX_NYUGYOKU_OPP_FIELD + std::max(0, restPoint));
-        }
-    }
+		// 点数(先手28点、後手27点までの残り枚数)
+		const int ownBigPiecesCount = (position.bbOf(Rook, Dragon, Bishop, Horse) & opponentsField & position.bbOf(c)).popCount();
+		const int ownSmallPiecesCount = ownPiecesCount - ownBigPiecesCount;
+		const int val = ownSmallPiecesCount
+			+ numHPawn + numHLance + numHKnight
+			+ numHSilver + numHGold
+			+ (ownBigPiecesCount + numHBishop + numHRook) * 5;
+		const int restPoint = (c == Black ? 28 : 27) - val;
+		if (restPoint < MAX_NYUGYOKU_SCORE) {
+			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + MAX_NYUGYOKU_OPP_FIELD + std::max(0, restPoint));
+		}
+	}
 
 	// is check
 	if (position.inCheck()) {
