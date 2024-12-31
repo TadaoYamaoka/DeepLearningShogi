@@ -31,10 +31,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="convert_model_to_onnx.py" />
+    <Compile Include="data_loader_lite.py" />
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="lr_scheduler.py" />
+    <Compile Include="network\lite_value_network.py" />
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
@@ -50,6 +52,7 @@
     <Compile Include="test.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train_lite.py" />
     <Compile Include="train.py" />
     <Compile Include="utils\aoba_to_hcpe.py" />
     <Compile Include="utils\aoba_to_hcpe2.py" />

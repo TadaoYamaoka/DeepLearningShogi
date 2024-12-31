@@ -137,6 +137,55 @@ void make_input_features(const Position& position, packed_features1_t packed_fea
 		make_input_features<White, packed_features1_t, packed_features2_t>(position, packed_features1, packed_features2);
 }
 
+template <Color turn>
+inline void make_input_features_lite(const Position& position, features1_lite_t features1, features2_lite_t features2) {
+    Bitboard occupied_bb = position.occupiedBB();
+
+    FOREACH_BB(occupied_bb, Square sq, {
+        const Piece pc = position.piece(sq);
+        const PieceType pt = pieceToPieceType(pc);
+        Color c = pieceToColor(pc);
+
+        // 後手の場合、色を反転し、盤面を180度回転
+        if (turn == White) {
+            c = oppositeColor(c);
+            sq = SQ99 - sq;
+        }
+
+        // 駒の配置
+        features1[sq] = PIECETYPE_NUM * (int)c + pt - 1;
+    });
+
+    for (Color c = Black; c < ColorNum; ++c) {
+        // 後手の場合、色を反転
+        const Color c2 = turn == Black ? c : oppositeColor(c);
+
+        // 持ち駒
+        const Hand hand = position.hand(c);
+        int p = 0;
+        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
+            u32 num = hand.numOf(hp);
+            if (num >= MAX_PIECES_IN_HAND[hp]) {
+                num = MAX_PIECES_IN_HAND[hp];
+            }
+            for (size_t i = 0; i < num; ++i) {
+                const int64_t idx = MAX_PIECES_IN_HAND_SUM * (int)c2 + p + i;
+                features2[idx] = idx;
+            }
+            p += MAX_PIECES_IN_HAND[hp];
+        }
+    }
+
+    // is check
+    if (position.inCheck()) {
+        features2[MAX_FEATURES2_HAND_NUM] = MAX_FEATURES2_HAND_NUM;
+    }
+}
+
+void make_input_features_lite(const Position& position, features1_lite_t features1, features2_lite_t features2) {
+    position.turn() == Black ? make_input_features_lite<Black>(position, features1, features2) : make_input_features_lite<White>(position, features1, features2);
+}
+
 inline MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {
 	if (dir_y < 0 && dir_x == 0) {
 		return UP;

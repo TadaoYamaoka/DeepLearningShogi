@@ -61,6 +61,32 @@ void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1,
 	}
 }
 
+void __hcpe_decode_lite(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndresult, char* ndvalue) {
+    HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
+    features1_lite_t* features1 = reinterpret_cast<features1_lite_t*>(ndfeatures1);
+    features2_lite_t* features2 = reinterpret_cast<features2_lite_t*>(ndfeatures2);
+    float* result = reinterpret_cast<float*>(ndresult);
+    float* value = reinterpret_cast<float*>(ndvalue);
+
+    // set all padding index
+    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, PIECETYPE_NUM * 2);
+    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_NUM);
+
+    Position position;
+    for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, result++) {
+        position.set(hcpe->hcp);
+
+        // input features
+        make_input_features_lite(position, *features1, *features2);
+
+        // game result
+        *result = make_result(hcpe->gameResult, position.turn());
+
+        // eval
+        *value = score_to_value((Score)hcpe->eval);
+    }
+}
+
 void __hcpe2_decode_with_value(const size_t len, char* ndhcpe2, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue, char* ndaux) {
 	HuffmanCodedPosAndEval2* hcpe = reinterpret_cast<HuffmanCodedPosAndEval2*>(ndhcpe2);
 	features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
@@ -455,6 +481,35 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 		// eval
 		value[i] = hcpe3.value / hcpe3.count;
 	}
+}
+
+void __hcpe3_decode_lite(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndresult, char* ndvalue) {
+    unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
+    features1_lite_t* features1 = reinterpret_cast<features1_lite_t*>(ndfeatures1);
+    features2_lite_t* features2 = reinterpret_cast<features2_lite_t*>(ndfeatures2);
+    float* result = reinterpret_cast<float*>(ndresult);
+    float* value = reinterpret_cast<float*>(ndvalue);
+
+    // set all padding index
+    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, PIECETYPE_NUM * 2);
+    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_NUM);
+
+    #pragma omp parallel for num_threads(2) if (len > 1)
+    for (int64_t i = 0; i < len; i++) {
+        const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
+
+        Position position;
+        position.set(hcpe3.hcp);
+
+        // input features
+        make_input_features_lite(position, features1[i], features2[i]);
+
+        // game result
+        result[i] = hcpe3.result / hcpe3.count;
+
+        // eval
+        value[i] = hcpe3.value / hcpe3.count;
+    }
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを指定してhcpeを取り出す
