@@ -2501,4 +2501,52 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	std::cout << "white score:\n";
 	printStat(white_score);
 }
+
+bool enumerate_leaf_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, HuffmanCodedPos>& positions, std::unordered_set<Key>& exists, const int limitScore) {
+	const Key key = Book::bookKey(pos);
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return true;
+
+	if (!exists.emplace(key).second)
+		return false;
+
+	if (std::abs(itr->second[0].score) > limitScore)
+		return true;
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		const auto ret = enumerate_leaf_positions(pos, bookMap, positions, exists, limitScore);
+		pos.undoMove(move);
+		if (ret && itr->second[0].fromToPro == (u16)move.value())
+			positions.emplace(key, pos.toHuffmanCodedPos());
+	}
+	return false;
+}
+
+void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore) {
+	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+	read_book(bookFileName, bookMap);
+
+	// 全局面を列挙
+	std::unordered_map<Key, HuffmanCodedPos> positions;
+	{
+		std::unordered_set<Key> exists;
+
+		enumerate_leaf_positions(pos, bookMap, positions, exists, limitScore);
+	}
+
+	std::cout << "positions: " << positions.size() << std::endl;
+
+	std::ofstream ofs(outFileName, std::ios::binary);
+	size_t output_num = 0;
+	for (const auto& kv : positions) {
+		ofs.write((const char*)kv.second.data, sizeof(HuffmanCodedPos));
+		output_num++;
+	}
+	std::cout << "output: " << output_num << std::endl;
+}
 #endif

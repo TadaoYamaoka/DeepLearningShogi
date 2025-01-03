@@ -56,6 +56,7 @@ struct MySearcher : Searcher {
 	static void makeImportantHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeImportantSfen(std::istringstream& ssCmd, const std::string& posCmd);
 	static void statBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookToLeafHcp(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -436,6 +437,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_important_hcp") makeImportantHcp(ssCmd, posCmd);
 		else if (token == "make_important_sfen") makeImportantSfen(ssCmd, posCmd);
 		else if (token == "stat_book") statBook(ssCmd, posCmd);
+		else if (token == "book_to_leaf_hcp") bookToLeafHcp(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2139,5 +2141,28 @@ void MySearcher::statBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	setPosition(pos, ssPosCmd);
 
 	stat_book(pos, posCmd, bookFileName);
+}
+
+// 末端の局面をHcpにする
+void MySearcher::bookToLeafHcp(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string bookFileName;
+	std::string outFileName;
+	int limitScore = ScoreInfinite;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> limitScore;
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	book_to_leaf_hcp(pos, bookFileName, outFileName, limitScore);
+
+	// 結果表示
+	std::cout << "done" << std::endl;
 }
 #endif

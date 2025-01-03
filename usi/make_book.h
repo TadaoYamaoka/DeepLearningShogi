@@ -80,4 +80,5 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 void make_important_hcp(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 void stat_book(Position& pos, const std::string& posCmd, const std::string& bookFileName);
+void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore);
 #endif
