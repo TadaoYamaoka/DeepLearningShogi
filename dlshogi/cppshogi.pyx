@@ -21,7 +21,8 @@ cdef extern from "python_module.h" nogil:
     void __hcpe3_get_hcpe(const size_t index, char* ndhcpe)
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
     void __hcpe3_merge_cache(const string& file1, const string& file2, const string& out)
-    pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2)
+    pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2) except +
+    pair[int, int] __hcpe3_clean(const string& file1, const string& file2) except +
 
 init()
 
@@ -68,3 +69,6 @@ def hcpe3_merge_cache(str file1, str file2, str out):
 
 def hcpe3_to_hcpe(str file1, str file2):
     return __hcpe3_to_hcpe(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()))
+
+def hcpe3_clean(str file1, str file2):
+    return __hcpe3_clean(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()))

@@ -5,6 +5,8 @@
 #include <fstream>
 
 #include "cppshogi.h"
+#include "python_module.h"
+#include "usi.hpp"
 
 using namespace std;
 
@@ -263,6 +265,14 @@ TEST(FeaturesTest, make_input_features2) {
         begin = end, end = begin + 1;
         EXPECT_EQ((std::vector<float>{1, }), (std::vector<float>{begin, end}));
     }
+}
+
+TEST(PythonModuleTest, hcpe3_clean) {
+    initTable();
+    Position::initZobrist();
+    HuffmanCodedPos::init();
+
+    __hcpe3_clean(R"(F:\hcpe3\selfplay_pre55-012_book_policy_po5000-01_broken.hcpe3)", R"(R:\cleaned.hcpe3)");
 }
 
 #if 0

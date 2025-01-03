@@ -719,8 +719,8 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
         // 開始局面
         Position pos;
         if (!pos.set(hcpe3.hcp)) {
-            std::stringstream ss("INCORRECT_HUFFMAN_CODE at ");
-            ss << file1 << "(" << p << ")";
+            std::stringstream ss;
+            ss << "INCORRECT_HUFFMAN_CODE at " << file1 << "(" << p << ")";
             throw std::runtime_error(ss.str());
         }
         StateListPtr states{ new std::deque<StateInfo>(1) };
@@ -749,6 +749,69 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
             }
 
             pos.doMove(move, states->emplace_back(StateInfo()));
+        }
+    }
+    return std::make_pair(p, positions);
+}
+
+std::pair<int, int> __hcpe3_clean(const std::string& file1, const std::string& file2) {
+    std::ifstream ifs(file1, std::ifstream::binary);
+    std::ofstream ofs(file2, std::ifstream::binary);
+
+    int positions = 0;
+    int p = 0;
+    for (; ifs; ++p) {
+        HuffmanCodedPosAndEval3 hcpe3;
+        ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+        if (ifs.eof()) {
+            break;
+        }
+        assert(hcpe3.moveNum <= 513);
+
+        // 開始局面
+        Position pos;
+        if (!pos.set(hcpe3.hcp)) {
+            std::stringstream ss;
+            ss << "INCORRECT_HUFFMAN_CODE at " << file1 << "(" << p << ")";
+            throw std::runtime_error(ss.str());
+        }
+        StateListPtr states{ new std::deque<StateInfo>(1) };
+
+        std::vector<std::pair<MoveInfo, std::vector<MoveVisits>>> moveInfos;
+        moveInfos.reserve(hcpe3.moveNum);
+        for (int i = 0; i < hcpe3.moveNum; ++i) {
+            auto& moveInfo = moveInfos.emplace_back();
+            ifs.read((char*)&moveInfo.first, sizeof(MoveInfo));
+            if (ifs.eof()) {
+                std::cout << "read error" << std::endl;
+                return std::make_pair(p, positions);
+            }
+            assert(moveInfo.first.candidateNum <= 593);
+
+            const Move move = move16toMove((Move)moveInfo.first.selectedMove16, pos);
+            if (!pos.moveIsPseudoLegal<false>(move)) {
+                std::stringstream ss;
+                ss << "illegal move at " << file1 << "(" << p << ")";
+                throw std::runtime_error(ss.str());
+            }
+
+            if (moveInfo.first.candidateNum > 0) {
+                moveInfo.second.resize(moveInfo.first.candidateNum);
+                ifs.read((char*)moveInfo.second.data(), sizeof(MoveVisits) * moveInfo.first.candidateNum);
+                if (ifs.eof()) {
+                    std::cout << "read error" << std::endl;
+                    return std::make_pair(p, positions);
+                }
+                positions++;
+            }
+
+            pos.doMove(move, states->emplace_back(StateInfo()));
+        }
+        ofs.write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+        for (const auto& moveInfo : moveInfos) {
+            ofs.write((char*)&moveInfo.first, sizeof(MoveInfo));
+            if (moveInfo.first.candidateNum > 0)
+                ofs.write((char*)moveInfo.second.data(), sizeof(MoveVisits) * moveInfo.first.candidateNum);
         }
     }
     return std::make_pair(p, positions);
