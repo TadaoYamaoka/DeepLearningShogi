@@ -332,57 +332,87 @@ int main() {
 }
 #endif
 
-#if 0
 // 王手生成テスト
-int main() {
+TEST(GenerateMovesTest, Check) {
 	initTable();
 	Position pos;
 
-	std::vector<std::string> sfens = {
-		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1", // 直接王手 歩成
-		"k1+B5l/l1gL2g2/2ng1pn2/2p1p1ppp/1pn2P3/LS1PP1S1P/1P1p5/1KG6/1N1s4B b 2RSP4p 1", // 直接王手 香車成
-		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1", // 直接王手 桂馬成
-		"lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成
-		"lnskggsnl/1r5b1/pp1pppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", // 直接王手 角成(対角線外)
-		"lnsgkgsnl/4p2b1/pppp1Rppp/5p3/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1", // 直接王手 飛車成
-		"lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 銀
-		"lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬
-		"lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車
-		"lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成
-		"lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1", // 間接王手 香車成(後手)
-		"lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", // 間接王手 香車成(直接あり)
-		"lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
-		"lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1", // 歩が成って王手
-		"lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成
-		"lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", // 間接王手 歩成(直接あり)
-		"lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1", // 間接王手 歩成(直線上)
-		"lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成
-		"lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", // 間接王手 桂馬成(直接あり)
-		"lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金
-		"lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", // 間接王手 金(直接あり)
-		"lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀
-		"lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", // 間接王手 成銀(直接あり)
-		"lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1", // 間接王手 角成
-		"lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1", // 間接王手 飛車成
-		"9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1", // 合法手の数：65
-		"5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1", // 合法手の数：67
-		"+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1", // 合法手の数：91
+    struct TestData {
+        std::string sfen;
+        std::vector<std::string> moves;
+    };
+
+	std::vector<TestData> sfens = {
+        // 直接王手 歩成
+        { "lnsgkgsnl/1r5b1/ppppPpppp/9/9/9/PPPP1PPPP/1B5R1/LNSGKGSNL b p 1", { "5c5b+" } },
+        // 直接王手 香車成
+        { "k1+B5l/l1gL2g2/2ng1pn2/2p1p1ppp/1pn2P3/LS1PP1S1P/1P1p5/1KG6/1N1s4B b 2RSP4p 1", { "1i7c+", "7a8a", "7a8b", "9f9b+", "S*8b", "R*8a" } },
+        // 直接王手 桂馬成
+		{ "lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPPPPPP/1B5R1/LNSGKGS1L b p 1", { "5d4b+", "5d6b+" } },
+        // 直接王手 角成
+		{ "lnsgkgsnl/1r1p3b1/pp2ppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", { "9e6b+" } },
+        // 直接王手 角成(対角線外)
+		{ "lnskggsnl/1r5b1/pp1pppppp/2p6/B8/9/PPPPPPPPP/7R1/LNSGKGSNL b - 1", { "9e5a+", "9e6b+" } },
+        // 直接王手 飛車成
+		{ "lnsgkgsnl/4p2b1/pppp1Rppp/5p3/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL b - 1", { "4c4a+", "4c4b+", "5f5b+" } },
+        // 間接王手 銀
+		{ "lnsgkgsnl/1r5b1/ppppSpppp/9/9/4L4/PPPPPPPPP/1B5R1/LNSGKG1N1 b p 1", { "5c4b+", "5c4b", "5c4d+", "5c4d", "5c5b", "5c5b+", "5c6b+", "5c6b", "5c6d+", "5c6d" } },
+        // 間接王手 桂馬
+		{ "lnsgkgsnl/1r5b1/pppp1pppp/9/9/4N4/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", { "5f4d", "5f6d" } },
+        // 間接王手 香車
+		{ "lnsg1gsnl/1r2k2b1/p1p1ppppp/1p1p5/1L7/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", { "8e8d" } },
+        // 間接王手 香車成
+		{ "lnsgkgsnl/1r5b1/ppLpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", { "7c7a+", "7c7b+" } },
+        // 間接王手 香車成(後手)
+		{ "lnsgkgsn1/1r7/ppppppppp/9/6P1b/9/PPPPPPlPP/1B5R1/LNSGKGSNL w - 1", { "3g3h+", "3g3i+" } },
+        // 間接王手 香車成(直接あり)
+		{ "lnsg1gsnl/1r2k2b1/p1pLppppp/1p1p5/9/B8/PPPPpPPPP/7R1/LNSGKGSN1 b - 1", { "6c6a+", "6c6b+" } },
+        // 歩が成って王手
+		{ "lnsgkgsnl/1r1P3b1/ppppPPppp/4pp3/9/9/PPP3PPP/1B5R1/LNSGKGSNL b - 1", { "4c4b+", "5c5b+", "6b6a+" } },
+        // 歩が成って王手
+		{ "lnsg1gsnl/1r1P3b1/ppppk1ppp/5P3/4Pp3/4p4/PPP3PPP/1B5R1/LNSGKGSNL b - 1", { "4d4c+", "5e5d" } },
+        // 間接王手 歩成
+		{ "lnsgkgsnl/1r5b1/ppPpppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", { "7c7b+" } },
+        // 間接王手 歩成(直接あり)
+		{ "lnsgkgsnl/1r1P3b1/pp1pppppp/2p6/B8/9/PP1PpPPPP/7R1/LNSGKGSNL b - 1", { "6b6a+" } },
+        // 間接王手 歩成(直線上)
+		{ "lnsgkgsnl/1r5b1/ppppPpppp/9/9/4L4/PPPP1PPPP/1B5R1/LNSGKGSN1 b p 1", { "5c5b+" } },
+        // 間接王手 桂馬成
+		{ "lnsg1gsnl/1r2k2b1/ppp2pppp/3p5/1N7/B8/PPPPLPPPP/7R1/LNSGKGS2 b 2p 1", { "8e7c+", "8e7c", "8e9c+", "8e9c" } },
+        // 間接王手 桂馬成(直接あり)
+		{ "lnsgkgsnl/1r5b1/pppp1pppp/4N4/9/9/PPPPLPPPP/1B5R1/LNSGKGS2 b 2p 1", { "5d4b+", "5d6b+" } },
+        // 間接王手 金
+		{ "lnsgkgsnl/1r5b1/pp1pppppp/1Gp6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", { "8d7d", "8d8c", "8d8e", "8d9c", "8d9d" } },
+        // 間接王手 金(直接あり)
+		{ "lnsgkgsnl/1r5b1/ppGpppppp/2p6/B8/9/PPPPpPPPP/7R1/LNSGK1SNL b - 1", { "7c6b", "7c6c", "7c7b", "7c7d", "7c8b", "7c8c" } },
+        // 間接王手 成銀
+		{ "lnsgkgsnl/1r5b1/pppp1pppp/4+S4/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", { "5d4c", "5d4d", "5d6c", "5d6d" } },
+        // 間接王手 成銀(直接あり)
+		{ "lnsgkgsnl/1r5b1/pppp+Spppp/9/9/4L4/PPPPpPPPP/1B5R1/LNSGKG1N1 b p 1", { "5c4b", "5c4c", "5c5b", "5c6b", "5c6c" } },
+        // 間接王手 角成
+		{ "lnsgkgsnl/1r5b1/ppp1B1ppp/3p1p3/9/4R4/PPPPpPPPP/9/LNSGKGSNL b p 1", { "5c3a+", "5c4b+", "5c4d+", "5c6b+", "5c6d+", "5c7a+" } },
+        // 間接王手 飛車成
+		{ "lnsgkgsnl/1r5b1/ppRpppppp/2p6/B8/9/PPPPpPPPP/9/LNSGKGSNL b - 1", { "7c6c+", "7c7a+", "7c7b+", "7c7d+", "7c8c+" } },
+        // 合法手の数：65
+		{ "9/R1S1k1S1R/2+P3G2/2G3G2/9/B1NL1LN1B/9/4K4/4L4 b G2S2NL17P 1", { "3b2a+", "3b2a", "3b2c+", "3b2c", "3b3a+", "3b3a", "3b4a+", "3b4a", "3b4c+", "3b4c", "3d2c", "3d2d", "3d3e", "3d4c", "3d4d", "5h4g", "5h4h", "5h4i", "5h6g", "5h6h", "5h6i", "7b6a+", "7b6a", "7b6c+", "7b6c", "7b7a+", "7b7a", "7b8a+", "7b8a", "7b8c+", "7b8c", "7d6c", "7d6d", "7d7e", "7d8c", "7d8d", "3c4b", "3c4c", "3f4d", "4f4b+", "4f4c+", "6f6b+", "6f6c+", "7c6b", "7c6c", "7f6d", "P*5c", "L*5c", "L*5d", "L*5e", "L*5f", "L*5g", "N*4d", "N*6d", "S*4a", "S*4c", "S*5c", "S*6a", "S*6c", "G*4b", "G*4c", "G*5a", "G*5c", "G*6b", "G*6c" } },
+        // 合法手の数：67
+        { "5S1S1/RS5k1/5G3/9/5NL1L/9/9/1K7/B8 b RB3GS3N2L18P 1", { "8b7a+", "8b7a", "8b7c+", "8b7c", "8b8a+", "8b8a", "8b9a+", "8b9a", "8b9c+", "8b9c", "8h7h", "8h7i", "8h8g", "8h8i", "8h9g", "8h9h", "1e1b+", "1e1c+", "2a1b+", "2a3b+", "3e3b+", "3e3c+", "4a3b+", "4c3b", "4c3c", "4e3c+", "P*2c", "L*2c", "L*2d", "L*2e", "L*2f", "L*2g", "L*2h", "L*2i", "N*1d", "N*3d", "S*1a", "S*1c", "S*2c", "S*3a", "S*3c", "G*1b", "G*1c", "G*2c", "G*3b", "G*3c", "B*1a", "B*1c", "B*3a", "B*3c", "B*4d", "B*5e", "B*6f", "B*7g", "R*1b", "R*2c", "R*2d", "R*2e", "R*2f", "R*2g", "R*2h", "R*2i", "R*3b", "R*4b", "R*5b", "R*6b", "R*7b" } },
+        // 合法手の数：91
+		{ "+B7+B/7R1/2R6/9/3Sk1G2/6G2/3+PS1+P2/9/4L1N1K b GSNLPgs2n2l15p 1", { "2b1b+", "2b2a+", "2b2c+", "2b2d+", "2b2e+", "2b2f+", "2b2g+", "2b2h+", "2b2i+", "2b3b+", "2b4b+", "2b5b+", "2b6b+", "2b7b+", "2b8b+", "2b9b+", "5g4f", "5g4h", "5g5f", "5g6f", "5g6h", "7c1c+", "7c2c+", "7c3c+", "7c4c+", "7c5c+", "7c6c+", "7c7a+", "7c7b+", "7c7d+", "7c7e+", "7c7f+", "7c7g+", "7c7h+", "7c7i+", "7c8c+", "7c9c+", "3e4e", "3f4e", "3f4f", "3g4f", "3i4g", "6e5f", "6e6d", "6g5f", "6g6f", "P*5f", "L*5f", "N*4g", "S*4d", "S*4f", "S*5f", "S*6d", "S*6f", "G*4e", "G*4f", "G*5d", "G*5f", "G*6f" } },
 	};
 
 	// 王手生成
-	for (const auto sfen : sfens) {
-		pos.set(sfen);
+	for (const auto data : sfens) {
+		pos.set(data.sfen);
 		MoveList<Check> ml(pos);
-		std::cout << sfen << "\t" << ml.size();
+        std::vector<std::string> moves;
+        moves.reserve(ml.size());
 		for (; !ml.end(); ++ml) {
-			std::cout << "\t" << ml.move().toUSI();
+            moves.emplace_back(ml.move().toUSI());
 		}
-		std::cout << std::endl;
+        EXPECT_EQ(data.moves, moves) << data.sfen;
 	}
-
-	return 0;
 }
-#endif
 
 #if 0
 // 王手生成テスト(ファイルからsfen読み込み)
