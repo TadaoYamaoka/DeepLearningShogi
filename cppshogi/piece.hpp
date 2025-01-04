@@ -53,7 +53,7 @@ enum Piece {
 };
 OverloadEnumOperators(Piece);
 
-inline Piece inverse(const Piece pc) { return static_cast<Piece>(pc ^ 0x10); }
+inline constexpr Piece inverse(const Piece pc) { return static_cast<Piece>(pc ^ 0x10); }
 
 // 持ち駒を表すときに使用する。
 // todo: HGold を HRook の後ろに持っていき、PieceType との変換を簡単に出来るようにする。
@@ -66,30 +66,30 @@ OverloadEnumOperators(HandPiece);
 // Position::bbOf(pieceToPieceType(p)) とすると、
 // Position::emptyBB() ではなく Position::occupiedBB() になってしまうので、
 // 注意すること。出来れば修正したい。
-inline PieceType pieceToPieceType(const Piece p) { return static_cast<PieceType>(p & 15); }
+inline constexpr PieceType pieceToPieceType(const Piece p) { return static_cast<PieceType>(p & 15); }
 
-inline Color pieceToColor(const Piece p) {
+inline constexpr Color pieceToColor(const Piece p) {
     assert(p != Empty);
     return static_cast<Color>(p >> 4);
 }
 
-inline Piece colorAndPieceTypeToPiece(const Color c, const PieceType pt) { return static_cast<Piece>((c << 4) | pt); }
+inline constexpr Piece colorAndPieceTypeToPiece(const Color c, const PieceType pt) { return static_cast<Piece>((c << 4) | pt); }
 
-const u32 IsSliderVal = 0x60646064;
+constexpr u32 IsSliderVal = 0x60646064;
 // pc が遠隔駒であるか
-inline bool isSlider(const Piece     pc) { return (IsSliderVal & (1 << pc)) != 0; }
-inline bool isSlider(const PieceType pt) { return (IsSliderVal & (1 << pt)) != 0; }
+inline constexpr bool isSlider(const Piece     pc) { return (IsSliderVal & (1 << pc)) != 0; }
+inline constexpr bool isSlider(const PieceType pt) { return (IsSliderVal & (1 << pt)) != 0; }
 
 const HandPiece PieceTypeToHandPieceTable[PieceTypeNum] = {
     HandPieceNum, HPawn, HLance, HKnight, HSilver, HBishop, HRook, HGold, HandPieceNum, HPawn, HLance, HKnight, HSilver, HBishop, HRook
 };
-inline HandPiece pieceTypeToHandPiece(const PieceType pt) { return PieceTypeToHandPieceTable[pt]; }
+inline constexpr HandPiece pieceTypeToHandPiece(const PieceType pt) { return PieceTypeToHandPieceTable[pt]; }
 
 const PieceType HandPieceToPieceTypeTable[HandPieceNum] = {
     Pawn, Lance, Knight, Silver, Gold, Bishop, Rook
 };
-inline PieceType handPieceToPieceType(const HandPiece hp) { return HandPieceToPieceTypeTable[hp]; }
-inline Piece colorAndHandPieceToPiece(const Color c, const HandPiece hp) {
+inline constexpr PieceType handPieceToPieceType(const HandPiece hp) { return HandPieceToPieceTypeTable[hp]; }
+inline constexpr Piece colorAndHandPieceToPiece(const Color c, const HandPiece hp) {
     return colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
 }
 

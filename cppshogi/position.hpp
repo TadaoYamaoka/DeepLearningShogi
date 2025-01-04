@@ -58,9 +58,7 @@ struct StateInfo {
     Key boardKey;
     Key handKey;
     Bitboard checkersBB; // 手番側の玉へ check している駒の Bitboard
-#if 0
-    Piece capturedPiece;
-#endif
+    PieceType capturedPieceType;
     StateInfo* previous;
     Hand hand; // 手番側の持ち駒
 
@@ -412,7 +410,7 @@ public:
 
     static void initZobrist();
 
-private:
+protected:
     void clear();
     void setPiece(const Piece piece, const Square sq) {
         const Color c = pieceToColor(piece);

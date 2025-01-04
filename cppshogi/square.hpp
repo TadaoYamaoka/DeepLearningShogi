@@ -116,21 +116,21 @@ inline void operator += (Square& lhs, const SquareDelta rhs) { lhs = lhs + stati
 inline Square operator - (const Square lhs, const SquareDelta rhs) { return lhs - static_cast<Square>(rhs); }
 inline void operator -= (Square& lhs, const SquareDelta rhs) { lhs = lhs - static_cast<Square>(rhs); }
 
-inline bool isInFile(const File f) { return (0 <= f) && (f < FileNum); }
-inline bool isInRank(const Rank r) { return (0 <= r) && (r < RankNum); }
+inline constexpr bool isInFile(const File f) { return (0 <= f) && (f < FileNum); }
+inline constexpr bool isInRank(const Rank r) { return (0 <= r) && (r < RankNum); }
 // s が Square の中に含まれているか判定
-inline bool isInSquare(const Square s) { return (0 <= s) && (s < SquareNum); }
+inline constexpr bool isInSquare(const Square s) { return (0 <= s) && (s < SquareNum); }
 // File, Rank のどちらかがおかしいかも知れない時は、
 // こちらを使う。
 // こちらの方が遅いが、どんな File, Rank にも対応している。
-inline bool isInSquare(const File f, const Rank r) { return isInFile(f) && isInRank(r); }
+inline constexpr bool isInSquare(const File f, const Rank r) { return isInFile(f) && isInRank(r); }
 
 // 速度が必要な場面で使用するなら、テーブル引きの方が有効だと思う。
 inline constexpr Square makeSquare(const File f, const Rank r) {
     return static_cast<Square>(static_cast<int>(f) * 9 + static_cast<int>(r));
 }
 
-const Rank SquareToRank[SquareNum] = {
+constexpr Rank SquareToRank[SquareNum] = {
     Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9,
     Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9,
     Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9,
@@ -142,7 +142,7 @@ const Rank SquareToRank[SquareNum] = {
     Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8, Rank9
 };
 
-const File SquareToFile[SquareNum] = {
+constexpr File SquareToFile[SquareNum] = {
     File1, File1, File1, File1, File1, File1, File1, File1, File1,
     File2, File2, File2, File2, File2, File2, File2, File2, File2,
     File3, File3, File3, File3, File3, File3, File3, File3, File3,
@@ -155,11 +155,11 @@ const File SquareToFile[SquareNum] = {
 };
 
 // 速度が必要な場面で使用する。
-inline Rank makeRank(const Square s) {
+inline constexpr Rank makeRank(const Square s) {
     assert(isInSquare(s));
     return SquareToRank[s];
 }
-inline File makeFile(const Square s) {
+inline constexpr File makeFile(const Square s) {
     assert(isInSquare(s));
     return SquareToFile[s];
 }
@@ -243,7 +243,7 @@ inline Square inverseFile(const Square sq) { return makeSquare(inverse(makeFile(
 
 inline constexpr Square inverseIfWhite(const Color c, const Square sq) { return (c == Black ? sq : inverse(sq)); }
 
-inline bool canPromote(const Color c, const Rank fromOrToRank) {
+inline constexpr bool canPromote(const Color c, const Rank fromOrToRank) {
 #if 1
     static_assert(Black == 0, "");
     static_assert(Rank1 == 0, "");
@@ -254,7 +254,7 @@ inline bool canPromote(const Color c, const Rank fromOrToRank) {
 #endif
 }
 
-inline bool isOpponentField(const Color c, const Rank r) {
+inline constexpr bool isOpponentField(const Color c, const Rank r) {
     return canPromote(c, r);
 }
 

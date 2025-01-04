@@ -444,6 +444,8 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     turn_ = oppositeColor(us);
     st_->hand = hand(turn());
 
+    st_->capturedPieceType = ptCaptured;
+
     assert(isOK());
 }
 
@@ -469,7 +471,7 @@ void Position::undoMove(const Move move) {
         const Square from = move.from();
         const PieceType ptFrom = move.pieceTypeFrom();
         const PieceType ptTo = move.pieceTypeTo(ptFrom);
-        const PieceType ptCaptured = move.cap(); // todo: st_->capturedType 使えば良い。
+        const PieceType ptCaptured = st_->capturedPieceType;
 
         if (ptTo == King)
             kingSquare_[us] = from;

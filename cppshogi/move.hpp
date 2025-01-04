@@ -37,41 +37,41 @@
 //       from, to , promo だけだったら、16bit で済む。
 class Move {
 public:
-    static const u32 PromoteFlag = 1 << 14;
-    static const u32 MoveNone    = 0;
-    static const u32 MoveNull    = 129;
-    static const u32 MoveResign  = (2 << 7) + 2; // 投了。移動元と移動先が同じ指し手は存在しない。
-    static const u32 MoveWin     = (3 << 7) + 3; // 入玉宣言勝ち
-    static const u32 MovePVsEnd  = 1 << 15; // for learn
+    static constexpr u32 PromoteFlag = 1 << 14;
+    static constexpr u32 MoveNone    = 0;
+    static constexpr u32 MoveNull    = 129;
+    static constexpr u32 MoveResign  = (2 << 7) + 2; // 投了。移動元と移動先が同じ指し手は存在しない。
+    static constexpr u32 MoveWin     = (3 << 7) + 3; // 入玉宣言勝ち
+    static constexpr u32 MovePVsEnd  = 1 << 15; // for learn
 
     Move() {}
-    explicit Move(const u32 u) : value_(u) {}
-    Move& operator = (const Move& m) { value_ = m.value_; return *this; }
-    Move& operator = (const volatile Move& m) { value_ = m.value_; return *this; }
+    constexpr explicit Move(const u32 u) : value_(u) {}
+    constexpr Move& operator = (const Move& m) { value_ = m.value_; return *this; }
+    constexpr Move& operator = (const volatile Move& m) { value_ = m.value_; return *this; }
     // volatile Move& 型の *this を返すとなぜか警告が出るので、const Move& 型の m を返すことにする。
     const Move& operator = (const Move& m) volatile { value_ = m.value_; return m; }
     Move(const Move& m) { value_ = m.value_; }
     Move(const volatile Move& m) { value_ = m.value_; }
 
     // 移動先
-    Square to() const { return static_cast<Square>((value() >> 0) & 0x7f); }
+    constexpr Square to() const { return static_cast<Square>((value() >> 0) & 0x7f); }
     // 移動元
-    Square from() const { return static_cast<Square>((value() >> 7) & 0x7f); }
+    constexpr Square from() const { return static_cast<Square>((value() >> 7) & 0x7f); }
     // 移動元、移動先
-    u32 fromAndTo() const { return (value() >> 0) & 0x3fff; }
+    constexpr u32 fromAndTo() const { return (value() >> 0) & 0x3fff; }
     // 成り、移動元、移動先
-    u32 proFromAndTo() const { return (value() >> 0) & 0x7fff; }
+    constexpr u32 proFromAndTo() const { return (value() >> 0) & 0x7fff; }
     // 取った駒の種類
-    PieceType cap() const { return static_cast<PieceType>((value() >> 20) & 0xf); }
+    constexpr PieceType cap() const { return static_cast<PieceType>((value() >> 20) & 0xf); }
     // 成るかどうか
-    u32 isPromotion() const { return value() & PromoteFlag; }
+    constexpr u32 isPromotion() const { return value() & PromoteFlag; }
     // 移動する駒の種類
-    PieceType pieceTypeFrom() const { return static_cast<PieceType>((value() >> 16) & 0xf); }
+    constexpr PieceType pieceTypeFrom() const { return static_cast<PieceType>((value() >> 16) & 0xf); }
     // 移動した後の駒の種類
-    PieceType pieceTypeTo() const { return (isDrop() ? pieceTypeDropped() : pieceTypeTo(pieceTypeFrom())); }
+    constexpr PieceType pieceTypeTo() const { return (isDrop() ? pieceTypeDropped() : pieceTypeTo(pieceTypeFrom())); }
     // 移動前の PieceType を引数に取り、移動後の PieceType を返す。
     // 高速化の為、ptFrom が確定しているときに使用する。
-    PieceType pieceTypeTo(const PieceType ptFrom) const {
+    constexpr PieceType pieceTypeTo(const PieceType ptFrom) const {
         // これらは同じ意味。
 #if 1
         return (ptFrom + static_cast<PieceType>((value() & PromoteFlag) >> 11));
@@ -79,33 +79,33 @@ public:
         return (isPromotion()) ? ptFrom + PTPromote : ptFrom;
 #endif
     }
-    bool isDrop() const { return this->from() >= 81; }
+    constexpr bool isDrop() const { return this->from() >= 81; }
     // 0xf00000 は 取られる駒のマスク
-    bool isCapture() const { return (value() & 0xf00000) ? true : false; }
+    constexpr bool isCapture() const { return (value() & 0xf00000) ? true : false; }
     // 0xf04000 は 取られる駒と成のマスク
-    bool isCaptureOrPromotion() const { return (value() & 0xf04000) ? true : false; }
-    bool isCaptureOrPawnPromotion() const { return isCapture() || (isPromotion() && pieceTypeFrom() == Pawn); }
+    constexpr bool isCaptureOrPromotion() const { return (value() & 0xf04000) ? true : false; }
+    constexpr bool isCaptureOrPawnPromotion() const { return isCapture() || (isPromotion() && pieceTypeFrom() == Pawn); }
     // 打つ駒の種類
-    PieceType pieceTypeDropped() const { return static_cast<PieceType>(this->from() - SquareNum + 1); }
-    PieceType pieceTypeFromOrDropped() const { return (isDrop() ? pieceTypeDropped() : pieceTypeFrom()); }
+    constexpr PieceType pieceTypeDropped() const { return static_cast<PieceType>(this->from() - SquareNum + 1); }
+    constexpr PieceType pieceTypeFromOrDropped() const { return (isDrop() ? pieceTypeDropped() : pieceTypeFrom()); }
     HandPiece handPieceDropped() const {
         assert(this->isDrop());
         return pieceTypeToHandPiece(pieceTypeDropped());
     }
     // 値が入っているか。
-    explicit operator bool() const { return value() != MoveNone; }
-    bool isAny() const { return (value() != MoveNone); }
+    constexpr explicit operator bool() const { return value() != MoveNone; }
+    constexpr bool isAny() const { return (value() != MoveNone); }
     // メンバ変数 value_ の取得
-    u32 value() const { return value_; }
+    constexpr u32 value() const { return value_; }
     Move operator |= (const Move rhs) {
         this->value_ |= rhs.value();
         return *this;
     }
     Move operator | (const Move rhs) const { return Move(*this) |= rhs; }
-    bool operator == (const Move rhs) const { return this->value() == rhs.value(); }
-    bool operator != (const Move rhs) const { return !(*this == rhs); }
-    bool operator < (const Move rhs) const { return this->value() < rhs.value(); } // for learn
-    bool isOK() const {
+    constexpr bool operator == (const Move rhs) const { return this->value() == rhs.value(); }
+    constexpr bool operator != (const Move rhs) const { return !(*this == rhs); }
+    constexpr bool operator < (const Move rhs) const { return this->value() < rhs.value(); } // for learn
+    constexpr bool isOK() const {
         static_assert(MoveNull == 129, "");
         return to() != from(); // catch MoveNull and MoveNone
     }
@@ -179,9 +179,12 @@ inline Move makeDropMove(const PieceType pt, const Square to) { return from2Move
 
 struct ExtMove {
     Move move;
+    int value;
 
 	operator Move() const { return move; }
 };
+
+inline bool operator<(const ExtMove& f, const ExtMove& s) { return f.value < s.value; }
 
 // 汎用的な insertion sort. 要素数が少ない時、高速にソートできる。
 // 降順(大きいものが先頭付近に集まる)

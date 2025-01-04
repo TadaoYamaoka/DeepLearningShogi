@@ -7,6 +7,28 @@
 #include "cppshogi.h"
 
 using namespace std;
+TEST(MoveTest, move) {
+    initTable();
+    constexpr int PROMOTION = 1 << 14;
+    constexpr int DROP = 2 << 14;
+
+    Position pos;
+    pos.set("lnsgkgsnl/1r5b1/p1ppppppp/7P1/9/1p7/PPPPPPP1P/1B5R1/LNSGKG1NL b S 1");
+
+    {
+        auto move = usiToMove(pos, "2d2c+");
+        int result = ((u16)(81 << 7) - (u16)(move.value() & 0x3f80)) & DROP | move.value() & PROMOTION;
+        EXPECT_EQ(PROMOTION, result);
+    }
+
+    {
+        auto move = usiToMove(pos, "S*3b");
+        constexpr int PROMOTION = 1 << 14;
+        constexpr int DROP = 2 << 14;
+        int result = ((u16)(81 << 7) - (u16)(move.value() & 0x3f80)) & DROP | move.value() & PROMOTION;
+        EXPECT_EQ(DROP, result);
+    }
+}
 
 TEST(HcpeTest, make_hcpe) {
 	// hcpe作成
