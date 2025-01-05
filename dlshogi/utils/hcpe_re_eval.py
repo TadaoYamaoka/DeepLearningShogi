@@ -10,10 +10,12 @@ parser.add_argument('model')
 parser.add_argument('hcpe')
 parser.add_argument('out_hcpe')
 parser.add_argument('--a', type=float, default=756.0864962951762)
+parser.add_argument('--alpha', type=float, default=1)
 parser.add_argument('--batch_size', '-b', type=int, default=1024)
 parser.add_argument('--tensorrt', action='store_true')
 args = parser.parse_args()
 
+alpha = args.alpha
 a = args.a
 batch_size = args.batch_size
 hcpes = np.memmap(args.hcpe, HuffmanCodedPosAndEval, mode='r')
@@ -36,7 +38,11 @@ def evaluate_and_write(indexes, copy_indexes, start_index, end_index):
 
     scores = value_to_score(values.reshape(-1), a)
     out_hcpes = hcpes[start_index:end_index + 1].copy()
-    out_hcpes['eval'][[i - start_index for i in indexes]] = scores
+    if alpha == 1:
+        out_hcpes['eval'][[i - start_index for i in indexes]] = scores
+    else:
+        indexes = [i - start_index for i in indexes]
+        out_hcpes['eval'][indexes] = (1 - alpha) * out_hcpes['eval'][indexes] + alpha * scores
     out_hcpes.tofile(f_out)
 
 def value_to_score(values, a):
