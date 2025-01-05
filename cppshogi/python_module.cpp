@@ -335,44 +335,47 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 			assert(moveInfo.candidateNum <= 593);
 
             const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
-            const auto draw = pos.moveIsDraw(move, 16);
 
-            // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
-            if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
+            // candidateNum==0の手は読み飛ばす
+            if (moveInfo.candidateNum > 0) {
 				candidates.resize(moveInfo.candidateNum);
 				ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
-				const auto hcp = pos.toHuffmanCodedPos();
-				const float value = score_to_value((Score)(moveInfo.eval * eval_scale));
-				if (use_average) {
-					auto ret = duplicates.emplace(hcp, trainingData.size());
-					if (ret.second) {
-						auto& data = trainingData.emplace_back(
-							hcp,
-							value,
-							make_result(hcpe3.result, pos.turn())
-						);
-						visits_to_proberbility<false>(data, candidates, temperature);
-					}
-					else {
-						// 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
-						auto& data = trainingData[ret.first->second];
-						data.value += value;
-						data.result += make_result(hcpe3.result, pos.turn());
-						visits_to_proberbility<true>(data, candidates, temperature);
-						data.count++;
+                // 優越/劣等局面になる手は除く
+                const auto draw = pos.moveIsDraw(move, 16);
+                if (draw != RepetitionSuperior && draw != RepetitionInferior) {
+                    const auto hcp = pos.toHuffmanCodedPos();
+                    const float value = score_to_value((Score)(moveInfo.eval * eval_scale));
+                    if (use_average) {
+                        auto ret = duplicates.emplace(hcp, trainingData.size());
+                        if (ret.second) {
+                            auto& data = trainingData.emplace_back(
+                                hcp,
+                                value,
+                                make_result(hcpe3.result, pos.turn())
+                            );
+                            visits_to_proberbility<false>(data, candidates, temperature);
+                        }
+                        else {
+                            // 重複データの場合、加算する(hcpe3_decode_with_valueで平均にする)
+                            auto& data = trainingData[ret.first->second];
+                            data.value += value;
+                            data.result += make_result(hcpe3.result, pos.turn());
+                            visits_to_proberbility<true>(data, candidates, temperature);
+                            data.count++;
 
-					}
-				}
-				else {
-					auto& data = trainingData.emplace_back(
-						hcp,
-						value,
-						make_result(hcpe3.result, pos.turn())
-					);
-					visits_to_proberbility<false>(data, candidates, temperature);
-				}
-				++len;
+                        }
+                    }
+                    else {
+                        auto& data = trainingData.emplace_back(
+                            hcp,
+                            value,
+                            make_result(hcpe3.result, pos.turn())
+                        );
+                        visits_to_proberbility<false>(data, candidates, temperature);
+                    }
+                    ++len;
+                }
 			}
 
 			pos.doMove(move, states->emplace_back(StateInfo()));
@@ -525,13 +528,13 @@ size_t __load_evalfix(const std::string& filepath) {
 
                 assert(moveInfo.selectedMove16 <= 0x7fff);
                 const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
-                const auto draw = pos.moveIsDraw(move, 16);
 
-                // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
-                if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
+                // candidateNum==0の手は読み飛ばす
+                if (moveInfo.candidateNum > 0) {
 					ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
-					// 詰みは除く
-					if (std::abs(moveInfo.eval) < 30000) {
+					// 詰みと優越/劣等局面になる手は除く
+                    const auto draw = pos.moveIsDraw(move, 16);
+                    if (std::abs(moveInfo.eval) < 30000 && draw != RepetitionSuperior && draw != RepetitionInferior) {
 						eval.emplace_back(moveInfo.eval);
 						result.emplace_back(make_result(hcpe3.result, pos.turn()));
 					}
@@ -731,21 +734,24 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
             assert(moveInfo.candidateNum <= 593);
 
             const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
-            const auto draw = pos.moveIsDraw(move, 16);
 
-            // candidateNum==0の手もしくは優越/劣等局面になる手は読み飛ばす
-            if (moveInfo.candidateNum > 0 || draw == RepetitionSuperior || draw == RepetitionInferior) {
+            // candidateNum==0の手は読み飛ばす
+            if (moveInfo.candidateNum > 0) {
                 candidates.resize(moveInfo.candidateNum);
                 ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
 
-                HuffmanCodedPosAndEval hcpe = {};
-                hcpe.hcp = pos.toHuffmanCodedPos();
-                hcpe.eval = moveInfo.eval;
-                hcpe.bestMove16 = moveInfo.selectedMove16;
-                hcpe.gameResult = (GameResult)hcpe3.result;
+                // 優越/劣等局面になる手は除く
+                const auto draw = pos.moveIsDraw(move, 16);
+                if (draw != RepetitionSuperior && draw != RepetitionInferior) {
+                    HuffmanCodedPosAndEval hcpe = {};
+                    hcpe.hcp = pos.toHuffmanCodedPos();
+                    hcpe.eval = moveInfo.eval;
+                    hcpe.bestMove16 = moveInfo.selectedMove16;
+                    hcpe.gameResult = (GameResult)hcpe3.result;
 
-                ofs.write((char*)&hcpe, sizeof(hcpe));
-                positions++;
+                    ofs.write((char*)&hcpe, sizeof(hcpe));
+                    positions++;
+                }
             }
 
             pos.doMove(move, states->emplace_back(StateInfo()));

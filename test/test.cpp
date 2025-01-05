@@ -10,6 +10,44 @@
 
 using namespace std;
 
+TEST(Position, moveIsDraw) {
+    initTable();
+    Position::initZobrist();
+    HuffmanCodedPos::init();
+
+    Position pos;
+    {
+        pos.set(DefaultStartPositionSFEN);
+        std::istringstream ssPosCmd("2g2f 4a3b 6i7h 8c8d 7g7f 3a4b 2f2e 8d8e 1g1f 8e8f 8g8f 8b8f 2e2d 2c2d 2h2d P*2c 2d2f 8f8b P*8g 6a5b 3i3h 1c1d 7i6h 9c9d 3g3f 3c3d 8h2b+ 3b2b 8i7g 6c6d 3h3g 4b3c 6g6f 7a6b 6h6g 2b3b 5i6h 8a9c 3g4f 9c8e 7g8e 8b8e 2i3g 6b6c 2f2e 8e8a 4i4h 9d9e 2e2i 5a6b 2i8i N*5d 8g8f 5d4f 4g4f 6c7d 8f8e P*8g 8i8g 7d8e 8g8i P*8h 8i8h 8e8f P*8c 8a8c N*7e 8c8d P*8g 8f7e 7f7e 8d8a N*7f 6d6e 6f6e B*9d S*7g 6b5a P*2b 3c2b 8g8f 5a4b 8f8e N*5d 9g9f P*6f 6g6f 9e9f 6f5e P*6g 6h6g 8a8e 8h8e 9d8e 5e5d 5c5d B*6d 4b3c R*8a S*6i 7h6h P*6f 6g6f 5b6c 8a8e+ 6c6d 6e6d B*4d 6f5f 2b3a B*5a 3c2b P*2d 2c2d P*2c 2b2c P*2e 2c1b 2e2d P*2b 8e8b P*8a 8b5b S*4b 5a7c+ R*7i 7g6f 6i7h+ 6h6g 7i1i+ 6d6c+ 1i6i 4f4e 4d1g+ N*2c L*5e 5f6e 2b2c 2d2c+ 1b2c P*2d 2c2d 7c5e 1g1f 5e4f 2d1e L*1h N*1g G*2e 1f2e 3g2e G*1f 1h1g 1f1g B*6b P*6d 7f6d L*3e 6g7f P*2f 3f3e 6i9i 6e7d 2f2g+ 3e3d 4c4d 6d7b+ 9i8h 4f9a 1e2e P*8d 7h7g 6f7g 8h4h 6b7a+ 4h4e 7b8a 9f9g+ 7d8c 4e3d 7e7d 2a3c 5b5d 1g2h 7d7c+ 2e1f 7a4d 3d2d 8c9b 3c2e 8d8c+ 4b3c 5d5f N*2f 4d7a 3a4b 7g6f 9g8g 5f6e P*9f 5g5f 1d1e 5f5e P*3f 5e5d 9f9g+ 5d5c+ 9g9f 6f7e 8g8f 7e8f 9f8f 7f8f S*4d L*4i 4b5c 6c5c 4d5c 7a5c L*4d 4i4d 3c4d 5c6b P*4f 8a8b P*5e 6e7d L*4c P*4e 4d3c 7d2d 3c2d S*7e 1a1c S*4a G*3a 4a3b+");
+
+        StateListPtr states{ new std::deque<StateInfo>(1) };
+        std::string token;
+        while (ssPosCmd >> token) {
+            const Move move = usiToMove(pos, token);
+            pos.doMove(move, states->emplace_back());
+        }
+
+        const Move move = usiToMove(pos, "3a3b");
+        const auto draw = pos.moveIsDraw(move, 16);
+        EXPECT_EQ(NotRepetition, draw);
+    }
+    {
+        pos.set(DefaultStartPositionSFEN);
+        std::istringstream ssPosCmd("2g2f 7a7b 2f2e 4a3b 7g7f 8c8d 8h7g 3c3d 7i6h 2b3c 7g3c+ 3b3c 6h7g 5a4b 3g3f 9c9d 2i3g 6a5b 3i3h 3a2b 5i6h 7c7d 1g1f 8d8e 6i7h 9d9e 1f1e 8a7c 4g4f 6c6d 3h4g 7b6c 4i4h 8b8a 4f4e 4b5a 6h5h 5a6b 2h2i 3c3b 2e2d 2c2d 2i2d 4c4d 4e4d 2b3c 2d2i 3d3e P*2b P*2g 2i2g 3c4d 2g2d 3e3f 4g3f P*3e 3f4g 4d3c 2d2f 3c2b 5h6h 2b2c 6g6f 2c3d 7f7e P*2e 2f2i 6d6e 7e7d 6c7d P*7e 7d6c 6f6e 8e8f 8g8f P*8h 7h8h 7c6e 7g7f P*6g 6h5h B*5e 8h8g 6c5d 7e7d P*7b 5h6g 5e9i+ P*6f 9i9h 6g7h L*8b 7f7e 3d4c 4h5h 2a3c 6f6e 5d6e 8g7g 6e7f P*6c 6b5a N*6d P*4f 4g5f 8b8f P*8b 8a8b 6d5b+ 4c5b P*8c 8b8c 6c6b+ 5a6b P*8d 8f8h+ 7h6h 8c8a P*6c 5b6c P*6d 6c5d B*3d P*6g 6h5i 4f4g+ 5f4g P*4c 3g2e P*2d 7g7f 9h7f S*6c 5d6c 6d6c+ 6b6c S*6d 6c5b 2e3c+ 3b3c N*4e G*4b 4e3c+ 4b3c 3d4e 8h7h G*6c 5b4a 6d5c+ 6g6h+ 5h6h 7h6h 5i6h P*6g 6h5h 4a3b P*3d 6g6h+ 5h6h N*5f 4e5f P*6g 6h5i S*5h 5i5h 6g6h+ 5h6h G*6g 5f6g 7f6g 6h6g N*5e 6g6f 5e6g+ 6f6g B*4e 6g7f 4e6g+");
+
+        StateListPtr states{ new std::deque<StateInfo>(1) };
+        std::string token;
+        while (ssPosCmd >> token) {
+            const Move move = usiToMove(pos, token);
+            pos.doMove(move, states->emplace_back());
+        }
+
+        const Move move = usiToMove(pos, "7f6g");
+        const auto draw = pos.moveIsDraw(move, 16);
+        EXPECT_EQ(RepetitionInferior, draw);
+    }
+}
+
 TEST(HcpeTest, make_hcpe) {
 	// hcpe作成
 	initTable();
