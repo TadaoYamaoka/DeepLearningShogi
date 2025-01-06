@@ -18,6 +18,7 @@ parser.add_argument('--batch_size', '-b', type=int, default=1024)
 parser.add_argument('--network')
 parser.add_argument('--gpu', '-g', type=int, default=0)
 parser.add_argument('--use_amp', action='store_true')
+parser.add_argument('--amp_dtype', type=str, default='float16', choices=['float16', 'bfloat16'])
 args = parser.parse_args()
 
 alpha = args.alpha
@@ -25,6 +26,7 @@ dropoff = args.dropoff
 limit_candidates = args.limit_candidates
 batch_size = args.batch_size
 use_amp = args.use_amp
+amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
 
 if args.gpu >= 0:
     device = torch.device(f"cuda:{args.gpu}")
@@ -51,7 +53,7 @@ for i in tqdm(range(0, len(indexes), batch_size)):
         chunk[:chunk_size] = chunk_tmp
 
     x1, x2, t1, t2, value = dataloader.mini_batch(chunk)
-    with torch.cuda.amp.autocast(enabled=use_amp):
+    with torch.cuda.amp.autocast(enabled=use_amp, dtype=amp_dtype):
         with torch.no_grad():
             y1, y2 = model(x1, x2)
 
