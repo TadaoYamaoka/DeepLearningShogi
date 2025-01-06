@@ -103,6 +103,7 @@ struct Hcpe3CacheCandidate {
 };
 
 struct TrainingData {
+    TrainingData() = default;
 	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result)
 		: hcp(hcp), value(value), result(result), count(1) {};
 	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)

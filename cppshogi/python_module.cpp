@@ -134,6 +134,7 @@ void __hcpe3_create_cache(const std::string& filepath) {
 			ofs.write((const char*)&candidate, sizeof(candidate));
 		}
 	}
+    ofs.close();
 
 	// メモリ開放
 	// trainingDataを開放してしまうため、キャッシュを作成した場合、データはキャッシュから読み込むこと
@@ -701,6 +702,185 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 	assert(ofs.tellp() == out_pos[0]);
 
     std::cout << "out position num = " << num_out << std::endl;
+}
+
+// キャッシュの方策と価値をモデルで再評価して加重平均を求める
+// モデルの推論結果を受け取る
+// 事前にキャッシュがロードされていること
+// alpha: 加重平均の係数
+// dropoff: モデルの推論結果の方策の確率をトップから何%低下までを採用するか
+void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha, const float dropoff, const int limit_candidates) {
+    unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
+    auto logits = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlogits);
+    float* values = reinterpret_cast<float*>(ndvalue);
+
+    const size_t start_index = trainingData.size();
+    trainingData.resize(trainingData.size() + len);
+
+    const auto softmax = [](std::vector<float>& probabilities) {
+        float max = 0.0f;
+        for (int i = 0; i < probabilities.size(); i++) {
+            float& x = probabilities[i];
+            if (x > max) {
+                max = x;
+            }
+        }
+        // オーバーフローを防止するため最大値で引く
+        float sum = 0.0f;
+        for (int i = 0; i < probabilities.size(); i++) {
+            float& x = probabilities[i];
+            x = expf(x - max);
+            sum += x;
+        }
+        // normalize
+        for (int i = 0; i < probabilities.size(); i++) {
+            float& x = probabilities[i];
+            x /= sum;
+        }
+    };
+
+    #pragma omp parallel for num_threads(4)
+    for (int64_t i = 0; i < len; i++) {
+        auto& hcpe3 = trainingData[i + start_index];
+        hcpe3 = get_cache_with_lock(index[i]);
+
+        Position pos;
+        pos.set(hcpe3.hcp);
+
+        // 合法手でフィルタする
+        MoveList<Legal> ml(pos);
+        std::vector<float> probabilities;
+        probabilities.reserve(ml.size());
+        std::vector<u16> legal_moves;
+        legal_moves.reserve(ml.size());
+        for (; !ml.end(); ++ml) {
+            const u16 move16 = (u16)ml.move().proFromAndTo();
+            const int move_label = make_move_label(move16, pos.turn());
+            probabilities.emplace_back(logits[i][move_label]);
+            legal_moves.emplace_back(move16);
+        }
+        // softmax
+        softmax(probabilities);
+
+        // 確率でフィルタする
+        float threshold = 1.0f / MaxLegalMoves;
+        if (probabilities.size() > limit_candidates) {
+            std::vector<float> sorted_probabilities = probabilities;
+            std::nth_element(sorted_probabilities.begin(), sorted_probabilities.begin() + (limit_candidates - 1), sorted_probabilities.end(), std::greater<float>());
+            if (sorted_probabilities[limit_candidates - 1] > threshold)
+                threshold = sorted_probabilities[limit_candidates - 1];
+            const auto max_it = std::max_element(sorted_probabilities.begin(), sorted_probabilities.begin() + limit_candidates);
+            if (*max_it - dropoff > threshold)
+                threshold = *max_it - dropoff;
+        }
+        else {
+            const auto max_it = std::max_element(probabilities.begin(), probabilities.end());
+            if (*max_it - dropoff > threshold)
+                threshold = *max_it - dropoff;
+        }
+        float sum = 0;       
+        std::unordered_map<u16, float> filtered_probabilities;
+        for (size_t j = 0; j < probabilities.size(); ++j) {
+            if (probabilities[j] >= threshold) {
+                filtered_probabilities[legal_moves[j]] = probabilities[j];
+                sum += probabilities[j];
+            }
+        }
+        // 正規化
+        for (auto& probability : filtered_probabilities) {
+            probability.second /= sum;
+        }
+        assert(filtered_probabilities.size() > 0);
+
+        // マージ
+        if (alpha == 1) {
+            hcpe3.candidates = std::move(filtered_probabilities);
+            hcpe3.value = values[i];
+        }
+        else {
+            for (auto& kv1 : hcpe3.candidates) {
+                auto itr2 = filtered_probabilities.find(kv1.first);
+                if (itr2 == filtered_probabilities.end()) {
+                    kv1.second = kv1.second / hcpe3.count * (1 - alpha);
+                }
+                else {
+                    kv1.second = kv1.second / hcpe3.count * (1 - alpha) + itr2->second * alpha;
+                }
+            }
+            for (const auto& kv2 : filtered_probabilities) {
+                auto itr1 = hcpe3.candidates.find(kv2.first);
+                if (itr1 == hcpe3.candidates.end()) {
+                    hcpe3.candidates[kv2.first] = kv2.second * alpha;
+                }
+            }
+            hcpe3.value = hcpe3.value / hcpe3.count * (1 - alpha) + values[i] * alpha;
+        }
+        hcpe3.count = 1;
+    }
+}
+
+void __hcpe3_reserve_train_data(unsigned int size) {
+    trainingData.reserve(trainingData.size() + size);
+}
+
+template<typename T>
+void printStat(std::vector<T>& values) {
+    auto sum = std::accumulate(values.begin(), values.end(), 0.0);
+    const auto mean = (double)sum / values.size();
+
+    double variance = std::accumulate(values.begin(), values.end(), 0.0, [mean](double sum, double value) { return sum + std::pow(value - mean, 2); }) / values.size();
+    const auto std = std::sqrt(variance);
+
+    const auto min = *std::min_element(values.begin(), values.end());
+    const auto max = *std::max_element(values.begin(), values.end());
+
+    std::sort(values.begin(), values.end());
+
+    const auto percentile = [](const std::vector<T>& values, const double q) {
+        double q_index = (values.size() - 1) * q;
+        size_t q_low = static_cast<size_t>(q_index);
+        size_t q_high = q_low + 1;
+        return values[q_low] + (q_index - q_low) * (values[q_high] - values[q_low]);
+    };
+
+    std::cout << "\tcount " << values.size() << "\n";
+    std::cout << "\tmean  " << std::fixed << std::setprecision(4) << mean << "\n";
+    std::cout << "\tstd   " << std::fixed << std::setprecision(4) << std << "\n";
+    std::cout << "\tmin   " << min << "\n";
+    std::cout << "\t25%   " << std::fixed << std::setprecision(4) << percentile(values, 0.25) << "\n";
+    std::cout << "\t50%   " << std::fixed << std::setprecision(4) << percentile(values, 0.5) << "\n";
+    std::cout << "\t75%   " << std::fixed << std::setprecision(4) << percentile(values, 0.75) << "\n";
+    std::cout << "\tmax   " << max << std::endl;
+}
+
+void __hcpe3_stat_cache() {
+    const auto size = cache_pos.size() - 1;
+
+    std::vector<int> counts;
+    counts.reserve(size);
+    std::vector<short> candidates;
+    candidates.reserve(size);
+    std::vector<float> values;
+    values.reserve(size);
+    std::vector<float> results;
+    results.reserve(size);
+
+    for (size_t i = 0; i < size; ++i) {
+        const auto data = get_cache(i);
+        counts.emplace_back(data.count);
+        candidates.emplace_back((short)data.candidates.size());
+        values.emplace_back(data.value / data.count);
+        results.emplace_back(data.result / data.count);
+    }
+
+    std::cout << "counts:\n";
+    printStat(counts);
+    std::cout << "candidates:\n";
+    printStat(candidates);
+    std::cout << "values:\n";
+    printStat(values);
+    std::cout << "results:\n";
+    printStat(results);
 }
 
 std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string& file2) {

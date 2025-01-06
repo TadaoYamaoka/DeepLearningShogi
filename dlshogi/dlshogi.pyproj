@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>ptl.py</StartupFile>
+    <StartupFile>utils\hcpe3_cache_re_eval.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>fit --config config.yaml</CommandLineArguments>
+    <CommandLineArguments>--network resnet20x256 F:\model\model-resnet20x256_1-008 F:\hcpe3\cache R:\cache</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -73,6 +73,8 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\stat_hcpe3_cache.py" />
+    <Compile Include="utils\hcpe3_cache_re_eval.py" />
     <Compile Include="utils\hcpe_re_eval.py" />
     <Compile Include="utils\hcpe3_re_eval.py" />
     <Compile Include="utils\kif_to_csa.py" />
