@@ -56,7 +56,7 @@ for i in tqdm(range(0, len(indexes), batch_size)):
             y1, y2 = model(x1, x2)
 
             y1 = y1.cpu().numpy()
-            y2 = torch.sigmoid(y2).cpu().numpy()
+            y2 = torch.sigmoid(y2).float().cpu().numpy()
     if chunk_size < batch_size:
         hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha, dropoff, limit_candidates)
     else:
