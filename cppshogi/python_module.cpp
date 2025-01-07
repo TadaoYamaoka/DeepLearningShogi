@@ -744,76 +744,88 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
         auto& hcpe3 = trainingData[i + start_index];
         hcpe3 = get_cache_with_lock(index[i]);
 
-        Position pos;
-        pos.set(hcpe3.hcp);
+        if (alpha_p > 0) {
+            Position pos;
+            pos.set(hcpe3.hcp);
 
-        // 合法手でフィルタする
-        MoveList<Legal> ml(pos);
-        std::vector<float> probabilities;
-        probabilities.reserve(ml.size());
-        std::vector<u16> legal_moves;
-        legal_moves.reserve(ml.size());
-        for (; !ml.end(); ++ml) {
-            const u16 move16 = (u16)ml.move().proFromAndTo();
-            const int move_label = make_move_label(move16, pos.turn());
-            probabilities.emplace_back(logits[i][move_label]);
-            legal_moves.emplace_back(move16);
-        }
-        // softmax
-        softmax(probabilities);
-
-        // 確率でフィルタする
-        float threshold = 1.0f / MaxLegalMoves;
-        if (probabilities.size() > limit_candidates) {
-            std::vector<float> sorted_probabilities = probabilities;
-            std::nth_element(sorted_probabilities.begin(), sorted_probabilities.begin() + (limit_candidates - 1), sorted_probabilities.end(), std::greater<float>());
-            if (sorted_probabilities[limit_candidates - 1] > threshold)
-                threshold = sorted_probabilities[limit_candidates - 1];
-            const auto max_it = std::max_element(sorted_probabilities.begin(), sorted_probabilities.begin() + limit_candidates);
-            if (*max_it - dropoff > threshold)
-                threshold = *max_it - dropoff;
-        }
-        else {
-            const auto max_it = std::max_element(probabilities.begin(), probabilities.end());
-            if (*max_it - dropoff > threshold)
-                threshold = *max_it - dropoff;
-        }
-        float sum = 0;       
-        std::unordered_map<u16, float> filtered_probabilities;
-        for (size_t j = 0; j < probabilities.size(); ++j) {
-            if (probabilities[j] >= threshold) {
-                filtered_probabilities[legal_moves[j]] = probabilities[j];
-                sum += probabilities[j];
+            // 合法手でフィルタする
+            MoveList<Legal> ml(pos);
+            std::vector<float> probabilities;
+            probabilities.reserve(ml.size());
+            std::vector<u16> legal_moves;
+            legal_moves.reserve(ml.size());
+            for (; !ml.end(); ++ml) {
+                const u16 move16 = (u16)ml.move().proFromAndTo();
+                const int move_label = make_move_label(move16, pos.turn());
+                probabilities.emplace_back(logits[i][move_label]);
+                legal_moves.emplace_back(move16);
             }
-        }
-        // 正規化
-        for (auto& probability : filtered_probabilities) {
-            probability.second /= sum;
-        }
-        assert(filtered_probabilities.size() > 0);
+            // softmax
+            softmax(probabilities);
 
-        // マージ
-        if (alpha_p == 1) {
-            hcpe3.candidates = std::move(filtered_probabilities);
+            // 確率でフィルタする
+            float threshold = 1.0f / MaxLegalMoves;
+            if (probabilities.size() > limit_candidates) {
+                std::vector<float> sorted_probabilities = probabilities;
+                std::nth_element(sorted_probabilities.begin(), sorted_probabilities.begin() + (limit_candidates - 1), sorted_probabilities.end(), std::greater<float>());
+                if (sorted_probabilities[limit_candidates - 1] > threshold)
+                    threshold = sorted_probabilities[limit_candidates - 1];
+                const auto max_it = std::max_element(sorted_probabilities.begin(), sorted_probabilities.begin() + limit_candidates);
+                if (*max_it - dropoff > threshold)
+                    threshold = *max_it - dropoff;
+            }
+            else {
+                const auto max_it = std::max_element(probabilities.begin(), probabilities.end());
+                if (*max_it - dropoff > threshold)
+                    threshold = *max_it - dropoff;
+            }
+            float sum = 0;
+            std::unordered_map<u16, float> filtered_probabilities;
+            for (size_t j = 0; j < probabilities.size(); ++j) {
+                if (probabilities[j] >= threshold) {
+                    filtered_probabilities[legal_moves[j]] = probabilities[j];
+                    sum += probabilities[j];
+                }
+            }
+            // 正規化
+            for (auto& probability : filtered_probabilities) {
+                probability.second /= sum;
+            }
+            assert(filtered_probabilities.size() > 0);
+
+            // マージ
+            if (alpha_p == 1) {
+                hcpe3.candidates = std::move(filtered_probabilities);
+            }
+            else {
+                for (auto& kv1 : hcpe3.candidates) {
+                    auto itr2 = filtered_probabilities.find(kv1.first);
+                    if (itr2 == filtered_probabilities.end()) {
+                        kv1.second = kv1.second / hcpe3.count * (1 - alpha_p);
+                    }
+                    else {
+                        kv1.second = kv1.second / hcpe3.count * (1 - alpha_p) + itr2->second * alpha_p;
+                    }
+                }
+                for (const auto& kv2 : filtered_probabilities) {
+                    auto itr1 = hcpe3.candidates.find(kv2.first);
+                    if (itr1 == hcpe3.candidates.end()) {
+                        hcpe3.candidates[kv2.first] = kv2.second * alpha_p;
+                    }
+                }
+            }
         }
         else {
             for (auto& kv1 : hcpe3.candidates) {
-                auto itr2 = filtered_probabilities.find(kv1.first);
-                if (itr2 == filtered_probabilities.end()) {
-                    kv1.second = kv1.second / hcpe3.count * (1 - alpha_p);
-                }
-                else {
-                    kv1.second = kv1.second / hcpe3.count * (1 - alpha_p) + itr2->second * alpha_p;
-                }
-            }
-            for (const auto& kv2 : filtered_probabilities) {
-                auto itr1 = hcpe3.candidates.find(kv2.first);
-                if (itr1 == hcpe3.candidates.end()) {
-                    hcpe3.candidates[kv2.first] = kv2.second * alpha_p;
-                }
+                kv1.second /= hcpe3.count;
             }
         }
-        hcpe3.value = hcpe3.value / hcpe3.count * (1 - alpha_v) + values[i] * alpha_v;
+        if (alpha_v > 0) {
+            hcpe3.value = hcpe3.value / hcpe3.count * (1 - alpha_v) + values[i] * alpha_v;
+        }
+        else {
+            hcpe3.value /= hcpe3.count;
+        }
         hcpe3.count = 1;
     }
 }
