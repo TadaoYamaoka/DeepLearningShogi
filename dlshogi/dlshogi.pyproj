@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>--network resnet20x256 F:\model\model-resnet20x256_1-008 F:\hcpe3\cache R:\cache</CommandLineArguments>
+    <CommandLineArguments>--network resnet20x256 F:\model\model-resnet20x256_1-008 F:\hcpe3\cache R:\cache --use_amp</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>

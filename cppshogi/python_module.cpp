@@ -709,7 +709,7 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 // 事前にキャッシュがロードされていること
 // alpha: 加重平均の係数
 // dropoff: モデルの推論結果の方策の確率をトップから何%低下までを採用するか
-void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha, const float dropoff, const int limit_candidates) {
+void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float dropoff, const int limit_candidates) {
     unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
     auto logits = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlogits);
     float* values = reinterpret_cast<float*>(ndvalue);
@@ -793,28 +793,27 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
         assert(filtered_probabilities.size() > 0);
 
         // マージ
-        if (alpha == 1) {
+        if (alpha_p == 1) {
             hcpe3.candidates = std::move(filtered_probabilities);
-            hcpe3.value = values[i];
         }
         else {
             for (auto& kv1 : hcpe3.candidates) {
                 auto itr2 = filtered_probabilities.find(kv1.first);
                 if (itr2 == filtered_probabilities.end()) {
-                    kv1.second = kv1.second / hcpe3.count * (1 - alpha);
+                    kv1.second = kv1.second / hcpe3.count * (1 - alpha_p);
                 }
                 else {
-                    kv1.second = kv1.second / hcpe3.count * (1 - alpha) + itr2->second * alpha;
+                    kv1.second = kv1.second / hcpe3.count * (1 - alpha_p) + itr2->second * alpha_p;
                 }
             }
             for (const auto& kv2 : filtered_probabilities) {
                 auto itr1 = hcpe3.candidates.find(kv2.first);
                 if (itr1 == hcpe3.candidates.end()) {
-                    hcpe3.candidates[kv2.first] = kv2.second * alpha;
+                    hcpe3.candidates[kv2.first] = kv2.second * alpha_p;
                 }
             }
-            hcpe3.value = hcpe3.value / hcpe3.count * (1 - alpha) + values[i] * alpha;
         }
+        hcpe3.value = hcpe3.value / hcpe3.count * (1 - alpha_v) + values[i] * alpha_v;
         hcpe3.count = 1;
     }
 }

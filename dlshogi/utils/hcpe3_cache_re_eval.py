@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model')
 parser.add_argument('cache')
 parser.add_argument('out_cache')
-parser.add_argument('--alpha', type=float, default=0.9)
+parser.add_argument('--alpha_p', type=float, default=0.9)
+parser.add_argument('--alpha_v', type=float, default=0.9)
 parser.add_argument('--dropoff', type=float, default=0.5)
 parser.add_argument('--limit_candidates', type=int, default=10)
 parser.add_argument('--batch_size', '-b', type=int, default=1024)
@@ -21,7 +22,8 @@ parser.add_argument('--use_amp', action='store_true')
 parser.add_argument('--amp_dtype', type=str, default='float16', choices=['float16', 'bfloat16'])
 args = parser.parse_args()
 
-alpha = args.alpha
+alpha_p = args.alpha_p
+alpha_v = args.alpha_v
 dropoff = args.dropoff
 limit_candidates = args.limit_candidates
 batch_size = args.batch_size
@@ -60,8 +62,8 @@ for i in tqdm(range(0, len(indexes), batch_size)):
             y1 = y1.float().cpu().numpy()
             y2 = y2.float().sigmoid().cpu().numpy()
     if chunk_size < batch_size:
-        hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha, dropoff, limit_candidates)
+        hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha_p, alpha_v, dropoff, limit_candidates)
     else:
-        hcpe3_cache_re_eval(chunk, y1, y2, alpha, dropoff, limit_candidates)
+        hcpe3_cache_re_eval(chunk, y1, y2, alpha_p, alpha_v, dropoff, limit_candidates)
 
 hcpe3_create_cache(args.out_cache)
