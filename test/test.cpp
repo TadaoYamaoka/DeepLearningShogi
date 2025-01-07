@@ -318,7 +318,7 @@ TEST(Hcpe3Test, cache_re_eval) {
     cache.read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidate_num1);
     EXPECT_EQ(pos[0].toHuffmanCodedPos(), buf.body.hcp);
     EXPECT_EQ(1.17314f / 2 * 0.1f + 0.5633f * 0.9f, buf.body.value);
-    EXPECT_EQ(1.0f, buf.body.result);
+    EXPECT_EQ(0.5f, buf.body.result);
     EXPECT_EQ(1, buf.body.count);
     EXPECT_EQ(3, candidate_num1);
     EXPECT_EQ(move_2g2f, buf.candidates[0].move16);
