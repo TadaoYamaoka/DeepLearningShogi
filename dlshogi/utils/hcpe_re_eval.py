@@ -51,6 +51,7 @@ def value_to_score(values, a):
     scores[values == 0] = -30000
     mask = (values != 1) & (values != 0)
     scores[mask] = -a * np.log(1 / values[mask] - 1)
+    scores = np.clip(scores, -30000, 30000)
     return scores
 
 board = Board()
@@ -59,7 +60,7 @@ indexes = []
 copy_indexes = []
 start_index = 0
 for i in tqdm(range(hcpes_size)):
-    if abs(hcpes[i]['eval']) >= 30000:
+    if not (-30000 < hcpes[i]['eval'] < 30000):
         copy_indexes.append(i)
         if i == hcpes_size - 1:
             evaluate_and_write(indexes, copy_indexes, start_index, i)
