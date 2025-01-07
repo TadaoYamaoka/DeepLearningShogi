@@ -826,6 +826,7 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
         else {
             hcpe3.value /= hcpe3.count;
         }
+        hcpe3.result /= hcpe3.count;
         hcpe3.count = 1;
     }
 }
