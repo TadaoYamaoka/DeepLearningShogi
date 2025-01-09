@@ -709,7 +709,7 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 // 事前にキャッシュがロードされていること
 // alpha: 加重平均の係数
 // dropoff: モデルの推論結果の方策の確率をトップから何%低下までを採用するか
-void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float dropoff, const int limit_candidates) {
+void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates) {
     unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
     auto logits = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlogits);
     float* values = reinterpret_cast<float*>(ndvalue);
@@ -826,7 +826,12 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
         else {
             hcpe3.value /= hcpe3.count;
         }
-        hcpe3.result /= hcpe3.count;
+        if (alpha_r > 0) {
+            hcpe3.result = hcpe3.result / hcpe3.count * (1 - alpha_r) + values[i] * alpha_r;
+        }
+        else {
+            hcpe3.result /= hcpe3.count;
+        }
         hcpe3.count = 1;
     }
 }
