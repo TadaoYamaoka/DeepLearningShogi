@@ -40,6 +40,7 @@ def value_to_score(values, a):
     scores[values == 0] = -30000
     mask = (values != 1) & (values != 0)
     scores[mask] = -a * np.log(1 / values[mask] - 1)
+    scores = np.clip(scores, -30000, 30000)
     return scores
 
 board = Board()

@@ -1869,6 +1869,7 @@ RepetitionType Position::moveIsDraw(const Move move, const int checkMaxPly) cons
         // ここでまず 1 手戻る。
         StateInfo* stp = st_->previous;
         const auto key = getKeyAndBoardKeyAfter(move);
+        Hand hand_after = hand(oppositeColor(turn()));
 
         do {
             // 更に 2 手戻る。
@@ -1882,8 +1883,8 @@ RepetitionType Position::moveIsDraw(const Move move, const int checkMaxPly) cons
                     return RepetitionDraw;
             }
             else if (stp->boardKey == key.second) {
-                if (st_->hand.isEqualOrSuperior(stp->hand)) return RepetitionSuperior;
-                if (stp->hand.isEqualOrSuperior(st_->hand)) return RepetitionInferior;
+                if (hand_after.isEqualOrSuperior(stp->hand)) return RepetitionSuperior;
+                if (stp->hand.isEqualOrSuperior(hand_after)) return RepetitionInferior;
             }
             i += 2;
         } while (i <= e);

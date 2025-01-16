@@ -21,7 +21,11 @@ cdef extern from "python_module.h" nogil:
     void __hcpe3_get_hcpe(const size_t index, char* ndhcpe)
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
     void __hcpe3_merge_cache(const string& file1, const string& file2, const string& out)
-    pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2)
+    void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates)
+    void __hcpe3_reserve_train_data(unsigned int size)
+    void __hcpe3_stat_cache()
+    pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2) except +
+    pair[int, int] __hcpe3_clean(const string& file1, const string& file2) except +
 
 init()
 
@@ -66,5 +70,17 @@ def hcpe3_prepare_evalfix(str filepath):
 def hcpe3_merge_cache(str file1, str file2, str out):
     __hcpe3_merge_cache(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()), out.encode(locale.getpreferredencoding()))
 
+def hcpe3_cache_re_eval(np.ndarray ndindex, np.ndarray ndlogits, np.ndarray ndvalue, float alpha_p, float alpha_v, float alpha_r, float dropoff, int limit_candidates):
+    __hcpe3_cache_re_eval(len(ndindex), ndindex.data, ndlogits.data, ndvalue.data, alpha_p, alpha_v, alpha_r, dropoff, limit_candidates)
+
+def hcpe3_reserve_train_data(unsigned int size):
+    __hcpe3_reserve_train_data(size)
+
+def hcpe3_stat_cache():
+    __hcpe3_stat_cache()
+
 def hcpe3_to_hcpe(str file1, str file2):
     return __hcpe3_to_hcpe(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()))
+
+def hcpe3_clean(str file1, str file2):
+    return __hcpe3_clean(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()))
