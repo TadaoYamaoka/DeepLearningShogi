@@ -168,7 +168,6 @@ struct InfoFull: InfoShort {
     size_t           timeMs;
     size_t           nodes;
     size_t           nps;
-    size_t           tbHits;
     std::string_view pv;
     int              hashfull;
 };

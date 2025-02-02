@@ -58,6 +58,7 @@ public:
     // 移動元
     constexpr Square from() const { return static_cast<Square>((value() >> 7) & 0x7f); }
     // 移動元、移動先
+    constexpr u32 fromTo() const { return from() * SquareNum + to(); }
     constexpr u32 fromAndTo() const { return (value() >> 0) & 0x3fff; }
     // 成り、移動元、移動先
     constexpr u32 proFromAndTo() const { return (value() >> 0) & 0x7fff; }

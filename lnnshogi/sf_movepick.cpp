@@ -135,7 +135,7 @@ void MovePicker::score() {
             Square    to   = m.to();
 
             // histories
-            m.value = 2 * (*mainHistory)[pos.side_to_move()][m.fromAndTo()];
+            m.value = 2 * (*mainHistory)[pos.side_to_move()][m.fromTo()];
             m.value += (*continuationHistory[0])[pc][to];
             m.value += (*continuationHistory[1])[pc][to];
             m.value += (*continuationHistory[2])[pc][to];
@@ -143,7 +143,7 @@ void MovePicker::score() {
             m.value += (*continuationHistory[5])[pc][to];
 
             if (ply < LOW_PLY_HISTORY_SIZE)
-                m.value += 8 * (*lowPlyHistory)[ply][m.fromAndTo()] / (1 + 2 * ply);
+                m.value += 8 * (*lowPlyHistory)[ply][m.fromTo()] / (1 + 2 * ply);
         }
 
         else  // Type == EVASIONS
@@ -152,7 +152,7 @@ void MovePicker::score() {
                 m.value =
                   PieceValue[pos.piece_on(m.to())] - MovedPieceValue[pos.moved_piece(m)] + (1 << 28);
             else
-                m.value = (*mainHistory)[pos.side_to_move()][m.fromAndTo()]
+                m.value = (*mainHistory)[pos.side_to_move()][m.fromTo()]
                         + (*continuationHistory[0])[pos.moved_piece(m)][m.to()];
         }
 }

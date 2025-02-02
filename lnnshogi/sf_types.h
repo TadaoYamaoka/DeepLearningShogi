@@ -290,7 +290,7 @@ constexpr PieceType type_of(Piece pc) { return pieceToPieceType(pc); }
 
 inline Color color_of(Piece pc) {
     assert(pc != NO_PIECE);
-    return Color(pc >> 3);
+    return Color((pc & 16) >> 4);
 }
 
 constexpr bool is_ok(Square s) { return s >= SQ11 && s <= SQ99; }

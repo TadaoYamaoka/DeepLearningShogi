@@ -310,6 +310,7 @@ bool Position::see_ge(Move m, int threshold) const {
         case DirecDiagNESW:
         case DirecDiagNWSE:
             attackers |= bishopAttack(to, occupied) & bbOf(BISHOP, HORSE);
+            break;
         default: UNREACHABLE;
         }
     }

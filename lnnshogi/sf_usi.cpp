@@ -545,7 +545,6 @@ void USIEngine::on_update_full(const Engine::InfoFull& info) {
     ss << " nodes " << info.nodes        //
        << " nps " << info.nps            //
        << " hashfull " << info.hashfull  //
-       << " tbhits " << info.tbHits      //
        << " time " << info.timeMs        //
        << " pv " << info.pv;             //
 
