@@ -16,22 +16,28 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef EVALUATE_H_INCLUDED
-#define EVALUATE_H_INCLUDED
+#include "sf_score.h"
 
-#include <string>
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
 
-#include "sf_types.h"
+#include "sf_usi.h"
 
 namespace Stockfish {
 
-class Position;
+Score::Score(Value v, const Position& pos) {
+    assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-namespace Eval {
+    if (!is_decisive(v))
+    {
+        score = InternalUnits{USIEngine::to_cp(v)};
+    }
+    else
+    {
+        auto distance = VALUE_MATE - std::abs(v);
+        score         = (v > 0) ? Mate{distance} : Mate{-distance};
+    }
+}
 
-Value evaluate(const Position& pos);
-}  // namespace Eval
-
-}  // namespace Stockfish
-
-#endif  // #ifndef EVALUATE_H_INCLUDED
+}

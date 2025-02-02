@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "thread.h"
+#include "sf_thread.h"
 
 #include <algorithm>
 #include <cassert>
@@ -26,13 +26,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "movegen.h"
-#include "search.h"
-#include "syzygy/tbprobe.h"
-#include "timeman.h"
-#include "types.h"
-#include "uci.h"
-#include "ucioption.h"
+#include "sf_movegen.h"
+#include "sf_search.h"
+#include "sf_timeman.h"
+#include "sf_types.h"
+#include "sf_usi.h"
+#include "sf_usioption.h"
 
 namespace Stockfish {
 
@@ -101,8 +100,6 @@ void Thread::run_custom_job(std::function<void()> f) {
     }
     cv.notify_one();
 }
-
-void Thread::ensure_network_replicated() { worker->ensure_network_replicated(); }
 
 // Thread gets parked here, blocked on the condition variable
 // when the thread has no work to do.
@@ -254,7 +251,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
     for (const auto& uciMove : limits.searchmoves)
     {
-        auto move = UCIEngine::to_move(pos, uciMove);
+        auto move = USIEngine::to_move(pos, uciMove);
 
         if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
             rootMoves.emplace_back(move);
@@ -284,9 +281,8 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
               th->worker->bestMoveChanges          = 0;
             th->worker->rootDepth = th->worker->completedDepth = 0;
             th->worker->rootMoves                              = rootMoves;
-            th->worker->rootPos.set(pos.fen(), pos.is_chess960(), &th->worker->rootState);
+            th->worker->rootPos.set(pos.sfen());
             th->worker->rootState = setupStates->back();
-            th->worker->tbConfig  = tbConfig;
         });
     }
 
@@ -398,11 +394,6 @@ std::vector<size_t> ThreadPool::get_bound_thread_count_by_numa_node() const {
     }
 
     return counts;
-}
-
-void ThreadPool::ensure_network_replicated() {
-    for (auto&& th : threads)
-        th->ensure_network_replicated();
 }
 
 }  // namespace Stockfish

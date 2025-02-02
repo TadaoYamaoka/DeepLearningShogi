@@ -16,22 +16,25 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef EVALUATE_H_INCLUDED
-#define EVALUATE_H_INCLUDED
+#include <iostream>
 
-#include <string>
-
+#include "init.hpp"
+#include "sf_position.h"
 #include "sf_types.h"
+#include "sf_usi.h"
 
-namespace Stockfish {
+using namespace Stockfish;
 
-class Position;
+int main(int argc, char* argv[]) {
 
-namespace Eval {
+    std::cout << engine_info() << std::endl;
 
-Value evaluate(const Position& pos);
-}  // namespace Eval
+    initTable();
+    Stockfish::Position::init();
 
-}  // namespace Stockfish
+    USIEngine usi(argc, argv);
 
-#endif  // #ifndef EVALUATE_H_INCLUDED
+    usi.loop();
+
+    return 0;
+}

@@ -1,4 +1,4 @@
-﻿/*
+/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -16,22 +16,27 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef EVALUATE_H_INCLUDED
-#define EVALUATE_H_INCLUDED
+#ifndef BENCHMARK_H_INCLUDED
+#define BENCHMARK_H_INCLUDED
 
+#include <iosfwd>
 #include <string>
+#include <vector>
 
-#include "sf_types.h"
+namespace Stockfish::Benchmark {
 
-namespace Stockfish {
+std::vector<std::string> setup_bench(const std::string&, std::istream&);
 
-class Position;
+struct BenchmarkSetup {
+    int                      ttSize;
+    int                      threads;
+    std::vector<std::string> commands;
+    std::string              originalInvocation;
+    std::string              filledInvocation;
+};
 
-namespace Eval {
-
-Value evaluate(const Position& pos);
-}  // namespace Eval
+BenchmarkSetup setup_benchmark(std::istream&);
 
 }  // namespace Stockfish
 
-#endif  // #ifndef EVALUATE_H_INCLUDED
+#endif  // #ifndef BENCHMARK_H_INCLUDED

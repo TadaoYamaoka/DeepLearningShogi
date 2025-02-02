@@ -41,6 +41,7 @@
 #include "sf_misc.h"
 #include "sf_numa.h"
 #include "sf_position.h"
+#include "sf_score.h"
 #include "sf_timeman.h"
 #include "sf_types.h"
 
@@ -65,7 +66,6 @@ namespace Search {
 struct Stack {
     Move*                       pv;
     PieceToHistory*             continuationHistory;
-    CorrectionHistory<PieceTo>* continuationCorrectionHistory;
     int                         ply;
     Move                        currentMove;
     Move                        excludedMove;
@@ -136,17 +136,14 @@ struct LimitsType {
 struct SharedState {
     SharedState(const OptionsMap&                               optionsMap,
                 ThreadPool&                                     threadPool,
-                TranspositionTable&                             transpositionTable,
-                const LazyNumaReplicated<Eval::NNUE::Networks>& nets) :
+                TranspositionTable&                             transpositionTable) :
         options(optionsMap),
         threads(threadPool),
-        tt(transpositionTable),
-        networks(nets) {}
+        tt(transpositionTable) {}
 
     const OptionsMap&                               options;
     ThreadPool&                                     threads;
     TranspositionTable&                             tt;
-    const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 };
 
 class Worker;
@@ -167,7 +164,6 @@ struct InfoShort {
 struct InfoFull: InfoShort {
     int              selDepth;
     size_t           multiPV;
-    std::string_view wdl;
     std::string_view bound;
     size_t           timeMs;
     size_t           nodes;
@@ -277,21 +273,12 @@ class Worker {
 
     bool is_mainthread() const { return threadIdx == 0; }
 
-    void ensure_network_replicated();
-
     // Public because they need to be updatable by the stats
     ButterflyHistory mainHistory;
     LowPlyHistory    lowPlyHistory;
 
     CapturePieceToHistory captureHistory;
     ContinuationHistory   continuationHistory[2][2];
-    PawnHistory           pawnHistory;
-
-    CorrectionHistory<Pawn>         pawnCorrectionHistory;
-    CorrectionHistory<Major>        majorPieceCorrectionHistory;
-    CorrectionHistory<Minor>        minorPieceCorrectionHistory;
-    CorrectionHistory<NonPawn>      nonPawnCorrectionHistory[COLOR_NB];
-    CorrectionHistory<Continuation> continuationCorrectionHistory;
 
    private:
     void iterative_deepening();
@@ -323,8 +310,6 @@ class Worker {
     std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
     int                   selDepth, nmpMinPly;
 
-    Value optimism[COLOR_NB];
-
     Position  rootPos;
     StateInfo rootState;
     RootMoves rootMoves;
@@ -343,7 +328,6 @@ class Worker {
     const OptionsMap&                               options;
     ThreadPool&                                     threads;
     TranspositionTable&                             tt;
-    const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 
     friend class Stockfish::ThreadPool;
     friend class SearchManager;

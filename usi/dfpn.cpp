@@ -33,8 +33,8 @@ namespace ns_dfpn {
 					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 					ExtMove* curr = moveList_;
 					while (curr != last_) {
-						if (!pos.moveIsPseudoLegal<false>(curr->move))
-							curr->move = (--last_)->move;
+						if (!pos.moveIsPseudoLegal<false>(*curr))
+							*curr = *--last_;
 						else
 							++curr;
 					}
@@ -46,8 +46,8 @@ namespace ns_dfpn {
 				ExtMove* curr = moveList_;
 				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
-					if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
-						curr->move = (--last_)->move;
+					if (!pos.pseudoLegalMoveIsLegal<false, false>(*curr, pinned))
+						*curr = *--last_;
 					else
 						++curr;
 				}
@@ -55,8 +55,8 @@ namespace ns_dfpn {
 			assert(size() <= MaxCheckMoves);
 		}
 		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-		ExtMove* begin() { return &moveList_[0]; }
-		ExtMove* end() { return last_; }
+		const ExtMove* begin() { return &moveList_[0]; }
+		const ExtMove* end() { return last_; }
 		bool empty() const { return size() == 0; }
 
 	private:
@@ -323,10 +323,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			StateInfo si2;
 
 			const CheckInfo ci(n);
-			for (const auto& ml : move_picker)
+			for (const auto& m : move_picker)
 			{
-				const Move& m = ml.move;
-
 				n.doMove(m, si, ci, true);
 
 				// 千日手のチェック
@@ -376,10 +374,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				}
 
 				const CheckInfo ci2(n);
-				for (const auto& move : move_picker2)
+				for (const auto& m2 : move_picker2)
 				{
-					const Move& m2 = move.move;
-
 					// この指し手で逆王手になるなら、不詰めとして扱う
 					if (n.moveGivesCheck(m2, ci2))
 						goto NEXT_CHECK;
@@ -426,10 +422,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			StateInfo si2;
 			// この局面ですべてのevasionを試す
 			const CheckInfo ci2(n);
-			for (const auto& move : move_picker)
+			for (const auto& m2 : move_picker)
 			{
-				const Move& m2 = move.move;
-
 				// この指し手で逆王手になるなら、不詰めとして扱う
 				if (n.moveGivesCheck(m2, ci2))
 					goto NO_MATE;
@@ -608,16 +602,16 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					entry.dn = kInfinitePnDn;
 					// 子局面の証明駒を設定
 					// 打つ手ならば、証明駒に追加する
-					if (move.move.isDrop()) {
-						const HandPiece hp = move.move.handPieceDropped();
+					if (move.isDrop()) {
+						const HandPiece hp = move.handPieceDropped();
 						if (entry.hand.numOf(hp) > child_entry.hand.numOf(hp)) {
 							entry.hand = child_entry.hand;
-							entry.hand.plusOne(move.move.handPieceDropped());
+							entry.hand.plusOne(move.handPieceDropped());
 						}
 					}
 					// 後手の駒を取る手ならば、証明駒から削除する
 					else {
-						const Piece to_pc = n.piece(move.move.to());
+						const Piece to_pc = n.piece(move.to());
 						if (to_pc != Empty) {
 							entry.hand = child_entry.hand;
 							const PieceType pt = pieceToPieceType(to_pc);
@@ -759,8 +753,8 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					else {
 						// 子局面の反証駒を設定
 						// 打つ手ならば、反証駒から削除する
-						if (move.move.isDrop()) {
-							const HandPiece hp = move.move.handPieceDropped();
+						if (move.isDrop()) {
+							const HandPiece hp = move.handPieceDropped();
 							if (entry.hand.numOf(hp) < child_entry.hand.numOf(hp)) {
 								entry.hand = child_entry.hand;
 								entry.hand.minusOne(hp);
@@ -768,7 +762,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						}
 						// 先手の駒を取る手ならば、反証駒に追加する
 						else {
-							const Piece to_pc = n.piece(move.move.to());
+							const Piece to_pc = n.piece(move.to());
 							if (to_pc != Empty) {
 								const PieceType pt = pieceToPieceType(to_pc);
 								const HandPiece hp = pieceTypeToHandPiece(pt);

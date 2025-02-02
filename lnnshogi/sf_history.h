@@ -32,39 +32,7 @@
 
 namespace Stockfish {
 
-constexpr int PAWN_HISTORY_SIZE        = 512;    // has to be a power of 2
-constexpr int CORRECTION_HISTORY_SIZE  = 32768;  // has to be a power of 2
-constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 constexpr int LOW_PLY_HISTORY_SIZE     = 4;
-
-static_assert((PAWN_HISTORY_SIZE & (PAWN_HISTORY_SIZE - 1)) == 0,
-              "PAWN_HISTORY_SIZE has to be a power of 2");
-
-static_assert((CORRECTION_HISTORY_SIZE & (CORRECTION_HISTORY_SIZE - 1)) == 0,
-              "CORRECTION_HISTORY_SIZE has to be a power of 2");
-
-enum PawnHistoryType {
-    Normal,
-    Correction
-};
-
-template<PawnHistoryType T = Normal>
-inline int pawn_structure_index(const Position& pos) {
-    return pos.pawn_key() & ((T == Normal ? PAWN_HISTORY_SIZE : CORRECTION_HISTORY_SIZE) - 1);
-}
-
-inline int major_piece_index(const Position& pos) {
-    return pos.major_piece_key() & (CORRECTION_HISTORY_SIZE - 1);
-}
-
-inline int minor_piece_index(const Position& pos) {
-    return pos.minor_piece_key() & (CORRECTION_HISTORY_SIZE - 1);
-}
-
-template<Color c>
-inline int non_pawn_index(const Position& pos) {
-    return pos.non_pawn_key(c) & (CORRECTION_HISTORY_SIZE - 1);
-}
 
 // StatsEntry stores the stat table value. It is usually a number but could
 // be a move or even a nested history. We use a class instead of a naked value
@@ -145,40 +113,6 @@ using PieceToHistory = Stats<int16_t, 30000, PIECE_NB, SQUARE_NB>;
 // PieceToHistory instead of ButterflyBoards.
 // (~63 elo)
 using ContinuationHistory = Stats<PieceToHistory, NOT_USED, PIECE_NB, SQUARE_NB>;
-
-// PawnHistory is addressed by the pawn structure and a move's [piece][to]
-using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, PIECE_NB, SQUARE_NB>;
-
-// Correction histories record differences between the static evaluation of
-// positions and their search score. It is used to improve the static evaluation
-// used by some search heuristics.
-// see https://www.chessprogramming.org/Static_Evaluation_Correction_History
-enum CorrHistType {
-    Pawn,          // By color and pawn structure
-    Major,         // By color and positions of major pieces (Queen, Rook) and King
-    Minor,         // By color and positions of minor pieces (Knight, Bishop) and King
-    NonPawn,       // By color and non-pawn material positions
-    PieceTo,       // By [piece][to] move
-    Continuation,  // Combined history of move pairs
-};
-
-template<CorrHistType _>
-struct CorrHistTypedef {
-    using type = Stats<int16_t, CORRECTION_HISTORY_LIMIT, COLOR_NB, CORRECTION_HISTORY_SIZE>;
-};
-
-template<>
-struct CorrHistTypedef<PieceTo> {
-    using type = Stats<int16_t, CORRECTION_HISTORY_LIMIT, PIECE_NB, SQUARE_NB>;
-};
-
-template<>
-struct CorrHistTypedef<Continuation> {
-    using type = Stats<CorrHistTypedef<PieceTo>::type, NOT_USED, PIECE_NB, SQUARE_NB>;
-};
-
-template<CorrHistType T>
-using CorrectionHistory = typename CorrHistTypedef<T>::type;
 
 }  // namespace Stockfish
 

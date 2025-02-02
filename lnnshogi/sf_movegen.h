@@ -16,22 +16,30 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef EVALUATE_H_INCLUDED
-#define EVALUATE_H_INCLUDED
+#ifndef MOVEGEN_H_INCLUDED
+#define MOVEGEN_H_INCLUDED
 
-#include <string>
+#include <algorithm>  // IWYU pragma: keep
+#include <cstddef>
 
 #include "sf_types.h"
+#include "generateMoves.hpp"
 
 namespace Stockfish {
 
-class Position;
+using GenType = ::MoveType;
 
-namespace Eval {
+constexpr auto CAPTURES = ::MoveType::Capture;
+constexpr auto QUIETS = ::MoveType::NonCapture;
+constexpr auto EVASIONS = ::MoveType::Evasion;
+constexpr auto NON_EVASIONS = ::MoveType::NonEvasion;
+constexpr auto LEGAL = ::MoveType::Legal;
 
-Value evaluate(const Position& pos);
-}  // namespace Eval
+template<GenType Type>
+ExtMove* generate(const Position& pos, ExtMove* moveList) {
+    return generateMoves<Type>(moveList, pos);
+}
 
 }  // namespace Stockfish
 
-#endif  // #ifndef EVALUATE_H_INCLUDED
+#endif  // #ifndef MOVEGEN_H_INCLUDED

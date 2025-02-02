@@ -53,23 +53,14 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to);
 template <MoveType MT>
 class MoveList {
 public:
-    explicit MoveList(const Position& pos) : curr_(moveList_), last_(generateMoves<MT>(moveList_, pos)) {}
-    void operator ++ () { ++curr_; }
-    bool end() const { return (curr_ == last_); } // 通常のコンテナの begin() と end() の関係では無いので注意。
-    Move move() const { return curr_->move; }
+    explicit MoveList(const Position& pos) : last_(generateMoves<MT>(moveList_, pos)) {}
+    const ExtMove* begin() const { return moveList_; }
+    const ExtMove* end() const { return last_; }
     size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-    bool contains(const Move move) const {
-        for (const ExtMove* it(moveList_); it != last_; ++it) {
-            if (it->move == move)
-                return true;
-        }
-        return false;
-    }
-    ExtMove* begin() { return &moveList_[0]; } // 通常のコンテナの begin() と end() の関係では無いので注意。
+    bool contains(const Move move) const { return std::find(begin(), end(), move) != end(); }
 
 private:
     ExtMove moveList_[MaxLegalMoves];
-    ExtMove* curr_;
     ExtMove* last_;
 };
 

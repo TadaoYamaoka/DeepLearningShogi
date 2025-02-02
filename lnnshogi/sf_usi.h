@@ -35,17 +35,16 @@ class Move;
 class Score;
 using Value = int;
 
-class UCIEngine {
+class USIEngine {
    public:
-    UCIEngine(int argc, char** argv);
+    USIEngine(int argc, char** argv);
 
     void loop();
 
-    static int         to_cp(Value v, const Position& pos);
+    static int         to_cp(Value v);
     static std::string format_score(const Score& s);
     static std::string square(Square s);
-    static std::string move(Move m, bool chess960);
-    static std::string wdl(Value v, const Position& pos);
+    static std::string move(Move m);
     static std::string to_lower(std::string str);
     static Move        to_move(const Position& pos, std::string str);
 
@@ -67,7 +66,7 @@ class UCIEngine {
     std::uint64_t perft(const Search::LimitsType&);
 
     static void on_update_no_moves(const Engine::InfoShort& info);
-    static void on_update_full(const Engine::InfoFull& info, bool showWDL);
+    static void on_update_full(const Engine::InfoFull& info);
     static void on_iter(const Engine::InfoIter& info);
     static void on_bestmove(std::string_view bestmove, std::string_view ponder);
 

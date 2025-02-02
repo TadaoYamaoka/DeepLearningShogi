@@ -107,10 +107,12 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -122,10 +124,12 @@
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,12 +139,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="sf_benchmark.cpp" />
     <ClCompile Include="sf_engine.cpp" />
     <ClCompile Include="sf_evaluate.cpp" />
     <ClCompile Include="sf_memory.cpp" />
     <ClCompile Include="sf_misc.cpp" />
     <ClCompile Include="sf_movepick.cpp" />
     <ClCompile Include="sf_position.cpp" />
+    <ClCompile Include="sf_score.cpp" />
     <ClCompile Include="sf_search.cpp" />
     <ClCompile Include="sf_thread.cpp" />
     <ClCompile Include="sf_timeman.cpp" />
@@ -149,16 +156,19 @@
     <ClCompile Include="sf_usioption.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="sf_benchmark.h" />
     <ClInclude Include="sf_bitboard.h" />
     <ClInclude Include="sf_engine.h" />
     <ClInclude Include="sf_evaluate.h" />
     <ClInclude Include="sf_history.h" />
     <ClInclude Include="sf_memory.h" />
     <ClInclude Include="sf_misc.h" />
+    <ClInclude Include="sf_movegen.h" />
     <ClInclude Include="sf_movepick.h" />
     <ClInclude Include="sf_numa.h" />
     <ClInclude Include="sf_perft.h" />
     <ClInclude Include="sf_position.h" />
+    <ClInclude Include="sf_score.h" />
     <ClInclude Include="sf_search.h" />
     <ClInclude Include="sf_thread.h" />
     <ClInclude Include="sf_thread_win32_osx.h" />
@@ -167,6 +177,11 @@
     <ClInclude Include="sf_types.h" />
     <ClInclude Include="sf_usi.h" />
     <ClInclude Include="sf_usioption.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\cppshogi\cppshogi.vcxproj">
+      <Project>{7815fcee-3797-4b31-a611-cc6a11ae8bc4}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

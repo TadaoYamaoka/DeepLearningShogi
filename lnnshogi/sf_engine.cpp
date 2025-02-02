@@ -39,22 +39,15 @@
 
 namespace Stockfish {
 
-namespace NN = Eval::NNUE;
-
-constexpr auto StartFEN  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+constexpr auto StartFEN  = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 constexpr int  MaxHashMB = Is64Bit ? 33554432 : 2048;
 
 Engine::Engine(std::optional<std::string> path) :
     binaryDirectory(path ? CommandLine::get_binary_directory(*path) : ""),
     numaContext(NumaConfig::from_system()),
     states(new std::deque<StateInfo>(1)),
-    threads(),
-    networks(
-      numaContext,
-      NN::Networks(
-        NN::NetworkBig({EvalFileDefaultNameBig, "None", ""}, NN::EmbeddedNNUEType::BIG),
-        NN::NetworkSmall({EvalFileDefaultNameSmall, "None", ""}, NN::EmbeddedNNUEType::SMALL))) {
-    pos.set(StartFEN, false, &states->back());
+    threads() {
+    pos.set(StartFEN);
 
     options["Debug Log File"] << Option("", [](const Option& o) {
         start_logger(o);
@@ -86,34 +79,20 @@ Engine::Engine(std::optional<std::string> path) :
     options["Skill Level"] << Option(20, 0, 20);
     options["Move Overhead"] << Option(10, 0, 5000);
     options["nodestime"] << Option(0, 0, 10000);
-    options["UCI_Chess960"] << Option(false);
     options["UCI_LimitStrength"] << Option(false);
     options["UCI_Elo"] << Option(Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::HighestElo);
-    options["UCI_ShowWDL"] << Option(false);
-    options["EvalFile"] << Option(EvalFileDefaultNameBig, [this](const Option& o) {
-        load_big_network(o);
-        return std::nullopt;
-    });
-    options["EvalFileSmall"] << Option(EvalFileDefaultNameSmall, [this](const Option& o) {
-        load_small_network(o);
-        return std::nullopt;
-    });
 
-    load_networks();
     resize_threads();
 }
 
-std::uint64_t Engine::perft(const std::string& fen, Depth depth, bool isChess960) {
-    verify_networks();
-
-    return Benchmark::perft(fen, depth, isChess960);
+std::uint64_t Engine::perft(const std::string& sfen, Depth depth) {
+    return Benchmark::perft(sfen, depth);
 }
 
 void Engine::go(Search::LimitsType& limits) {
     assert(limits.perft == 0);
-    verify_networks();
 
     threads.start_thinking(options, pos, states, limits);
 }
@@ -148,14 +127,14 @@ void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
 
 void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
 
-void Engine::set_position(const std::string& fen, const std::vector<std::string>& moves) {
+void Engine::set_position(const std::string& sfen, const std::vector<std::string>& moves) {
     // Drop the old state and create a new one
     states = StateListPtr(new std::deque<StateInfo>(1));
-    pos.set(fen, options["UCI_Chess960"], &states->back());
+    pos.set(sfen);
 
     for (const auto& move : moves)
     {
-        auto m = UCIEngine::to_move(pos, move);
+        auto m = USIEngine::to_move(pos, move);
 
         if (m == Move::none())
             break;
@@ -188,16 +167,14 @@ void Engine::set_numa_config_from_option(const std::string& o) {
 
     // Force reallocation of threads in case affinities need to change.
     resize_threads();
-    threads.ensure_network_replicated();
 }
 
 void Engine::resize_threads() {
     threads.wait_for_search_finished();
-    threads.set(numaContext.get_numa_config(), {options, threads, tt, networks}, updateContext);
+    threads.set(numaContext.get_numa_config(), {options, threads, tt}, updateContext);
 
     // Reallocate the hash with the new threadpool size
     set_tt_size(options["Hash"]);
-    threads.ensure_network_replicated();
 }
 
 void Engine::set_tt_size(size_t mb) {
@@ -207,61 +184,12 @@ void Engine::set_tt_size(size_t mb) {
 
 void Engine::set_ponderhit(bool b) { threads.main_manager()->ponder = b; }
 
-// network related
-
-void Engine::verify_networks() const {
-    networks->big.verify(options["EvalFile"], onVerifyNetworks);
-    networks->small.verify(options["EvalFileSmall"], onVerifyNetworks);
-}
-
-void Engine::load_networks() {
-    networks.modify_and_replicate([this](NN::Networks& networks_) {
-        networks_.big.load(binaryDirectory, options["EvalFile"]);
-        networks_.small.load(binaryDirectory, options["EvalFileSmall"]);
-    });
-    threads.clear();
-    threads.ensure_network_replicated();
-}
-
-void Engine::load_big_network(const std::string& file) {
-    networks.modify_and_replicate(
-      [this, &file](NN::Networks& networks_) { networks_.big.load(binaryDirectory, file); });
-    threads.clear();
-    threads.ensure_network_replicated();
-}
-
-void Engine::load_small_network(const std::string& file) {
-    networks.modify_and_replicate(
-      [this, &file](NN::Networks& networks_) { networks_.small.load(binaryDirectory, file); });
-    threads.clear();
-    threads.ensure_network_replicated();
-}
-
-void Engine::save_network(const std::pair<std::optional<std::string>, std::string> files[2]) {
-    networks.modify_and_replicate([&files](NN::Networks& networks_) {
-        networks_.big.save(files[0].first);
-        networks_.small.save(files[1].first);
-    });
-}
-
 // utility functions
-
-void Engine::trace_eval() const {
-    StateListPtr trace_states(new std::deque<StateInfo>(1));
-    Position     p;
-    p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
-
-    verify_networks();
-
-    sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
-}
 
 const OptionsMap& Engine::get_options() const { return options; }
 OptionsMap&       Engine::get_options() { return options; }
 
-std::string Engine::fen() const { return pos.fen(); }
-
-void Engine::flip() { pos.flip(); }
+std::string Engine::sfen() const { return pos.sfen(); }
 
 std::string Engine::visualize() const {
     std::stringstream ss;

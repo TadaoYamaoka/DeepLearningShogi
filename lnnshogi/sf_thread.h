@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -83,8 +83,6 @@ class Thread {
     void clear_worker();
     void run_custom_job(std::function<void()> f);
 
-    void ensure_network_replicated();
-
     // Thread has been slightly altered to allow running custom jobs, so
     // this name is no longer correct. However, this class (and ThreadPool)
     // require further work to make them properly generic while maintaining
@@ -147,8 +145,6 @@ class ThreadPool {
     void                   wait_for_search_finished() const;
 
     std::vector<size_t> get_bound_thread_count_by_numa_node() const;
-
-    void ensure_network_replicated();
 
     std::atomic_bool stop, abortedSearch, increaseDepth;
 

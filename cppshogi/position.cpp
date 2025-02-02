@@ -1593,26 +1593,25 @@ std::pair<Key, Key> Position::getKeyAndBoardKeyAfter(const Move m) const {
 }
 
 
-void Position::print() const {
-    std::cout << "'  9  8  7  6  5  4  3  2  1" << std::endl;
+void Position::print(std::ostream& os) const {
+    os << "'  9  8  7  6  5  4  3  2  1" << std::endl;
     int i = 0;
     for (Rank r = Rank1; r != Rank9Wall; r += RankDeltaS) {
         ++i;
-        std::cout << "P" << i;
+        os << "P" << i;
         for (File f = File9; f != File1Wall; f += FileDeltaE)
-            std::cout << pieceToCharCSA(piece(makeSquare(f, r)));
-        std::cout << std::endl;
+            os << pieceToCharCSA(piece(makeSquare(f, r)));
+        os << std::endl;
     }
-    printHand(Black);
-    printHand(White);
-    std::cout << (turn() == Black ? "+" : "-") << std::endl;
-    std::cout << std::endl;
-    std::cout << "key = " << getKey() << std::endl;
+    printHand(Black, os);
+    printHand(White, os);
+    os << (turn() == Black ? "+" : "-") << std::endl;
+    os << std::endl;
+    os << "key = " << getKey() << std::endl;
 }
 
 std::string Position::toSFEN(const Ply ply) const {
     std::stringstream ss;
-    ss << "sfen ";
     int space = 0;
     for (Rank rank = Rank1; rank != Rank9Wall; rank += RankDeltaS) {
         for (File file = File9; file != File1Wall; file += FileDeltaE) {
@@ -1894,24 +1893,24 @@ RepetitionType Position::moveIsDraw(const Move move, const int checkMaxPly) cons
 }
 
 namespace {
-    void printHandPiece(const Position& pos, const HandPiece hp, const Color c, const std::string& str) {
+    void printHandPiece(const Position& pos, const HandPiece hp, const Color c, const std::string& str, std::ostream& os = std::cout) {
         if (pos.hand(c).numOf(hp)) {
             const char* sign = (c == Black ? "+" : "-");
-            std::cout << "P" << sign;
+            os << "P" << sign;
             for (u32 i = 0; i < pos.hand(c).numOf(hp); ++i)
-                std::cout << "00" << str;
-            std::cout << std::endl;
+                os << "00" << str;
+            os << std::endl;
         }
     }
 }
-void Position::printHand(const Color c) const {
-    printHandPiece(*this, HPawn  , c, "FU");
-    printHandPiece(*this, HLance , c, "KY");
-    printHandPiece(*this, HKnight, c, "KE");
-    printHandPiece(*this, HSilver, c, "GI");
-    printHandPiece(*this, HGold  , c, "KI");
-    printHandPiece(*this, HBishop, c, "KA");
-    printHandPiece(*this, HRook  , c, "HI");
+void Position::printHand(const Color c, std::ostream& os) const {
+    printHandPiece(*this, HPawn  , c, "FU", os);
+    printHandPiece(*this, HLance , c, "KY", os);
+    printHandPiece(*this, HKnight, c, "KE", os);
+    printHandPiece(*this, HSilver, c, "GI", os);
+    printHandPiece(*this, HGold  , c, "KI", os);
+    printHandPiece(*this, HBishop, c, "KA", os);
+    printHandPiece(*this, HRook  , c, "HI", os);
 }
 
 Position& Position::operator = (const Position& pos) {

@@ -20,7 +20,7 @@
 #define MOVEPICK_H_INCLUDED
 
 #include "sf_history.h"
-#include "generateMoves.hpp"
+#include "sf_movegen.h"
 #include "sf_types.h"
 
 namespace Stockfish {
@@ -53,7 +53,7 @@ class MovePicker {
    private:
     template<typename Pred>
     Move select(Pred);
-    template<MoveType>
+    template<GenType>
     void     score();
     ExtMove* begin() { return cur; }
     ExtMove* end() { return endMoves; }

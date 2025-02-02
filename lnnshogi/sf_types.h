@@ -202,11 +202,32 @@ constexpr auto HORSE = PieceType::Horse;
 constexpr auto DRAGON = PieceType::Dragon;
 
 constexpr auto NO_PIECE = Piece::Empty;
+constexpr auto PIECE_TYPE_NB = PieceType::PieceTypeNum;
 constexpr auto PIECE_NB = Piece::PieceNone;
 
 constexpr Value PieceValue[PIECE_NB] = {
   VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue, VALUE_ZERO,
   VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue };
+
+constexpr Value MovedPawnValue = 1;
+constexpr Value MovedLanceValue = 2;
+constexpr Value MovedKnightValue = 3;
+constexpr Value MovedSilverValue = 4;
+constexpr Value MovedGoldValue = 6;
+constexpr Value MovedBishopValue = 7;
+constexpr Value MovedRookValue = 8;
+constexpr Value MovedProPawnValue = 5;
+constexpr Value MovedProLanceValue = 5;
+constexpr Value MovedProKnightValue = 5;
+constexpr Value MovedProSilverValue = 5;
+constexpr Value MovedHorseValue = 9;
+constexpr Value MovedDragonValue = 10;
+constexpr Value MovedKingValue = 10000;
+
+constexpr Value MovedPieceValue[PIECE_NB] = {
+  VALUE_ZERO, MovedPawnValue, MovedLanceValue, MovedKnightValue, MovedSilverValue, MovedBishopValue, MovedRookValue, MovedGoldValue, MovedKingValue, MovedProPawnValue, MovedProLanceValue, MovedProKnightValue, MovedProSilverValue, MovedHorseValue, MovedDragonValue, VALUE_ZERO,
+  VALUE_ZERO, MovedPawnValue, MovedLanceValue, MovedKnightValue, MovedSilverValue, MovedBishopValue, MovedRookValue, MovedGoldValue, MovedKingValue, MovedProPawnValue, MovedProLanceValue, MovedProKnightValue, MovedProSilverValue, MovedHorseValue, MovedDragonValue };
+
 
 using Depth = int;
 
@@ -289,7 +310,7 @@ constexpr Key make_key(uint64_t seed) {
 
 enum MoveType {
     NORMAL,
-    PROMOTION  = PromoteFlag,
+    PROMOTION  = ::Move::PromoteFlag,
     DROP = 2 << 14,
 };
 
@@ -309,7 +330,8 @@ class Move : public ::Move {
    public:
     Move() = default;
     constexpr explicit Move(const u32 u) : ::Move(u) {}
-    constexpr operator ::Move() const { return *this; }
+    Move(const ::Move& m) : ::Move(m) {}
+    operator ::Move() const { return *this; }
 
     constexpr Square from_sq() const {
         assert(is_ok());

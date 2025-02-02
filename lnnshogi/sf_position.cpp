@@ -40,6 +40,72 @@ using std::string;
 
 namespace Stockfish {
 
+void Position::init() {
+    ::Position::initZobrist();
+}
+
+// Calculates st->blockersForKing[c] and st->pinners[~c],
+// which store respectively the pieces preventing king of color c from being in check
+// and the slider pieces of color ~c pinning pieces of color c to the king.
+void Position::update_slider_blockers(Color c) const {
+
+    const Color us = c;
+    const Color them = oppositeColor(us);
+
+    st_->blockersForKing[c] = allZeroBB();
+    st_->pinners[them] = allZeroBB();
+
+    // pin する遠隔駒
+    Bitboard snipers = bbOf(us);
+
+    const Square ksq = kingSquare(them);
+
+    // 障害物が無ければ玉に到達出来る駒のBitboardだけ残す。
+    snipers &= (bbOf(Lance) & lanceAttackToEdge((them), ksq)) |
+        (bbOf(Rook, Dragon) & rookAttackToEdge(ksq)) | (bbOf(Bishop, Horse) & bishopAttackToEdge(ksq));
+
+    while (snipers) {
+        const Square sq = snipers.firstOneFromSQ11();
+        // pin する遠隔駒と玉の間にある駒の位置の Bitboard
+        const Bitboard between = betweenBB(sq, ksq) & occupiedBB();
+
+        // pin する遠隔駒と玉の間にある駒が1つで、かつ、引数の色のとき、その駒は(を) pin されて(して)いる。
+        if (between
+            && between.isOneBit<false>())
+        {
+            st_->blockersForKing[them] |= between;
+            if (between.andIsAny(bbOf(them)))
+                st_->pinners[us].setBit(sq);
+        }
+    }
+}
+
+// Tests whether a pseudo-legal move is legal
+bool Position::legal(Move m) const {
+
+    assert(m.is_ok());
+
+    if (m.is_drop()) {
+        return true;
+    }
+    else {
+        Color  us = side_to_move();
+        Square from = m.from();
+        Square to = m.to();
+
+        assert(color_of(moved_piece(m)) == us);
+        assert(piece_on(kingSquare(us)) == make_piece(us, KING));
+
+        // If the moving piece is a king, check whether the destination square is
+        // attacked by the opponent.
+        if (type_of(piece_on(from)) == KING)
+            return !(attackers_to(to, pieces() ^ from) & pieces(~us));
+
+        // A non-king move is legal if and only if it is not pinned or it
+        // is moving along the ray towards or away from the king.
+        return !(blockers_for_king(us) & from) || isAligned<false>(from, to, kingSquare(us));
+    }
+}
 
 // Used to do a "null move": it flips
 // the side to move without executing any move on the board.
@@ -96,40 +162,6 @@ bool Position::see_ge(Move m, int threshold) const {
     swap = (m.is_drop() ? 0 : PieceValue[piece_on(from)]) - swap;
     if (swap <= 0)
         return true;
-
-    Bitboard pinners_[COLOR_NB] = {};
-    Bitboard blockers_for_king_[COLOR_NB] = {};
-    const auto update_slider_blockers = [this, &pinners_, &blockers_for_king_](Color c) {
-        const Color us = c;
-        const Color them = oppositeColor(us);
-        // pin する遠隔駒
-        Bitboard snipers = bbOf(us);
-
-        const Square ksq = kingSquare(them);
-
-        // 障害物が無ければ玉に到達出来る駒のBitboardだけ残す。
-        snipers &= (bbOf(Lance) & lanceAttackToEdge((them), ksq)) |
-            (bbOf(Rook, Dragon) & rookAttackToEdge(ksq)) | (bbOf(Bishop, Horse) & bishopAttackToEdge(ksq));
-
-        while (snipers) {
-            const Square sq = snipers.firstOneFromSQ11();
-            // pin する遠隔駒と玉の間にある駒の位置の Bitboard
-            const Bitboard between = betweenBB(sq, ksq) & occupiedBB();
-
-            // pin する遠隔駒と玉の間にある駒が1つで、かつ、引数の色のとき、その駒は(を) pin されて(して)いる。
-            if (between
-                && between.isOneBit<false>())
-            {
-                blockers_for_king_[them] |= between;
-                if (between.andIsAny(bbOf(them)))
-                    pinners_[us].setBit(sq);
-            }
-        }
-    };
-    const auto pinners = [&pinners_](Color c) { return pinners_[c]; };
-    const auto blockers_for_king = [&blockers_for_king_](Color c) { return blockers_for_king_[c]; };
-    update_slider_blockers(BLACK);
-    update_slider_blockers(WHITE);
 
     assert(color_of(piece_on(from)) == side_to_move());
     Bitboard occupied  = pieces() ^ from ^ to;  // xoring to is important for pinned piece logic
@@ -283,6 +315,13 @@ bool Position::see_ge(Move m, int threshold) const {
     }
 
     return bool(res);
+}
+
+// Sets king attacks to detect if a move gives check
+void Position::set_check_info() const {
+
+    update_slider_blockers(WHITE);
+    update_slider_blockers(BLACK);
 }
 
 }  // namespace Stockfish

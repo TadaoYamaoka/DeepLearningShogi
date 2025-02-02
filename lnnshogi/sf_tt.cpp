@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tt.h"
+#include "sf_tt.h"
 
 #include <cassert>
 #include <cstdint>
@@ -24,10 +24,9 @@
 #include <cstring>
 #include <iostream>
 
-#include "memory.h"
-#include "misc.h"
-#include "syzygy/tbprobe.h"
-#include "thread.h"
+#include "sf_memory.h"
+#include "sf_misc.h"
+#include "sf_thread.h"
 
 namespace Stockfish {
 
@@ -66,7 +65,7 @@ struct TTEntry {
     uint16_t key16;
     uint8_t  depth8;
     uint8_t  genBound8;
-    Move     move16;
+    uint16_t move16;
     int16_t  value16;
     int16_t  eval16;
 };
@@ -95,7 +94,7 @@ void TTEntry::save(
 
     // Preserve the old ttmove if we don't have a new one
     if (m || uint16_t(k) != key16)
-        move16 = m;
+        move16 = uint16_t(m.value());
 
     // Overwrite less valuable entries (cheapest checks first)
     if (b == BOUND_EXACT || uint16_t(k) != key16 || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4

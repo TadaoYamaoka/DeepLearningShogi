@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -16,15 +16,15 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "timeman.h"
+#include "sf_timeman.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 
-#include "search.h"
-#include "ucioption.h"
+#include "sf_search.h"
+#include "sf_usioption.h"
 
 namespace Stockfish {
 

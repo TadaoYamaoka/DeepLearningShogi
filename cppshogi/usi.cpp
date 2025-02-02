@@ -273,17 +273,17 @@ void randomMove(Position& pos, std::mt19937& mt) {
             if (pos.moveIsPseudoLegal<false>(move)
                 && pos.pseudoLegalMoveIsLegal<true, false>(move, pos.pinnedBB()))
             {
-                (*pms++).move = move;
+                *pms++ = move;
             }
         }
         if (&legalMoves[0] != pms) { // 手があったなら
             std::uniform_int_distribution<int> moveDist(0, static_cast<int>(pms - &legalMoves[0] - 1));
-            pos.doMove(legalMoves[moveDist(mt)].move, *st++);
+            pos.doMove(legalMoves[moveDist(mt)], *st++);
             if (dist(mt)) { // 1/2 の確率で相手もランダムに指す事にする。
                 MoveList<LegalAll> ml(pos);
                 if (ml.size()) {
                     std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
-                    pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
+                    pos.doMove(*(ml.begin() + moveDist(mt)), *st++);
                 }
             }
         }
@@ -297,7 +297,7 @@ void randomMove(Position& pos, std::mt19937& mt) {
             MoveList<LegalAll> ml(pos);
             if (ml.size()) {
                 std::uniform_int_distribution<int> moveDist(0, static_cast<int>(ml.size() - 1));
-                pos.doMove((ml.begin() + moveDist(mt))->move, *st++);
+                pos.doMove(*(ml.begin() + moveDist(mt)), *st++);
                 moved = true;
             }
         }
@@ -361,16 +361,16 @@ Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
 #if !defined NDEBUG
 // for debug
 Move usiToMoveDebug(const Position& pos, const std::string& moveStr) {
-    for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-        if (moveStr == ml.move().toUSI())
-            return ml.move();
+    for (const auto& m : MoveList<LegalAll>(pos)) {
+        if (moveStr == m.toUSI())
+            return m;
     }
     return Move::moveNone();
 }
 Move csaToMoveDebug(const Position& pos, const std::string& moveStr) {
-    for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-        if (moveStr == ml.move().toCSA())
-            return ml.move();
+    for (const auto& m : MoveList<LegalAll>(pos)) {
+        if (moveStr == m.toCSA())
+            return m;
     }
     return Move::moveNone();
 }
@@ -489,7 +489,7 @@ void measureGenerateMoves(const Position& pos) {
     pos.print();
 
     ExtMove legalMoves[MaxLegalMoves];
-    for (int i = 0; i < MaxLegalMoves; ++i) legalMoves[i].move = moveNone();
+    for (int i = 0; i < MaxLegalMoves; ++i) legalMoves[i] = moveNone();
     ExtMove* pms = &legalMoves[0];
     const u64 num = 5000000;
     Timer t = Timer::currentTime();
@@ -516,7 +516,7 @@ void measureGenerateMoves(const Position& pos) {
     const ptrdiff_t count = pms - &legalMoves[0];
     std::cout << "num of moves = " << count << std::endl;
     for (int i = 0; i < count; ++i)
-        std::cout << legalMoves[i].move.toCSA() << ", ";
+        std::cout << legalMoves[i].toCSA() << ", ";
     std::cout << std::endl;
 }
 #endif

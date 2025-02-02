@@ -122,7 +122,7 @@ public:
     // 正解のPV, MoveNone, その他0のPV, MoveNone, その他1のPV, MoveNone, MovePVsEnd という感じに並ぶ。
     static Move movePVsEnd() { return Move(MovePVsEnd); }
 
-private:
+protected:
     u32 value_;
 };
 
@@ -177,11 +177,12 @@ inline Move makeCapturePromoteMove(const PieceType pt, const Square from, const 
 // todo: PieceType を HandPiece に変更
 inline Move makeDropMove(const PieceType pt, const Square to) { return from2Move(drop2From(pt)) | to2Move(to); }
 
-struct ExtMove {
-    Move move;
+struct ExtMove : public Move {
     int value;
 
-	operator Move() const { return move; }
+    void operator=(Move m) { value_ = m.value(); }
+
+    operator float() const = delete;
 };
 
 inline bool operator<(const ExtMove& f, const ExtMove& s) { return f.value < s.value; }

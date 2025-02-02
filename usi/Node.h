@@ -79,7 +79,7 @@ struct uct_node_t {
 		MoveList<Legal> ml(*pos);
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
-		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+		for (auto m = ml.begin(); m != ml.end(); ++m) child_node++->move = *m;
 		child_num = (short)ml.size();
 	}
 	// 子ノードへのポインタ配列の初期化

@@ -61,6 +61,9 @@ struct StateInfo {
     PieceType capturedPieceType;
     StateInfo* previous;
     Hand hand; // 手番側の持ち駒
+    // for Stockfish
+    Bitboard   blockersForKing[ColorNum];
+    Bitboard   pinners[ColorNum];
 
     Key key() const { return boardKey + handKey; }
 };
@@ -388,7 +391,7 @@ public:
         static_assert(zobTurn_ == 1, "");
         return getKey() >> 1;
     }
-    void print() const;
+    void print(std::ostream& os = std::cout) const;
     std::string toSFEN(const Ply ply) const;
     std::string toSFEN() const { return toSFEN(gamePly()); }
 
@@ -474,7 +477,7 @@ protected:
     Key computeHandKey() const;
     Key computeKey() const { return computeBoardKey() + computeHandKey(); }
 
-    void printHand(const Color c) const;
+    void printHand(const Color c, std::ostream& os = std::cout) const;
 
     static Key zobrist(const PieceType pt, const Square sq, const Color c) { return zobrist_[pt][sq][c]; }
     static Key zobTurn()                                                   { return zobTurn_; }

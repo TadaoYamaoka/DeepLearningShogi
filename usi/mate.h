@@ -20,8 +20,8 @@ namespace ns_mate {
 					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 					ExtMove* curr = moveList_;
 					while (curr != last_) {
-						if (!pos.moveIsPseudoLegal<false>(curr->move))
-							curr->move = (--last_)->move;
+						if (!pos.moveIsPseudoLegal<false>(*curr))
+							*curr = *--last_;
 						else
 							++curr;
 					}
@@ -33,8 +33,8 @@ namespace ns_mate {
 				ExtMove* curr = moveList_;
 				const Bitboard pinned = pos.pinnedBB();
 				while (curr != last_) {
-					if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
-						curr->move = (--last_)->move;
+					if (!pos.pseudoLegalMoveIsLegal<false, false>(*curr, pinned))
+						*curr = *--last_;
 					else
 						++curr;
 				}
@@ -42,8 +42,8 @@ namespace ns_mate {
 			assert(size() <= MaxCheckMoves);
 		}
 		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-		ExtMove* begin() { return &moveList_[0]; }
-		ExtMove* end() { return last_; }
+		const ExtMove* begin() { return &moveList_[0]; }
+		const ExtMove* end() { return last_; }
 		bool empty() const { return size() == 0; }
 
 	private:
@@ -66,10 +66,8 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 	StateInfo si2;
 
 	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::MovePicker<true, INCHECK>(pos))
+	for (const auto& m : ns_mate::MovePicker<true, INCHECK>(pos))
 	{
-		const Move& m = ml.move;
-
 		pos.doMove(m, si, ci, true);
 
 		// 千日手のチェック
@@ -95,10 +93,8 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		}
 
 		const CheckInfo ci2(pos);
-		for (const auto& move : move_picker2)
+		for (const auto& m2 : move_picker2)
 		{
-			const Move& m2 = move.move;
-
 			// この指し手で逆王手になるなら、不詰めとして扱う
 			if (pos.moveGivesCheck(m2, ci2))
 				goto NEXT_CHECK;
@@ -186,11 +182,11 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 
 	// すべての合法手について
 	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::MovePicker<true, INCHECK>(pos)) {
-		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
+	for (const auto& m : ns_mate::MovePicker<true, INCHECK>(pos)) {
+		//std::cout << depth << " : " << pos.toSFEN() << " : " << m.toUSI() << std::endl;
 		// 1手動かす
 		StateInfo state;
-		pos.doMove(ml.move, state, ci, true);
+		pos.doMove(m, state, ci, true);
 
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
@@ -198,14 +194,14 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 		case RepetitionLose: // 相手が負け
 		{
 			// 詰みが見つかった時点で終了
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			return true;
 		}
 		case RepetitionDraw:
 		case RepetitionWin: // 相手の勝ち
 		case RepetitionSuperior: // 相手が駒得
 		{
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			continue;
 		}
 		case RepetitionInferior: break; // 相手が駒損
@@ -216,11 +212,11 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 		// 偶数手詰めチェック
 		if (mateMoveInEvenPly<depth - 1>(pos, draw_ply)) {
 			// 詰みが見つかった時点で終了
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			return true;
 		}
 
-		pos.undoMove(ml.move);
+		pos.undoMove(m);
 	}
 	return false;
 }
@@ -238,20 +234,20 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply = INT_MAX)
 
 	// すべてのEvasionについて
 	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::MovePicker<false, false>(pos)) {
-		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
-		const bool givesCheck = pos.moveGivesCheck(ml.move, ci);
+	for (const auto& m : ns_mate::MovePicker<false, false>(pos)) {
+		//std::cout << depth << " : " << pos.toSFEN() << " : " << m.toUSI() << std::endl;
+		const bool givesCheck = pos.moveGivesCheck(m, ci);
 
 		// 1手動かす
 		StateInfo state;
-		pos.doMove(ml.move, state, ci, givesCheck);
+		pos.doMove(m, state, ci, givesCheck);
 
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
 		case NotRepetition: break;
 		case RepetitionWin: // 自分が勝ち
 		{
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			continue;
 		}
 		case RepetitionDraw:
@@ -259,7 +255,7 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply = INT_MAX)
 		case RepetitionInferior: // 自分が駒損
 		{
 			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			return false;
 		}
 		case RepetitionSuperior: break; // 自分が駒得
@@ -270,11 +266,11 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply = INT_MAX)
 		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos, draw_ply) : !mateMoveInOddPly<depth - 1, false>(pos, draw_ply)) {
 			// 偶数手詰めでない場合
 			// 詰みが見つからなかった時点で終了
-			pos.undoMove(ml.move);
+			pos.undoMove(m);
 			return false;
 		}
 
-		pos.undoMove(ml.move);
+		pos.undoMove(m);
 	}
 	return true;
 }

@@ -39,11 +39,18 @@ class TranspositionTable;
 // traversing the search tree.
 class Position : public ::Position {
    public:
+    static void init();
+
     Position()                           = default;
     Position(const Position&)            = delete;
     Position& operator=(const Position&) = delete;
 
     // SFEN string input/output
+    Position& set(const std::string& sfenStr) {
+        ::Position::set(sfenStr);
+        set_check_info();
+        return *this;
+    }
     std::string sfen() const { return toSFEN(); }
 
     // Position representation
@@ -54,20 +61,32 @@ class Position : public ::Position {
 
     // Checking
     Bitboard checkers() const { return checkersBB(); }
+    Bitboard blockers_for_king(Color c) const { return st_->blockersForKing[c]; }
+    Bitboard pinners(Color c) const { return st_->pinners[c]; }
 
     // Attacks to/from a given square
     Bitboard attackers_to(Square s) const { return attackers_to(s, pieces()); }
     Bitboard attackers_to(Square s, Bitboard occupied) const { return attackersTo(s, occupied); }
+    void     update_slider_blockers(Color c) const;
 
     // Properties of moves
+    bool  legal(Move m) const;
     bool  pseudo_legal(const Move m) const { return moveIsPseudoLegal(m); }
     bool  capture(Move m) const { return !m.is_drop() && piece_on(m.to_sq()) != NO_PIECE; }
     bool  capture_stage(Move m) const { return capture(m); }
-    PieceType captured_piece_type() const { return st_->capturedPieceType; }
+    bool  gives_check(Move m, const CheckInfo& ci) const { return moveGivesCheck(m, ci); }
     Piece moved_piece(Move m) const { return movedPiece(m); }
+    PieceType captured_piece_type() const { return st_->capturedPieceType; }
 
     // Doing and undoing moves
-    void do_move(Move m, StateInfo& newSt) { doMove(m, newSt); }
+    void do_move(Move m, StateInfo& newSt) {
+        doMove(m, newSt);
+        set_check_info();
+    }
+    void do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool givesCheck) {
+        doMove(m, newSt, ci, givesCheck);
+        set_check_info();
+    }
     void undo_move(Move m) { undoMove(m); }
     void do_null_move(StateInfo& newSt, const TranspositionTable& tt);
     void undo_null_move();
@@ -77,12 +96,22 @@ class Position : public ::Position {
 
     // Accessing hash keys
     Key key() const { return getKey(); }
+    Key key_after(Move m) const { return getKeyAfter(m); }
 
     // Other properties of the position
     Color side_to_move() const { return turn(); }
     int   game_ply() const { return gamePly(); }
     RepetitionType is_draw(int ply) const { return isDraw(ply); }
+
+  private:
+    // Initialization helpers (used while setting up a position)
+    void set_check_info() const;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const Position& pos) {
+    pos.print(os);
+    return os;
+}
 
 }  // namespace Stockfish
 

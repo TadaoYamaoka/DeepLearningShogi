@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -53,7 +53,7 @@ class Engine {
 
     ~Engine() { wait_for_search_finished(); }
 
-    std::uint64_t perft(const std::string& fen, Depth depth, bool isChess960);
+    std::uint64_t perft(const std::string& sfen, Depth depth);
 
     // non blocking call to start searching
     void go(Search::LimitsType&);
@@ -63,7 +63,7 @@ class Engine {
     // blocking call to wait for search to finish
     void wait_for_search_finished();
     // set a new position, moves are in UCI format
-    void set_position(const std::string& fen, const std::vector<std::string>& moves);
+    void set_position(const std::string& sfen, const std::vector<std::string>& moves);
 
     // modifiers
 
@@ -79,25 +79,14 @@ class Engine {
     void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&);
     void set_on_verify_networks(std::function<void(std::string_view)>&&);
 
-    // network related
-
-    void verify_networks() const;
-    void load_networks();
-    void load_big_network(const std::string& file);
-    void load_small_network(const std::string& file);
-    void save_network(const std::pair<std::optional<std::string>, std::string> files[2]);
-
     // utility functions
-
-    void trace_eval() const;
 
     const OptionsMap& get_options() const;
     OptionsMap&       get_options();
 
     int get_hashfull(int maxAge = 0) const;
 
-    std::string                            fen() const;
-    void                                   flip();
+    std::string                            sfen() const;
     std::string                            visualize() const;
     std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const;
     std::string                            get_numa_config_as_string() const;
@@ -116,7 +105,6 @@ class Engine {
     OptionsMap                               options;
     ThreadPool                               threads;
     TranspositionTable                       tt;
-    LazyNumaReplicated<Eval::NNUE::Networks> networks;
 
     Search::SearchManager::UpdateContext  updateContext;
     std::function<void(std::string_view)> onVerifyNetworks;

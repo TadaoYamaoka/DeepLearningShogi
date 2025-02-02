@@ -34,7 +34,6 @@ template<bool Root>
 uint64_t perft(Position& pos, Depth depth) {
 
     StateInfo st;
-    ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
 
     uint64_t   cnt, nodes = 0;
     const bool leaf = (depth == 2);
@@ -51,15 +50,14 @@ uint64_t perft(Position& pos, Depth depth) {
             pos.undo_move(m);
         }
         if (Root)
-            sync_cout << UCIEngine::move(m, pos.is_chess960()) << ": " << cnt << sync_endl;
+            sync_cout << USIEngine::move(m) << ": " << cnt << sync_endl;
     }
     return nodes;
 }
 
-inline uint64_t perft(const std::string& fen, Depth depth, bool isChess960) {
-    StateListPtr states(new std::deque<StateInfo>(1));
+inline uint64_t perft(const std::string& sfen, Depth depth) {
     Position     p;
-    p.set(fen, isChess960, &states->back());
+    p.set(sfen);
 
     return perft<true>(p, depth);
 }

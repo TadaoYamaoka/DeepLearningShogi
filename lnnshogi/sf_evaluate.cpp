@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "evaluate.h"
+#include "sf_evaluate.h"
 
 #include <algorithm>
 #include <cassert>
@@ -28,97 +28,57 @@
 #include <sstream>
 #include <tuple>
 
-#include "nnue/network.h"
-#include "nnue/nnue_misc.h"
-#include "position.h"
-#include "types.h"
-#include "uci.h"
-#include "nnue/nnue_accumulator.h"
+#include "sf_position.h"
+#include "sf_types.h"
+#include "sf_usi.h"
+
+#include "bitboard.hpp"
 
 namespace Stockfish {
 
-// Returns a static, purely materialistic evaluation of the position from
-// the point of view of the given color. It can be divided by PawnValue to get
-// an approximation of the material advantage on the board in terms of pawns.
-int Eval::simple_eval(const Position& pos, Color c) {
-    return PawnValue * (pos.count<PAWN>(c) - pos.count<PAWN>(~c))
-         + (pos.non_pawn_material(c) - pos.non_pawn_material(~c));
+namespace {
+
+constexpr Value PieceValue2[PIECE_NB] = {
+    VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue, VALUE_ZERO,
+    VALUE_ZERO, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue, -GoldValue, -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue };
+
+constexpr Value HandPieceValue[HandPieceNum] =
+{
+    PawnValue, LanceValue, KnightValue, SilverValue, GoldValue, BishopValue, RookValue
+};
+
 }
 
-bool Eval::use_smallnet(const Position& pos) {
-    int simpleEval = simple_eval(pos, pos.side_to_move());
-    return std::abs(simpleEval) > 962;
-}
-
-// Evaluate is the evaluator for the outer world. It returns a static evaluation
+    // Evaluate is the evaluator for the outer world. It returns a static evaluation
 // of the position from the point of view of the side to move.
-Value Eval::evaluate(const Eval::NNUE::Networks&    networks,
-                     const Position&                pos,
-                     Eval::NNUE::AccumulatorCaches& caches,
-                     int                            optimism) {
+Value Eval::evaluate(const Position& pos) {
 
     assert(!pos.checkers());
 
-    bool smallNet           = use_smallnet(pos);
-    auto [psqt, positional] = smallNet ? networks.small.evaluate(pos, &caches.small)
-                                       : networks.big.evaluate(pos, &caches.big);
+    Value v = 0;
 
-    Value nnue = (125 * psqt + 131 * positional) / 128;
+    Bitboard occupied_bb = pos.occupiedBB();
+    FOREACH_BB(occupied_bb, Square sq, {
+        const Piece pc = pos.piece(sq);
 
-    // Re-evaluate the position when higher eval accuracy is worth the time spent
-    if (smallNet && (std::abs(nnue) < 236))
-    {
-        std::tie(psqt, positional) = networks.big.evaluate(pos, &caches.big);
-        nnue                       = (125 * psqt + 131 * positional) / 128;
-        smallNet                   = false;
+        if (pos.turn() == Black) {
+            v += PieceValue2[pc];
+        }
+        else {
+            v -= PieceValue2[pc];
+        }
+    });
+
+    for (Color c = Black; c < ColorNum; ++c) {
+        const Hand hand = pos.hand(c);
+        const int sign = pos.turn() == c ? 1 : -1;
+        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
+            auto num = hand.numOf(hp);
+            v += num * HandPieceValue[hp] * sign;
+        }
     }
 
-    // Blend optimism and eval with nnue complexity
-    int nnueComplexity = std::abs(psqt - positional);
-    optimism += optimism * nnueComplexity / 468;
-    nnue -= nnue * nnueComplexity / (smallNet ? 20233 : 17879);
-
-    int material = (smallNet ? 553 : 532) * pos.count<PAWN>() + pos.non_pawn_material();
-    int v        = (nnue * (77777 + material) + optimism * (7777 + material)) / 77777;
-
-    // Damp down the evaluation linearly when shuffling
-    v -= v * pos.rule50_count() / 212;
-
-    // Guarantee evaluation does not hit the tablebase range
-    v = std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
-
     return v;
-}
-
-// Like evaluate(), but instead of returning a value, it returns
-// a string (suitable for outputting to stdout) that contains the detailed
-// descriptions and values of each evaluation term. Useful for debugging.
-// Trace scores are from white's point of view
-std::string Eval::trace(Position& pos, const Eval::NNUE::Networks& networks) {
-
-    if (pos.checkers())
-        return "Final evaluation: none (in check)";
-
-    auto caches = std::make_unique<Eval::NNUE::AccumulatorCaches>(networks);
-
-    std::stringstream ss;
-    ss << std::showpoint << std::noshowpos << std::fixed << std::setprecision(2);
-    ss << '\n' << NNUE::trace(pos, networks, *caches) << '\n';
-
-    ss << std::showpoint << std::showpos << std::fixed << std::setprecision(2) << std::setw(15);
-
-    auto [psqt, positional] = networks.big.evaluate(pos, &caches->big);
-    Value v                 = psqt + positional;
-    v                       = pos.side_to_move() == WHITE ? v : -v;
-    ss << "NNUE evaluation        " << 0.01 * UCIEngine::to_cp(v, pos) << " (white side)\n";
-
-    v = evaluate(networks, pos, *caches, VALUE_ZERO);
-    v = pos.side_to_move() == WHITE ? v : -v;
-    ss << "Final evaluation       " << 0.01 * UCIEngine::to_cp(v, pos) << " (white side)";
-    ss << " [with scaled NNUE, ...]";
-    ss << "\n";
-
-    return ss.str();
 }
 
 }  // namespace Stockfish
