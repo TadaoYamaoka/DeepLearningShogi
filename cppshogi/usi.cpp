@@ -143,6 +143,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random2_Value_Limit"]         = USIOption(750, 0, 1000);
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
     (*this)["Use_Book_Policy"]             = USIOption(false);
+    (*this)["Use_Book_Value"]              = USIOption(false);
 #endif
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);

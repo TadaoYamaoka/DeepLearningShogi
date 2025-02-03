@@ -100,6 +100,7 @@ bool REUSE_SUBTREE = false; // 探索済みノードを再利用するか
 // 事前確率に定跡の遷移確率も使用する
 std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 bool use_book_policy = false;
+bool use_book_value = false;
 
 // 定跡読み込み
 void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vector<BookEntry> >& bookMap) {
@@ -552,7 +553,7 @@ UCTSearcherGroup::Initialize()
 	checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
 	policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #ifdef BOOK_POLICY
-	if (use_book_policy)
+	if (use_book_policy || use_book_value)
 		policy_value_book_key = new Key[policy_value_batch_maxsize];
 #endif
 
@@ -949,7 +950,7 @@ UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* valu
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), pos->getKey(), value_win };
 #ifdef BOOK_POLICY
-	if (use_book_policy)
+	if (use_book_policy || use_book_value)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
 	current_policy_value_batch_index++;
@@ -1034,30 +1035,34 @@ void UCTSearcherGroup::EvalNode() {
 		float value_win = (float)*value;
 
 #ifdef BOOK_POLICY
-		if (use_book_policy) {
+		if (use_book_policy || use_book_value) {
 			// 事前確率に定跡の遷移確率も使用する
 			constexpr float alpha = 0.5f;
 			const Key& key = policy_value_book_key[i];
 			const auto itr = bookMap.find(key);
 			if (itr != bookMap.end()) {
 				const auto& entries = itr->second;
-				// countから分布を作成
-				std::map<u16, u16> count_map;
-				int sum = 0;
-				for (const auto& entry : entries) {
-					count_map.insert(std::make_pair(entry.fromToPro, entry.count));
-					sum += entry.count;
-				}
-				// policyと定跡から作成した分布の加重平均
-				for (int j = 0; j < child_num; ++j) {
-					const Move& move = uct_child[j].move;
-					const auto itr2 = count_map.find((u16)move.proFromAndTo());
-					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
-					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
-				}
+                if (use_book_policy) {
+                    // countから分布を作成
+                    std::map<u16, u16> count_map;
+                    int sum = 0;
+                    for (const auto& entry : entries) {
+                        count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+                        sum += entry.count;
+                    }
+                    // policyと定跡から作成した分布の加重平均
+                    for (int j = 0; j < child_num; ++j) {
+                        const Move& move = uct_child[j].move;
+                        const auto itr2 = count_map.find((u16)move.proFromAndTo());
+                        const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+                        uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+                    }
+                }
 
-				// valueと定跡の評価値の加重平均
-				value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
+                if (use_book_value) {
+                    // valueと定跡の評価値の加重平均
+                    value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
+                }
 			}
 		}
 #endif
@@ -1712,6 +1717,7 @@ int main(int argc, char* argv[]) {
 			("usi_turn", "USIEngine turn", cxxopts::value<int>(usi_turn)->default_value("-1"))
 #ifdef BOOK_POLICY
 			("use_book_policy", "use book policy", cxxopts::value<bool>(use_book_policy)->default_value("false"))
+            ("use_book_value", "use book value", cxxopts::value<bool>(use_book_value)->default_value("false"))
 			("book_file", "book file name", cxxopts::value<std::string>(bookFileName))
 #endif
 			("h,help", "Print help")
@@ -1845,9 +1851,10 @@ int main(int argc, char* argv[]) {
 	Position::initZobrist();
 	HuffmanCodedPos::init();
 #ifdef BOOK_POLICY
-	if (use_book_policy) {
+	if (use_book_policy || use_book_value) {
 		Book::init();
 		logger->info("use_book_policy");
+        logger->info("use_book_value");
 		logger->info("book_file:{}", bookFileName);
 		read_book(bookFileName, bookMap);
 	}

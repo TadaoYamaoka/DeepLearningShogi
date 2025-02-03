@@ -53,7 +53,8 @@ int dfpn_min_search_millisecs = 300;
 
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 std::map<Key, std::vector<BookEntry> > bookMap;
-bool use_book_policy = true;
+bool use_book_policy = false;
+bool use_book_value = false;
 
 // 定跡読み込み
 void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
@@ -317,7 +318,16 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						}
 					}
 				}
-				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
+#ifdef BOOK_POLICY
+                // 事前確率に定跡の遷移確率も使用する
+                use_book_policy = options["Use_Book_Policy"];
+                use_book_value = options["Use_Book_Value"];
+                if (use_book_policy || use_book_value) {
+                    // 定跡読み込み
+                    read_book(options["Book_File"], bookMap);
+                }
+#endif
+                const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"], options["DNN_Batch_Size5"], options["DNN_Batch_Size6"], options["DNN_Batch_Size7"], options["DNN_Batch_Size8"] };
 				SetThread(new_thread, new_policy_value_batch_maxsize);
 
@@ -386,15 +396,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			SetEvalCoef(options["Eval_Coef"]);
 			SetRandomMove(options["Random_Ply"], options["Random_Temperature"], options["Random_Temperature_Drop"], options["Random_Cutoff"], options["Random_Cutoff_Drop"]);
 			SetRandomMove2(options["Random2_Ply"], options["Random2_Probability"], options["Random2_Temperature"], options["Random2_Cutoff"], options["Random2_Value_Limit"]);
-
-#ifdef BOOK_POLICY
-			// 事前確率に定跡の遷移確率も使用する
-			use_book_policy = options["Use_Book_Policy"];
-			if (use_book_policy) {
-				// 定跡読み込み
-				read_book(options["Book_File"], bookMap);
-			}
-#endif
 
 			// DebugMessageMode
 			SetDebugMessageMode(options["DebugMessage"]);
@@ -894,6 +895,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 事前確率に定跡の遷移確率も使用する
 	use_book_policy = options["Use_Book_Policy"];
+    use_book_value = options["Use_Book_Value"];
 
 	// 探索打ち切りを使用する
 	use_interruption = options["Use_Interruption"];
