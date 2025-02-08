@@ -267,6 +267,8 @@ bool Position::see_ge(Move m, int threshold) const {
             occupied ^= least_significant_square_bb(bb);
 
             attackers |= bishopAttack(to, occupied) & bbOf(BISHOP, HORSE);
+
+            continue;
         }
 
 

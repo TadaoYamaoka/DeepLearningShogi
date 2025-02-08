@@ -19,6 +19,9 @@
     <Filter Include="ソース ファイル\usi">
       <UniqueIdentifier>{f30ef8ab-c52e-4da7-ba25-e9c4beacde2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\lnnshogi">
+      <UniqueIdentifier>{d05f3384-5475-497a-a578-6c9dacb09e27}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test.cpp">
@@ -80,6 +83,51 @@
     </ClCompile>
     <ClCompile Include="..\cppshogi\python_module.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="sf_test.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_benchmark.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_engine.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_evaluate.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_memory.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_misc.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_movepick.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_position.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_score.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_search.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_thread.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_timeman.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_tt.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_usi.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_usioption.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

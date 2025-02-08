@@ -101,32 +101,32 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(IncludePath)</IncludePath>
+    <IncludePath>C:\TensorRT-8.6.1.6\include;C:\Anaconda3\include;C:\boost_1_75_0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include;$(SolutionDir)\cppshogi;$(SolutionDir)\usi;$(SolutionDir)\lnnshogi;$(IncludePath)</IncludePath>
     <LibraryPath>C:\TensorRT-8.6.1.6\lib;C:\Anaconda3\libs;C:\boost_1_75_0\stage\x64\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -276,9 +276,24 @@
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_benchmark.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_engine.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_evaluate.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_memory.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_misc.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_movepick.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_position.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_score.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_search.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_thread.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_timeman.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_tt.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_usi.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_usioption.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
     <ClCompile Include="gpubenchmark.cpp" />
+    <ClCompile Include="sf_test.cpp" />
     <ClCompile Include="tensorrt_benchmark.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>

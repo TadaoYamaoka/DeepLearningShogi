@@ -45,7 +45,7 @@ TEST(HcpeTest, make_hcpe) {
 		HuffmanCodedPosAndEval& hcpe = hcpevec.back();
 		hcpe.hcp = pos[i].toHuffmanCodedPos();
 		MoveList<Legal> ml(pos[i]);
-		hcpe.bestMove16 = static_cast<u16>(ml.move().value());
+		hcpe.bestMove16 = static_cast<u16>(static_cast<const Move*>(ml.begin())->value());
 		hcpe.gameResult = BlackWin;
 		hcpe.eval = 0;
 	}
