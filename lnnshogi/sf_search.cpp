@@ -800,6 +800,8 @@ moves_loop:  // When in check, search starts here
 
     int moveCount = 0;
 
+    CheckInfo ci(pos);
+
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
     while ((move = mp.next_move()) != Move::none())
@@ -829,7 +831,6 @@ moves_loop:  // When in check, search starts here
         extension  = 0;
         capture    = pos.capture_stage(move);
         movedPiece = pos.moved_piece(move);
-        CheckInfo ci(pos);
         givesCheck = pos.gives_check(move, ci);
 
         // Calculate new depth for this move

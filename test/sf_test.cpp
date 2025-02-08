@@ -14,3 +14,14 @@ TEST(StockfishTest, see_ge) {
     pos.see_ge(m, -83);
 
 }
+
+TEST(StockfishTest, legal) {
+    initTable();
+
+    Stockfish::Position pos;
+    pos.set("lnsg1gsnl/1r1k5/ppppppppb/8p/9/P7P/1PPPPPPP1/1B1K3R1/LNSG1GSNL b - 7");
+
+    const Move m(70953); // 5g5f
+    EXPECT_FALSE(pos.legal(m));
+
+}

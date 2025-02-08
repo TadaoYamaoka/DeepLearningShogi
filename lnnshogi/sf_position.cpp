@@ -56,12 +56,12 @@ void Position::update_slider_blockers(Color c) const {
     st_->pinners[them] = allZeroBB();
 
     // pin する遠隔駒
-    Bitboard snipers = bbOf(us);
+    Bitboard snipers = bbOf(them);
 
-    const Square ksq = kingSquare(them);
+    const Square ksq = kingSquare(us);
 
     // 障害物が無ければ玉に到達出来る駒のBitboardだけ残す。
-    snipers &= (bbOf(Lance) & lanceAttackToEdge((them), ksq)) |
+    snipers &= (bbOf(Lance) & lanceAttackToEdge(us, ksq)) |
         (bbOf(Rook, Dragon) & rookAttackToEdge(ksq)) | (bbOf(Bishop, Horse) & bishopAttackToEdge(ksq));
 
     while (snipers) {
@@ -73,9 +73,9 @@ void Position::update_slider_blockers(Color c) const {
         if (between
             && between.isOneBit<false>())
         {
-            st_->blockersForKing[them] |= between;
-            if (between.andIsAny(bbOf(them)))
-                st_->pinners[us].setBit(sq);
+            st_->blockersForKing[us] |= between;
+            if (between.andIsAny(bbOf(us)))
+                st_->pinners[them].setBit(sq);
         }
     }
 }
