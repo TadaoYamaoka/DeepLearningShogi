@@ -1104,7 +1104,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 
 				records.clear();
 				reason = 0;
-				root_node.release();
+				root_node.reset();
 
 				// USIエンジン
 				if (usi_engine_turn >= 0) {
@@ -1498,7 +1498,7 @@ void UCTSearcher::NextPly(const Move move)
 		}
 		// USIエンジンが選んだ手が見つからない可能性があるため、見つからなかったらルートノードを再作成する
 		if (!found) {
-			root_node.release();
+			root_node.reset();
 		}
 	}
 }

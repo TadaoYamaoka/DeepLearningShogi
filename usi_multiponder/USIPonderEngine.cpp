@@ -60,7 +60,7 @@ void USIPonderEngine::Init(const std::vector<std::pair<std::string, std::string>
 void USIPonderEngine::WaitInit()
 {
 	th->join();
-	th.release();
+	th.reset();
 }
 
 std::ostream& operator<<(std::ostream& os, const Move& move)
@@ -147,7 +147,7 @@ void USIPonderEngine::Join() {
 		cond_th.wait(lk, [this] { return !ready_th || term_th; });
 #else
 	th->join();
-	th.release();
+	th.reset();
 #endif
 }
 
