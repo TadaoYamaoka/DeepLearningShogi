@@ -465,7 +465,7 @@ void USIEngine::position(std::istringstream& is) {
         sfen = StartFEN;
         is >> token;  // Consume the "moves" token, if any
     }
-    else if (token == "fen")
+    else if (token == "sfen")
         while (is >> token && token != "moves")
             sfen += token + " ";
     else
