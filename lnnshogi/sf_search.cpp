@@ -338,7 +338,7 @@ void Search::Worker::iterative_deepening() {
                 // if we would have had time to fully search other root-moves. Thus
                 // we suppress this output and below pick a proven score/PV for this
                 // thread (from the previous iteration).
-                && !(threads.abortedSearch && is_loss(rootMoves[0].uciScore)))
+                && !(threads.abortedSearch && is_loss(rootMoves[0].usiScore)))
                 main_manager()->pv(*this, threads, tt, rootDepth);
 
             if (threads.stop)
@@ -357,7 +357,7 @@ void Search::Worker::iterative_deepening() {
             Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
                                                 const auto& rm) { return rm == lastBestPV[0]; });
             rootMoves[0].pv    = lastBestPV;
-            rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
+            rootMoves[0].score = rootMoves[0].usiScore = lastBestScore;
         }
         else if (rootMoves[0].pv[0] != lastBestPV[0])
         {
@@ -370,7 +370,7 @@ void Search::Worker::iterative_deepening() {
             continue;
 
         // Have we found a "mate in x"?
-        if (limits.mate && rootMoves[0].score == rootMoves[0].uciScore
+        if (limits.mate && rootMoves[0].score == rootMoves[0].usiScore
             && ((rootMoves[0].score >= VALUE_MATE_IN_MAX_PLY
                  && VALUE_MATE - rootMoves[0].score <= 2 * limits.mate)
                 || (rootMoves[0].score != -VALUE_INFINITE
@@ -1124,19 +1124,19 @@ moves_loop:  // When in check, search starts here
             // PV move or new best move?
             if (moveCount == 1 || value > alpha)
             {
-                rm.score = rm.uciScore = value;
+                rm.score = rm.usiScore = value;
                 rm.selDepth            = thisThread->selDepth;
                 rm.scoreLowerbound = rm.scoreUpperbound = false;
 
                 if (value >= beta)
                 {
                     rm.scoreLowerbound = true;
-                    rm.uciScore        = beta;
+                    rm.usiScore        = beta;
                 }
                 else if (value <= alpha)
                 {
                     rm.scoreUpperbound = true;
-                    rm.uciScore        = alpha;
+                    rm.usiScore        = alpha;
                 }
 
                 rm.pv.resize(1);
@@ -1743,7 +1743,7 @@ void SearchManager::pv(Search::Worker&           worker,
             continue;
 
         Depth d = updated ? depth : std::max(1, depth - 1);
-        Value v = updated ? rootMoves[i].uciScore : rootMoves[i].previousScore;
+        Value v = updated ? rootMoves[i].usiScore : rootMoves[i].previousScore;
 
         if (v == -VALUE_INFINITE)
             v = VALUE_ZERO;
