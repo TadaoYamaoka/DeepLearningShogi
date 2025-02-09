@@ -39,8 +39,8 @@ namespace Stockfish {
 namespace {
 
 constexpr Value PieceValue2[PIECE_NB] = {
-    VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue, VALUE_ZERO,
-    VALUE_ZERO, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue, -GoldValue, -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue };
+    VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, 0, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue, VALUE_ZERO,
+    VALUE_ZERO, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue, -GoldValue, 0, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue };
 
 constexpr Value HandPieceValue[HandPieceNum] =
 {
