@@ -349,7 +349,7 @@ class Move : public ::Move {
 
     constexpr PieceType drop_type() const { return pieceTypeDropped(); }
 
-    constexpr int from_to() const { return int(from_sq() + int(is_drop() ? (SQUARE_NB - 1) : 0)) * int(SQUARE_NB) + int(to_sq()); }
+    constexpr int from_to() const { return int(from_sq()) * int(SQUARE_NB) + int(to_sq()); }
 
     constexpr MoveType type_of() const { return MoveType(((u16)(81 << 7) - (u16)(value() & 0x3f80)) & DROP | value() & PROMOTION); }
 
