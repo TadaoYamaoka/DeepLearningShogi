@@ -29,8 +29,8 @@ namespace Stockfish {
 
 using GenType = ::MoveType;
 
-constexpr auto CAPTURES = ::MoveType::Capture;
-constexpr auto QUIETS = ::MoveType::NonCapture;
+constexpr auto CAPTURES = ::MoveType::CapturePlusPro;
+constexpr auto QUIETS = ::MoveType::NonCaptureMinusPro;
 constexpr auto EVASIONS = ::MoveType::Evasion;
 constexpr auto NON_EVASIONS = ::MoveType::NonEvasion;
 constexpr auto LEGAL = ::MoveType::Legal;

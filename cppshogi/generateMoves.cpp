@@ -364,7 +364,10 @@ namespace {
 			moveList = GeneratePieceMoves<MT, GoldHorseDragon, US, ALL>()(moveList, pos, targetOther, ksq);
 			moveList = GeneratePieceMoves<MT, King           , US, ALL>()(moveList, pos, targetOther, ksq);
 
-			return moveList;
+            if (MT == NonCapture || MT == NonCaptureMinusPro || MT == NonEvasion)
+                moveList = GenerateMoves<Drop, US>()(moveList, pos);
+
+            return moveList;
 		}
 	};
 
@@ -1133,8 +1136,8 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to) 
 // 実体が無いためにリンクエラーになる。
 // ちなみに、特殊化されたテンプレート関数は、明示的なインスタンス化の必要はない。
 // 実装を cpp に置くことで、コンパイル時間の短縮が出来る。
-template ExtMove* generateMoves<Capture           >(ExtMove* moveList, const Position& pos);
-template ExtMove* generateMoves<NonCapture        >(ExtMove* moveList, const Position& pos);
+//template ExtMove* generateMoves<Capture           >(ExtMove* moveList, const Position& pos);
+//template ExtMove* generateMoves<NonCapture        >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<Drop              >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<CapturePlusPro    >(ExtMove* moveList, const Position& pos);
 template ExtMove* generateMoves<NonCaptureMinusPro>(ExtMove* moveList, const Position& pos);
