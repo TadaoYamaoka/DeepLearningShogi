@@ -152,7 +152,7 @@ void Search::Worker::start_searching() {
       Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
 
     if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
-        && rootMoves[0].pv[0] != Move::none())
+        && rootMoves[0].pv[0].is_ok())
         bestThread = threads.get_best_thread()->worker.get();
 
     main_manager()->bestPreviousScore        = bestThread->rootMoves[0].score;
@@ -165,7 +165,7 @@ void Search::Worker::start_searching() {
     std::string ponder;
 
     if (bestThread->rootMoves[0].pv.size() > 1
-        || bestThread->rootMoves[0].pv[0] != Move::resign() && bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
+        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
         ponder = USIEngine::move(bestThread->rootMoves[0].pv[1]);
 
     auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0]);
@@ -1793,7 +1793,7 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt, Position& po
     StateInfo st;
 
     assert(pv.size() == 1);
-    if (pv[0] == Move::none())
+    if (!pv[0].is_ok())
         return false;
 
     pos.do_move(pv[0], st);
