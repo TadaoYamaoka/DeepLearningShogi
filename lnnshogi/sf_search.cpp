@@ -116,9 +116,9 @@ void Search::Worker::start_searching() {
 
     if (rootMoves.empty())
     {
-        rootMoves.emplace_back(Move::none());
+        rootMoves.emplace_back(Move::resign());
         main_manager()->updates.onUpdateNoMoves(
-          {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
+          {0, {-VALUE_MATE, rootPos}});
     }
     else
     {
@@ -165,7 +165,7 @@ void Search::Worker::start_searching() {
     std::string ponder;
 
     if (bestThread->rootMoves[0].pv.size() > 1
-        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
+        || bestThread->rootMoves[0].pv[0] != Move::resign() && bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
         ponder = USIEngine::move(bestThread->rootMoves[0].pv[1]);
 
     auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0]);

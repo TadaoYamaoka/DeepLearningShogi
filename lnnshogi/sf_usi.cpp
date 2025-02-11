@@ -506,6 +506,9 @@ std::string USIEngine::square(Square s) {
 }
 
 std::string USIEngine::move(Move m) {
+    if (m == Move::resign())
+        return "resign";
+
     if (m == Move::none())
         return "(none)";
 
