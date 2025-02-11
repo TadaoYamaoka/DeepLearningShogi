@@ -1398,6 +1398,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     MovePicker mp(pos, ttData.move, DEPTH_QS, &thisThread->mainHistory, &thisThread->lowPlyHistory,
                   &thisThread->captureHistory, contHist, ss->ply);
 
+    CheckInfo ci(pos);
+
     // Step 5. Loop through all pseudo-legal moves until no moves remain or a beta
     // cutoff occurs.
     while ((move = mp.next_move()) != Move::none())
@@ -1407,7 +1409,6 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         if (!pos.legal(move))
             continue;
 
-        CheckInfo ci(pos);
         givesCheck = pos.gives_check(move, ci);
         capture    = pos.capture_stage(move);
 
