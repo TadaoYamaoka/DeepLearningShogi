@@ -1363,6 +1363,14 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         }
         else
         {
+            // 一手詰め判定
+            move = pos.mateMoveIn1Ply();
+            if (move != Move::none())
+            {
+                bestValue = mate_in(ss->ply + 1);
+                return bestValue;
+            }
+
             // In case of null move search, use previous static eval with opposite sign
             unadjustedStaticEval =
               (ss - 1)->currentMove != Move::null() ? evaluate(pos) : -(ss - 1)->staticEval;
