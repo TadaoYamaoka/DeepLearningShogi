@@ -129,6 +129,9 @@
     <ClCompile Include="..\lnnshogi\sf_usioption.cpp">
       <Filter>ソース ファイル\lnnshogi</Filter>
     </ClCompile>
+    <ClCompile Include="..\lnnshogi\sf_types.cpp">
+      <Filter>ソース ファイル\lnnshogi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\usi\unpack.cu">

@@ -152,6 +152,8 @@ constexpr Value VALUE_TB                 = VALUE_MATE_IN_MAX_PLY - 1;
 constexpr Value VALUE_TB_WIN_IN_MAX_PLY  = VALUE_TB - MAX_PLY;
 constexpr Value VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY;
 
+constexpr Value VALUE_SUPERIOR = VALUE_TB_WIN_IN_MAX_PLY - 1;
+
 
 constexpr bool is_valid(Value value) { return value != VALUE_NONE; }
 
@@ -228,6 +230,15 @@ constexpr Value MovedPieceValue[PIECE_NB] = {
   VALUE_ZERO, MovedPawnValue, MovedLanceValue, MovedKnightValue, MovedSilverValue, MovedBishopValue, MovedRookValue, MovedGoldValue, MovedKingValue, MovedProPawnValue, MovedProLanceValue, MovedProKnightValue, MovedProSilverValue, MovedHorseValue, MovedDragonValue, VALUE_ZERO,
   VALUE_ZERO, MovedPawnValue, MovedLanceValue, MovedKnightValue, MovedSilverValue, MovedBishopValue, MovedRookValue, MovedGoldValue, MovedKingValue, MovedProPawnValue, MovedProLanceValue, MovedProKnightValue, MovedProSilverValue, MovedHorseValue, MovedDragonValue };
 
+constexpr auto NOT_REPETITION = RepetitionType::NotRepetition;
+constexpr auto REPETITION_DRAW = RepetitionType::RepetitionDraw;
+constexpr auto REPETITION_WIN = RepetitionType::RepetitionWin;
+constexpr auto REPETITION_LOSE = RepetitionType::RepetitionLose;
+constexpr auto REPETITION_SUPERIOR = RepetitionType::RepetitionSuperior;
+constexpr auto REPETITION_INFERIOR = RepetitionType::RepetitionInferior;
+constexpr auto REPETITION_NB = RepetitionType::RepetitionTypeNum;
+
+extern Value DrawValue[REPETITION_NB][COLOR_NB];
 
 using Depth = int;
 

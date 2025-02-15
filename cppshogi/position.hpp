@@ -39,7 +39,7 @@ enum GameResult : int8_t {
 
 enum RepetitionType {
     NotRepetition, RepetitionDraw, RepetitionWin, RepetitionLose,
-    RepetitionSuperior, RepetitionInferior
+    RepetitionSuperior, RepetitionInferior, RepetitionTypeNum
 };
 
 struct CheckInfo {

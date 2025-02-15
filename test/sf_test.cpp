@@ -3,6 +3,8 @@
 #include "init.hpp"
 #include "usi.hpp"
 #include "sf_position.h"
+#include "sf_movepick.h"
+#include "sf_history.h"
 
 TEST(StockfishTest, see_ge) {
     initTable();
@@ -12,7 +14,6 @@ TEST(StockfishTest, see_ge) {
 
     const Move m = usiToMove(pos, "2e3c+");
     pos.see_ge(m, -83);
-
 }
 
 TEST(StockfishTest, legal) {
@@ -23,5 +24,25 @@ TEST(StockfishTest, legal) {
 
     const Move m(70953); // 5g5f
     EXPECT_FALSE(pos.legal(m));
+}
 
+TEST(StockfishTest, probcut_move_picker) {
+    initTable();
+
+    Stockfish::Position pos;
+    pos.set("lr5nl/3g1kg2/2nspps1b/p1pp2pPp/1p7/P1PPSPP1P/1PS1P1N2/2GK1G3/LN5RL b BP 67");
+
+    Stockfish::CapturePieceToHistory captureHistory;
+    Stockfish::MovePicker mp(pos, Stockfish::Move::none(), -49, &captureHistory);
+
+    Stockfish::Move move;
+    while ((move = mp.next_move()) != Stockfish::Move::none())
+    {
+        assert(move.is_ok());
+
+        if (!pos.legal(move))
+            continue;
+
+        std::cerr << move.toUSI();
+    }
 }

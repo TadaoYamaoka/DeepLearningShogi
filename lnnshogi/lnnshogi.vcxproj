@@ -154,6 +154,7 @@
     <ClCompile Include="sf_thread.cpp" />
     <ClCompile Include="sf_timeman.cpp" />
     <ClCompile Include="sf_tt.cpp" />
+    <ClCompile Include="sf_types.cpp" />
     <ClCompile Include="sf_usi.cpp" />
     <ClCompile Include="sf_usioption.cpp" />
   </ItemGroup>

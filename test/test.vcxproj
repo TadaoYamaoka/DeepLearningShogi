@@ -288,6 +288,7 @@
     <ClCompile Include="..\lnnshogi\sf_thread.cpp" />
     <ClCompile Include="..\lnnshogi\sf_timeman.cpp" />
     <ClCompile Include="..\lnnshogi\sf_tt.cpp" />
+    <ClCompile Include="..\lnnshogi\sf_types.cpp" />
     <ClCompile Include="..\lnnshogi\sf_usi.cpp" />
     <ClCompile Include="..\lnnshogi\sf_usioption.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />

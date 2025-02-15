@@ -68,8 +68,6 @@ int stat_bonus(Depth d) { return std::min(168 * d - 100, 1718); }
 // History and stats update malus, based on depth
 int stat_malus(Depth d) { return std::min(768 * d - 257, 2351); }
 
-// Add a small random component to draw evaluations to avoid 3-fold blindness
-Value value_draw(size_t nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
 Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply);
 void  update_pv(Move* pv, Move move, const Move* childPv);
@@ -522,10 +520,12 @@ Value Search::Worker::search(
     if (!rootNode)
     {
         // Step 2. Check for aborted search and immediate draw
-        if (threads.stop.load(std::memory_order_relaxed) || pos.is_draw(ss->ply)
+        if (const auto draw = pos.is_draw(ss->ply); draw != NOT_REPETITION)
+            return value_from_tt(DrawValue[draw][pos.side_to_move()], ss->ply);
+
+        if (threads.stop.load(std::memory_order_relaxed)
             || ss->ply >= MAX_PLY)
-            return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos)
-                                                        : value_draw(thisThread->nodes);
+            return evaluate(pos);
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply + 1), but if alpha is already bigger because
@@ -738,8 +738,6 @@ Value Search::Worker::search(
 
             if (!pos.legal(move))
                 continue;
-
-            assert(pos.capture_stage(move));
 
             movedPiece = pos.moved_piece(move);
             captured   = pos.piece_on(move.to_sq());
@@ -1322,8 +1320,11 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         thisThread->selDepth = ss->ply + 1;
 
     // Step 2. Check for an immediate draw or maximum ply reached
-    if (pos.is_draw(ss->ply) != NotRepetition || ss->ply >= MAX_PLY)
-        return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos) : VALUE_DRAW;
+    if (const auto draw = pos.is_draw(ss->ply); draw != NOT_REPETITION)
+        return value_from_tt(DrawValue[draw][pos.side_to_move()], ss->ply);
+
+    if (ss->ply >= MAX_PLY)
+        return evaluate(pos);
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
