@@ -800,7 +800,7 @@ moves_loop:  // When in check, search starts here
 
     int moveCount = 0;
 
-    CheckInfo ci(pos);
+    const CheckInfo ci(pos);
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -1406,7 +1406,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     MovePicker mp(pos, ttData.move, DEPTH_QS, &thisThread->mainHistory, &thisThread->lowPlyHistory,
                   &thisThread->captureHistory, contHist, ss->ply);
 
-    CheckInfo ci(pos);
+    const CheckInfo ci(pos);
 
     // Step 5. Loop through all pseudo-legal moves until no moves remain or a beta
     // cutoff occurs.
