@@ -303,6 +303,8 @@ class Worker {
 
     LimitsType limits;
 
+    int drawPly;
+
     size_t                pvIdx;
     std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
     int                   selDepth, nmpMinPly;

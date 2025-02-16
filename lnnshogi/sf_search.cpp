@@ -512,6 +512,9 @@ Value Search::Worker::search(
         if (const auto draw = pos.is_draw(ss->ply); draw != NOT_REPETITION)
             return value_from_tt(DrawValue[draw][pos.side_to_move()], ss->ply);
 
+        if (pos.game_ply() > drawPly)
+            return DrawValue[REPETITION_DRAW][pos.side_to_move()];
+
         if (threads.stop.load(std::memory_order_relaxed)
             || ss->ply >= MAX_PLY)
             return evaluate(pos);
@@ -1311,6 +1314,9 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     // Step 2. Check for an immediate draw or maximum ply reached
     if (const auto draw = pos.is_draw(ss->ply); draw != NOT_REPETITION)
         return value_from_tt(DrawValue[draw][pos.side_to_move()], ss->ply);
+
+    if (pos.game_ply() > drawPly)
+        return DrawValue[REPETITION_DRAW][pos.side_to_move()];
 
     if (ss->ply >= MAX_PLY)
         return evaluate(pos);

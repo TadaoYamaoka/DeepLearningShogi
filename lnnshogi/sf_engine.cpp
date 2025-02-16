@@ -83,6 +83,7 @@ Engine::Engine(std::optional<std::string> path) :
     options["USI_Elo"] << Option(Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::HighestElo);
+    options["DrawPly"] << Option(0, 0, 10000);
 
     resize_threads();
 }

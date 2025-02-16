@@ -246,6 +246,10 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
     increaseDepth = true;
 
+    int drawPly = int(options["DrawPly"]);
+    if (drawPly == 0)
+        drawPly = std::numeric_limits<int>::max();
+
     Search::RootMoves rootMoves;
     const auto        legalmoves = MoveList<LEGAL>(pos);
 
@@ -277,6 +281,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
     {
         th->run_custom_job([&]() {
             th->worker->limits = limits;
+            th->worker->drawPly = drawPly;
             th->worker->nodes = th->worker->tbHits = th->worker->nmpMinPly =
               th->worker->bestMoveChanges          = 0;
             th->worker->rootDepth = th->worker->completedDepth = 0;
