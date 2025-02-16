@@ -307,8 +307,6 @@ void USIEngine::benchmark(std::istream& args) {
     setoption(ss);
     ss = std::istringstream("name Hash value " + std::to_string(setup.ttSize));
     setoption(ss);
-    ss = std::istringstream("name UCI_Chess960 value false");
-    setoption(ss);
 
     // Warmup
     for (const auto& cmd : setup.commands)

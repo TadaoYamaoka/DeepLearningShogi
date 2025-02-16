@@ -147,7 +147,7 @@ void Search::Worker::start_searching() {
 
     Worker* bestThread = this;
     Skill   skill =
-      Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+      Skill(options["Skill Level"], options["USI_LimitStrength"] ? int(options["USI_Elo"]) : 0);
 
     if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
         && rootMoves[0].pv[0].is_ok())
@@ -216,7 +216,7 @@ void Search::Worker::iterative_deepening() {
     }
 
     size_t multiPV = size_t(options["MultiPV"]);
-    Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+    Skill skill(options["Skill Level"], options["USI_LimitStrength"] ? int(options["USI_Elo"]) : 0);
 
     // When playing with strength handicap enable MultiPV search that we will
     // use behind-the-scenes to retrieve a set of possible moves.

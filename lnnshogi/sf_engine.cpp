@@ -79,8 +79,8 @@ Engine::Engine(std::optional<std::string> path) :
     options["Skill Level"] << Option(20, 0, 20);
     options["Move Overhead"] << Option(10, 0, 5000);
     options["nodestime"] << Option(0, 0, 10000);
-    options["UCI_LimitStrength"] << Option(false);
-    options["UCI_Elo"] << Option(Stockfish::Search::Skill::LowestElo,
+    options["USI_LimitStrength"] << Option(false);
+    options["USI_Elo"] << Option(Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::HighestElo);
 
