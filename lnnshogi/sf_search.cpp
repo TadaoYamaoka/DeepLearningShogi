@@ -242,9 +242,6 @@ void Search::Worker::iterative_deepening() {
         for (RootMove& rm : rootMoves)
             rm.previousScore = rm.score;
 
-        size_t pvFirst = 0;
-        pvLast         = 0;
-
         if (!threads.increaseDepth)
             searchAgainCounter++;
 
@@ -279,7 +276,7 @@ void Search::Worker::iterative_deepening() {
                 // and we want to keep the same order for all the moves except the
                 // new PV that goes to the front. Note that in the case of MultiPV
                 // search the already searched PV lines are preserved.
-                std::stable_sort(rootMoves.begin() + pvIdx, rootMoves.begin() + pvLast);
+                std::stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 
                 // If search has been stopped, we break immediately. Sorting is
                 // safe because RootMoves is still valid, although it refers to
@@ -319,7 +316,7 @@ void Search::Worker::iterative_deepening() {
             }
 
             // Sort the PV lines searched so far and update the GUI
-            std::stable_sort(rootMoves.begin() + pvFirst, rootMoves.begin() + pvIdx + 1);
+            std::stable_sort(rootMoves.begin(), rootMoves.begin() + pvIdx + 1);
 
             if (mainThread
                 && (threads.stop || pvIdx + 1 == multiPV || nodes > 10000000)
@@ -810,7 +807,7 @@ moves_loop:  // When in check, search starts here
         // searched and those of lower "TB rank" if we are in a TB root position.
         if (rootNode
             && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
-                           thisThread->rootMoves.begin() + thisThread->pvLast, move))
+                           thisThread->rootMoves.end(), move))
             continue;
 
         ss->moveCount = ++moveCount;
