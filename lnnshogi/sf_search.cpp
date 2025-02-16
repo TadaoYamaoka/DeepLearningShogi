@@ -251,14 +251,6 @@ void Search::Worker::iterative_deepening() {
         // MultiPV loop. We perform a full root search for each PV line
         for (pvIdx = 0; pvIdx < multiPV; ++pvIdx)
         {
-            if (pvIdx == pvLast)
-            {
-                pvFirst = pvLast;
-                for (pvLast++; pvLast < rootMoves.size(); pvLast++)
-                    if (rootMoves[pvLast].tbRank != rootMoves[pvFirst].tbRank)
-                        break;
-            }
-
             // Reset UCI info selDepth for each depth and each PV line
             selDepth = 0;
 
