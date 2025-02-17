@@ -353,6 +353,7 @@ class Move : public ::Move {
     static constexpr Move null() { return Move(MoveNull); }
     static constexpr Move none() { return Move(MoveNone); }
     static constexpr Move resign() { return Move(MoveResign); }
+    static constexpr Move win()  { return Move(MoveWin); }
 
     constexpr bool operator==(const Move& m) const { return ::Move::operator==(m); }
     constexpr bool operator!=(const Move& m) const { return ::Move::operator!=(m); }

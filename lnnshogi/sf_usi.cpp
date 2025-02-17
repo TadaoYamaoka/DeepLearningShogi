@@ -482,8 +482,7 @@ void USIEngine::position(std::istringstream& is) {
 std::string USIEngine::format_score(const Score& s) {
     const auto    format =
       overload{[](Score::Mate mate) -> std::string {
-                   auto m = (mate.plies > 0 ? (mate.plies + 1) : mate.plies) / 2;
-                   return std::string("mate ") + std::to_string(m);
+                   return std::string("mate ") + std::to_string(mate.plies);
                },
                [](Score::InternalUnits units) -> std::string {
                    return std::string("cp ") + std::to_string(units.value);
@@ -506,6 +505,9 @@ std::string USIEngine::square(Square s) {
 std::string USIEngine::move(Move m) {
     if (m == Move::resign())
         return "resign";
+
+    if (m == Move::win())
+        return "win";
 
     if (m == Move::none())
         return "(none)";

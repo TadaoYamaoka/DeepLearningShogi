@@ -43,6 +43,8 @@
 #include "sf_usi.h"
 #include "sf_usioption.h"
 
+#include "search.hpp"
+
 namespace Stockfish {
 
 using namespace Search;
@@ -117,6 +119,13 @@ void Search::Worker::start_searching() {
         rootMoves.emplace_back(Move::resign());
         main_manager()->updates.onUpdateNoMoves(
           {0, {-VALUE_MATE, rootPos}});
+    }
+    else if (nyugyoku(rootPos))
+    {
+        // 入玉勝ち宣言
+        std::swap(rootMoves[0], rootMoves.emplace_back(Move::win()));
+        main_manager()->updates.onUpdateNoMoves(
+            { 0, {VALUE_MATE, rootPos} });
     }
     else
     {
@@ -575,6 +584,18 @@ Value Search::Worker::search(
         }
 
         return ttData.value;
+    }
+
+    // Step 5. Tablebases probe
+    // 入玉勝ち宣言
+    if (!ttData.move || PvNode)
+    {
+        if (nyugyoku(pos))
+        {
+            bestValue = mate_in(ss->ply + 1);
+
+            return bestValue;
+        }
     }
 
     // Step 6. Static evaluation of the position
