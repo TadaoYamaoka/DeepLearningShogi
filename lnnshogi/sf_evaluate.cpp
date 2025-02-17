@@ -53,8 +53,6 @@ constexpr Value HandPieceValue[HandPieceNum] =
 // of the position from the point of view of the side to move.
 Value Eval::evaluate(const Position& pos) {
 
-    assert(!pos.checkers());
-
     Value v = 0;
 
     Bitboard occupied_bb = pos.occupiedBB();
