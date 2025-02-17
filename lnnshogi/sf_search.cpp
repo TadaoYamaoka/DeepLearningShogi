@@ -587,6 +587,26 @@ Value Search::Worker::search(
     }
 
     // Step 5. Tablebases probe
+
+    // 1手詰め
+    // やねうら王を参考にした処理
+    if (!rootNode && !ttHit && !excludedMove)
+    {
+        if (!ss->inCheck)
+        {
+            move = pos.mateMoveIn1Ply();
+            if (move != Move::none())
+            {
+                bestValue = mate_in(ss->ply + 1);
+
+                ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+                    std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE, tt.generation());
+
+                return bestValue;
+            }
+        }
+    }
+
     // 入玉勝ち宣言
     if (!ttData.move || PvNode)
     {
