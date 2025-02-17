@@ -588,7 +588,7 @@ Value Search::Worker::search(
 
     // Step 5. Tablebases probe
 
-    // 1手詰め
+    // 一手詰め判定
     // やねうら王を参考にした処理
     if (!rootNode && !ttHit && !excludedMove)
     {
