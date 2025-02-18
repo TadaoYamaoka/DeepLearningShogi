@@ -183,13 +183,11 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
             is >> limits.inc[WHITE];
         else if (token == "binc")
             is >> limits.inc[BLACK];
-        else if (token == "movestogo")
-            is >> limits.movestogo;
         else if (token == "depth")
             is >> limits.depth;
         else if (token == "nodes")
             is >> limits.nodes;
-        else if (token == "movetime")
+        else if (token == "movetime" || token == "byoyomi")
             is >> limits.movetime;
         else if (token == "mate")
             is >> limits.mate;
