@@ -13,34 +13,26 @@ def main(*argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('model')
     parser.add_argument('torchscript')
-    parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
     parser.add_argument('--dims', type=int, nargs=3, default=(16, 4, 32), help='network dimensions')
     args = parser.parse_args(argv)
 
-    if args.gpu >= 0:
-        torch.cuda.set_device(args.gpu)
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-
     model = LiteValueNetwork(args.dims)
-    model.to(device)
 
     serializers.load_npz(args.model, model)
     model.eval()
     
     def mini_batch(hcpevec):
         features1 = torch.empty(
-            (len(hcpevec), 9 * 9), dtype=torch.long, pin_memory=True
+            (len(hcpevec), 9 * 9), dtype=torch.long
         )
         features2 = torch.empty(
-            (len(hcpevec), FEATURES2_NUM), dtype=torch.long, pin_memory=True
+            (len(hcpevec), FEATURES2_NUM), dtype=torch.long
         )
         result = torch.empty(
-            (len(hcpevec), 1), dtype=torch.float32, pin_memory=True
+            (len(hcpevec), 1), dtype=torch.float32
         )
         value = torch.empty(
-            (len(hcpevec), 1), dtype=torch.float32, pin_memory=True
+            (len(hcpevec), 1), dtype=torch.float32
         )
 
         cppshogi.hcpe_decode_lite(
@@ -48,10 +40,10 @@ def main(*argv):
         )
 
         return (
-            features1.to(device),
-            features2.to(device),
-            result.to(device),
-            value.to(device),
+            features1,
+            features2,
+            result,
+            value,
         )
 
     batchsize = 1
