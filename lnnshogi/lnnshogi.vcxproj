@@ -71,12 +71,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>D:\libtorch\Debug\include;D:\libtorch\Debug\include\torch\csrc\api\include;..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>D:\libtorch\Debug\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IncludePath>..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>D:\libtorch\Release\include;D:\libtorch\Release\include\torch\csrc\api\include;..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>D:\libtorch\Release\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IncludePath>..\cppshogi;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -111,21 +109,16 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;USE_DISTRIBUTED;USE_C10D_GLOO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <StackReserveSize>100000000</StackReserveSize>
-      <AdditionalDependencies>c10.lib;kineto.lib;torch.lib;torch_cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different D:/libtorch/$(Configuration)/lib/asmjit.dll D:/libtorch/$(Configuration)/lib/c10.dll D:/libtorch/$(Configuration)/lib/fbgemm.dll D:/libtorch/$(Configuration)/lib/libiomp5md.dll D:/libtorch/$(Configuration)/lib/libiompstubs5md.dll D:/libtorch/$(Configuration)/lib/torch.dll D:/libtorch/$(Configuration)/lib/torch_cpu.dll D:/libtorch/$(Configuration)/lib/torch_global_deps.dll D:/libtorch/$(Configuration)/lib/uv.dll $(SolutionDir)\$(Platform)\$(Configuration)\</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -134,12 +127,10 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;USE_DISTRIBUTED;USE_C10D_GLOO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -147,11 +138,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <StackReserveSize>100000000</StackReserveSize>
-      <AdditionalDependencies>c10.lib;kineto.lib;torch.lib;torch_cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different D:/libtorch/$(Configuration)/lib/asmjit.dll D:/libtorch/$(Configuration)/lib/c10.dll D:/libtorch/$(Configuration)/lib/fbgemm.dll D:/libtorch/$(Configuration)/lib/libiomp5md.dll D:/libtorch/$(Configuration)/lib/libiompstubs5md.dll D:/libtorch/$(Configuration)/lib/torch.dll D:/libtorch/$(Configuration)/lib/torch_cpu.dll D:/libtorch/$(Configuration)/lib/torch_global_deps.dll D:/libtorch/$(Configuration)/lib/uv.dll $(SolutionDir)\$(Platform)\$(Configuration)\</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

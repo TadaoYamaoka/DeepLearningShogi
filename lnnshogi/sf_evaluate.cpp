@@ -16,9 +16,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <torch/torch.h>
-#include <torch/script.h>
-
 #include "sf_evaluate.h"
 
 #include <algorithm>
@@ -37,19 +34,20 @@
 
 #include "bitboard.hpp"
 
-#include "cppshogi.h"
-
 namespace Stockfish {
 
-struct TorchInitializer {
-    TorchInitializer() {
-        at::set_num_threads(1);
-        at::set_num_interop_threads(1);
-    }
+namespace {
+
+constexpr Value PieceValue2[PIECE_NB] = {
+    VALUE_ZERO, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue, GoldValue, 0, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue, VALUE_ZERO,
+    VALUE_ZERO, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue, -GoldValue, 0, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue };
+
+constexpr Value HandPieceValue[HandPieceNum] =
+{
+    PawnValue, LanceValue, KnightValue, SilverValue, GoldValue, BishopValue, RookValue
 };
-TorchInitializer torch_initializer;
-c10::InferenceMode guard;
-auto model = torch::jit::load(R"(D:\src\DeepLearningShogiNN\dlshogi\model_lite-008.pt)");
+
+}
 
     // Evaluate is the evaluator for the outer world. It returns a static evaluation
 // of the position from the point of view of the side to move.
@@ -57,24 +55,26 @@ Value Eval::evaluate(const Position& pos) {
 
     Value v = 0;
 
-    features1_lite_t features1;
-    features2_lite_t features2;
+    Bitboard occupied_bb = pos.occupiedBB();
+    FOREACH_BB(occupied_bb, Square sq, {
+        const Piece pc = pos.piece(sq);
 
-    // set all padding index
-    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t), PIECETYPE_NUM * 2);
-    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t), MAX_FEATURES2_NUM);
+        if (pos.turn() == Black) {
+            v += PieceValue2[pc];
+        }
+        else {
+            v -= PieceValue2[pc];
+        }
+    });
 
-    make_input_features_lite(pos, features1, features2);
-
-    std::vector<torch::jit::IValue> x = {
-        torch::from_blob(features1, { 1, (size_t)SquareNum }, torch::dtype(torch::kInt64)),
-        torch::from_blob(features2, { 1, MAX_FEATURES2_NUM }, torch::dtype(torch::kInt64))
-    };
-
-    const auto y = model.forward(x);
-    const float value = *y.toTensor().data_ptr<float>();
-
-    v = int(value * 600);
+    for (Color c = Black; c < ColorNum; ++c) {
+        const Hand hand = pos.hand(c);
+        const int sign = pos.turn() == c ? 1 : -1;
+        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
+            auto num = hand.numOf(hp);
+            v += num * HandPieceValue[hp] * sign;
+        }
+    }
 
     return v;
 }
