@@ -21,12 +21,12 @@ class LiteValueNetwork(nn.Module):
         self.dims = dims
 
     def forward(self, x1, x2):
-        h1_1 = self.l1_1(x1).view(-1, self.dims[0], 9, 9)
+        h1_1 = self.l1_1(x1).permute(0, 2, 1).view(-1, self.dims[0], 9, 9)
         h1_2 = self.l1_2(x2).view(-1, self.dims[0], 1, 1)
         h1 = h1_1 + h1_2
         h2_1 = self.bn2_1(self.l2_1(h1))
         h2_2 = self.bn2_2(self.l2_2(h1))
-        h2 = self.act(torch.cat((h2_1.view(-1, self.dims[1] * 9), h2_2.view(-1, self.dims[1] * 9)), 1))
+        h2 = self.act(torch.cat((h2_1.reshape(-1, self.dims[1] * 9), h2_2.reshape(-1, self.dims[1] * 9)), 1))
         h3 = self.act(self.l3(h2))
         h4 = self.l4(h3)
 
