@@ -164,11 +164,8 @@ inline void make_input_features_lite(const Position& position, features1_lite_t 
         const Hand hand = position.hand(c);
         int p = 0;
         for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
-            u32 num = hand.numOf(hp);
-            if (num >= MAX_PIECES_IN_HAND[hp]) {
-                num = MAX_PIECES_IN_HAND[hp];
-            }
-            for (size_t i = 0; i < num; ++i) {
+            const u32 num = std::min(hand.numOf(hp), MAX_PIECES_IN_HAND[hp]);
+            for (u32 i = 0; i < num; ++i) {
                 const int64_t idx = MAX_PIECES_IN_HAND_SUM * (int)c2 + p + i;
                 features2[idx] = idx;
             }
