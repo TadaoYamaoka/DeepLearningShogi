@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>ptl.py</StartupFile>
+    <StartupFile>eval_lite.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,9 +14,10 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>fit --config config.yaml</CommandLineArguments>
+    <CommandLineArguments>model-008</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
+    <IsWindowsApplication>False</IsWindowsApplication>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,7 +31,9 @@
     <Compile Include="common.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="convert_model_lite_to_torchscript.py" />
+    <Compile Include="convert_model_lite_to_bin.py" />
+    <Compile Include="convert_model_lite_to_torchscript - Copy.py" />
+    <Compile Include="eval_lite.py" />
     <Compile Include="convert_model_to_onnx.py" />
     <Compile Include="data_loader_lite.py" />
     <Compile Include="data_loader.py">

@@ -12,7 +12,6 @@ import sys
 def main(*argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('model')
-    parser.add_argument('torchscript')
     parser.add_argument('--dims', type=int, nargs=3, default=(16, 4, 32), help='network dimensions')
     args = parser.parse_args(argv)
 
@@ -46,15 +45,16 @@ def main(*argv):
             value,
         )
 
-    batchsize = 1
-    hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)] * batchsize, HuffmanCodedPosAndEval)
+    hcpevec = np.array([
+        ([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0),
+        ([ 87, 166,  73,  33, 124, 159,  10, 128, 248,   1, 175,  18,  76,  46, 130, 141, 143,  37,  64, 192, 226,  15, 241,  56,  38, 133,  48,   0,   0,  70,  57, 188], -1258, 5042, 1, 0),
+        ([ 86, 156,   9,  37,  12,  62,  74, 128,  77, 192, 143, 173,  28, 247, 227,  31,  21, 120,  55, 175,   0,   5,  48, 160, 224,  99,   0, 140,  67, 146, 228, 172], 1751, 4385, 1, 0),
+        ], HuffmanCodedPosAndEval)
     x1, x2, _, _ = mini_batch(hcpevec)
 
-    traced_model = torch.jit.trace(model, (x1, x2))
-    traced_model = torch.jit.freeze(traced_model)
-    traced_model.save(args.torchscript)
+    y = model(x1, x2)
 
-    print(traced_model.graph)
+    print(y.detach().cpu().numpy())
 
 if __name__ == '__main__':
     main(*sys.argv[1:])

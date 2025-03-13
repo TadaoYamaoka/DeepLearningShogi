@@ -29,6 +29,17 @@ class Position;
 
 namespace Eval {
 
+bool read_parameters(const std::string& filename);
+
+constexpr int EMBEDDING_DIM = 16;
+
+void embedding_layers(
+    const Position& position,
+    const float* __restrict embedding_table1,
+    const float* __restrict embedding_table2,
+    float* __restrict output
+);
+
 Value evaluate(const Position& pos);
 }  // namespace Eval
 
