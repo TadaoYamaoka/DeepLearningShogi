@@ -57,185 +57,209 @@ NNTensorRT::~NNTensorRT()
 
 void NNTensorRT::build(const std::string& onnx_filename)
 {
-	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
-	if (!builder)
-	{
-		throw std::runtime_error("createInferBuilder");
-	}
+    auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
+    if (!builder)
+    {
+        throw std::runtime_error("createInferBuilder");
+    }
 
-	const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
-	auto network = InferUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
-	if (!network)
-	{
-		throw std::runtime_error("createNetworkV2");
-	}
+    const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+    auto network = InferUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
+    if (!network)
+    {
+        throw std::runtime_error("createNetworkV2");
+    }
 
-	auto config = InferUniquePtr<nvinfer1::IBuilderConfig>(builder->createBuilderConfig());
-	if (!config)
-	{
-		throw std::runtime_error("createBuilderConfig");
-	}
+    auto config = InferUniquePtr<nvinfer1::IBuilderConfig>(builder->createBuilderConfig());
+    if (!config)
+    {
+        throw std::runtime_error("createBuilderConfig");
+    }
 
-	auto parser = InferUniquePtr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, gLogger));
-	if (!parser)
-	{
-		throw std::runtime_error("createParser");
-	}
+    auto parser = InferUniquePtr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, gLogger));
+    if (!parser)
+    {
+        throw std::runtime_error("createParser");
+    }
 
-	auto parsed = parser->parseFromFile(onnx_filename.c_str(), (int)nvinfer1::ILogger::Severity::kWARNING);
-	if (!parsed)
-	{
-		throw std::runtime_error("parseFromFile");
-	}
+    auto parsed = parser->parseFromFile(onnx_filename.c_str(), (int)nvinfer1::ILogger::Severity::kWARNING);
+    if (!parsed)
+    {
+        throw std::runtime_error("parseFromFile");
+    }
 
-	builder->setMaxBatchSize(max_batch_size);
-	config->setMaxWorkspaceSize(64_MiB);
-
-	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
-	if (builder->platformHasFastInt8())
-	{
-		// キャリブレーションキャッシュがある場合のみINT8を使用
-		std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
-		std::ifstream calibcache(calibration_cache_filename);
-		if (calibcache.is_open())
-		{
-			calibcache.close();
-
-			config->setFlag(nvinfer1::BuilderFlag::kINT8);
-			calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1));
-			config->setInt8Calibrator(calibrator.get());
-		}
-		else if (builder->platformHasFastFp16())
-		{
-			config->setFlag(nvinfer1::BuilderFlag::kFP16);
-		}
-	}
-	else if (builder->platformHasFastFp16())
-	{
-		config->setFlag(nvinfer1::BuilderFlag::kFP16);
-	}
-
-#ifdef FP16
-	network->getInput(0)->setType(nvinfer1::DataType::kHALF);
-	network->getInput(1)->setType(nvinfer1::DataType::kHALF);
-	network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
-	network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
+#if NV_TENSORRT_MAJOR < 10
+    builder->setMaxBatchSize(max_batch_size);
+    config->setMaxWorkspaceSize(64_MiB);
+#else
+    config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 64_MiB);
 #endif
 
-	assert(network->getNbInputs() == 2);
-	nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
-	assert(inputDims[0].nbDims == 4);
-	assert(inputDims[1].nbDims == 4);
+    std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
+    if (builder->platformHasFastInt8())
+    {
+        // キャリブレーションキャッシュがある場合のみINT8を使用
+        std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
+        std::ifstream calibcache(calibration_cache_filename);
+        if (calibcache.is_open())
+        {
+            calibcache.close();
 
-	assert(network->getNbOutputs() == 2);
+            config->setFlag(nvinfer1::BuilderFlag::kINT8);
+            calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1));
+            config->setInt8Calibrator(calibrator.get());
+        }
+        else if (builder->platformHasFastFp16())
+        {
+            config->setFlag(nvinfer1::BuilderFlag::kFP16);
+        }
+    }
+    else if (builder->platformHasFastFp16())
+    {
+        config->setFlag(nvinfer1::BuilderFlag::kFP16);
+    }
 
-	// Optimization Profiles
-	auto profile = builder->createOptimizationProfile();
-	const auto dims1 = inputDims[0].d;
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-	profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-	const auto dims2 = inputDims[1].d;
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-	profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-	config->addOptimizationProfile(profile);
+#ifdef FP16
+    network->getInput(0)->setType(nvinfer1::DataType::kHALF);
+    network->getInput(1)->setType(nvinfer1::DataType::kHALF);
+    network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
+    network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
+#endif
 
-	// TensorRT 8 より nvinfer1::IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
-	// nvinfer1::IBuilder::buildEngineWithConfig() は TensorRT 10.0 にて削除される見込み。
-	// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
-	// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
+    assert(network->getNbInputs() == 2);
+    nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
+    assert(inputDims[0].nbDims == 4);
+    assert(inputDims[1].nbDims == 4);
+
+    assert(network->getNbOutputs() == 2);
+
+    // Optimization Profiles
+    auto profile = builder->createOptimizationProfile();
+    const auto dims1 = inputDims[0].d;
+    profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
+    profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+    profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+    const auto dims2 = inputDims[1].d;
+    profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
+    profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+    profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+    config->addOptimizationProfile(profile);
+
 #if NV_TENSORRT_MAJOR >= 8
-	auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
-	if (!serializedEngine)
-	{
-		throw std::runtime_error("buildSerializedNetwork");
-	}
-	auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-	engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
-	if (!engine)
-	{
-		throw std::runtime_error("deserializeCudaEngine");
-	}
-	// 一旦シリアライズ化されたエンジンはデシリアライズを行った上で捨てているが、
-	// この後またすぐにファイル書き出し用にシリアライズを行っているので、手順改善の余地あり。
-	// // auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
+    auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
+    if (!serializedEngine)
+    {
+        throw std::runtime_error("buildSerializedNetwork");
+    }
+    auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
+    engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
+    if (!engine)
+    {
+        throw std::runtime_error("deserializeCudaEngine");
+    }
 #else
-	engine.reset(builder->buildEngineWithConfig(*network, *config));
-	if (!engine)
-	{
-		throw std::runtime_error("buildEngineWithConfig");
-	}
+    engine.reset(builder->buildEngineWithConfig(*network, *config));
+    if (!engine)
+    {
+        throw std::runtime_error("buildEngineWithConfig");
+    }
 #endif
 }
 
 void NNTensorRT::load_model(const char* filename)
 {
-	std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size)
+    std::string serialized_filename = std::string(filename) + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size)
 #ifdef FP16
-		+ ".fp16"
+        + ".fp16"
 #endif
-		+ ".serialized";
-	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
-	if (seriarizedFile.is_open())
-	{
-		// deserializing a model
-		seriarizedFile.seekg(0, std::ios_base::end);
-		const size_t modelSize = seriarizedFile.tellg();
-		seriarizedFile.seekg(0, std::ios_base::beg);
-		std::unique_ptr<char[]> blob(new char[modelSize]);
-		seriarizedFile.read(blob.get(), modelSize);
-		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-		engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize));
-	}
-	else
-	{
+#if NV_TENSORRT_MAJOR >= 10
+        + ".trt" + std::to_string(NV_TENSORRT_MAJOR)
+#endif
+        + ".serialized";
+    std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
+    if (seriarizedFile.is_open())
+    {
+        // deserializing a model
+        seriarizedFile.seekg(0, std::ios_base::end);
+        const size_t modelSize = seriarizedFile.tellg();
+        seriarizedFile.seekg(0, std::ios_base::beg);
+        std::unique_ptr<char[]> blob(new char[modelSize]);
+        seriarizedFile.read(blob.get(), modelSize);
+        auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
+        engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize));
+    }
+    else
+    {
+        // build
+        build(filename);
 
-		// build
-		build(filename);
+        // serializing a model
+        auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
+        if (!serializedEngine)
+        {
+            throw std::runtime_error("Engine serialization failed");
+        }
+        std::ofstream engineFile(serialized_filename, std::ios::binary);
+        if (!engineFile)
+        {
+            throw std::runtime_error("Cannot open engine file");
+        }
+        engineFile.write(static_cast<char*>(serializedEngine->data()), serializedEngine->size());
+        if (engineFile.fail())
+        {
+            throw std::runtime_error("Cannot open engine file");
+        }
+    }
 
-		// serializing a model
-		auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
-		if (!serializedEngine)
-		{
-			throw std::runtime_error("Engine serialization failed");
-		}
-		std::ofstream engineFile(serialized_filename, std::ios::binary);
-		if (!engineFile)
-		{
-			throw std::runtime_error("Cannot open engine file");
-		}
-		engineFile.write(static_cast<char*>(serializedEngine->data()), serializedEngine->size());
-		if (engineFile.fail())
-		{
-			throw std::runtime_error("Cannot open engine file");
-		}
-	}
+    context = InferUniquePtr<nvinfer1::IExecutionContext>(engine->createExecutionContext());
+    if (!context)
+    {
+        throw std::runtime_error("createExecutionContext");
+    }
 
-	context = InferUniquePtr<nvinfer1::IExecutionContext>(engine->createExecutionContext());
-	if (!context)
-	{
-		throw std::runtime_error("createExecutionContext");
-	}
+#if NV_TENSORRT_MAJOR >= 10
+    inputDims1 = engine->getTensorShape("input1");
+    inputDims2 = engine->getTensorShape("input2");
 
-	inputDims1 = engine->getBindingDimensions(0);
-	inputDims2 = engine->getBindingDimensions(1);
+    context->setTensorAddress("input1", x1_dev);
+    context->setTensorAddress("input2", x2_dev);
+    context->setTensorAddress("output_policy", y1_dev);
+    context->setTensorAddress("output_value", y2_dev);
+#else
+    inputDims1 = engine->getBindingDimensions(0);
+    inputDims2 = engine->getBindingDimensions(1);
+#endif
 }
 
 void NNTensorRT::forward(const int batch_size, packed_features1_t* p1, packed_features2_t* p2, DType* y1, DType* y2)
 {
-	inputDims1.d[0] = batch_size;
-	inputDims2.d[0] = batch_size;
-	context->setBindingDimensions(0, inputDims1);
-	context->setBindingDimensions(1, inputDims2);
+    if (last_batch_size != batch_size) {
+        inputDims1.d[0] = batch_size;
+        inputDims2.d[0] = batch_size;
 
-	checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(packed_features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
-	checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(packed_features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
-	unpack_features1(batch_size, p1_dev, x1_dev, cudaStreamPerThread);
-	unpack_features2(batch_size, p2_dev, x2_dev, cudaStreamPerThread);
-	const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
-	assert(status);
-	checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size , cudaMemcpyDeviceToHost, cudaStreamPerThread));
-	checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
-	checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
+#if NV_TENSORRT_MAJOR >= 10
+        context->setInputShape("input1", inputDims1);
+        context->setInputShape("input2", inputDims2);
+#else
+        context->setBindingDimensions(0, inputDims1);
+        context->setBindingDimensions(1, inputDims2);
+#endif
+        last_batch_size = batch_size;
+    }
+
+    checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(packed_features1_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+    checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(packed_features2_t) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+    unpack_features1(batch_size, p1_dev, x1_dev, cudaStreamPerThread);
+    unpack_features2(batch_size, p2_dev, x2_dev, cudaStreamPerThread);
+
+#if NV_TENSORRT_MAJOR >= 10
+    const bool status = context->enqueueV3(cudaStreamPerThread);
+#else
+    const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
+#endif
+
+    assert(status);
+    checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(DType) * MAX_MOVE_LABEL_NUM * (size_t)SquareNum * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+    checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(DType) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+    checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 }

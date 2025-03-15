@@ -52,8 +52,9 @@ private:
 	InferUniquePtr<nvinfer1::IExecutionContext> context;
 	nvinfer1::Dims inputDims1;
 	nvinfer1::Dims inputDims2;
+    int last_batch_size = -1;
 
-	void load_model(const char* filename);
+    void load_model(const char* filename);
 	void build(const std::string& onnx_filename);
 };
 
