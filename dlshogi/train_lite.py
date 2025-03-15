@@ -15,6 +15,7 @@ import argparse
 import sys
 import re
 import importlib
+import inspect
 
 import logging
 
@@ -116,6 +117,7 @@ def main(*argv):
 
     if args.lr_scheduler:
         scheduler = create_scheduler(args.lr_scheduler, optimizer)
+    scheduler_step_need_metrics = "metrics" in inspect.signature(scheduler.step).parameters
     if args.use_swa:
         logging.info(f'use swa(swa_start_epoch={args.swa_start_epoch}, swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
@@ -319,7 +321,10 @@ def main(*argv):
                 sum_loss = 0
 
             if args.lr_scheduler and args.scheduler_step_mode == 'step':
-                scheduler.step()
+                if scheduler_step_need_metrics:
+                    scheduler.step(test_loss)
+                else:
+                    scheduler.step()
 
         steps_epoch += steps
         sum_loss1_epoch += sum_loss1
@@ -337,7 +342,10 @@ def main(*argv):
             test_entropy))
 
         if args.lr_scheduler and args.scheduler_step_mode == 'epoch':
-            scheduler.step()
+            if scheduler_step_need_metrics:
+                scheduler.step(test_loss)
+            else:
+                scheduler.step()
 
         # save checkpoint
         if args.checkpoint:
