@@ -80,12 +80,12 @@ constexpr u32 IsSliderVal = 0x60646064;
 inline constexpr bool isSlider(const Piece     pc) { return (IsSliderVal & (1 << pc)) != 0; }
 inline constexpr bool isSlider(const PieceType pt) { return (IsSliderVal & (1 << pt)) != 0; }
 
-const HandPiece PieceTypeToHandPieceTable[PieceTypeNum] = {
+constexpr HandPiece PieceTypeToHandPieceTable[PieceTypeNum] = {
     HandPieceNum, HPawn, HLance, HKnight, HSilver, HBishop, HRook, HGold, HandPieceNum, HPawn, HLance, HKnight, HSilver, HBishop, HRook
 };
 inline constexpr HandPiece pieceTypeToHandPiece(const PieceType pt) { return PieceTypeToHandPieceTable[pt]; }
 
-const PieceType HandPieceToPieceTypeTable[HandPieceNum] = {
+constexpr PieceType HandPieceToPieceTypeTable[HandPieceNum] = {
     Pawn, Lance, Knight, Silver, Gold, Bishop, Rook
 };
 inline constexpr PieceType handPieceToPieceType(const HandPiece hp) { return HandPieceToPieceTypeTable[hp]; }

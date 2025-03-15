@@ -47,11 +47,7 @@ public:
     Move() {}
     constexpr explicit Move(const u32 u) : value_(u) {}
     constexpr Move& operator = (const Move& m) { value_ = m.value_; return *this; }
-    constexpr Move& operator = (const volatile Move& m) { value_ = m.value_; return *this; }
-    // volatile Move& 型の *this を返すとなぜか警告が出るので、const Move& 型の m を返すことにする。
-    const Move& operator = (const Move& m) volatile { value_ = m.value_; return m; }
-    Move(const Move& m) { value_ = m.value_; }
-    Move(const volatile Move& m) { value_ = m.value_; }
+    constexpr Move(const Move& m) : value_(m.value_) {}
 
     // 移動先
     constexpr Square to() const { return static_cast<Square>((value() >> 0) & 0x7f); }
