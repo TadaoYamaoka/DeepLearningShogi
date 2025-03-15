@@ -32,7 +32,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="convert_model_lite_to_bin.py" />
-    <Compile Include="convert_model_lite_to_torchscript - Copy.py" />
     <Compile Include="eval_lite.py" />
     <Compile Include="convert_model_to_onnx.py" />
     <Compile Include="data_loader_lite.py" />

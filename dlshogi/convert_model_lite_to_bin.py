@@ -23,7 +23,7 @@ def main(*argv):
     serializers.load_npz(args.model, model)
     model.eval()
 
-    fuse_modules(model, [['l2_1', 'bn2_1'], ['l2_2', 'bn2_2']], inplace=True)
+    fuse_modules(model, [['l2', 'bn2'], ['l3_1', 'bn3_1'], ['l3_2', 'bn3_2']], inplace=True)
     
     state_dict = model.state_dict()
     

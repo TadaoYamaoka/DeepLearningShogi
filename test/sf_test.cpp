@@ -132,20 +132,17 @@ TEST(StockfishTest, evaluate) {
     pos.set("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
     auto v = Eval::evaluate(pos);
 
-    EXPECT_GT(v, -200);
-    EXPECT_LT(v, 200);
+    EXPECT_EQ(80, v);
 
     pos.set("l3l2+Nl/1r1s5/p3kg1pp/2P1n4/3B1pP2/1P1S2R2/PG1PPP2P/4K4/LNS5+b w GSN5Pgp 1");
     v = Eval::evaluate(pos);
 
-    EXPECT_GT(v, -300);
-    EXPECT_LT(v, -100);
+    EXPECT_EQ(-884, v);
 
     pos.set("4+r3l/3g1ksB1/3s1s1p1/BLp2pP2/L2gp2Pp/4PN3/3P1+n2P/1p2KG3/6R1L b GNPsn6p 1");
     v = Eval::evaluate(pos);
 
-    EXPECT_GT(v, 0);
-    EXPECT_LT(v, 100);
+    EXPECT_EQ(73, v);
 }
 
 TEST(StockfishTest, evaluate_perf) {

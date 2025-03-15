@@ -347,6 +347,154 @@ inline void embedding_layers(
     embedding_layers<EMBEDDING_DIM>(position, embedding_table1, embedding_table2, output);
 }
 
+// 9x9入力→8x8出力の2×2 depthwise畳み込み（バイアス付き、BN融合済み、ReLU付き）のAVX2実装
+// 入力、重み、出力は32バイト整列済みであると仮定
+// テンプレートパラメータ Channels は畳み込み対象のチャネル数
+template <int Channels>
+void conv2x2_depthwise_relu(
+    const float* __restrict input,
+    const float* __restrict weights,
+    const float* __restrict bias,
+    float* __restrict output)
+{
+    constexpr int INPUT_HEIGHT = 9;
+    constexpr int INPUT_WIDTH = 9;
+    constexpr int OUTPUT_HEIGHT = 8;
+    constexpr int OUTPUT_WIDTH = 8;
+    constexpr int INPUT_CHANNEL_SIZE = INPUT_HEIGHT * INPUT_WIDTH;
+    constexpr int OUTPUT_CHANNEL_SIZE = OUTPUT_HEIGHT * OUTPUT_WIDTH;
+    constexpr int CACHE_LINE_SIZE = 64; // バイト単位
+
+    const __m256 zero = _mm256_setzero_ps();
+
+    // Channels==16向けに8チャネルずつ処理（AVX2で8個まとめて処理）
+    if constexpr (Channels == 16) {
+        for (int c_group = 0; c_group < Channels; c_group += 8) {
+            // 各チャネルごとの2×2の重みとバイアスをAVX2レジスタにロード
+            __m256 w_avx[4][8];  // [重みのインデックス][チャネルグループ内インデックス]
+            __m256 bias_avx[8];
+            const float* in_ptr[8];
+            float* out_ptr[8];
+
+            // 重みとバイアスをレジスタに先行ロード（レジスタの再利用を改善）
+            for (int i = 0; i < 8; ++i) {
+                int c = c_group + i;
+                in_ptr[i] = input + c * INPUT_CHANNEL_SIZE;
+                out_ptr[i] = output + c * OUTPUT_CHANNEL_SIZE;
+
+                // チャネルごとの重みをロード - メモリアクセスパターンを最適化
+                const float* w_c = weights + c * 4;
+                for (int w_idx = 0; w_idx < 4; ++w_idx) {
+                    w_avx[w_idx][i] = _mm256_set1_ps(w_c[w_idx]);
+                }
+                bias_avx[i] = _mm256_set1_ps(bias[c]);
+            }
+
+            // すべての入力チャネルに対してプリフェッチ
+            for (int i = 0; i < 8; ++i) {
+                for (int r = 0; r < INPUT_HEIGHT; r += CACHE_LINE_SIZE / sizeof(float) / INPUT_WIDTH) {
+                    _mm_prefetch(reinterpret_cast<const char*>(in_ptr[i] + r * INPUT_WIDTH), _MM_HINT_T0);
+                }
+            }
+
+            // 出力は8x8なので、行を4行単位でループアンロール
+            for (int r = 0; r < OUTPUT_HEIGHT; r += 4) {
+                int rows = std::min(4, OUTPUT_HEIGHT - r);
+
+                for (int ch = 0; ch < 8; ++ch) {
+                    for (int rr = 0; rr < rows; ++rr) {
+                        int curr_row = r + rr;
+
+                        // 入力の該当行（上段と下段）のポインタ
+                        const float* row_top = in_ptr[ch] + curr_row * INPUT_WIDTH;
+                        const float* row_bottom = row_top + INPUT_WIDTH;
+                        float* out_row = out_ptr[ch] + curr_row * OUTPUT_WIDTH;
+
+                        // 入力データをロード（アライメントされている場合はload_psを使用）
+                        __m256 top_left = _mm256_load_ps(row_top);
+                        __m256 top_right = _mm256_load_ps(row_top + 1);
+                        __m256 bottom_left = _mm256_load_ps(row_bottom);
+                        __m256 bottom_right = _mm256_load_ps(row_bottom + 1);
+
+                        // FMA命令で各位置の乗算・加算（重みのアクセスパターンを改善）
+                        __m256 sum = _mm256_fmadd_ps(top_left, w_avx[0][ch], bias_avx[ch]);
+                        sum = _mm256_fmadd_ps(top_right, w_avx[1][ch], sum);
+                        sum = _mm256_fmadd_ps(bottom_left, w_avx[2][ch], sum);
+                        sum = _mm256_fmadd_ps(bottom_right, w_avx[3][ch], sum);
+
+                        // ReLU活性化関数を適用
+                        sum = _mm256_max_ps(sum, zero);
+
+                        // 結果を32バイト整列の出力バッファに保存
+                        _mm256_store_ps(out_row, sum);
+                    }
+                }
+            }
+        }
+    }
+    // 一般のチャネル数向け（4チャネルずつ処理）
+    else {
+        for (int c = 0; c < Channels; c += 4) {
+            int ch_block = std::min(4, Channels - c);
+            __m256 weights_block[4][4];  // [重みのインデックス][チャネルブロック内インデックス]
+            __m256 bias_block[4];
+            const float* in_ptrs[4];
+            float* out_ptrs[4];
+
+            // 重みとバイアスをレジスタに先行ロード
+            for (int i = 0; i < ch_block; ++i) {
+                int channel = c + i;
+                in_ptrs[i] = input + channel * INPUT_CHANNEL_SIZE;
+                out_ptrs[i] = output + channel * OUTPUT_CHANNEL_SIZE;
+
+                const float* w_c = weights + channel * 4;
+                for (int w_idx = 0; w_idx < 4; ++w_idx) {
+                    weights_block[w_idx][i] = _mm256_set1_ps(w_c[w_idx]);
+                }
+                bias_block[i] = _mm256_set1_ps(bias[channel]);
+            }
+
+            // プリフェッチの最適化 - 全行をプリフェッチ
+            for (int i = 0; i < ch_block; ++i) {
+                for (int r = 0; r < INPUT_HEIGHT; r += CACHE_LINE_SIZE / sizeof(float) / INPUT_WIDTH) {
+                    _mm_prefetch(reinterpret_cast<const char*>(in_ptrs[i] + r * INPUT_WIDTH), _MM_HINT_T0);
+                }
+            }
+
+            // 2行ずつ処理
+            for (int r = 0; r < OUTPUT_HEIGHT; r += 2) {
+                int rows = std::min(2, OUTPUT_HEIGHT - r);
+
+                for (int ch_idx = 0; ch_idx < ch_block; ++ch_idx) {
+                    for (int rr = 0; rr < rows; ++rr) {
+                        int curr_row = r + rr;
+                        const float* row_top = in_ptrs[ch_idx] + curr_row * INPUT_WIDTH;
+                        const float* row_bottom = row_top + INPUT_WIDTH;
+                        float* out_row = out_ptrs[ch_idx] + curr_row * OUTPUT_WIDTH;
+
+                        // 32バイト整列を前提としたロード命令に変更
+                        __m256 top_left = _mm256_load_ps(row_top);
+                        __m256 top_right = _mm256_load_ps(row_top + 1);
+                        __m256 bottom_left = _mm256_load_ps(row_bottom);
+                        __m256 bottom_right = _mm256_load_ps(row_bottom + 1);
+
+                        // インデックス順序を最適化
+                        __m256 sum = _mm256_fmadd_ps(top_left, weights_block[0][ch_idx], bias_block[ch_idx]);
+                        sum = _mm256_fmadd_ps(top_right, weights_block[1][ch_idx], sum);
+                        sum = _mm256_fmadd_ps(bottom_left, weights_block[2][ch_idx], sum);
+                        sum = _mm256_fmadd_ps(bottom_right, weights_block[3][ch_idx], sum);
+
+                        // ReLU活性化関数を適用
+                        sum = _mm256_max_ps(sum, zero);
+
+                        _mm256_store_ps(out_row, sum);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 水平方向の合計計算（AVX2）
 inline float horizontal_sum_avx2(__m256 vec) {
     __m256 t1 = _mm256_hadd_ps(vec, vec);
@@ -356,31 +504,30 @@ inline float horizontal_sum_avx2(__m256 vec) {
     return _mm_cvtss_f32(t4);
 }
 
-// 9x1の畳み込み処理
+// 8x1の畳み込み処理
 template <int InChannels, int OutChannels>
-void conv9x1_avx2(const float* __restrict input,
+void conv8x1_avx2(const float* __restrict input,
     const float* __restrict weights,
     const float* __restrict bias,
     float* __restrict output) {
-    constexpr int KERNEL_SIZE = 9;
+    constexpr int KERNEL_SIZE = 8;
     constexpr int inner_size = InChannels * KERNEL_SIZE;
     constexpr int padded_inner_size = ((inner_size + 7) / 8) * 8;
 
-    for (int w = 0; w < 9; ++w) {
+    for (int w = 0; w < 8; ++w) {
         alignas(32) float patch[inner_size];
         for (int ic = 0; ic < InChannels; ++ic) {
-            const float* in_channel = input + ic * 81;
+            const float* in_channel = input + ic * 64;  // 8x8 = 64
             int base = ic * KERNEL_SIZE;
-            // 手動アンロールして9要素を展開
-            patch[base + 0] = in_channel[0 * 9 + w];
-            patch[base + 1] = in_channel[1 * 9 + w];
-            patch[base + 2] = in_channel[2 * 9 + w];
-            patch[base + 3] = in_channel[3 * 9 + w];
-            patch[base + 4] = in_channel[4 * 9 + w];
-            patch[base + 5] = in_channel[5 * 9 + w];
-            patch[base + 6] = in_channel[6 * 9 + w];
-            patch[base + 7] = in_channel[7 * 9 + w];
-            patch[base + 8] = in_channel[8 * 9 + w];
+            // 手動アンロールして8要素を展開
+            patch[base + 0] = in_channel[0 * 8 + w];
+            patch[base + 1] = in_channel[1 * 8 + w];
+            patch[base + 2] = in_channel[2 * 8 + w];
+            patch[base + 3] = in_channel[3 * 8 + w];
+            patch[base + 4] = in_channel[4 * 8 + w];
+            patch[base + 5] = in_channel[5 * 8 + w];
+            patch[base + 6] = in_channel[6 * 8 + w];
+            patch[base + 7] = in_channel[7 * 8 + w];
         }
 
         int oc = 0;
@@ -419,10 +566,10 @@ void conv9x1_avx2(const float* __restrict input,
                 dot3 += patch[i] * w_ptr3[i];
             }
             // バイアスを加算して結果を書き込み
-            output[(oc + 0) * 9 + w] = dot0 + bias[oc + 0];
-            output[(oc + 1) * 9 + w] = dot1 + bias[oc + 1];
-            output[(oc + 2) * 9 + w] = dot2 + bias[oc + 2];
-            output[(oc + 3) * 9 + w] = dot3 + bias[oc + 3];
+            output[(oc + 0) * 8 + w] = dot0 + bias[oc + 0];
+            output[(oc + 1) * 8 + w] = dot1 + bias[oc + 1];
+            output[(oc + 2) * 8 + w] = dot2 + bias[oc + 2];
+            output[(oc + 3) * 8 + w] = dot3 + bias[oc + 3];
         }
 
         for (; oc < OutChannels; ++oc) {
@@ -438,35 +585,34 @@ void conv9x1_avx2(const float* __restrict input,
             for (; i < inner_size; ++i) {
                 dot += patch[i] * w_ptr[i];
             }
-            output[oc * 9 + w] = dot + bias[oc];
+            output[oc * 8 + w] = dot + bias[oc];
         }
     }
 }
 
-// 1x9の畳み込み処理
+// 1x8の畳み込み処理
 template <int InChannels, int OutChannels>
-void conv1x9_avx2(const float* __restrict input,
+void conv1x8_avx2(const float* __restrict input,
     const float* __restrict weights,
     const float* __restrict bias,
     float* __restrict output) {
-    constexpr int KERNEL_SIZE = 9;
+    constexpr int KERNEL_SIZE = 8;
     constexpr int inner_size = InChannels * KERNEL_SIZE;
     constexpr int padded_inner_size = ((inner_size + 7) / 8) * 8;
 
-    for (int h = 0; h < 9; ++h) {
+    for (int h = 0; h < 8; ++h) {
         alignas(32) float patch[inner_size];
         for (int ic = 0; ic < InChannels; ++ic) {
-            const float* in_channel = input + ic * 81;
+            const float* in_channel = input + ic * 64;  // 8x8 = 64
             int base = ic * KERNEL_SIZE;
-            patch[base + 0] = in_channel[h * 9 + 0];
-            patch[base + 1] = in_channel[h * 9 + 1];
-            patch[base + 2] = in_channel[h * 9 + 2];
-            patch[base + 3] = in_channel[h * 9 + 3];
-            patch[base + 4] = in_channel[h * 9 + 4];
-            patch[base + 5] = in_channel[h * 9 + 5];
-            patch[base + 6] = in_channel[h * 9 + 6];
-            patch[base + 7] = in_channel[h * 9 + 7];
-            patch[base + 8] = in_channel[h * 9 + 8];
+            patch[base + 0] = in_channel[h * 8 + 0];
+            patch[base + 1] = in_channel[h * 8 + 1];
+            patch[base + 2] = in_channel[h * 8 + 2];
+            patch[base + 3] = in_channel[h * 8 + 3];
+            patch[base + 4] = in_channel[h * 8 + 4];
+            patch[base + 5] = in_channel[h * 8 + 5];
+            patch[base + 6] = in_channel[h * 8 + 6];
+            patch[base + 7] = in_channel[h * 8 + 7];
         }
 
         int oc = 0;
@@ -505,10 +651,10 @@ void conv1x9_avx2(const float* __restrict input,
                 dot3 += patch[i] * w_ptr3[i];
             }
             // バイアスを加算して結果を書き込み
-            output[(oc + 0) * 9 + h] = dot0 + bias[oc + 0];
-            output[(oc + 1) * 9 + h] = dot1 + bias[oc + 1];
-            output[(oc + 2) * 9 + h] = dot2 + bias[oc + 2];
-            output[(oc + 3) * 9 + h] = dot3 + bias[oc + 3];
+            output[(oc + 0) * 8 + h] = dot0 + bias[oc + 0];
+            output[(oc + 1) * 8 + h] = dot1 + bias[oc + 1];
+            output[(oc + 2) * 8 + h] = dot2 + bias[oc + 2];
+            output[(oc + 3) * 8 + h] = dot3 + bias[oc + 3];
         }
 
         for (; oc < OutChannels; ++oc) {
@@ -524,7 +670,7 @@ void conv1x9_avx2(const float* __restrict input,
             for (; i < inner_size; ++i) {
                 dot += patch[i] * w_ptr[i];
             }
-            output[oc * 9 + h] = dot + bias[oc];
+            output[oc * 8 + h] = dot + bias[oc];
         }
     }
 }
@@ -576,22 +722,22 @@ inline void relu(float* __restrict output) {
 template <int InChannels, int OutChannels>
 inline void conv_cat_relu(
     const float* __restrict input,
-    const float* __restrict weights_conv9x1,
-    const float* __restrict bias_conv9x1,
-    const float* __restrict weights_conv1x9,
-    const float* __restrict bias_conv1x9,
+    const float* __restrict weights_conv8x1,
+    const float* __restrict bias_conv8x1,
+    const float* __restrict weights_conv1x8,
+    const float* __restrict bias_conv1x8,
     float* __restrict output) {
 
-    constexpr int output_offset = OutChannels * 9; // conv1x9 の出力開始オフセット
+    constexpr int output_offset = OutChannels * 8; // conv1x8 の出力開始オフセット
 
-    // 1. 9x1の畳み込み処理（ReLU適用は後でまとめて実施）
-    conv9x1_avx2<InChannels, OutChannels>(input, weights_conv9x1, bias_conv9x1, output);
+    // 1. 8x1の畳み込み処理
+    conv8x1_avx2<InChannels, OutChannels>(input, weights_conv8x1, bias_conv8x1, output);
 
-    // 2. 1x9の畳み込み処理（出力の後半部分に格納）
-    conv1x9_avx2<InChannels, OutChannels>(input, weights_conv1x9, bias_conv1x9, output + output_offset);
+    // 2. 1x8の畳み込み処理（出力の後半部分に格納）
+    conv1x8_avx2<InChannels, OutChannels>(input, weights_conv1x8, bias_conv1x8, output + output_offset);
 
-    // 3. 連結後の出力全体に対してテンプレート関数のReLUを適用
-    constexpr int total_output = OutChannels * 9 * 2;
+    // 3. 連結後の出力全体に対してReLUを適用
+    constexpr int total_output = OutChannels * 8 * 2;
     relu<total_output>(output);
 }
 
@@ -770,23 +916,26 @@ Value Eval::evaluate(const Position& pos) {
     constexpr int CONV_OUT_CHANNELS = 4;
     constexpr int FC_DIM = 32;
 
-    // パラメータが10個あること、かつ名前が想定通りであることをチェック
-    assert(parameters.size() == 10 && "Insufficient number of parameters loaded");
+    // パラメータが12個あること、かつ名前が想定通りであることをチェック
+    assert(parameters.size() == 12 && "Insufficient number of parameters loaded");
     assert(parameters[0].name == "l1_1.weight" && "Parameter 0 should be l1_1.weight");
     assert(parameters[1].name == "l1_2.weight" && "Parameter 1 should be l1_2.weight");
-    assert(parameters[2].name == "l2_1.weight" && "Parameter 2 should be l2_1.weight");
-    assert(parameters[3].name == "l2_1.bias" && "Parameter 3 should be l2_1.bias");
-    assert(parameters[4].name == "l2_2.weight" && "Parameter 4 should be l2_2.weight");
-    assert(parameters[5].name == "l2_2.bias" && "Parameter 5 should be l2_2.bias");
-    assert(parameters[6].name == "l3.weight" && "Parameter 6 should be l3.weight");
-    assert(parameters[7].name == "l3.bias" && "Parameter 7 should be l3.bias");
+    assert(parameters[2].name == "l2.weight" && "Parameter 2 should be l2.weight");
+    assert(parameters[3].name == "l2.bias" && "Parameter 3 should be l2.bias");
+    assert(parameters[4].name == "l3_1.weight" && "Parameter 4 should be l3_1.weight");
+    assert(parameters[5].name == "l3_1.bias" && "Parameter 5 should be l3_1.bias");
+    assert(parameters[6].name == "l3_2.weight" && "Parameter 6 should be l3_2.weight");
+    assert(parameters[7].name == "l3_2.bias" && "Parameter 7 should be l3_2.bias");
     assert(parameters[8].name == "l4.weight" && "Parameter 8 should be l4.weight");
     assert(parameters[9].name == "l4.bias" && "Parameter 9 should be l4.bias");
+    assert(parameters[10].name == "l5.weight" && "Parameter 10 should be l5.weight");
+    assert(parameters[11].name == "l5.bias" && "Parameter 11 should be l5.bias");
 
     alignas(32) float h1[EMBEDDING_DIM * (int)SquareNum];
-    alignas(32) float h2[CONV_OUT_CHANNELS * 9 * 2];
-    alignas(32) float h3[FC_DIM];
-    alignas(32) float h4;
+    alignas(32) float h2[EMBEDDING_DIM * 8 * 8];
+    alignas(32) float h3[CONV_OUT_CHANNELS * 8 * 2];
+    alignas(32) float h4[FC_DIM];
+    alignas(32) float h5;
 
     // 1. 埋め込み層の処理
     const float* l1_1_weight = parameters[0].data.get();
@@ -794,32 +943,38 @@ Value Eval::evaluate(const Position& pos) {
     embedding_layers(pos, l1_1_weight, l1_2_weight, h1);
 
     // 2. 畳み込み層の処理
-    const float* l2_1_weight = parameters[2].data.get();
-    const float* l2_1_bias = parameters[3].data.get();
-    const float* l2_2_weight = parameters[4].data.get();
-    const float* l2_2_bias = parameters[5].data.get();
+    const float* l2_weight = parameters[2].data.get();
+    const float* l2_bias = parameters[3].data.get();
+    conv2x2_depthwise_relu<EMBEDDING_DIM>(
+        h1, l2_weight, l2_bias, h2);
+
+    // 3. 畳み込み層の処理
+    const float* l3_1_weight = parameters[4].data.get();
+    const float* l3_1_bias = parameters[5].data.get();
+    const float* l3_2_weight = parameters[6].data.get();
+    const float* l3_2_bias = parameters[7].data.get();
     conv_cat_relu<EMBEDDING_DIM, CONV_OUT_CHANNELS>(
-        h1, l2_1_weight, l2_1_bias, l2_2_weight, l2_2_bias, h2);
+        h2, l3_1_weight, l3_1_bias, l3_2_weight, l3_2_bias, h3);
 
-    // 3. 1つ目の全結合層
-    const float* l3_weight = parameters[6].data.get();
-    const float* l3_bias = parameters[7].data.get();
-    fc_layer<CONV_OUT_CHANNELS * 9 * 2, FC_DIM>(
-        h2, l3_weight, h3, l3_bias);
-
-    // 4. ReLU活性化関数の適用
-    relu<FC_DIM>(h3);
-
-    // 5. 2つ目の全結合層（出力層）
+    // 4. 1つ目の全結合層
     const float* l4_weight = parameters[8].data.get();
     const float* l4_bias = parameters[9].data.get();
-    fc_layer<FC_DIM, 1>(
-        h3, l4_weight, &h4, l4_bias);
+    fc_layer<CONV_OUT_CHANNELS * 8 * 2, FC_DIM>(
+        h3, l4_weight, h4, l4_bias);
 
-    // 6. 評価値への変換
+    // 5. ReLU活性化関数の適用
+    relu<FC_DIM>(h4);
+
+    // 6. 2つ目の全結合層（出力層）
+    const float* l5_weight = parameters[10].data.get();
+    const float* l5_bias = parameters[11].data.get();
+    fc_layer<FC_DIM, 1>(
+        h4, l5_weight, &h5, l5_bias);
+
+    // 7. 評価値への変換
     // 出力を将棋エンジンの評価値スケールに変換
     constexpr float EVAL_SCALE = 600.0f;
-    const Value v = static_cast<Value>(h4 * EVAL_SCALE);
+    const Value v = static_cast<Value>(h5 * EVAL_SCALE);
 
     return v;
 }

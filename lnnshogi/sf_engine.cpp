@@ -84,6 +84,10 @@ Engine::Engine(std::optional<std::string> path) :
                                  Stockfish::Search::Skill::LowestElo,
                                  Stockfish::Search::Skill::HighestElo);
     options["DrawPly"] << Option(0, 0, 10000);
+    options["EvalFile"] << Option("model.bin", [this](const Option& o) {
+        Eval::read_parameters(o);
+        return std::nullopt;
+    });
 
     resize_threads();
 }
