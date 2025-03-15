@@ -55,6 +55,7 @@ def main(*argv):
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--patch', type=str, help='Overwrite with the hcpe')
     parser.add_argument('--cache', type=str, help='training data cache file')
+    parser.add_argument('--steps_per_epoch', type=int, help='Number of steps to perform in each training epoch')
     args = parser.parse_args(argv)
 
     if args.log:
@@ -184,6 +185,24 @@ def main(*argv):
 
     train_dataloader = Hcpe3DataLoader(train_data, args.batchsize, device, shuffle=True)
     test_dataloader = DataLoader(test_data, args.testbatchsize, device)
+
+    class ContinuousIteration:
+        def __init__(self, dataloader, num_iterations):
+            self.dataloader = dataloader
+            self.num_iterations = num_iterations
+            self.iterator = iter(self.dataloader)
+
+        def __iter__(self):
+            for _ in range(self.num_iterations):
+                try:
+                    yield next(self.iterator)
+                except StopIteration:
+                    self.iterator = iter(self.dataloader)
+                    yield next(self.iterator)
+
+    if args.steps_per_epoch:
+        logging.info('steps_per_epoch={}'.format(args.steps_per_epoch))
+        train_dataloader = ContinuousIteration(train_dataloader, args.steps_per_epoch)
 
     # for SWA update_bn
     def hcpe_loader(data, batchsize):
