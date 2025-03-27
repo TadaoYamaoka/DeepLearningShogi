@@ -26,6 +26,7 @@ cdef extern from "python_module.h" nogil:
     void __hcpe3_stat_cache()
     pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2) except +
     pair[int, int] __hcpe3_clean(const string& file1, const string& file2) except +
+    unsigned int __get_max_features2_nyugyoku_num()
 
 init()
 
@@ -84,3 +85,6 @@ def hcpe3_to_hcpe(str file1, str file2):
 
 def hcpe3_clean(str file1, str file2):
     return __hcpe3_clean(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()))
+
+def get_max_features2_nyugyoku_num():
+    return __get_max_features2_nyugyoku_num()

@@ -1019,3 +1019,11 @@ std::pair<int, int> __hcpe3_clean(const std::string& file1, const std::string& f
     }
     return std::make_pair(p, positions);
 }
+
+unsigned int __get_max_features2_nyugyoku_num() {
+#ifdef NYUGYOKU_FEATURES
+    return MAX_FEATURES2_NYUGYOKU_NUM;
+#else
+    return 0;
+#endif
+}

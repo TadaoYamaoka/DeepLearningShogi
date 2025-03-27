@@ -1,6 +1,9 @@
 ﻿CC = g++
 MATE_SEARCH_DEPTH = 5
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DONNXRUNTIME -DONNXRUNTIME_CPU -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+ifneq ($(NYUGYOKU_FEATURES),)
+CFLAGS += -DNYUGYOKU_FEATURES
+endif
 LDFLAGS = -lpthread -lonnxruntime -flto
 INCLUDE = -I../usi -I../usi_onnxruntime -I../cppshogi -I/work/onnxruntime-linux-x64-1.14.1/include
 LIB = -L/work/onnxruntime-linux-x64-1.14.1/lib

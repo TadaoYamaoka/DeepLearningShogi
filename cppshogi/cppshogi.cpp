@@ -120,6 +120,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		const u32 numHRook = hand.numOf(HRook);
 		set_features2(features2, c2, MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM, numHRook);
 
+#ifdef NYUGYOKU_FEATURES
 		// 入玉宣言
 		// 敵陣のマスク
 		const Bitboard opponentsField = (c == Black ? inFrontMask<Black, Rank4>() : inFrontMask<White, Rank6>());
@@ -149,7 +150,8 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		if (restPoint < MAX_NYUGYOKU_SCORE) {
 			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + MAX_NYUGYOKU_OPP_FIELD + std::max(0, restPoint));
 		}
-	}
+#endif
+    }
 
 	// is check
 	if (position.inCheck()) {

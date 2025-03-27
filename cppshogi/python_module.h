@@ -20,3 +20,4 @@ void __hcpe3_reserve_train_data(unsigned int size);
 void __hcpe3_stat_cache();
 std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string& file2);
 std::pair<int, int> __hcpe3_clean(const std::string& file1, const std::string& file2);
+unsigned int __get_max_features2_nyugyoku_num();
