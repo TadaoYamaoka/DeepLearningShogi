@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 
 # 移動の定数
 MOVE_DIRECTION = [
@@ -23,8 +23,11 @@ MAX_PIECES_IN_HAND_SUM = sum(MAX_PIECES_IN_HAND)
 # number of features
 PIECETYPE_NUM = 14 # 駒の種類
 MAX_ATTACK_NUM = 3 # 利き数の最大値
+MAX_NYUGYOKU_OPP_FIELD = 10 # 敵陣三段目以内の駒(10枚までの残り枚数)
+MAX_NYUGYOKU_SCORE = 20 # 点数(先手28点、後手27点までの残り枚数)
+MAX_FEATURES2_NYUGYOKU_NUM = 1 + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE
 FEATURES1_NUM = 2 * (PIECETYPE_NUM + PIECETYPE_NUM + MAX_ATTACK_NUM)
-FEATURES2_NUM = 2 * MAX_PIECES_IN_HAND_SUM + 1
+FEATURES2_NUM = 2 * MAX_PIECES_IN_HAND_SUM + 1 + 2 * MAX_FEATURES2_NYUGYOKU_NUM
 
 HuffmanCodedPosAndEval = np.dtype([
     ('hcp', np.uint8, 32),

@@ -472,6 +472,132 @@ TEST(FeaturesTest, make_input_features2) {
     }
 }
 
+TEST(NyugyokuFeaturesTest, make_input_features) {
+    // 入玉特徴量
+    initTable();
+    Position pos;
+
+    // case 1
+    {
+        pos.set("8l/+S8/1P4+Sp1/K4p+B1p/PNG1g2G1/2P2P2P/6+n+rk/3r5/L2+lP4 b G2SN7Pbnl2p 1");
+
+
+        features1_t features1{};
+        features2_t features2{};
+        make_input_features(pos, features1, features2);
+
+        float data2[MAX_FEATURES2_NUM];
+        for (size_t i = 0; i < MAX_FEATURES2_NUM; ++i) data2[i] = *((float*)features2 + (size_t)SquareNum * i);
+
+        // 先手持ち駒
+        float *begin = data2, *end = data2 + MAX_HPAWN_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 1, 1, 1, 1, 1, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HLANCE_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HKNIGHT_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HSILVER_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HGOLD_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HBISHOP_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HROOK_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        // 後手持ち駒
+        begin = end, end = begin + MAX_HPAWN_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 0, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HLANCE_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HKNIGHT_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HSILVER_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HGOLD_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HBISHOP_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HROOK_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        // 王手
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{0, }), (std::vector<float>{begin, end}));
+        // 先手入玉特徴量
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{0, }), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_OPP_FIELD;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 0, 0, 0, 1, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_SCORE;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        // 後手入玉特徴量
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{1, }), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_OPP_FIELD;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_SCORE;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}), (std::vector<float>{begin, end}));
+    }
+
+    // case 2
+    {
+        pos.set("6+B1+P/1K+B3+L2/1+L1G5/5+R2P/7S1/P4P1n1/p1P1p1p1p/6sks/2+r3gP1 w 2GNL6Ps2nl2p 1");
+        features1_t features1{};
+        features2_t features2{};
+        make_input_features(pos, features1, features2);
+
+        float data2[MAX_FEATURES2_NUM];
+        for (size_t i = 0; i < MAX_FEATURES2_NUM; ++i) data2[i] = *((float*)features2 + (size_t)SquareNum * i);
+
+        // 後手持ち駒
+        float* begin = data2, * end = data2 + MAX_HPAWN_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 0, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HLANCE_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HKNIGHT_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HSILVER_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HGOLD_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HBISHOP_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HROOK_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        // 先手持ち駒
+        begin = end, end = begin + MAX_HPAWN_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 1, 1, 1, 1, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HLANCE_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HKNIGHT_NUM;
+        EXPECT_EQ((std::vector<float>{1, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HSILVER_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HGOLD_NUM;
+        EXPECT_EQ((std::vector<float>{1, 1, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HBISHOP_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_HROOK_NUM;
+        EXPECT_EQ((std::vector<float>{0, 0}), (std::vector<float>{begin, end}));
+        // 王手
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{1, }), (std::vector<float>{begin, end}));
+        // 後手入玉特徴量
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{1, }), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_OPP_FIELD;
+        EXPECT_EQ((std::vector<float>{0, 0, 1, 0, 0, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_SCORE;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), (std::vector<float>{begin, end}));
+        // 先手入玉特徴量
+        begin = end, end = begin + 1;
+        EXPECT_EQ((std::vector<float>{1, }), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_OPP_FIELD;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+        begin = end, end = begin + MAX_NYUGYOKU_SCORE;
+        EXPECT_EQ((std::vector<float>{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}), (std::vector<float>{begin, end}));
+    }
+}
+
 TEST(PythonModuleTest, hcpe3_clean) {
     initTable();
     Position::initZobrist();
