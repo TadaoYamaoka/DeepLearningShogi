@@ -3,12 +3,7 @@ import random
 import numpy as np
 from cshogi import Board, move_to_usi
 from cshogi import DfPn
-from cshogi.dlshogi import (
-    make_input_features,
-    make_move_label,
-    FEATURES1_NUM,
-    FEATURES2_NUM,
-)
+import cshogi.dlshogi
 import onnxruntime as ort  # Ensure the 'onnxruntime' library is installed
 
 temperature1 = 1.0
@@ -24,10 +19,7 @@ onnx_threads = 0
 
 dfpn = DfPn()
 
-input_features = [
-    np.empty((593, FEATURES1_NUM, 9, 9), dtype=np.float32),
-    np.empty((593, FEATURES2_NUM, 9, 9), dtype=np.float32),
-]
+input_features = []
 
 
 def load_model(path):
@@ -43,7 +35,7 @@ def load_model(path):
 
 
 def predict_logits(board):
-    make_input_features(board, input_features[0][0], input_features[1][0])
+    cshogi.dlshogi.make_input_features(board, input_features[0][0], input_features[1][0])
     io_binding = session.io_binding()
     io_binding.bind_cpu_input("input1", input_features[0][0:1])
     io_binding.bind_cpu_input("input2", input_features[1][0:1])
@@ -56,7 +48,7 @@ def predict_logits(board):
     legal_moves = list(board.legal_moves)
     legal_logtis = np.empty(len(legal_moves), dtype=np.float32)
     for i, move in enumerate(legal_moves):
-        move_label = make_move_label(move, board.turn)
+        move_label = cshogi.dlshogi.make_move_label(move, board.turn)
         legal_logtis[i] = logits[move_label]
 
     return legal_moves, legal_logtis
@@ -66,7 +58,7 @@ def predict_values(board):
     legal_moves = list(board.legal_moves)
     for i, move in enumerate(legal_moves):
         board.push(move)
-        make_input_features(board, input_features[0][i], input_features[1][i])
+        cshogi.dlshogi.make_input_features(board, input_features[0][i], input_features[1][i])
         board.pop()
     io_binding = session.io_binding()
     io_binding.bind_cpu_input("input1", input_features[0][:i + 1])
@@ -116,7 +108,7 @@ def select_move(board):
 
 
 def main():
-    global temperature1, temperature2, temperature_threshold, model_path, use_value_network, use_mate, use_dfpn, use_cuda, onnx_threads
+    global temperature1, temperature2, temperature_threshold, model_path, use_value_network, use_mate, use_dfpn, use_cuda, onnx_threads, input_features
 
     board = Board()
     while True:
@@ -136,9 +128,14 @@ def main():
             print("option name UseDfPn type check default false")
             print("option name UseCUDA type check default false")
             print("option name OnnxThreads type spin default 0 min 0 max 1024")
+            print("option name UseNyugyokuFeatures type check default false")
             print("usiok", flush=True)
         elif command == "isready":
             load_model(model_path)
+            input_features = [
+                np.empty((593, cshogi.dlshogi.FEATURES1_NUM, 9, 9), dtype=np.float32),
+                np.empty((593, cshogi.dlshogi.FEATURES2_NUM, 9, 9), dtype=np.float32),
+            ]
             print("readyok", flush=True)
         elif command == "setoption":
             tokens = args.split()
@@ -162,6 +159,8 @@ def main():
                 use_cuda = option_value.lower() == "true"
             elif option_name == "OnnxThreads":
                 onnx_threads = int(option_value)
+            elif option_name == "UseNyugyokuFeatures":
+                cshogi.dlshogi.use_nyugyoku_features(option_value.lower() == "true")
         elif command == "position":
             board.set_position(args)
         elif command == "go":
