@@ -69,8 +69,8 @@ void __hcpe_decode_lite(const size_t len, char* ndhcpe, char* ndfeatures1, char*
     float* value = reinterpret_cast<float*>(ndvalue);
 
     // set all padding index
-    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, PIECETYPE_NUM * 2);
-    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_NUM);
+    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, MAX_FEATURES1_LITE_INDEX);
+    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_LITE_INDEX);
 
     Position position;
     for (size_t i = 0; i < len; i++, hcpe++, features1++, features2++, value++, result++) {
@@ -491,8 +491,8 @@ void __hcpe3_decode_lite(const size_t len, char* ndindex, char* ndfeatures1, cha
     float* value = reinterpret_cast<float*>(ndvalue);
 
     // set all padding index
-    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, PIECETYPE_NUM * 2);
-    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_NUM);
+    std::fill_n((int64_t*)features1, sizeof(features1_lite_t) / sizeof(int64_t) * len, MAX_FEATURES1_LITE_INDEX);
+    std::fill_n((int64_t*)features2, sizeof(features2_lite_t) / sizeof(int64_t) * len, MAX_FEATURES2_LITE_INDEX);
 
     #pragma omp parallel for num_threads(2) if (len > 1)
     for (int64_t i = 0; i < len; i++) {

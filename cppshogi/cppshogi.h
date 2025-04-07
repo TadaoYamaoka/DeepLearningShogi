@@ -49,8 +49,12 @@ typedef char packed_features2_t[((size_t)MAX_FEATURES2_NUM + 7) / 8];
 typedef DType features1_t[ColorNum][MAX_FEATURES1_NUM][SquareNum];
 typedef DType features2_t[MAX_FEATURES2_NUM][SquareNum];
 
-typedef int64_t features1_lite_t[SquareNum];
-typedef int64_t features2_lite_t[MAX_FEATURES2_NUM];
+constexpr size_t MAX_FEATURES1_LITE_INDEX = (size_t)ColorNum * (PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*効き数*/);
+constexpr size_t MAX_FEATURES2_LITE_INDEX = MAX_FEATURES2_NUM;
+constexpr size_t MAX_FEATURES1_LITE_NUM = 1/*駒の配置*/ + (size_t)ColorNum * (PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*効き数*/);
+constexpr size_t MAX_FEATURES2_LITE_NUM = MAX_FEATURES2_NUM;
+typedef int64_t features1_lite_t[SquareNum][MAX_FEATURES1_LITE_NUM];
+typedef int64_t features2_lite_t[MAX_FEATURES2_LITE_NUM];
 
 void make_input_features(const Position& position, features1_t features1, features2_t features2);
 void make_input_features(const Position& position, packed_features1_t packed_features1, packed_features2_t packed_features2);

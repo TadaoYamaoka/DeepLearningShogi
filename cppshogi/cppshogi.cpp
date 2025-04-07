@@ -139,12 +139,20 @@ void make_input_features(const Position& position, packed_features1_t packed_fea
 
 template <Color turn>
 inline void make_input_features_lite(const Position& position, features1_lite_t features1, features2_lite_t features2) {
-    Bitboard occupied_bb = position.occupiedBB();
+    const Bitboard occupied_bb = position.occupiedBB();
 
-    FOREACH_BB(occupied_bb, Square sq, {
+    // 歩と歩以外に分ける
+    Bitboard pawns_bb = position.bbOf(Pawn);
+    Bitboard without_pawns_bb = occupied_bb & ~pawns_bb;
+    // 利き数集計用
+    int attack_num[ColorNum][SquareNum] = {};
+
+    // 歩以外
+    FOREACH_BB(without_pawns_bb, Square sq, {
         const Piece pc = position.piece(sq);
         const PieceType pt = pieceToPieceType(pc);
         Color c = pieceToColor(pc);
+        Bitboard attacks = Position::attacksFrom(pt, c, sq, occupied_bb);
 
         // 後手の場合、色を反転し、盤面を180度回転
         if (turn == White) {
@@ -153,12 +161,50 @@ inline void make_input_features_lite(const Position& position, features1_lite_t 
         }
 
         // 駒の配置
-        features1[sq] = PIECETYPE_NUM * (int)c + pt - 1;
+        features1[sq][0] = PIECETYPE_NUM * (int)c + pt - 1;
+
+        FOREACH_BB(attacks, Square to, {
+            // 後手の場合、盤面を180度回転
+            if (turn == White) to = SQ99 - to;
+
+            // 駒の利き
+            features1[to][1 + PIECETYPE_NUM * (int)c + pt - 1] = PIECETYPE_NUM * (int)(ColorNum) + PIECETYPE_NUM * (int)c + pt - 1;
+
+            // 利き数
+            auto& num = attack_num[c][to];
+            if (num < MAX_ATTACK_NUM) {
+                features1[to][1 + PIECETYPE_NUM * (int)(ColorNum) + MAX_ATTACK_NUM * (int)c + num] = PIECETYPE_NUM * (int)(ColorNum) * 2 + MAX_ATTACK_NUM * (int)c + num;
+                num++;
+            }
+        });
     });
 
     for (Color c = Black; c < ColorNum; ++c) {
         // 後手の場合、色を反転
         const Color c2 = turn == Black ? c : oppositeColor(c);
+
+        // 歩
+        Bitboard pawns_bb2 = pawns_bb & position.bbOf(c2);
+        const SquareDelta pawnDelta = c == Black ? DeltaN : DeltaS;
+        FOREACH_BB(pawns_bb2, Square sq, {
+            // 後手の場合、盤面を180度回転
+            if (turn == White) sq = SQ99 - sq;
+
+            // 駒の配置
+            features1[sq][0] = PIECETYPE_NUM * (int)c + Pawn - 1;
+
+            // 駒の利き
+            const Square to = sq + pawnDelta; // 1マス先
+            features1[to][1 + PIECETYPE_NUM * (int)c + Pawn - 1] = PIECETYPE_NUM * (int)(ColorNum) + PIECETYPE_NUM * (int)c + Pawn - 1;
+
+            // 利き数
+            auto& num = attack_num[c][to];
+            if (num < MAX_ATTACK_NUM) {
+                features1[to][1 + PIECETYPE_NUM * (int)(ColorNum) + MAX_ATTACK_NUM * (int)c + num] = PIECETYPE_NUM * (int)(ColorNum) * 2 + MAX_ATTACK_NUM * (int)c + num;
+                num++;
+            }
+        });
+
 
         // 持ち駒
         const Hand hand = position.hand(c);

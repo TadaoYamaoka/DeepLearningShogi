@@ -10,6 +10,9 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 
 
+FEATURES1_LITE_NUM = 1 + 2 * (PIECETYPE_NUM + MAX_ATTACK_NUM)
+
+
 class DataLoader:
     @staticmethod
     def load_files(files, logger=logging):
@@ -29,7 +32,7 @@ class DataLoader:
         self.shuffle = shuffle
 
         self.torch_features1 = torch.empty(
-            (batch_size, 9 * 9), dtype=torch.long, pin_memory=True
+            (batch_size, 9 * 9, FEATURES1_LITE_NUM), dtype=torch.long, pin_memory=True
         )
         self.torch_features2 = torch.empty(
             (batch_size, FEATURES2_NUM), dtype=torch.long, pin_memory=True
@@ -168,7 +171,7 @@ class Hcpe3DataLoader(DataLoader):
         self.shuffle = shuffle
 
         self.torch_features1 = torch.empty(
-            (batch_size, 9 * 9), dtype=torch.long, pin_memory=True
+            (batch_size, 9 * 9, FEATURES1_LITE_NUM), dtype=torch.long, pin_memory=True
         )
         self.torch_features2 = torch.empty(
             (batch_size, FEATURES2_NUM), dtype=torch.long, pin_memory=True
