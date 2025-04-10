@@ -10,10 +10,8 @@ FEATURES1_LITE_NUM = 1 + 2 * (PIECETYPE_NUM + MAX_ATTACK_NUM)
 class LiteValueNetwork(nn.Module):
     def __init__(self, dims=(16, 4, 32), activation=nn.ReLU()):
         super(LiteValueNetwork, self).__init__()
-        self.l1_1 = nn.EmbeddingBag(NUM_EMBEDDINGS1 + 1, dims[0], mode='sum', padding_idx=NUM_EMBEDDINGS1)
-        self.l1_2 = nn.EmbeddingBag(NUM_EMBEDDINGS2 + 1, dims[0], mode='sum', padding_idx=NUM_EMBEDDINGS2)
-        self.bn1_1 = nn.BatchNorm2d(dims[0])
-        self.bn1_2 = nn.BatchNorm2d(dims[0])
+        self.l1_1 = nn.EmbeddingBag(NUM_EMBEDDINGS1 + 1, dims[0], mode='sum', padding_idx=NUM_EMBEDDINGS1, max_norm=1)
+        self.l1_2 = nn.EmbeddingBag(NUM_EMBEDDINGS2 + 1, dims[0], mode='sum', padding_idx=NUM_EMBEDDINGS2, max_norm=1)
         self.l2 = nn.Conv2d(in_channels=dims[0], out_channels=dims[0], kernel_size=2, groups=dims[0], bias=False)
         self.bn2 = nn.BatchNorm2d(dims[0])
         self.l3_1 = nn.Conv2d(in_channels=dims[0], out_channels=dims[1], kernel_size=(8, 1), bias=False)
@@ -26,8 +24,8 @@ class LiteValueNetwork(nn.Module):
         self.dims = dims
 
     def forward(self, x1, x2):
-        h1_1 = self.bn1_1(self.l1_1(x1.view(-1, FEATURES1_LITE_NUM)).view(-1, 9, 9, self.dims[0]).permute(0, 3, 1, 2))
-        h1_2 = self.bn1_2(self.l1_2(x2).view(-1, self.dims[0], 1, 1))
+        h1_1 = self.l1_1(x1.view(-1, FEATURES1_LITE_NUM)).view(-1, 9, 9, self.dims[0]).permute(0, 3, 1, 2)
+        h1_2 = self.l1_2(x2).view(-1, self.dims[0], 1, 1)
         h1 = h1_1 + h1_2
         h2 = self.act(self.bn2(self.l2(h1)))
         h3_1 = self.bn3_1(self.l3_1(h2))
