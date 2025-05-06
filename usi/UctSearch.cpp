@@ -93,13 +93,10 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 #include "book.hpp"
+extern std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_book_policy;
 #endif
-#ifdef BOOK_POLICY
-extern std::map<Key, std::vector<BookEntry> > bookMap;
-#endif
 #ifdef MAKE_BOOK
-extern std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_interruption;
 #endif
 
@@ -1027,7 +1024,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	// ルート局面をグローバル変数に保存
 	pos_root = pos;
-	
+
 	const uct_node_t* current_root = tree->GetCurrentHead();
 
 	// 探索情報をクリア
@@ -1270,7 +1267,7 @@ UCTSearcher::ParallelUctSearch()
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
 			// 盤面のコピー
 			Position pos(*pos_root);
-			
+
 			// 1回プレイアウトする
 			visitor_pool[i].trajectories.clear();
 			const float result = UctSearch(&pos, nullptr, current_root, visitor_pool[i]);

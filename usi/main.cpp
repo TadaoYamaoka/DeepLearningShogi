@@ -82,32 +82,6 @@ int dfpn_min_search_millisecs = 300;
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 bool use_book_policy = true;
 #endif
-#ifdef BOOK_POLICY
-std::map<Key, std::vector<BookEntry> > bookMap;
-
-// 定跡読み込み
-void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEntry> >& bookMap) {
-	std::ifstream ifs(bookFileName.c_str(), std::ifstream::in | std::ifstream::binary);
-	if (!ifs) {
-		std::cerr << "Error: cannot open " << bookFileName << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	BookEntry entry;
-	size_t count = 0;
-	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
-		count++;
-		auto itr = bookMap.find(entry.key);
-		if (itr != bookMap.end()) {
-			// すでにある場合、追加
-			itr->second.emplace_back(entry);
-		}
-		else {
-			bookMap[entry.key].emplace_back(entry);
-		}
-	}
-	std::cout << "bookEntries.size:" << bookMap.size() << " count:" << count << std::endl;
-}
-#endif
 
 int main(int argc, char* argv[]) {
 	initTable();
