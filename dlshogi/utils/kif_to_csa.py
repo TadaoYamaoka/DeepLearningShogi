@@ -32,9 +32,14 @@ for path in glob.glob(os.path.join(args.kif_dir, "**", "*.kif"), recursive=True)
         if len(kif.times) == 0:
             kif.times = [None] * len(kif.moves)
         for move, time, comment in zip(kif.moves, kif.times, kif.comments):
-            m = comment_ptn.search(comment)
+            if comment:
+                m = comment_ptn.search(comment)
+            else:
+                m = None
             csa.move(move, time=time, comment=None if not m else f"** {m.group(1)}")
 
-        csa.endgame(kif.endgame, time=kif.times[-1])
+        if kif.endgame:
+            csa.endgame(kif.endgame, time=kif.times[-1])
+        csa.close()
     except Exception as e:
         print(f"skip {path} {e}")
