@@ -14,7 +14,7 @@ parser.add_argument("csa_dir")
 parser.add_argument("--encoding")
 args = parser.parse_args()
 
-comment_ptn = re.compile(r"評価値 (\d+)")
+comment_ptn = re.compile(r"評価値 ([-\d]+)")
 
 for path in glob.glob(os.path.join(args.kif_dir, "**", "*.kif"), recursive=True):
     try:
