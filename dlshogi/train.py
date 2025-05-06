@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -16,6 +16,7 @@ import random
 import sys
 import os
 import re
+import importlib
 
 import logging
 
@@ -37,11 +38,13 @@ def main(*argv):
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
     parser.add_argument('--lr_scheduler', help='learning rate scheduler')
+    parser.add_argument('--scheduler_step_mode', type=str, default='epoch', choices=['epoch', 'step'], help='Scheduler step mode: epoch or step')
     parser.add_argument('--reset_scheduler', action='store_true')
     parser.add_argument('--clip_grad_max_norm', type=float, default=10.0, help='max norm of the gradients')
     parser.add_argument('--use_critic', action='store_true')
     parser.add_argument('--beta', type=float, help='entropy regularization coeff')
     parser.add_argument('--val_lambda', type=float, default=0.333, help='regularization factor')
+    parser.add_argument('--val_lambda_decay_epoch', type=int, help='Number of total epochs to decay val_lambda to 0')
     parser.add_argument('--gpu', '-g', type=int, default=0, help='GPU ID')
     parser.add_argument('--eval_interval', type=int, default=1000, help='evaluation interval')
     parser.add_argument('--use_swa', action='store_true')
@@ -49,6 +52,7 @@ def main(*argv):
     parser.add_argument('--swa_freq', type=int, default=250)
     parser.add_argument('--swa_n_avr', type=int, default=10)
     parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
+    parser.add_argument('--amp_dtype', type=str, default='float16', choices=['float16', 'bfloat16'], help='Data type for automatic mixed precision')
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
@@ -71,6 +75,7 @@ def main(*argv):
     if args.beta:
         logging.info('entropy regularization coeff={}'.format(args.beta))
     logging.info('val_lambda={}'.format(args.val_lambda))
+    val_lambda = args.val_lambda
 
     if args.gpu >= 0:
         device = torch.device(f"cuda:{args.gpu}")
@@ -80,13 +85,45 @@ def main(*argv):
     model = policy_value_network(args.network)
     model.to(device)
 
+    def create_optimizer(optimizer_str, model_params, lr, weight_decay):
+        optimizer_name, optimizer_args = optimizer_str.split('(', 1)
+        optimizer_args = eval(f'dict({optimizer_args.rstrip(")")})')
+        if '.' in optimizer_name:
+            module_name, class_name = optimizer_name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            optimizer_class = getattr(module, class_name)
+        else:
+            optimizer_class = getattr(optim, optimizer_name)
+
+        if weight_decay >= 0:
+            optimizer_args["weight_decay"] = weight_decay
+
+        optimizer = optimizer_class(model_params, lr=lr, **optimizer_args)
+        if not isinstance(optimizer, torch.optim.Optimizer):
+            raise TypeError(f"Invalid optimizer type: {type(optimizer)}. Must be a subclass of torch.optim.Optimizer")
+        return optimizer
+
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
-    optimizer = eval('optim.' + args.optimizer.replace('(', '(model.parameters(),lr=args.lr,' + 'weight_decay=args.weight_decay,' if args.weight_decay >= 0 else ''))
+    optimizer = create_optimizer(args.optimizer, model.parameters(), args.lr, args.weight_decay)
+
+    def create_scheduler(scheduler_str, optimizer):
+        scheduler_name, scheduler_args = scheduler_str.split('(', 1)
+        scheduler_args = eval(f'dict({scheduler_args.rstrip(")")})')
+        if '.' in scheduler_name:
+            module_name, class_name = scheduler_name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            scheduler_class = getattr(module, class_name)
+        else:
+            scheduler_class = getattr(optim.lr_scheduler, scheduler_name)
+
+        scheduler = scheduler_class(optimizer, **scheduler_args)
+        if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
+            raise TypeError(f"Invalid scheduler type: {type(scheduler)}. Must be a subclass of torch.optim.lr_scheduler.LRScheduler")
+        return scheduler
+
     if args.lr_scheduler:
-        if args.lr_scheduler[-1] != ')':
-            args.lr_scheduler += '()'
-        scheduler = eval('optim.lr_scheduler.' + args.lr_scheduler.replace('(', '(optimizer,'))
+        scheduler = create_scheduler(args.lr_scheduler, optimizer)
     if args.use_swa:
         logging.info(f'use swa(swa_start_epoch={args.swa_start_epoch}, swa_freq={args.swa_freq}, swa_n_avr={args.swa_n_avr})')
         ema_a = args.swa_n_avr / (args.swa_n_avr + 1)
@@ -98,7 +135,8 @@ def main(*argv):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
     bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
     if args.use_amp:
-        logging.info('use amp')
+        logging.info(f'use amp dtype={args.amp_dtype}')
+    amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
     scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
     if args.use_evalfix:
@@ -133,7 +171,7 @@ def main(*argv):
         else:
             # for compatibility
             logging.info('Loading the optimizer state from {}'.format(args.resume))
-            base_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             if args.use_amp and 'scaler_state_dict' in checkpoint:
                 scaler.load_state_dict(checkpoint['scaler_state_dict'])
     else:
@@ -188,7 +226,7 @@ def main(*argv):
                 loss1 = cross_entropy_loss(y1, t1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
                 sum_test_loss1 += loss1.item()
                 sum_test_loss2 += loss2.item()
                 sum_test_loss3 += loss3.item()
@@ -240,6 +278,13 @@ def main(*argv):
     for e in range(args.epoch):
         if args.lr_scheduler:
             logging.info('lr_scheduler lr={}'.format(scheduler.get_last_lr()[0]))
+        if args.val_lambda_decay_epoch:
+            # update val_lambda
+            val_lambda = max(
+                0,
+                args.val_lambda * (1 - epoch / args.val_lambda_decay_epoch)
+            )
+            logging.info('update val_lambda={}'.format(val_lambda))
         epoch += 1
         steps_epoch = 0
         sum_loss1_epoch = 0
@@ -249,7 +294,7 @@ def main(*argv):
         for x1, x2, t1, t2, value in train_dataloader:
             t += 1
             steps += 1
-            with torch.cuda.amp.autocast(enabled=args.use_amp):
+            with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
                 model.train()
 
                 y1, y2 = model(x1, x2)
@@ -265,7 +310,7 @@ def main(*argv):
                     loss1 += args.beta * (F.softmax(y1, dim=1) * F.log_softmax(y1, dim=1)).sum(dim=1).mean()
                 loss2 = bce_with_logits_loss(y2, t2)
                 loss3 = bce_with_logits_loss(y2, value)
-                loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
 
             scaler.scale(loss).backward()
             if args.clip_grad_max_norm:
@@ -293,7 +338,7 @@ def main(*argv):
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)
                     loss3 = bce_with_logits_loss(y2, value)
-                    loss = loss1 + (1 - args.val_lambda) * loss2 + args.val_lambda * loss3
+                    loss = loss1 + (1 - val_lambda) * loss2 + val_lambda * loss3
 
                     logging.info('epoch = {}, steps = {}, train loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}'.format(
                         epoch, t,
@@ -313,6 +358,9 @@ def main(*argv):
                 sum_loss3 = 0
                 sum_loss = 0
 
+            if args.lr_scheduler and args.scheduler_step_mode == 'step':
+                scheduler.step()
+
         steps_epoch += steps
         sum_loss1_epoch += sum_loss1
         sum_loss2_epoch += sum_loss2
@@ -329,7 +377,7 @@ def main(*argv):
             test_accuracy1, test_accuracy2,
             test_entropy1, test_entropy2))
 
-        if args.lr_scheduler:
+        if args.lr_scheduler and args.scheduler_step_mode == 'epoch':
             scheduler.step()
 
         # save checkpoint
@@ -342,7 +390,7 @@ def main(*argv):
             logging.info('Updating batch normalization')
             forward_ = swa_model.forward
             swa_model.forward = lambda x : forward_(**x)
-            with torch.cuda.amp.autocast(enabled=args.use_amp):
+            with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
                 update_bn(hcpe_loader(train_data, args.batchsize), swa_model)
             del swa_model.forward
 

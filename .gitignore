@@ -254,3 +254,5 @@ ModelManifest.xml
 /dlshogi/*.pyd
 /dlshogi/*.cpp
 /dist
+lightning_logs/
+.vscode/

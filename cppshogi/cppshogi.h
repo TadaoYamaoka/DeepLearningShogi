@@ -2,7 +2,6 @@
 
 #include "init.hpp"
 #include "position.hpp"
-#include "search.hpp"
 #include "generateMoves.hpp"
 #include "dtype.h"
 
@@ -28,10 +27,20 @@ constexpr u32 MAX_PIECES_IN_HAND[] = {
 constexpr u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
 constexpr u32 MAX_FEATURES2_HAND_NUM = (int)ColorNum * MAX_PIECES_IN_HAND_SUM;
 
+#ifdef NYUGYOKU_FEATURES
+constexpr u32 MAX_NYUGYOKU_OPP_FIELD = 10; // 敵陣三段目以内の駒(10枚までの残り枚数)
+constexpr u32 MAX_NYUGYOKU_SCORE = 20; // 点数(先手28点、後手27点までの残り枚数)
+constexpr u32 MAX_FEATURES2_NYUGYOKU_NUM = 1/*入玉*/ + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE;
+#endif
+
 constexpr int PIECETYPE_NUM = 14; // 駒の種類
 constexpr int MAX_ATTACK_NUM = 3; // 利き数の最大値
 constexpr u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒の利き*/ + MAX_ATTACK_NUM/*利き数*/;
-constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
+constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/
+#ifdef NYUGYOKU_FEATURES
+    + (int)ColorNum * MAX_FEATURES2_NYUGYOKU_NUM
+#endif
+;
 
 // 移動の定数
 enum MOVE_DIRECTION {
@@ -104,6 +113,7 @@ struct Hcpe3CacheCandidate {
 };
 
 struct TrainingData {
+    TrainingData() = default;
 	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result)
 		: hcp(hcp), value(value), result(result), count(1) {};
 	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)

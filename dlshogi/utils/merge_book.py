@@ -22,7 +22,7 @@ book1dic = {}
 for entry in book1:
     key = entry['key']
     if key not in book1dic:
-        book1dic[key] = defaultdict(lambda: [0, 0])
+        book1dic[key] = defaultdict(lambda: [0, None])
 
     entries = book1dic[key]
     entries[entry['fromToPro']] = [entry['count'], entry['score']]
@@ -59,13 +59,15 @@ for key, entries2 in book2dic.items():
         for (count, score) in entries2.values():
             sum2 += count
 
+        sum3 = min(sum1 + sum2, 65535)
+
         for fromToPro, (count, score) in entries1.items():
-            entries1[fromToPro] = [int(count * (1 - book2_ratio)), int(score * (1 - book2_ratio))]
+            entries1[fromToPro] = [int(count / sum1 * (1 - book2_ratio) * sum3), score]
 
         for fromToPro, (count, score) in entries2.items():
             values = entries1[fromToPro]
-            values[0] += int(count / sum1 * sum2 * book2_ratio)
-            values[1] += int(score / sum1 * sum2 * book2_ratio)
+            values[0] += int(count / sum2 * book2_ratio * sum3)
+            values[1] = score if values[1] is None else int(values[1] * (1 - book2_ratio) + score * book2_ratio)
             assert entries1[fromToPro][0] < 65536
     else:
         # book2で上書きする

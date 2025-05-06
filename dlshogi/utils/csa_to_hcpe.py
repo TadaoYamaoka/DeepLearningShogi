@@ -12,6 +12,8 @@ parser.add_argument('--out_draw', action='store_true', help='output draw game re
 parser.add_argument('--out_maxmove', action='store_true', help='output maxmove game records')
 parser.add_argument('--out_noeval', action='store_true', help='output positions without eval')
 parser.add_argument('--out_mate', action='store_true', help='output mated positions')
+parser.add_argument('--out_brinkmate', action='store_true')
+parser.add_argument('--uniq', action='store_true')
 parser.add_argument('--eval', type=int, help='eval threshold')
 parser.add_argument('--filter_moves', type=int, default=50, help='filter game records with moves less than this value')
 parser.add_argument('--filter_rating', type=int, default=3500, help='filter game records with both ratings below this value')
@@ -34,16 +36,39 @@ f = open(args.hcpe, 'wb')
 board = Board()
 kif_num = 0
 position_num = 0
+duplicates = set()
 for filepath in csa_file_list:
     for kif in CSA.Parser.parse_file(filepath):
         if kif.endgame not in endgames or len(kif.moves) < filter_moves:
             continue
         if filter_rating > 0 and min(kif.ratings) < filter_rating:
             continue
+        # 評価値がない棋譜を除外
+        if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
+            continue
+        # 重複削除
+        if args.uniq:
+            dup_key = ''.join([move_to_usi(move) for move in kif.moves])
+            if dup_key in duplicates:
+                print(f'duplicate {filepath}')
+                continue
+            duplicates.add(dup_key)
 
-        board.set_sfen(kif.sfen)
-        p = 0
         try:
+            if args.out_brinkmate:
+                brinkmate_i = -1
+                if kif.endgame == '%TORYO':
+                    board.set_sfen(kif.sfen)
+                    for move in kif.moves:
+                        assert board.is_legal(move)
+                        board.push(move)
+                    while board.is_check():
+                        board.pop()
+                        board.pop()
+                    brinkmate_i = board.move_number
+
+            board.set_sfen(kif.sfen)
+            p = 0
             for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
                 assert board.is_legal(move)
                 if not args.out_noeval and comment == '':
@@ -59,7 +84,10 @@ for filepath in csa_file_list:
                 hcpe['bestMove16'] = move16(move)
                 hcpe['gameResult'] = kif.win
                 p += 1
-                if not args.out_mate and abs(score) >= 100000:
+                if args.out_brinkmate:
+                    if i == brinkmate_i:
+                        break
+                elif not args.out_mate and abs(score) >= 100000:
                     break
                 board.push(move)
         except:

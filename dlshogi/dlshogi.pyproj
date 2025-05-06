@@ -34,6 +34,7 @@
     <Compile Include="data_loader.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="lr_scheduler.py" />
     <Compile Include="network\policy_value_network.py">
       <SubType>Code</SubType>
     </Compile>
@@ -41,6 +42,8 @@
     <Compile Include="network\policy_value_network_senet.py" />
     <Compile Include="network\policy_value_network_wideresnet10.py" />
     <Compile Include="network\policy_value_network_resnet10_swish.py" />
+    <Compile Include="ptl.py" />
+    <Compile Include="ptl_update_bn.py" />
     <Compile Include="serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -53,6 +56,7 @@
     <Compile Include="utils\aoba_to_hcpe3.py" />
     <Compile Include="utils\append_book.py" />
     <Compile Include="utils\benchmark.py" />
+    <Compile Include="utils\book.py" />
     <Compile Include="utils\book_to_positions.py" />
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
@@ -69,6 +73,10 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\stat_hcpe3_cache.py" />
+    <Compile Include="utils\hcpe3_cache_re_eval.py" />
+    <Compile Include="utils\hcpe_re_eval.py" />
+    <Compile Include="utils\hcpe3_re_eval.py" />
     <Compile Include="utils\kif_to_csa.py" />
     <Compile Include="utils\make_book_minmax.py" />
     <Compile Include="utils\delete_book_side.py">
@@ -85,6 +93,9 @@
     <Compile Include="utils\hcpe3_to_psv.py" />
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
+    <Compile Include="utils\make_hcpe3_cache.py" />
+    <Compile Include="utils\merge_hcpe3_cache.py" />
+    <Compile Include="utils\print_hcp.py" />
     <Compile Include="utils\uniq_hcp.py" />
     <Compile Include="utils\kifustat.py" />
     <Compile Include="utils\kif_to_pgn.py" />
@@ -106,6 +117,7 @@
     <Compile Include="utils\stat_hcpe3.py" />
     <Compile Include="utils\uniq_hcpe.py" />
     <Compile Include="utils\usi_params_optimizer.py" />
+    <Compile Include="utils\usi_policy_only.py" />
     <Compile Include="utils\usi_repeater.py" />
     <Compile Include="utils\yanebook_to_book.py" />
     <Compile Include="utils\yanebook_to_hcp.py" />

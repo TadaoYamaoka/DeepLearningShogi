@@ -257,8 +257,148 @@ std::tuple<Move, Score> Book::probeConsideringDraw(const Position& pos, const st
     return std::make_tuple(move, score);
 }
 
-std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fName, const bool pickBest, const bool considerDraw) {
-    return considerDraw ? probeConsideringDraw(pos, fName) : probe(pos, fName, pickBest);
+Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth, const Score drawScoreBlack, const Score drawScoreWhite) {
+    const Key key = bookKey(pos);
+    Score trustedScore = ScoreInfinite;
+
+    binary_search(key);
+
+    std::vector<BookEntry> entries;
+    {
+        BookEntry entry;
+        while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
+            entries.emplace_back(entry);
+            if (tellg() == size_ * sizeof(BookEntry))
+                break;
+        }
+    }
+    if (entries.size() == 0)
+        return ScoreNone;
+
+    for (auto& entry : entries) {
+        const Move move16 = Move(entry.fromToPro);
+
+        // 回数が少ない評価値は信頼しない
+        if (entry.score < trustedScore)
+            trustedScore = entry.score;
+        entry.score = trustedScore;
+
+        switch (pos.moveIsDraw(move16)) {
+        case RepetitionDraw:
+        {
+            // 千日手の評価で上書き
+            entry.score = pos.turn() == Black ? drawScoreBlack : drawScoreWhite;
+            break;
+        }
+        case RepetitionWin:
+            // 相手の勝ち(自分の負け)
+            entry.score = -ScoreInfinite;
+            break;
+        case RepetitionLose:
+            // 相手の負け(自分の勝ち)
+            entry.score = ScoreMaxEvaluate;
+            break;
+        default:
+            if (depth > 0) {
+                const Move move = move16toMove(move16, pos);
+                StateInfo st;
+                pos.doMove(move, st);
+                const Score retScore = getMinMaxBookScore(pos, -beta, -alpha, depth - 1, drawScoreBlack, drawScoreWhite);
+                if (retScore != ScoreNone)
+                    entry.score = -retScore;
+                pos.undoMove(move);
+            }
+            break;
+        }
+
+        alpha = std::max(alpha, entry.score);
+        if (alpha >= beta) {
+            return alpha;
+        }
+
+        if (tellg() == size_ * sizeof(BookEntry))
+            break;
+    }
+    return alpha;
+}
+
+// 数手先の千日手の評価値を考慮する
+// countの降順にソートされていること
+// countが少ない評価値は信頼しない
+std::tuple<Move, Score> Book::probeConsideringDrawDepth(Position& pos, const std::string& fName) {
+    const int evalCoef = static_cast<int>(pos.searcher()->options["Eval_Coef"]);
+    const float drawValueBlack = pos.searcher()->options["Draw_Value_Black"] / 1000.0f;
+    const float drawValueWhite = pos.searcher()->options["Draw_Value_White"] / 1000.0f;
+    const Score drawScoreBlack = static_cast<Score>(static_cast<int>(-logf(1.0f / drawValueBlack - 1.0f) * evalCoef));
+    const Score drawScoreWhite = static_cast<Score>(static_cast<int>(-logf(1.0f / drawValueWhite - 1.0f) * evalCoef));
+    const int depth = pos.searcher()->options["Book_Consider_Draw_Depth"];
+
+    Score best = -ScoreInfinite;
+    Move move = Move::moveNone();
+    const Key key = bookKey(pos);
+    Score score = ScoreZero;
+    Score trusted_score = ScoreInfinite;
+    Score alpha = -ScoreInfinite;
+
+    if (fileName_ != fName && !open(fName.c_str()))
+        return std::make_tuple(Move::moveNone(), ScoreNone);
+
+    binary_search(key);
+
+    std::vector<BookEntry> entries;
+    {
+        BookEntry entry;
+        while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
+            entries.emplace_back(entry);
+            if (tellg() == size_ * sizeof(BookEntry))
+                break;
+        }
+    }
+
+    for (auto& entry : entries) {
+        const Move tmpMove = move16toMove(Move(entry.fromToPro), pos);
+
+        // 回数が少ない評価値は信頼しない
+        if (entry.score < trusted_score)
+            trusted_score = entry.score;
+        entry.score = trusted_score;
+
+        switch (pos.moveIsDraw(tmpMove)) {
+        case RepetitionDraw:
+        {
+            // 千日手の評価で上書き
+            entry.score = pos.turn() == Black ? drawScoreBlack : drawScoreWhite;
+            break;
+        }
+        case RepetitionWin:
+            // 相手の勝ち(自分の負け)
+            entry.score = -ScoreInfinite;
+            break;
+        case RepetitionLose:
+            // 相手の負け(自分の勝ち)
+            entry.score = ScoreMaxEvaluate;
+            break;
+        default:
+            StateInfo st;
+            pos.doMove(tmpMove, st);
+            const Score retScore = getMinMaxBookScore(pos, -ScoreInfinite, -alpha, depth - 1, drawScoreBlack, drawScoreWhite);
+            if (retScore != ScoreNone)
+                entry.score = -retScore;
+            pos.undoMove(tmpMove);
+            break;
+        }
+
+        alpha = std::max(alpha, entry.score);
+
+        if (entry.score > best)
+        {
+            best = entry.score;
+            move = tmpMove;
+            score = entry.score;
+        }
+    }
+
+    return std::make_tuple(move, score);
 }
 
 inline bool countCompare(const BookEntry& b1, const BookEntry& b2) {

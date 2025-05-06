@@ -75,7 +75,8 @@ namespace {
 void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
-    (*this)["Book_Consider_Draw"]          = USIOption(true);
+    (*this)["Book_Consider_Draw"]          = USIOption(false);
+    (*this)["Book_Consider_Draw_Depth"]    = USIOption(0, 0, 256);
     (*this)["OwnBook"]                     = USIOption(false);
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(false);
@@ -140,11 +141,13 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Random2_Temperature"]         = USIOption(10000, 0, 100000);
     (*this)["Random2_Cutoff"]              = USIOption(30, 0, 1000);
     (*this)["Random2_Value_Limit"]         = USIOption(750, 0, 1000);
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+    (*this)["Use_Book_Policy"]             = USIOption(false);
+#endif
 #ifdef MAKE_BOOK
     (*this)["PV_Interval"]                 = USIOption(0, 0, INT_MAX);
     (*this)["Save_Book_Interval"]          = USIOption(100, 0, INT_MAX);
     (*this)["Make_Book_Sleep"]             = USIOption(0, 0, INT_MAX);
-    (*this)["Use_Book_Policy"]             = USIOption(false);
     (*this)["Use_Interruption"]            = USIOption(true);
     (*this)["Book_Draw_Value_Black"]       = USIOption(500, 0, 1000);
     (*this)["Book_Draw_Value_White"]       = USIOption(500, 0, 1000);
@@ -190,7 +193,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["PV_Interval"]                 = USIOption(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
 #ifdef MULTI_PONDER
-    (*this)["Multi_Ponder"]                = USIOption(0, 0, 8);
+    (*this)["Multi_Ponder"]                = USIOption(0, 0, 9);
     (*this)["Multi_Ponder_Engine1"]        = USIOption("");
     (*this)["Multi_Ponder_Engine2"]        = USIOption("");
     (*this)["Multi_Ponder_Engine3"]        = USIOption("");
@@ -199,6 +202,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Multi_Ponder_Engine6"]        = USIOption("");
     (*this)["Multi_Ponder_Engine7"]        = USIOption("");
     (*this)["Multi_Ponder_Engine8"]        = USIOption("");
+    (*this)["Multi_Ponder_Engine9"]        = USIOption("");
     (*this)["Multi_Ponder_Engine1_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine2_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine3_Options"] = USIOption("");
@@ -207,6 +211,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Multi_Ponder_Engine6_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine7_Options"] = USIOption("");
     (*this)["Multi_Ponder_Engine8_Options"] = USIOption("");
+    (*this)["Multi_Ponder_Engine9_Options"] = USIOption("");
 #endif
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG

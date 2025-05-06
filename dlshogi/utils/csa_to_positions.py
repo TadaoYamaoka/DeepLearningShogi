@@ -7,8 +7,9 @@ import glob
 parser = argparse.ArgumentParser()
 parser.add_argument('dir')
 parser.add_argument('positions')
-parser.add_argument('--limit_moves', type=int, default=100)
-parser.add_argument('--limit_last_moves', type=int, default=30)
+parser.add_argument('--limit_moves', type=int)
+parser.add_argument('--limit_last_moves', type=int)
+parser.add_argument('--limit_score', type=int)
 parser.add_argument('--filter_rating', type=int)
 args = parser.parse_args()
 
@@ -26,9 +27,17 @@ for filepath in csa_file_list:
                 continue
         board.set_sfen(parser.sfen)
         assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
-        for i, move in enumerate(parser.moves):
-            if i >= args.limit_moves or i >= len(parser.moves) - args.limit_last_moves:
+        prev_score = 0
+        for i, (move, score) in enumerate(zip(parser.moves, parser.scores)):
+            if args.limit_moves and i >= args.limit_moves:
                 break
+            
+            if args.limit_last_moves and i >= len(parser.moves) - args.limit_last_moves:
+                break
+            
+            if args.limit_score and abs(score) > args.limit_score and abs(prev_score) > args.limit_score:
+                break
+            prev_score = score
 
             if not board.is_legal(move):
                 print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))

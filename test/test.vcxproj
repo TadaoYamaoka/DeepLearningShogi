@@ -288,6 +288,7 @@
     <ClCompile Include="..\cppshogi\move.cpp" />
     <ClCompile Include="..\cppshogi\mt64bit.cpp" />
     <ClCompile Include="..\cppshogi\position.cpp" />
+    <ClCompile Include="..\cppshogi\python_module.cpp" />
     <ClCompile Include="..\cppshogi\search.cpp" />
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
