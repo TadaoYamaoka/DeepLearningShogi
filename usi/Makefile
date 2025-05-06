@@ -1,8 +1,10 @@
 ﻿CC = g++
 MATE_SEARCH_DEPTH = 5
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DPV_MATE_SEARCH -DWIN_TYPE_DOUBLE -DMATE_SEARCH_DEPTH=$(MATE_SEARCH_DEPTH) -DBOOK_POLICY -DTHREAD_POOL -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+NVCC_CFLAGS =
 ifneq ($(NYUGYOKU_FEATURES),)
 CFLAGS += -DNYUGYOKU_FEATURES
+NVCC_CFLAGS += -DNYUGYOKU_FEATURES
 endif
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
 INCLUDE = -I../usi -I../cppshogi -I/usr/local/cuda/include
@@ -30,7 +32,7 @@ obj/%.o: ../cppshogi/%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 obj/%.o: ../usi/%.cu
-	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG $(NVCC_CFLAGS) -Xcompiler "-Ofast" -o $@ $<
 
 all: $(target)
 
