@@ -2440,10 +2440,6 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
 
-	std::string pos_cmd{ posCmd };
-	if (pos_cmd == "startpos")
-		pos_cmd += " moves";
-
 	std::vector<int> ply;
 	std::vector<int> black_score;
 	std::vector<int> white_score;
@@ -2548,5 +2544,32 @@ void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std:
 		output_num++;
 	}
 	std::cout << "output: " << output_num << std::endl;
+}
+
+void filter_book(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int depth, const int limitScore) {
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    // 局面を列挙する
+    std::vector<PositionWithMove> positions;
+    positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    enumerate_positions_with_move(pos, bookMap, positions);
+    std::cout << "positions: " << positions.size() << std::endl;
+    if (positions.size() > bookMap.size() + 1)
+        throw std::runtime_error("positions.size() > bookMap.size()");
+
+    std::map<Key, std::vector<BookEntry> > outMap;
+    for (const auto& position : positions) {
+        if (position.depth <= depth) {
+            const Key key = position.key;
+            auto& entry = bookMap[key];
+            if (std::abs(entry[0].score) < limitScore) {
+                outMap[key] = std::move(entry);
+            }
+        }
+    }
+    saveOutmap(outFileName, outMap);
+
+    std::cout << "output: " << outMap.size() << std::endl;
 }
 #endif
