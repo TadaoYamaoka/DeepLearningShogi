@@ -9,7 +9,7 @@ parser.add_argument('csa_dir')
 parser.add_argument('sfen')
 parser.add_argument('--margin', type=int, default=350)
 parser.add_argument('--diff', type=int, default=400)
-parser.add_argument('--win_name')
+parser.add_argument('--win_names', nargs='*', default=[])
 args = parser.parse_args()
 
 
@@ -27,7 +27,7 @@ with open(args.sfen, 'w', newline='\n') as f:
         for kif in CSA.Parser.parse_file(filepath):
             if kif.endgame not in ('%TORYO', '%KACHI'):
                 continue
-            if args.win_name and args.win_name not in kif.names[kif.win - 1]:
+            if args.win_names and all(win_name not in kif.names[kif.win - 1] for win_name in args.win_names):
                 continue
             # 評価値がない棋譜を除外
             if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
