@@ -240,7 +240,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			std::cout << itr_searched->second.depth << "\t" << pos.gamePly() << "\t" << itr_searched->second.beta << "\t" << beta << std::endl;*/
 		return -itr_searched->second.score;
 	}
-	
+
 	const auto itr = outMap.find(key);
 	if (itr == outMap.end()) {
 		// エントリがない場合、自身の評価値を返す
@@ -1216,6 +1216,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	const auto engine_num_ = std::min(engine_num, (int)positions.size());
 
 	// USIエンジン初期化
+    std::cout << "engine_num: " << engine_num_ << std::endl;
 	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num_);
 	#pragma omp parallel for num_threads(engine_num_)
 	for (int i = 0; i < engine_num_; ++i) {
@@ -1224,6 +1225,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 	usi_book_engine_nodes = nodes;
 
 	// 並列で評価
+    std::cout << "eval positions" << std::endl;
 	const int positions_size = (int)positions.size();
 	const std::vector<Move> moves = {};
 	std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
@@ -1262,6 +1264,7 @@ void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key,
 			}
 		}
 	}
+    std::cout << "count: " << count << std::endl;
 }
 
 struct PositionWithMove {
