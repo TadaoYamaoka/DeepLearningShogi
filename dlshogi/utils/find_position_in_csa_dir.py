@@ -1,4 +1,4 @@
-from cshogi import Board
+from cshogi import Board, move_to_usi
 from cshogi import CSA
 import os
 import glob
@@ -26,7 +26,7 @@ for filepath in csa_file_list:
             for i, move in enumerate(kif.moves):
                 assert board.is_legal(move)
                 if ptn.sub("", board.sfen()) == sfen:
-                    print(filepath, i + 1)
+                    print(filepath, i, move_to_usi(move))
                     break
                 board.push(move)
         except:
