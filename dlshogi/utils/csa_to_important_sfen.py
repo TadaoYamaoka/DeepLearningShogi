@@ -10,6 +10,7 @@ parser.add_argument('sfen')
 parser.add_argument('--margin', type=int, default=350)
 parser.add_argument('--diff', type=int, default=400)
 parser.add_argument('--win_names', nargs='*', default=[])
+parser.add_argument('--limit_moves', type=int, default=150)
 args = parser.parse_args()
 
 
@@ -39,6 +40,8 @@ with open(args.sfen, 'w', newline='\n') as f:
             for i, (move, score) in enumerate(zip(kif.moves, kif.scores)):
                 if not board.is_legal(move):
                     print("skip {}:{}:{}".format(filepath, i, move_to_usi(move)))
+                    break
+                if i >= args.limit_moves:
                     break
 
                 board.push(move)
