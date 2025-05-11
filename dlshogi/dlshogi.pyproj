@@ -61,6 +61,7 @@
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_important_position.py" />
+    <Compile Include="utils\csa_to_important_sfen - Copy.py" />
     <Compile Include="utils\csa_to_important_sfen.py" />
     <Compile Include="utils\csa_to_positions.py" />
     <Compile Include="utils\csa_to_book.py" />
