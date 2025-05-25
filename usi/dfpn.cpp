@@ -906,16 +906,19 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				pos.doMove(move, state_info);
 				int depth = -kInfinitePnDn;
 				if (child_entry.dn == kInfinitePnDn + 2) {
-					depth = 1;
 					if (!pos.inCheck()) {
 						// 1手詰みチェック
 						Move mate1ply = pos.mateMoveIn1Ply();
 						if (mate1ply) {
-							tmp_pv.emplace_back(mate1ply);
+                            depth = 1;
+                            tmp_pv.emplace_back(mate1ply);
 						}
+                        else {
+                            depth = get_pv_inner<true>(pos, tmp_pv);
+                        }
 					}
 					else
-						get_pv_inner<true>(pos, tmp_pv);
+                        depth = get_pv_inner<true>(pos, tmp_pv);
 				}
 				else {
 					depth = get_pv_inner<true>(pos, tmp_pv);

@@ -1345,17 +1345,50 @@ int main()
 }
 #endif
 
-#if 0
-#include "dfpn.h"
 // DfPnのPV表示テスト
-int main()
-{
+TEST(DfPn, dfpn_get_pv) {
+    initTable();
+    Position::initZobrist();
+
+    DfPn dfpn;
+    dfpn.init();
+    dfpn.set_max_search_node(400000);
+    dfpn.set_maxdepth(33);
+
+    Position pos;
+
+    vector<pair<string, string>> sfens = {
+        {"l5p1k/3+R1p3/3p1g+N2/p1S1p2S1/1p5Kp/5PP2/PP2P1sPP/2P2GG2/L5+r1L b L2P2bgs3np 1", "L*1c 1a2a 1c1b+ 2a1b 2d2c+ 1b1a 2c2b"},
+    };
+
+    auto start0 = std::chrono::system_clock::now();
+    auto total = start0 - start0;
+    for (const auto& [sfen, pv_truth] : sfens) {
+        pos.set(sfen);
+        bool ret = dfpn.dfpn(pos);
+
+        EXPECT_EQ(true, ret);
+
+        // pv
+        if (ret) {
+            std::string pv;
+            int depth;
+            Move move;
+            std::tie(pv, depth, move) = dfpn.get_pv(pos);
+
+            EXPECT_EQ(pv_truth, pv);
+        }
+    }
+}
+
+// DfPnのPV表示テスト
+TEST(DfPn, dfpn_get_pv_time) {
 	initTable();
 	Position::initZobrist();
 
 	DfPn dfpn;
 	dfpn.init();
-	dfpn.set_max_search_node(400000);
+	dfpn.set_max_search_node(800000);
 	dfpn.set_maxdepth(33);
 
 	Position pos;
@@ -1435,6 +1468,8 @@ int main()
 		cout << ret << "\t" << dfpn.searchedNode << "\t";
 		cout << time_ms;
 
+        EXPECT_EQ(true, ret) << sfen;
+
 		// pv
 		if (ret) {
 			std::string pv;
@@ -1451,24 +1486,21 @@ int main()
 	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
 	cout << total_ms << endl;
 }
-#endif
 
-#if 0
-#include "dfpn.h"
+
 // DfPnのPV表示テスト(ファイルからsfen読み込み)
-int main(int argc, char* argv[]) {
+TEST(DfPn, dfpn_fromfile) {
 	initTable();
 	Position::initZobrist();
 	Position pos;
 
-	if (argc < 3) return 1;
-
-	std::ifstream ifs(argv[1]);
+	std::ifstream ifs(R"(H:\home\2020\12_20\shogi\mate\mate7.sfen)");
+    std::ofstream ofs(R"(R:\mate7.txt)");
 
 	DfPn dfpn;
 	dfpn.init();
 	dfpn.set_max_search_node(400000);
-	dfpn.set_maxdepth(std::atoi(argv[2]));
+	dfpn.set_maxdepth(7);
 
 	std::chrono::system_clock::duration total{};
 	string sfen;
@@ -1486,8 +1518,8 @@ int main(int argc, char* argv[]) {
 
 		auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
 
-		cout << ret << "\t" << dfpn.searchedNode << "\t";
-		cout << time_ms;
+        ofs << ret << "\t" << dfpn.searchedNode << "\t";
+        ofs << time_ms;
 
 		// pv
 		if (ret) {
@@ -1498,16 +1530,13 @@ int main(int argc, char* argv[]) {
 			std::tie(pv, depth, move) = dfpn.get_pv(pos);
 			auto end_pv = std::chrono::system_clock::now();
 
-			cout << "\t" << move.toUSI() << "\t" << pv << "\t" << depth << "\t" << std::chrono::duration_cast<std::chrono::milliseconds>(end_pv - start_pv).count();
+            ofs << "\t" << move.toUSI() << "\t" << pv << "\t" << depth << "\t" << std::chrono::duration_cast<std::chrono::milliseconds>(end_pv - start_pv).count();
 		}
-		cout << endl;
+        ofs << endl;
 	}
 	auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total).count();
-	cout << total_ms << endl;
-
-	return 0;
+    ofs << total_ms << endl;
 }
-#endif
 
 #if 0
 #include "mate.h"
