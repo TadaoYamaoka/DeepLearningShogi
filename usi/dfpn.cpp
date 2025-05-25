@@ -250,14 +250,28 @@ FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
 	const Square ksq = pos.kingSquare(them);
 
 	const Square to = move.to();
+    const PieceType pt = move.pieceTypeTo();
 
-	// 敵玉の8近傍
-	if (pos.attacksFrom<King>(ksq).isSet(to))
-		return true;
-
-	// 桂馬による王手
-	if (move.pieceTypeTo() == Knight)
-		return true;
+    switch (pt) {
+    case Pawn:
+    case Lance:
+        return pawnAttack(them, ksq).isSet(to);
+    case Knight:
+        return knightAttack(them, ksq).isSet(to);
+    case Silver:
+        return silverAttack(them, ksq).isSet(to);
+    case Bishop:
+        return bishopAttack(ksq, allOneBB()).isSet(to);
+    case Rook:
+        return rookAttack(ksq, allOneBB()).isSet(to);
+    case Horse:
+    case Dragon:
+        return kingAttack(ksq).isSet(to);
+    case King:
+        return false;
+    default:
+        return goldAttack(them, ksq).isSet(to);
+    }
 
 	return false;
 }
@@ -358,11 +372,11 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					if (m.isDrop()) {
 						entry.hand.plusOne(m.handPieceDropped());
 					}
-					// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
+                    // 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
 					if (!moveGivesNeighborCheck(n, m))
 						entry.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
 
-					return;
+                    return;
 				}
 
 				if (n.gamePly() + 2 > maxDepth) {
@@ -451,7 +465,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
 					if (!moveGivesNeighborCheck(n, move))
 						entry1.hand.setPP(n.hand(n.turn()), n.hand(oppositeColor(n.turn())));
-				}
+                }
 				else {
 					// 詰んでないので、m2で詰みを逃れている。
 					// 不詰みチェック
@@ -627,7 +641,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 						}
 					}
 					//cout << bitset<32>(entry.hand.value()) << endl;
-					break;
+                    break;
 				}
 				else if (entry.dn == 0) {
 					if (child_entry.dn == 0) {
@@ -814,7 +828,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				if (!(n.checkersBB() & n.attacksFrom<King>(n.kingSquare(n.turn())) || n.checkersBB() & n.attacksFrom<Knight>(n.turn(), n.kingSquare(n.turn()))))
 					entry.hand.setPP(n.hand(oppositeColor(n.turn())), n.hand(n.turn()));
 				//cout << bitset<32>(entry.hand.value()) << endl;
-			}
+            }
 			else {
 				thpn_child = std::min(thpn - entry.pn + best_pn, kInfinitePnDn);
 				thdn_child = std::min(thdn, second_best_dn + 1);
@@ -892,16 +906,19 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				pos.doMove(move, state_info);
 				int depth = -kInfinitePnDn;
 				if (child_entry.dn == kInfinitePnDn + 2) {
-					depth = 1;
 					if (!pos.inCheck()) {
 						// 1手詰みチェック
 						Move mate1ply = pos.mateMoveIn1Ply();
 						if (mate1ply) {
-							tmp_pv.emplace_back(mate1ply);
+                            depth = 1;
+                            tmp_pv.emplace_back(mate1ply);
 						}
+                        else {
+                            depth = get_pv_inner<true>(pos, tmp_pv);
+                        }
 					}
 					else
-						get_pv_inner<true>(pos, tmp_pv);
+                        depth = get_pv_inner<true>(pos, tmp_pv);
 				}
 				else {
 					depth = get_pv_inner<true>(pos, tmp_pv);
