@@ -1,5 +1,6 @@
 from cshogi import *
-from cshogi.dlshogi import make_input_features, FEATURES1_NUM, FEATURES2_NUM
+import cshogi.dlshogi
+from cshogi.dlshogi import make_input_features, use_nyugyoku_features
 
 import numpy as np
 import onnxruntime
@@ -10,13 +11,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str, default='model', help='model file name')
 parser.add_argument('sfen', type=str, help='position')
 parser.add_argument('--svg', type=str)
+parser.add_argument('--use_nyugyoku_features', action='store_true')
 args = parser.parse_args()
 
 session = onnxruntime.InferenceSession(args.model, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 
+if args.use_nyugyoku_features:
+    use_nyugyoku_features(True)
+
 board = Board(sfen=args.sfen)
-features1 = np.zeros((41, FEATURES1_NUM, 9, 9), dtype=np.float32)
-features2 = np.zeros((41, FEATURES2_NUM, 9, 9), dtype=np.float32)
+features1 = np.zeros((41, cshogi.dlshogi.FEATURES1_NUM, 9, 9), dtype=np.float32)
+features2 = np.zeros((41, cshogi.dlshogi.FEATURES2_NUM, 9, 9), dtype=np.float32)
 make_input_features(board, features1, features2)
 
 pos = []
