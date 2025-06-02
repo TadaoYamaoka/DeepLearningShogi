@@ -424,7 +424,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
 void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
-    unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
+    size_t* index = reinterpret_cast<size_t*>(ndindex);
     features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
     features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
     auto probability = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndprobability);
