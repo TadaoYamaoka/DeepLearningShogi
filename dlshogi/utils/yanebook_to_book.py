@@ -6,6 +6,8 @@ import re
 parser = argparse.ArgumentParser()
 parser.add_argument('yanebook')
 parser.add_argument('book')
+parser.add_argument('--score_to_count', action='store_true')
+parser.add_argument('--temperature', type=float, default=10.0)
 args = parser.parse_args()
 
 ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none) (-?\d+) (\d+) (\d+)')
@@ -35,17 +37,33 @@ for line in open(args.yanebook, encoding='utf_8_sig'):
         else:
             raise
 
+print(len(dic))
 print(count)
 
 book = np.empty(count, BookEntry)
 i = 0
-for key in sorted(dic.keys()):
-    for entry in dic[key]:
-        book_entry = book[i]
-        book_entry['key'] = key
-        book_entry['fromToPro'] = move16(entry[0])
-        book_entry['count'] = entry[1]
-        book_entry['score'] = entry[2]
-        i += 1
+if args.score_to_count:
+    for key in sorted(dic.keys()):
+        entries = dic[key]
+        scores = np.array([entry[2] for entry in entries], dtype=np.float32)
+        scores -= scores.max()
+        exp_scores = np.exp(scores / args.temperature)
+        counts = (exp_scores / exp_scores.sum() * 10000).astype(np.uint16)
+        for entry, count in zip(entries, counts):
+            book_entry = book[i]
+            book_entry['key'] = key
+            book_entry['fromToPro'] = move16(entry[0])
+            book_entry['count'] = count
+            book_entry['score'] = entry[2]
+            i += 1
+else:
+    for key in sorted(dic.keys()):
+        for entry in dic[key]:
+            book_entry = book[i]
+            book_entry['key'] = key
+            book_entry['fromToPro'] = move16(entry[0])
+            book_entry['count'] = entry[1]
+            book_entry['score'] = entry[2]
+            i += 1
 
 book[:i].tofile(args.book)
