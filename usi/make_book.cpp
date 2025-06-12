@@ -1275,7 +1275,7 @@ struct PositionWithMove {
 };
 
 // 局面を列挙する
-void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<PositionWithMove>& positions) {
+void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::vector<PositionWithMove>& positions) {
 	// 最短経路をBFSで探索する
 	std::unordered_set<Key> exists;
 
@@ -1300,8 +1300,9 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 			MoveList<LegalAll> ml(pos);
 			std::vector<Move> moves;
 			moves.reserve(ml.size());
-			const auto itr_curr = bookMap.find(Book::bookKey(pos));
-			const auto& entries = itr_curr->second;
+            const Key key = Book::bookKey(pos);
+			const auto itr_curr = policyMap.find(key);
+			const auto& entries = (itr_curr != policyMap.end()) ? itr_curr->second : bookMap.find(key)->second;
 			std::vector<Move> book_moves;
 			book_moves.reserve(entries.size());
 			for (const auto& entry : entries) {
@@ -1340,11 +1341,11 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 }
 
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, policyMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
@@ -1413,7 +1414,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, bookMapBest, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
 
@@ -1807,7 +1808,7 @@ void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& b
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
 
@@ -2224,7 +2225,7 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	assert(positions.size() <= bookMap.size());
 
@@ -2287,14 +2288,17 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 	std::cout << "num: " << n << std::endl;
 }
 
-void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& outFileName, const int diff) {
+void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
-	// 局面を列挙する
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    // 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, policyMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
@@ -2385,7 +2389,7 @@ void make_important_sfen(Position& pos, const std::string& posCmd, const std::st
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(policyMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, policyMap, positions);
+	enumerate_positions_with_move(pos, policyMap, policyMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	if (positions.size() > policyMap.size() + 1)
 		throw std::runtime_error("positions.size() > policyMap.size()");
@@ -2438,7 +2442,7 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, positions);
+	enumerate_positions_with_move(pos, bookMap, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
@@ -2556,7 +2560,7 @@ void filter_book(Position& pos, const std::string& bookFileName, const std::stri
     // 局面を列挙する
     std::vector<PositionWithMove> positions;
     positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-    enumerate_positions_with_move(pos, bookMap, positions);
+    enumerate_positions_with_move(pos, bookMap, bookMap, positions);
     std::cout << "positions: " << positions.size() << std::endl;
     if (positions.size() > bookMap.size() + 1)
         throw std::runtime_error("positions.size() > bookMap.size()");
@@ -2574,5 +2578,46 @@ void filter_book(Position& pos, const std::string& bookFileName, const std::stri
     saveOutmap(outFileName, outMap);
 
     std::cout << "output: " << outMap.size() << std::endl;
+}
+
+void bfs_position(Position& pos, const std::string& bookFileName, const std::string& policyFileName) {
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    // 局面を列挙する
+    Position start_pos(DefaultStartPositionSFEN, nullptr);
+    std::vector<PositionWithMove> positions;
+    positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    enumerate_positions_with_move(start_pos, bookMap, policyMap, positions);
+    std::cout << "positions: " << positions.size() << std::endl;
+    if (positions.size() > bookMap.size() + 1)
+        throw std::runtime_error("positions.size() > bookMap.size()");
+
+    const Key target_key = Book::bookKey(pos);
+
+    for (const auto& position : positions) {
+        const Key key = position.key;
+
+        if (key == target_key) {
+            const PositionWithMove* position_ptr = &position;
+            std::vector<Move> moves(position_ptr->depth);
+            for (int j = position_ptr->depth - 1; j >= 0; --j) {
+                moves[j] = position_ptr->move;
+                position_ptr = position_ptr->parent;
+            }
+            assert(position_ptr->parent == nullptr);
+
+            std::cout << "position startpos moves";
+            for (const auto& move : moves) {
+                std::cout << " " << move.toUSI();
+            }
+            std::cout << std::endl;
+            return;
+        }
+    }
+    std::cout << "not found" << std::endl;
 }
 #endif

@@ -65,7 +65,7 @@ void init_book_key_eval_map(const std::string& str);
 void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_set<Key>& exists, std::ofstream& ofs, int& count);
 void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists, const std::map<Key, std::vector<BookEntry> >& skip = {});
 void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num, const std::string& outFileName);
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key);
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key);
 void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const int chunk_num, const int chunk_index);
 void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const double beta);
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key);
@@ -76,10 +76,11 @@ void overwrite_hcpe3_cache(const std::string& original_filepath, const std::stri
 void book_to_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore);
 void make_policy_book(Position& pos, const std::string& bookFileName, const std::string& minmaxBookFileName, const std::string& outFileName, const double beta);
 void complement_book(Position& pos, const std::string& bookFileName, std::string& outFileName, const std::string& book_pos_cmd);
-void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& outFileName, const int diff);
+void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 void make_important_hcp(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff);
 void stat_book(Position& pos, const std::string& posCmd, const std::string& bookFileName);
 void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore);
 void filter_book(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int depth, const int limitScore);
+void bfs_position(Position& pos, const std::string& bookFileName, const std::string& policyFileName);
 #endif

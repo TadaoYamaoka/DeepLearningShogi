@@ -58,6 +58,7 @@ struct MySearcher : Searcher {
 	static void statBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookToLeafHcp(std::istringstream& ssCmd, const std::string& posCmd);
     static void filterBook(std::istringstream& ssCmd, const std::string& posCmd);
+    static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -453,6 +454,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "stat_book") statBook(ssCmd, posCmd);
 		else if (token == "book_to_leaf_hcp") bookToLeafHcp(ssCmd, posCmd);
         else if (token == "filter_book") filterBook(ssCmd, posCmd);
+        else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -1602,12 +1604,14 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	HuffmanCodedPos::init();
 
 	std::string bookFileName;
-	std::string outFileName;
+    std::string policyFileName;
+    std::string outFileName;
 	int playoutNum;
 	int diff;
 
 	ssCmd >> bookFileName;
-	ssCmd >> outFileName;
+    ssCmd >> policyFileName;
+    ssCmd >> outFileName;
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
 
@@ -1651,7 +1655,10 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
-	diff_eval(pos, bookMap, outMap, limits, (Score)diff, outFileName, book_pos_cmd, book_starting_pos_key);
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, outFileName, book_pos_cmd, book_starting_pos_key);
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
@@ -1661,11 +1668,13 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 // eval_positions_with_usi_engineとdiff_evalを交互に繰り返す
 void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd) {
 	std::string bookFileName;
-	std::string evalOutFileName;
+    std::string policyFileName;
+    std::string evalOutFileName;
 	int engine_num;
 
 	ssCmd >> bookFileName;
-	ssCmd >> evalOutFileName;
+    ssCmd >> policyFileName;
+    ssCmd >> evalOutFileName;
 	ssCmd >> engine_num;
 
 	int playoutNum;
@@ -1678,7 +1687,7 @@ void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::str
 		std::istringstream ssCmdEvalPos(bookFileName + " " + evalOutFileName + " " + std::to_string(engine_num));
 		evalPositionsWithUsiEngine(ssCmdEvalPos, posCmd);
 
-		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff));
+		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + policyFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff));
 		const auto ret = diffEval(ssCmdEvalDiff, posCmd);
 		if (!ret)
 			break;
@@ -2079,11 +2088,13 @@ void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& po
 	HuffmanCodedPos::init();
 
 	std::string bookFileName;
+    std::string policyFileName;
 	std::string outFileName;
 	int diff;
 
 	ssCmd >> bookFileName;
-	ssCmd >> outFileName;
+    ssCmd >> policyFileName;
+    ssCmd >> outFileName;
 	ssCmd >> diff;
 
 	// 開始局面設定
@@ -2091,7 +2102,7 @@ void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& po
 	std::istringstream ssPosCmd(posCmd);
 	setPosition(pos, ssPosCmd);
 
-	make_gokaku_sfen(pos, posCmd, bookFileName, outFileName, diff);
+	make_gokaku_sfen(pos, posCmd, bookFileName, policyFileName, outFileName, diff);
 
 	std::cout << "done" << std::endl;
 }
@@ -2207,5 +2218,21 @@ void MySearcher::filterBook(std::istringstream& ssCmd, const std::string& posCmd
 
     // 結果表示
     std::cout << "done" << std::endl;
+}
+
+void MySearcher::bfsPosition(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string bookFileName;
+    std::string policyFileName;
+    ssCmd >> bookFileName;
+    ssCmd >> policyFileName;
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::istringstream ssPosCmd(posCmd);
+    setPosition(pos, ssPosCmd);
+
+    bfs_position(pos, bookFileName, policyFileName);
 }
 #endif
