@@ -11,7 +11,7 @@ parser.add_argument('--temperature', type=float, default=10.0)
 parser.add_argument('--flip', action='store_true')
 args = parser.parse_args()
 
-ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none) (-?\d+) (\d+) (\d+)')
+ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none|None) (-?\d+) (\d+) (\d+)')
 
 board = Board()
 if args.flip:
