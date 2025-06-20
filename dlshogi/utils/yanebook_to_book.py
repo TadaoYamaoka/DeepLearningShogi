@@ -11,13 +11,13 @@ parser.add_argument('--temperature', type=float, default=10.0)
 parser.add_argument('--flip', action='store_true')
 args = parser.parse_args()
 
-ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none|None) (-?\d+) (\d+) (\d+)')
+ptn = re.compile(r'^([0-9PLNSGRB][a-i*][0-9][a-i]\+?) ([0-9PLNSGRB][a-i*][0-9][a-i]\+?|none|None) (-?\d+) (\d+)(?: (\d+))?')
 
 board = Board()
 if args.flip:
     board_flip = Board()
 
-count = 0
+num = 0
 dic = {}
 
 for line in open(args.yanebook, encoding='utf_8_sig'):
@@ -40,23 +40,25 @@ for line in open(args.yanebook, encoding='utf_8_sig'):
         if m:
             usi_move = m.group(1)
             move = board.move_from_usi(usi_move)
+            count = int(m.group(5) or 0)
+            score = int(m.group(3))
             if board.is_legal(move):
                 # move, count, score
-                entries.append((move, m.group(5), m.group(3)))
-                count += 1
+                entries.append((move, count, score))
+                num += 1
             if args.flip:
                 move_flip = move_rotate(move)
                 if board_flip.is_legal(move_flip):
                     # move, count, score
-                    entries_flip.append((move_flip, m.group(5), m.group(3)))
-                    count += 1
+                    entries_flip.append((move_flip, count, score))
+                    num += 1
         else:
             raise
 
 print(len(dic))
-print(count)
+print(num)
 
-book = np.empty(count, BookEntry)
+book = np.empty(num, BookEntry)
 i = 0
 if args.score_to_count:
     for key in sorted(dic.keys()):
