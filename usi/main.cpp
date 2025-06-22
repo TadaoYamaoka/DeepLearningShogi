@@ -1340,8 +1340,10 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 			ssPosCmd >> token; // "moves" が入力されるはず。
 		}
 		else if (token == "sfen") {
-			while (ssPosCmd >> token && token != "moves")
-				sfen += token + " ";
+            while (ssPosCmd >> token && token != "moves") {
+                sfen += token + " ";
+                book_pos_cmd += " " + token;
+            }
 		}
 		else
 			return;
