@@ -74,6 +74,17 @@ const HuffmanCode HuffmanCodedPos::handCodeTable[HandPieceNum][ColorNum] = {
     {{Binary<   111111>::value, 7}, {Binary<  1111111>::value, 7}}, // HRook
 };
 
+// 駒箱
+const HuffmanCode HuffmanCodedPos::pieceBoxCodeTable[HandPieceNum] = {
+    {Binary<       10>::value, 3}, // HPawn
+    {Binary<     1001>::value, 5}, // HLance
+    {Binary<     1011>::value, 5}, // HKnight
+    {Binary<     1101>::value, 5}, // HSilver
+    {Binary<    11101>::value, 5}, // HGold
+    {Binary<     1111>::value, 7}, // HBishop
+    {Binary<   101111>::value, 7}, // HRook
+};
+
 HuffmanCodeToPieceHash HuffmanCodedPos::boardCodeToPieceHash;
 HuffmanCodeToPieceHash HuffmanCodedPos::handCodeToPieceHash;
 
@@ -1666,6 +1677,9 @@ HuffmanCodedPos Position::toHuffmanCodedPos() const {
     bs.putBits(kingSquare(Black), 7);
     bs.putBits(kingSquare(White), 7);
 
+    // 駒箱枚数
+    int32_t hp_count[8] = { 18, 4, 4, 4, 4, 2, 2, 0 };
+
     // 盤上の駒
     for (Square sq = SQ11; sq < SquareNum; ++sq) {
         Piece pc = piece(sq);
@@ -1673,6 +1687,7 @@ HuffmanCodedPos Position::toHuffmanCodedPos() const {
             continue;
         const auto hc = HuffmanCodedPos::boardCodeTable[pc];
         bs.putBits(hc.code, hc.numOfBits);
+        hp_count[pieceTypeToHandPiece(pieceToPieceType(pc))] -= 1;
     }
 
     // 持ち駒
@@ -1682,7 +1697,15 @@ HuffmanCodedPos Position::toHuffmanCodedPos() const {
             const auto hc = HuffmanCodedPos::handCodeTable[hp][c];
             for (u32 n = 0; n < h.numOf(hp); ++n)
                 bs.putBits(hc.code, hc.numOfBits);
+            hp_count[hp] -= h.numOf(hp);
         }
+    }
+
+    // 駒箱
+    for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
+        const auto hc = HuffmanCodedPos::pieceBoxCodeTable[hp];
+        for (int32_t n = 0; n < hp_count[hp]; ++n)
+            bs.putBits(hc.code, hc.numOfBits);
     }
     assert(bs.data() == std::end(result.data));
     assert(bs.curr() == 0);
@@ -2037,6 +2060,8 @@ bool Position::set(const HuffmanCodedPos& hcp) {
         while (hc.numOfBits <= 8) {
             hc.code |= bs.getBit() << hc.numOfBits++;
             const Piece pc = HuffmanCodedPos::handCodeToPieceHash.value(hc.key);
+            if (pc == Empty)
+                break;
             if (pc != PieceNone) {
                 hand_[pieceToColor(pc)].plusOne(pieceTypeToHandPiece(pieceToPieceType(pc)));
                 break;

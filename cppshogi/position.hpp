@@ -142,6 +142,7 @@ struct HuffmanCodeToPieceHash : public std::unordered_map<u16, Piece> {
 struct HuffmanCodedPos {
     static const HuffmanCode boardCodeTable[PieceNone];
     static const HuffmanCode handCodeTable[HandPieceNum][ColorNum];
+    static const HuffmanCode pieceBoxCodeTable[HandPieceNum];
     static HuffmanCodeToPieceHash boardCodeToPieceHash;
     static HuffmanCodeToPieceHash handCodeToPieceHash;
     static void init() {
@@ -151,9 +152,11 @@ struct HuffmanCodedPos {
         for (Piece pc = WPawn; pc <= WDragon; ++pc)
             if (pieceToPieceType(pc) != King) // 玉は位置で符号化するので、駒の種類では符号化しない。
                 boardCodeToPieceHash[boardCodeTable[pc].key] = pc;
-        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
+        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
             for (Color c = Black; c < ColorNum; ++c)
                 handCodeToPieceHash[handCodeTable[hp][c].key] = colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
+            handCodeToPieceHash[pieceBoxCodeTable[hp].key] = Empty;
+        }
     }
     void clear() { std::fill(std::begin(data), std::end(data), 0); }
     Color color() const { return (Color)(data[0] & 1); }
