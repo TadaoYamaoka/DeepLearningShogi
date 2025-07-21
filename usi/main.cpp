@@ -56,6 +56,7 @@ struct MySearcher : Searcher {
 	static void makeImportantHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeImportantSfen(std::istringstream& ssCmd, const std::string& posCmd);
 	static void statBook(std::istringstream& ssCmd, const std::string& posCmd);
+    static void statBookDfs(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookToLeafHcp(std::istringstream& ssCmd, const std::string& posCmd);
     static void filterBook(std::istringstream& ssCmd, const std::string& posCmd);
     static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
@@ -452,6 +453,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_important_hcp") makeImportantHcp(ssCmd, posCmd);
 		else if (token == "make_important_sfen") makeImportantSfen(ssCmd, posCmd);
 		else if (token == "stat_book") statBook(ssCmd, posCmd);
+        else if (token == "stat_book_dfs") statBookDfs(ssCmd, posCmd);
 		else if (token == "book_to_leaf_hcp") bookToLeafHcp(ssCmd, posCmd);
         else if (token == "filter_book") filterBook(ssCmd, posCmd);
         else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
@@ -2172,6 +2174,21 @@ void MySearcher::statBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	setPosition(pos, ssPosCmd);
 
 	stat_book(pos, posCmd, bookFileName);
+}
+
+void MySearcher::statBookDfs(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string bookFileName;
+
+    ssCmd >> bookFileName;
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::istringstream ssPosCmd(posCmd);
+    setPosition(pos, ssPosCmd);
+
+    stat_book_dfs(pos, posCmd, bookFileName);
 }
 
 // 末端の局面をHcpにする

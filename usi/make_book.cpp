@@ -1205,6 +1205,8 @@ void init_book_key_eval_map(const std::string& str) {
 void eval_positions_with_usi_engine(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::map<Key, std::vector<BookEntry> >& outMap, const std::string& engine_path, const std::string& engine_options, const int nodes, const int engine_num, const std::string& outFileName) {
 	// 全局面を列挙
 	std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
+    if (bookMap.size() > outMap.size())
+        positions.reserve(bookMap.size() - outMap.size());
 	{
 		std::unordered_set<Key> exists;
 
@@ -2451,7 +2453,6 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	std::vector<int> black_score;
 	std::vector<int> white_score;
 
-	int count = 0;
 	for (const auto& position : positions) {
 		const Key key = position.key;
 
@@ -2503,6 +2504,71 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	printStat(black_score);
 	std::cout << "white score:\n";
 	printStat(white_score);
+}
+
+void stat_book_dfs(Position& pos, const std::string& posCmd, const std::string& bookFileName) {
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>> positions;
+    positions.reserve(bookMap.size());
+    {
+        std::unordered_set<Key> exists;
+
+        enumerate_positions(pos, bookMap, positions, exists);
+    }
+    std::cout << "positions: " << positions.size() << std::endl;
+    if (positions.size() > bookMap.size())
+        throw std::runtime_error("positions.size() > bookMap.size()");
+
+    std::vector<int> black_score;
+    std::vector<int> white_score;
+
+    for (const auto& position : positions) {
+        const auto& hcp = position.first;
+
+        const auto& entryBook = *position.second;
+        const auto scoreBook = entryBook[0].score;
+
+        if (hcp.color() == Black)
+            black_score.emplace_back(scoreBook);
+        else
+            white_score.emplace_back(scoreBook);
+    }
+
+    const auto printStat = [](std::vector<int>& values) {
+        int sum = std::accumulate(values.begin(), values.end(), 0.0);
+        const auto mean = (double)sum / values.size();
+
+        double variance = std::accumulate(values.begin(), values.end(), 0.0, [mean](double sum, double value) { return sum + std::pow(value - mean, 2); }) / values.size();
+        const auto std = std::sqrt(variance);
+
+        const auto min = *std::min_element(values.begin(), values.end());
+        const auto max = *std::max_element(values.begin(), values.end());
+
+        std::sort(values.begin(), values.end());
+
+        const auto percentile = [](const std::vector<int>& values, const double q) {
+            double q_index = (values.size() - 1) * q;
+            size_t q_low = static_cast<size_t>(q_index);
+            size_t q_high = q_low + 1;
+            return values[q_low] + (q_index - q_low) * (values[q_high] - values[q_low]);
+        };
+
+        std::cout << "\tcount " << values.size() << "\n";
+        std::cout << "\tmean  " << std::fixed << std::setprecision(4) << mean << "\n";
+        std::cout << "\tstd   " << std::fixed << std::setprecision(4) << std << "\n";
+        std::cout << "\tmin   " << min << "\n";
+        std::cout << "\t25%   " << std::fixed << std::setprecision(4) << percentile(values, 0.25) << "\n";
+        std::cout << "\t50%   " << std::fixed << std::setprecision(4) << percentile(values, 0.5) << "\n";
+        std::cout << "\t75%   " << std::fixed << std::setprecision(4) << percentile(values, 0.75) << "\n";
+        std::cout << "\tmax   " << max << std::endl;
+    };
+
+    std::cout << "black score:\n";
+    printStat(black_score);
+    std::cout << "white score:\n";
+    printStat(white_score);
 }
 
 bool enumerate_leaf_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<HuffmanCodedPos>& positions, std::unordered_set<Key>& exists, const int limitScore) {
