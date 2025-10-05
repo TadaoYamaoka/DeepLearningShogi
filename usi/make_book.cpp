@@ -2686,4 +2686,61 @@ void bfs_position(Position& pos, const std::string& bookFileName, const std::str
     }
     std::cout << "not found" << std::endl;
 }
+
+// PVの深さを求める
+int pv_depth(const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, Position& pos, const Key key, const Move move, int depth) {
+    Key key_after = Book::bookKeyAfter(pos, key, move);
+    const auto itr = policyMap.find(key_after);
+    if (itr == policyMap.end())
+        return depth;
+
+    StateInfo state;
+    pos.doMove(move, state);
+
+    for (size_t index = 0; index < itr->second.size(); index++) {
+        const auto move16 = itr->second[index].fromToPro;
+        const Move moveNext = move16toMove(Move(move16), pos);
+        switch (pos.moveIsDraw(moveNext)) {
+        case RepetitionDraw:
+        {
+            // 千日手の評価
+            const auto drawScore = pos.turn() == Black ? draw_score_black : draw_score_white;
+            if (drawScore > itr->second[index].score) {
+                pos.undoMove(move);
+                return depth + 1;
+            }
+            else {
+                continue;
+            }
+            break;
+        }
+        case RepetitionWin:
+        case RepetitionLose:
+            pos.undoMove(move);
+            return depth + 1;
+        }
+
+        const int d = pv_depth(policyMap, pos, key_after, moveNext, depth + 1);
+        pos.undoMove(move);
+        return d;
+    }
+
+    // すべて千日手
+    pos.undoMove(move);
+    return depth + 1;
+}
+
+void book_pv_depth(Position& pos, const std::string& policyFileName) {
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    const Key key = Book::bookKey(pos);
+    const auto itr = policyMap.find(key);
+    for (size_t index = 0; index < itr->second.size(); index++) {
+        const auto move16 = itr->second[index].fromToPro;
+        const Move move = move16toMove(Move(move16), pos);
+        const int depth = pv_depth(policyMap, pos, key, move, 0);
+        std::cout << move.toUSI() << " depth: " << depth << " score: " << itr->second[index].score << " count: " << itr->second[index].count << std::endl;
+    }
+}
 #endif

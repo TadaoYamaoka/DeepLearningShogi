@@ -84,4 +84,5 @@ void stat_book_dfs(Position& pos, const std::string& posCmd, const std::string& 
 void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int limitScore);
 void filter_book(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int depth, const int limitScore);
 void bfs_position(Position& pos, const std::string& bookFileName, const std::string& policyFileName);
+void book_pv_depth(Position& pos, const std::string& policyFileName);
 #endif
