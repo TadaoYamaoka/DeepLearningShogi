@@ -18,6 +18,7 @@
 #include <regex>
 #include <numeric>
 #include <omp.h>
+#include <chrono>
 
 struct child_node_t_copy {
 	Move move;       // 着手する座標
@@ -2444,8 +2445,10 @@ void stat_book(Position& pos, const std::string& posCmd, const std::string& book
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    auto start = std::chrono::high_resolution_clock::now();
 	enumerate_positions_with_move(pos, bookMap, bookMap, positions);
-	std::cout << "positions: " << positions.size() << std::endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "positions: " << positions.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
 
