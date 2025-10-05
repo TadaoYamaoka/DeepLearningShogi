@@ -1315,7 +1315,7 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 			for (; !ml.end(); ++ml) {
 				const auto move = ml.move();
 				if (std::find(book_moves.cbegin(), book_moves.cend(), move) == book_moves.cend())
-					moves.emplace_back(ml.move());
+					moves.emplace_back(move);
 			}
 
 			for (const auto& move : moves) {
