@@ -1291,7 +1291,10 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 	exists.emplace(key_root);
 
 	int depth = 1;
-	while (current_positions.size() > 0) {
+    std::vector<Move> moves;
+    moves.reserve(MaxLegalMoves);
+    while (current_positions.size() > 0) {
+        next_positions.clear();
 		for (const auto& position : current_positions) {
 			const auto& hcp = position.first;
 			const PositionWithMove* parent = position.second;
@@ -1301,8 +1304,7 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 
 			// 定跡の指し手の順を優先する
 			MoveList<LegalAll> ml(pos);
-			std::vector<Move> moves;
-			moves.reserve(ml.size());
+            moves.clear();
             const Key key = Book::bookKey(pos);
 			const auto itr_curr = policyMap.find(key);
 			const auto& entries = (itr_curr != policyMap.end()) ? itr_curr->second : bookMap.find(key)->second;
@@ -1320,25 +1322,24 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 			}
 
 			for (const auto& move : moves) {
-				StateInfo state;
-				pos.doMove(move, state);
-				const Key key = Book::bookKey(pos);
-				if (!exists.emplace(key).second) {
+				const Key keyAfter = Book::bookKeyAfter(pos, key, move);
+				if (!exists.emplace(keyAfter).second) {
 					// 合流
-					pos.undoMove(move);
 					continue;
 				}
-				auto itr = bookMap.find(key);
+                StateInfo state;
+                pos.doMove(move, state);
+                auto itr = bookMap.find(keyAfter);
 				if (itr != bookMap.end()) {
 					// 追加
-					PositionWithMove& potision_next = positions.emplace_back(PositionWithMove{ key, move, depth, parent });
+					PositionWithMove& potision_next = positions.emplace_back(PositionWithMove{ keyAfter, move, depth, parent });
 					next_positions.push_back({ pos.toHuffmanCodedPos(), &potision_next });
 				}
 				pos.undoMove(move);
 			}
 		}
 
-		current_positions = std::move(next_positions);
+		current_positions.swap(next_positions);
 		++depth;
 	}
 }
