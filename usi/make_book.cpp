@@ -1281,6 +1281,8 @@ struct PositionWithMove {
 void enumerate_positions_with_move(const Position& pos_root, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::vector<PositionWithMove>& positions) {
 	// 最短経路をBFSで探索する
 	std::unordered_set<Key> exists;
+    exists.max_load_factor(0.25);
+    exists.reserve(bookMap.size() + 1);
 
 	std::vector<std::pair<HuffmanCodedPos, const PositionWithMove*>> current_positions;
 	std::vector<std::pair<HuffmanCodedPos, const PositionWithMove*>> next_positions;
