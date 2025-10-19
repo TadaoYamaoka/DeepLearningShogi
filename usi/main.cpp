@@ -61,6 +61,7 @@ struct MySearcher : Searcher {
     static void filterBook(std::istringstream& ssCmd, const std::string& posCmd);
     static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
     static void bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd);
+    static void makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -459,6 +460,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
         else if (token == "filter_book") filterBook(ssCmd, posCmd);
         else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
         else if (token == "book_pv_depth") bookPvDepth(ssCmd, posCmd);
+        else if (token == "make_white_book") makeWhiteBook(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2269,5 +2271,32 @@ void MySearcher::bookPvDepth(std::istringstream& ssCmd, const std::string& posCm
     setPosition(pos, ssPosCmd);
 
     book_pv_depth(pos, policyFileName);
+}
+
+void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string policyFileName;
+    std::string bookFileName; // 相手の定跡
+    std::string outFileName;
+    int loop;
+    ssCmd >> policyFileName;
+    ssCmd >> bookFileName;
+    ssCmd >> outFileName;
+    ssCmd >> loop;
+
+    // 千日手の評価値
+    SetEvalCoef(options["Eval_Coef"]);
+    const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+    const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+    draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+    draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::istringstream ssPosCmd(posCmd);
+    setPosition(pos, ssPosCmd);
+
+    make_white_book(pos, policyFileName, bookFileName, outFileName, loop);
 }
 #endif

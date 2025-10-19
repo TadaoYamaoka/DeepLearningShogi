@@ -2749,4 +2749,152 @@ void book_pv_depth(Position& pos, const std::string& policyFileName) {
         std::cout << move.toUSI() << " depth: " << depth << " score: " << itr->second[index].score << " count: " << itr->second[index].count << std::endl;
     }
 }
+
+Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap);
+Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const Score parentScore) {
+    // 先手は、bookの最上位と同じ評価値の手を全て試して、その中で最善の評価値を返す
+    const Key key = Book::bookKey(pos);
+    const auto itr_book = bookMap.find(key);
+    if (itr_book == bookMap.end())
+        return parentScore;
+    Score bestScore = -ScoreInfinite;
+    const auto& bestBookEntry = itr_book->second[0];
+    for (const auto& bookEntry : itr_book->second) {
+        if (bookEntry.score != bestBookEntry.score)
+            break;
+        const Move move = move16toMove(Move(bookEntry.fromToPro), pos);
+        StateInfo state;
+        switch (pos.moveIsDraw(move)) {
+        case RepetitionDraw:
+            // 千日手の評価
+            return pos.turn() == Black ? draw_score_black : draw_score_white;
+        case RepetitionWin:
+            return ScoreMaxEvaluate;
+        case RepetitionLose:
+            return -ScoreMaxEvaluate;
+        }
+        pos.doMove(move, state);
+        Score score = make_white_book_inner_white(pos, policyMap, bookMap);
+        pos.undoMove(move);
+        if (score == ScoreNotEvaluated)
+            score = -parentScore;
+        if (score > bestScore)
+            bestScore = score;
+    }
+    return -bestScore;
+}
+
+Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap) {
+    // 後手は、policyの最善手を指す
+    const Key key = Book::bookKey(pos);
+    const auto itr_policy = policyMap.find(key);
+    if (itr_policy == policyMap.end())
+        return ScoreNotEvaluated;
+    const auto& policyEntry = itr_policy->second[0];
+    const Move move = move16toMove(Move(policyEntry.fromToPro), pos);
+    switch (pos.moveIsDraw(move)) {
+    case RepetitionDraw:
+        // 千日手の評価
+        return pos.turn() == Black ? draw_score_black : draw_score_white;
+    case RepetitionWin:
+        return ScoreMaxEvaluate;
+    case RepetitionLose:
+        return -ScoreMaxEvaluate;
+    }
+    StateInfo state;
+    pos.doMove(move, state);
+    const Score score = make_white_book_inner_black(pos, policyMap, bookMap, policyEntry.score);
+    pos.undoMove(move);
+    return -score;
+}
+
+void make_white_book(Position& pos, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName, const int loop) {
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > outBookMap;
+
+    std::vector<PositionWithMove> positions;
+    positions.reserve(policyMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    auto start = std::chrono::high_resolution_clock::now();
+    enumerate_positions_with_move(pos, policyMap, bookMap, positions);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "positions: " << positions.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+
+    assert(positions.size() <= policyMap.size());
+
+    // loop回繰り返す
+    for (int i = 0; i < loop; ++i) {
+        std::cout << "loop: " << (i + 1);
+        auto start = std::chrono::high_resolution_clock::now();
+        for (auto it = positions.rbegin(); it != positions.rend(); ++it) {
+            const auto& position = *it;
+            if (position.depth % 2 == pos.turn())
+                continue; // 後手のみ処理
+
+            Position pos_copy(pos);
+            const PositionWithMove* position_ptr = &position;
+            std::vector<Move> moves(position_ptr->depth);
+            for (int j = position_ptr->depth - 1; j >= 0; --j) {
+                moves[j] = position_ptr->move;
+                position_ptr = position_ptr->parent;
+            }
+            assert(position_ptr->parent == nullptr);
+
+            // move
+            auto states = StateListPtr(new std::deque<StateInfo>(1));
+            for (const Move move : moves) {
+                states->emplace_back(StateInfo());
+                pos_copy.doMove(move, states->back());
+            }
+            assert(pos_copy.turn() == White);
+
+            const Key key = position.key;
+            const auto itr_policy = policyMap.find(key);
+            assert(itr_policy != policyMap.end());
+            auto& policyEntries = itr_policy->second;
+
+            // policyMapのエントリを上位から試し、評価値が最善手を上回ったら順番を入れ替える
+            for (size_t i = 0; i < policyEntries.size(); ++i) {
+                const auto move16 = policyEntries[i].fromToPro;
+                const Move move = move16toMove(Move(move16), pos_copy);
+
+                StateInfo state;
+                pos_copy.doMove(move, state);
+                Score score = make_white_book_inner_black(pos_copy, policyMap, bookMap, policyEntries[i].score);
+                assert(score != ScoreNotEvaluated);
+                pos_copy.undoMove(move);
+
+                // 評価値の更新
+                policyEntries[i].score = score;
+                // 最善手の入れ替え
+                if (i > 0 && policyEntries[i].score > policyEntries[0].score) {
+                    std::swap(policyEntries[i], policyEntries[0]);
+                    break;
+                }
+            }
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << " elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+    }
+
+    for (auto& position : positions) {
+        const Key key = position.key;
+        auto itr_policy = policyMap.find(key);
+        assert(itr_policy != policyMap.end());
+
+        outBookMap[key] = std::move(itr_policy->second);
+        if (position.depth % 2 != pos.turn()) {
+            // 後手は最善手のcountを最大にする
+            outBookMap[key][0].count = USHRT_MAX;
+        }
+    }
+
+    std::cout << "outBookMap.size: " << outBookMap.size() << std::endl;
+
+    saveOutmap(outFileName, outBookMap);
+}
 #endif
