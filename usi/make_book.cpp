@@ -1347,13 +1347,15 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 }
 
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    auto start = std::chrono::high_resolution_clock::now();
 	enumerate_positions_with_move(pos, bookMap, policyMap, positions);
-	std::cout << "positions: " << positions.size() << std::endl;
-	if (positions.size() > bookMap.size() + 1)
+    auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "positions: " << positions.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+    if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
 
 	// 評価値が割れる局面を延長する
@@ -1367,50 +1369,68 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			if (itr == outMap.end())
 				continue;
 			const auto& entry = itr->second[0];
-			const Score score = entry.score;
+			Score score = entry.score;
 			const auto& opp_entry = itr_book->second[0];
 			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
 			// 相手が詰みを見つけているか
 			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
-			if ((score + 150) * opp_score < 0 || (score - 150) * opp_score < 0 || opp_mate) {
-				// 評価値の符号が異なり、差がdiff以上、もしくは詰み
-				if (std::abs(opp_score - score) >= diff || opp_mate) {
-					Position pos_copy(pos);
-					const PositionWithMove* position_ptr = &position;
-					std::vector<Move> moves(position_ptr->depth);
-					for (int j = position_ptr->depth - 1; j >= 0; --j) {
-						moves[j] = position_ptr->move;
-						position_ptr = position_ptr->parent;
-					}
-					assert(position_ptr->parent == nullptr);
 
-					// move
-					auto states = StateListPtr(new std::deque<StateInfo>(1));
-					for (const Move move : moves) {
-						states->emplace_back(StateInfo());
-						pos_copy.doMove(move, states->back());
-					}
+            // 評価値の符号が異なるか
+            const bool is_opposite_sign = (score + threashold)* opp_score < 0 || (score - threashold) * opp_score < 0;
+            // 評価値の符号が異なり、差がdiff以上か
+            bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
 
-					const Move move = (score < opp_score) ?
-						// 悲観している局面では、相手の指し手を選ぶ
-						move16toMove(Move(opp_entry.fromToPro), pos_copy) :
-						// 楽観している局面では、自分の指し手を選ぶ
-						move16toMove(Move(entry.fromToPro), pos_copy);
-					Key key_after = Book::bookKeyAfter(pos_copy, key, move);
-					if (outMap.find(key_after) == outMap.end()) {
-						// 最善手が定跡にない場合
-						std::cout << "diff: " << score << ", " << opp_entry.score << std::endl;
-						// 最善手を指して、定跡を延長
-						StateInfo state;
-						int count = 0;
-						pos_copy.doMove(move, state);
-						moves.emplace_back(move);
-						make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, moves, book_pos_cmd, book_starting_pos_key);
-						// 保存
-						saveOutmap(outFileName, outMap);
-					}
-				}
-			}
+            // policyのスコアも確認する
+            if (!is_over_diff && !opp_mate) {
+                const auto itr_policy = policyMap.find(key);
+                if (itr_policy != policyMap.end()) {
+                    const Score policy_score = itr_policy->second[0].score;
+                    if ((policy_score + threashold) * opp_score < 0 || (policy_score - threashold) * opp_score < 0) {
+                        // 評価値の符号が異なり、差がdiff以上
+                        if (std::abs(opp_score - policy_score) >= diff) {
+                            score = policy_score;
+                            is_over_diff = true;
+                        }
+                    }
+                }
+            }
+            // 評価値の符号が異なり、差がdiff以上、もしくは詰み
+            if (is_over_diff || opp_mate) {
+                Position pos_copy(pos);
+                const PositionWithMove* position_ptr = &position;
+                std::vector<Move> moves(position_ptr->depth);
+                for (int j = position_ptr->depth - 1; j >= 0; --j) {
+                    moves[j] = position_ptr->move;
+                    position_ptr = position_ptr->parent;
+                }
+                assert(position_ptr->parent == nullptr);
+
+                // move
+                auto states = StateListPtr(new std::deque<StateInfo>(1));
+                for (const Move move : moves) {
+                    states->emplace_back(StateInfo());
+                    pos_copy.doMove(move, states->back());
+                }
+
+                const Move move = (score < opp_score) ?
+                    // 悲観している局面では、相手の指し手を選ぶ
+                    move16toMove(Move(opp_entry.fromToPro), pos_copy) :
+                    // 楽観している局面では、自分の指し手を選ぶ
+                    move16toMove(Move(entry.fromToPro), pos_copy);
+                Key key_after = Book::bookKeyAfter(pos_copy, key, move);
+                if (outMap.find(key_after) == outMap.end()) {
+                    // 最善手が定跡にない場合
+                    std::cout << "diff: " << score << ", " << opp_entry.score << std::endl;
+                    // 最善手を指して、定跡を延長
+                    StateInfo state;
+                    int count = 0;
+                    pos_copy.doMove(move, state);
+                    moves.emplace_back(move);
+                    make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, moves, book_pos_cmd, book_starting_pos_key);
+                    // 保存
+                    saveOutmap(outFileName, outMap);
+                }
+            }
 		}
 	}
 }
