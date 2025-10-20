@@ -1350,13 +1350,13 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
-	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+	positions.reserve(outMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
     auto start = std::chrono::high_resolution_clock::now();
-	enumerate_positions_with_move(pos, bookMap, policyMap, positions);
+	enumerate_positions_with_move(pos, outMap, policyMap, positions);
     auto end = std::chrono::high_resolution_clock::now();
 	std::cout << "positions: " << positions.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
-    if (positions.size() > bookMap.size() + 1)
-		throw std::runtime_error("positions.size() > bookMap.size()");
+    if (positions.size() > outMap.size() + 1)
+		throw std::runtime_error("positions.size() > outMap.size()");
 
 	// 評価値が割れる局面を延長する
 	for (const auto& position : positions) {
