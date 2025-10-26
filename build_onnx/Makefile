@@ -3,7 +3,7 @@ CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DLEARN -DNDEBUG -DHAVE_SSE
 ifneq ($(NYUGYOKU_FEATURES),)
 CFLAGS += -DNYUGYOKU_FEATURES
 endif
-LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
+LDFLAGS = -lpthread -lnvinfer -lnvonnxparser -lcudart -flto
 INCLUDE = -I../cppshogi -I../usi -I../selfplay -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64 -L$(CONDA_PREFIX)/lib
 
