@@ -16,6 +16,7 @@ parser.add_argument('--alpha_v', type=float, default=0.95)
 parser.add_argument('--alpha_r', type=float, default=0.95)
 parser.add_argument('--dropoff', type=float, default=0.5)
 parser.add_argument('--limit_candidates', type=int, default=10)
+parser.add_argument('--temperature', type=float, default=1.0)
 parser.add_argument('--batch_size', '-b', type=int, default=1024)
 parser.add_argument('--network')
 parser.add_argument('--gpu', '-g', type=int, default=0)
@@ -28,6 +29,7 @@ alpha_v = args.alpha_v
 alpha_r = args.alpha_r
 dropoff = args.dropoff
 limit_candidates = args.limit_candidates
+temperature = args.temperature
 batch_size = args.batch_size
 use_amp = args.use_amp
 amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
@@ -64,8 +66,8 @@ for i in tqdm(range(0, len(indexes), batch_size)):
             y1 = y1.float().cpu().numpy()
             y2 = y2.float().sigmoid().cpu().numpy()
     if chunk_size < batch_size:
-        hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha_p, alpha_v, alpha_r, dropoff, limit_candidates)
+        hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha_p, alpha_v, alpha_r, dropoff, limit_candidates, temperature)
     else:
-        hcpe3_cache_re_eval(chunk, y1, y2, alpha_p, alpha_v, alpha_r, dropoff, limit_candidates)
+        hcpe3_cache_re_eval(chunk, y1, y2, alpha_p, alpha_v, alpha_r, dropoff, limit_candidates, temperature)
 
 hcpe3_create_cache(args.out_cache)

@@ -86,7 +86,7 @@ class Hcpe3Dataset(Dataset):
 
     def __getitems__(self, indexes):
         batch_size = len(indexes)
-        indexes = np.array(indexes, dtype=np.uint32)
+        indexes = np.array(indexes, dtype=np.uint64)
 
         features1 = torch.empty(
             (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True

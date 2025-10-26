@@ -1,5 +1,8 @@
 ﻿from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+import os
+
+NYUGYOKU_FEATURES = ('NYUGYOKU_FEATURES', None) if os.environ.get('NYUGYOKU_FEATURES') else None
 
 class my_build_ext(build_ext):
     def build_extensions(self):
@@ -19,13 +22,16 @@ class my_build_ext(build_ext):
         import numpy
         self.include_dirs.append(numpy.get_include())
 
+ext_macros = [('HAVE_SSE4', None), ('HAVE_SSE42', None), ('HAVE_AVX2', None)]
+if NYUGYOKU_FEATURES:
+    ext_macros.append(NYUGYOKU_FEATURES)
 ext_modules = [
     Extension('dlshogi.cppshogi',
         ['dlshogi/cppshogi.pyx',
          'cppshogi/cppshogi.cpp', 'cppshogi/python_module.cpp', 'cppshogi/bitboard.cpp', 'cppshogi/book.cpp', 'cppshogi/common.cpp', 'cppshogi/generateMoves.cpp', 'cppshogi/hand.cpp', 'cppshogi/init.cpp', 'cppshogi/move.cpp', 'cppshogi/mt64bit.cpp', 'cppshogi/position.cpp', 'cppshogi/search.cpp', 'cppshogi/square.cpp', 'cppshogi/usi.cpp'],
         language='c++',
         include_dirs = ["cppshogi"],
-        define_macros=[('HAVE_SSE4', None), ('HAVE_SSE42', None), ('HAVE_AVX2', None)])
+        define_macros=ext_macros)
 ]
 
 setup(

@@ -61,6 +61,8 @@
     <Compile Include="utils\build_onnx.py" />
     <Compile Include="utils\clean_hcpe3.py" />
     <Compile Include="utils\csa_important_position.py" />
+    <Compile Include="utils\csa_to_important_position.py" />
+    <Compile Include="utils\csa_to_important_sfen.py" />
     <Compile Include="utils\csa_to_positions.py" />
     <Compile Include="utils\csa_to_book.py" />
     <Compile Include="utils\csa_to_csv.py">
@@ -73,6 +75,7 @@
     <Compile Include="utils\csa_to_hcpe3.py" />
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
+    <Compile Include="utils\find_position_in_csa_dir.py" />
     <Compile Include="utils\stat_hcpe3_cache.py" />
     <Compile Include="utils\hcpe3_cache_re_eval.py" />
     <Compile Include="utils\hcpe_re_eval.py" />

@@ -95,7 +95,6 @@ inline std::mutex& GetPositionMutex(const Position* pos)
 #include "book.hpp"
 extern std::map<Key, std::vector<BookEntry> > bookMap;
 extern bool use_book_policy;
-extern bool use_book_value;
 #ifdef MAKE_BOOK
 extern bool use_interruption;
 #endif
@@ -335,7 +334,7 @@ public:
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
-		if (use_book_policy || use_book_value)
+		if (use_book_policy)
 			policy_value_book_key = new Key[policy_value_batch_maxsize];
 
 #endif
@@ -1152,7 +1151,7 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
 	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
-	if (use_book_policy || use_book_value)
+	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
 	current_policy_value_batch_index++;
@@ -1691,34 +1690,30 @@ void UCTSearcher::EvalNode() {
 		*policy_value_batch[i].value_win = (float)*value;
 
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
-		if (use_book_policy || use_book_value) {
+		if (use_book_policy) {
 			// 定跡作成時は、事前確率に定跡の遷移確率も使用する
 			constexpr float alpha = 0.5f;
 			const Key& key = policy_value_book_key[i];
 			const auto itr = bookMap.find(key);
-            if (itr != bookMap.end()) {
-                const auto& entries = itr->second;
-                if (use_book_policy) {
-                    // countから分布を作成
-                    std::map<u16, u16> count_map;
-                    int sum = 0;
-                    for (const auto& entry : entries) {
-                        count_map.insert(std::make_pair(entry.fromToPro, entry.count));
-                        sum += entry.count;
-                    }
-                    // policyと定跡から作成した分布の加重平均
-                    for (int j = 0; j < child_num; ++j) {
-                        const Move& move = uct_child[j].move;
-                        const auto itr2 = count_map.find((u16)move.proFromAndTo());
-                        const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
-                        uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
-                    }
-                }
+			if (itr != bookMap.end()) {
+				const auto& entries = itr->second;
+				// countから分布を作成
+				std::map<u16, u16> count_map;
+				int sum = 0;
+				for (const auto& entry : entries) {
+					count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+					sum += entry.count;
+				}
+				// policyと定跡から作成した分布の加重平均
+				for (int j = 0; j < child_num; ++j) {
+					const Move& move = uct_child[j].move;
+					const auto itr2 = count_map.find((u16)move.proFromAndTo());
+					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+				}
 
-                if (use_book_value) {
-                    // valueと定跡の評価値の加重平均
-                    *policy_value_batch[i].value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
-                }
+				// valueと定跡の評価値の加重平均
+				*policy_value_batch[i].value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
 			}
 		}
 #endif
