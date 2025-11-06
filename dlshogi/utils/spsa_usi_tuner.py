@@ -502,15 +502,15 @@ class SpsaTuner:
         total_sets = self.cfg.sets_per_iter
         total_games = total_sets * (3 * 2 * self.cfg.repeat_per_pair)  # 3 pairs * 2 (swap) * repeat
         print(f"[Iter {t:3d}] sets={total_sets}, games={total_games}")
-        print(f"  theta     : " + ", ".join(f"{p.name}={p.value}" for p in self.params))
         print(f"  theta+    : " + ", ".join(f"{k}={theta_plus[k]}" for k in theta_plus))
         print(f"  theta-    : " + ", ".join(f"{k}={theta_minus[k]}" for k in theta_minus))
         print(f"  (+) vs base : W-L-D = {plus_vs_base[0]}-{plus_vs_base[1]}-{plus_vs_base[2]}  (S={S_plus:.1f})")
         print(f"  (-) vs base : W-L-D = {minus_vs_base[0]}-{minus_vs_base[1]}-{minus_vs_base[2]} (S={S_minus:.1f})")
         if self.use_dev_vs_dev_in_update:
             print(f"  (+) vs (-)  : W-L-D = {plus_vs_minus[0]}-{plus_vs_minus[1]}-{plus_vs_minus[2]}")
-        print(f"  magnitude   : {magnitude:+.2f}")
-        print(f"  updates     : " + ", ".join(f"{k}={updates[k]:+.3f}" for k in updates))
+        print(f"  magnitude     : {magnitude:+.2f}")
+        print(f"  updates       : " + ", ".join(f"{k}={updates[k]:+.3f}" for k in updates))
+        print(f"  updated theta : " + ", ".join(f"{p.name}={p.value}" for p in self.params))
 
         return theta, theta_plus, theta_minus
 
