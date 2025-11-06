@@ -6,7 +6,7 @@
     <ProjectGuid>44dc35cd-f353-4da5-ac49-f1a723d9abf6</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>utils\hcpe3_cache_re_eval.py</StartupFile>
+    <StartupFile>utils\spsa_usi_tuner.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -14,7 +14,7 @@
     <Name>dlshogi</Name>
     <RootNamespace>train</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>--network resnet20x256 F:\model\model-resnet20x256_1-008 F:\hcpe3\cache R:\cache --use_amp</CommandLineArguments>
+    <CommandLineArguments>--baseline D:\src\hayabusa\bin\hayabusa.exe --candidate D:\src\DeepLearningShogi2\x64\Release\dlshogi_tensorrt.exe --options-baseline EvalDir:20250416,FV_SCALE:24,ResignValue:3000,NetworkDelay2:0 --options-candidate "DNN_Model:F:\model\model-pre55-012.onnx,UCT_Threads:{2 if id==0 else 0},UCT_Threads{'' if id==0 else id+1}:2" --params C_init:100~200:127,C_base:20000~40000:27126:10:5,C_fpu_reduction:10~40:31,C_init_root:100~200:112,C_base_root:20000~40000:33311:10:5,Softmax_Temperature:100~200:140 --openings R:\openings.sfen --byoyomi 100 --debug</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
@@ -76,6 +76,7 @@
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
     <Compile Include="utils\find_position_in_csa_dir.py" />
+    <Compile Include="utils\spsa_usi_tuner.py" />
     <Compile Include="utils\stat_hcpe3_cache.py" />
     <Compile Include="utils\hcpe3_cache_re_eval.py" />
     <Compile Include="utils\hcpe_re_eval.py" />
