@@ -585,6 +585,10 @@ def main():
     )
     tuner.run()
 
+    print("Final tuned parameters:")
+    for p in tuner.params:
+        print(f"  {p.name}: {p.value}")
+
 
 if __name__ == "__main__":
     main()
