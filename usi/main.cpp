@@ -2102,12 +2102,10 @@ void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& po
 	HuffmanCodedPos::init();
 
 	std::string bookFileName;
-    std::string policyFileName;
 	std::string outFileName;
 	int diff;
 
 	ssCmd >> bookFileName;
-    ssCmd >> policyFileName;
     ssCmd >> outFileName;
 	ssCmd >> diff;
 
@@ -2116,7 +2114,7 @@ void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& po
 	std::istringstream ssPosCmd(posCmd);
 	setPosition(pos, ssPosCmd);
 
-	make_gokaku_sfen(pos, posCmd, bookFileName, policyFileName, outFileName, diff);
+	make_gokaku_sfen(pos, posCmd, bookFileName, outFileName, diff);
 
 	std::cout << "done" << std::endl;
 }

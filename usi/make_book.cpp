@@ -2314,17 +2314,45 @@ void complement_book(Position& pos, const std::string& bookFileName, std::string
 	std::cout << "num: " << n << std::endl;
 }
 
-void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff) {
+// Detect whether repeatedly playing only the best policy move loops back within maxPlies
+bool loop_by_policy_best_within(Position& pos, StateListPtr& states, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_set<Key>& visited, const int maxPlies) {
+	for (int ply = 0; ply < maxPlies; ++ply) {
+		const Key key = Book::bookKey(pos);
+		const auto itr = policyMap.find(key);
+		if (itr == policyMap.end()) {
+			return false;
+		}
+
+		const Move best = move16toMove(Move(itr->second.front().fromToPro), pos);
+
+		switch (pos.moveIsDraw(best)) {
+		case RepetitionDraw:
+		case RepetitionWin:
+		case RepetitionLose:
+			return true;
+		default:
+			break;
+		}
+
+		states->emplace_back(StateInfo());
+		pos.doMove(best, states->back());
+
+		const Key nextKey = Book::bookKey(pos);
+		if (!visited.emplace(nextKey).second) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& outFileName, const int diff) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
-
-    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
-    read_book(policyFileName, policyMap);
 
     // 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(bookMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
-	enumerate_positions_with_move(pos, bookMap, policyMap, positions);
+	enumerate_positions_with_move(pos, bookMap, bookMap, positions);
 	std::cout << "positions: " << positions.size() << std::endl;
 	if (positions.size() > bookMap.size() + 1)
 		throw std::runtime_error("positions.size() > bookMap.size()");
@@ -2336,6 +2364,7 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 		pos_cmd += " moves";
 
 	int count = 0;
+	constexpr int LOOP_PLY_LIMIT = 36;
 	for (const auto& position : positions) {
 		const PositionWithMove* position_ptr = &position;
 		std::vector<Move> moves(position_ptr->depth);
@@ -2352,7 +2381,25 @@ void make_gokaku_sfen(Position& pos, const std::string& posCmd, const std::strin
 			const auto& entry = itr_book->second[0];
 			const auto score = entry.score;
 			if (std::abs(score) <= diff) {
-				ofs << pos_cmd;
+                // LOOP_PLY_LIMIT以内に方策最善手を指し続けてループする場合は除外
+                Position pos_copy(pos);
+                auto states = StateListPtr(new std::deque<StateInfo>(1));
+                std::unordered_set<Key> visited;
+                visited.reserve(static_cast<size_t>(moves.size() + LOOP_PLY_LIMIT) + 1);
+                visited.emplace(Book::bookKey(pos_copy));
+                for (const Move move : moves) {
+                    states->emplace_back(StateInfo());
+                    pos_copy.doMove(move, states->back());
+                    visited.emplace(Book::bookKey(pos_copy));
+                }
+                assert(Book::bookKey(pos_copy) == key);
+
+                if (loop_by_policy_best_within(pos_copy, states, bookMap, visited, LOOP_PLY_LIMIT)) {
+                    continue;
+                }
+
+                // 出力
+                ofs << pos_cmd;
 				for (const auto move : moves) {
 					ofs << " " << move.toUSI();
 				}
