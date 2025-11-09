@@ -220,7 +220,7 @@ class GameRunner:
                     key = board.zobrist_hash()
                     repetition_hash[key] += 1
                     if repetition_hash[key] == 4:
-                        # Fourfold repetition handling similar to cli.py  fileciteturn0file1
+                        # Fourfold repetition handling
                         is_draw = board.is_draw()
                         if is_draw == REPETITION_WIN:
                             winner = 1 if turn == BLACK else -1
@@ -320,7 +320,7 @@ class SpsaTuner:
         self._lock = threading.Lock()
 
         self.cfg.setup()
-        # derive a0, c0 per param (end-anchored schedules) per OpenBench-like code  fileciteturn0file5
+        # derive a0, c0 per param (end-anchored schedules) per OpenBench-like code
         for p in self.params:
             p.c0 = p.c_end * (self.cfg.iterations ** self.cfg.gamma)
             p.a_end = p.r_end * (p.c_end ** 2)
@@ -488,7 +488,7 @@ class SpsaTuner:
             S_plus_minus_diff = S_plus - S_minus
 
         # Parameter update: Δθ_i = r_i(t) * c_i(t) * (S(θ+) - S(θ-)) * delta_i
-        # (Fishtest-style: r = a/c^2; see docs)  fileciteturn0file3 fileciteturn0file5
+        # (Fishtest-style: r = a/c^2; see docs)
         updates: Dict[str, float] = {}
         magnitude = S_plus_minus_diff  # scalar multiplier from aggregate match results
         for p in self.params:
