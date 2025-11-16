@@ -2283,11 +2283,9 @@ void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& pos
     std::string policyFileName;
     std::string bookFileName; // 相手の定跡
     std::string outFileName;
-    int loop;
     ssCmd >> policyFileName;
     ssCmd >> bookFileName;
     ssCmd >> outFileName;
-    ssCmd >> loop;
 
     // 千日手の評価値
     SetEvalCoef(options["Eval_Coef"]);
@@ -2301,6 +2299,6 @@ void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& pos
     std::istringstream ssPosCmd(posCmd);
     setPosition(pos, ssPosCmd);
 
-    make_white_book(pos, policyFileName, bookFileName, outFileName, loop);
+    make_white_book(pos, policyFileName, bookFileName, outFileName);
 }
 #endif

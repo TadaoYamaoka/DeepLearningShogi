@@ -85,5 +85,5 @@ void book_to_leaf_hcp(Position& pos, const std::string& bookFileName, const std:
 void filter_book(Position& pos, const std::string& bookFileName, const std::string& outFileName, const int depth, const int limitScore);
 void bfs_position(Position& pos, const std::string& bookFileName, const std::string& policyFileName);
 void book_pv_depth(Position& pos, const std::string& policyFileName);
-void make_white_book(Position& pos, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName, const int loop);
+void make_white_book(Position& pos, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName);
 #endif
