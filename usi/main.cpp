@@ -2283,9 +2283,13 @@ void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& pos
     std::string policyFileName;
     std::string bookFileName; // 相手の定跡
     std::string outFileName;
+    int threshold = 30;
     ssCmd >> policyFileName;
     ssCmd >> bookFileName;
     ssCmd >> outFileName;
+    ssCmd >> threshold;
+
+    std::cout << "threshold: " << threshold << std::endl;
 
     // 千日手の評価値
     SetEvalCoef(options["Eval_Coef"]);
@@ -2299,6 +2303,6 @@ void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& pos
     std::istringstream ssPosCmd(posCmd);
     setPosition(pos, ssPosCmd);
 
-    make_white_book(pos, policyFileName, bookFileName, outFileName);
+    make_white_book(pos, posCmd, policyFileName, bookFileName, outFileName, threshold);
 }
 #endif

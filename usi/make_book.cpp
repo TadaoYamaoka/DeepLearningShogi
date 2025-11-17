@@ -2817,9 +2817,9 @@ void book_pv_depth(Position& pos, const std::string& policyFileName) {
     }
 }
 
-Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Score>& white_cache);
-Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const Score parentScore, std::unordered_map<Key, Score>& white_cache) {
-    // 先手は、bookの最上位から-30までの評価値の手を全て試して、その中で最善の評価値を返す
+Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Score>& white_cache, const int threshold);
+Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const Score parentScore, std::unordered_map<Key, Score>& white_cache, const int threshold) {
+    // 先手は、bookの最上位から-thresholdまでの評価値の手を全て試して、その中で最善の評価値を返す
     const Key key = Book::bookKey(pos);
     const auto itr_book = bookMap.find(key);
     if (itr_book == bookMap.end())
@@ -2827,7 +2827,7 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
     Score bestScore = -ScoreInfinite;
     const auto& bestBookEntry = itr_book->second[0];
     for (const auto& bookEntry : itr_book->second) {
-        if (bookEntry.score < bestBookEntry.score - 30)
+        if (bookEntry.score < bestBookEntry.score - threshold)
             break;
         const Move move = move16toMove(Move(bookEntry.fromToPro), pos);
         switch (pos.moveIsDraw(move)) {
@@ -2841,7 +2841,7 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
         }
         StateInfo state;
         pos.doMove(move, state);
-        Score score = make_white_book_inner_white(pos, policyMap, bookMap, white_cache);
+        Score score = make_white_book_inner_white(pos, policyMap, bookMap, white_cache, threshold);
         pos.undoMove(move);
         if (score == ScoreNotEvaluated)
             score = -parentScore;
@@ -2851,7 +2851,7 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
     return -bestScore;
 }
 
-Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Score>& white_cache) {
+Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, Score>& white_cache, const int threshold) {
     // 後手は、policyの最善手を指す
     const Key key = Book::bookKey(pos);
     if (auto itr = white_cache.find(key); itr != white_cache.end())
@@ -2872,20 +2872,18 @@ Score make_white_book_inner_white(Position& pos, const std::unordered_map<Key, s
     }
     StateInfo state;
     pos.doMove(move, state);
-    const Score score = make_white_book_inner_black(pos, policyMap, bookMap, policyEntry.score, white_cache);
+    const Score score = make_white_book_inner_black(pos, policyMap, bookMap, policyEntry.score, white_cache, threshold);
     pos.undoMove(move);
     white_cache[key] = score;
     return -score;
 }
 
-void make_white_book(Position& pos, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName) {
+void make_white_book(Position& pos, const std::string& posCmd, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName, const int threshold) {
     std::unordered_map<Key, std::vector<BookEntry> > policyMap;
     read_book(policyFileName, policyMap);
 
     std::unordered_map<Key, std::vector<BookEntry> > bookMap;
     read_book(bookFileName, bookMap);
-
-    std::unordered_map<Key, std::vector<BookEntry> > outBookMap;
 
     std::vector<PositionWithMove> positions;
     positions.reserve(policyMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
@@ -2936,7 +2934,7 @@ void make_white_book(Position& pos, const std::string& policyFileName, const std
 
             StateInfo state;
             pos_copy.doMove(move, state);
-            Score score = make_white_book_inner_black(pos_copy, policyMap, bookMap, policyEntries[j].score, white_cache);
+            Score score = make_white_book_inner_black(pos_copy, policyMap, bookMap, policyEntries[j].score, white_cache, threshold);
             assert(score != ScoreNotEvaluated);
             pos_copy.undoMove(move);
 
@@ -2959,19 +2957,74 @@ void make_white_book(Position& pos, const std::string& policyFileName, const std
     std::cout << "\ncount: " << count << " elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
 
     for (auto& position : positions) {
-        const Key key = position.key;
-        auto itr_policy = policyMap.find(key);
-        assert(itr_policy != policyMap.end());
-
-        outBookMap[key] = std::move(itr_policy->second);
         if (position.depth % 2 != pos.turn()) {
             // 後手は最善手のcountを最大にする
-            outBookMap[key][0].count = USHRT_MAX;
+            const Key key = position.key;
+            auto itr_policy = policyMap.find(key);
+            assert(itr_policy != policyMap.end());
+            policyMap[key][0].count = USHRT_MAX;
         }
     }
 
-    std::cout << "outBookMap.size: " << outBookMap.size() << std::endl;
+    std::cout << "output size: " << policyMap.size() << std::endl;
 
-    saveOutmap(outFileName, outBookMap);
+    saveOutmap(outFileName, policyMap);
+
+    // PVを表示
+    {
+        Score score = ScoreNotEvaluated;
+        Score first_score = ScoreNotEvaluated;
+        Position pos_copy(pos);
+        auto states = StateListPtr(new std::deque<StateInfo>(1));
+        std::cout << "position " << posCmd;
+        if (posCmd == "startpos")
+            std::cout << " moves";
+        while (true)
+        {
+            Move move;
+            const Key key = Book::bookKey(pos_copy);
+            if (pos_copy.turn() == Black) {
+                const auto itr = bookMap.find(key);
+                if (itr == bookMap.end())
+                    break;
+                const auto& entry = itr->second[0];
+                move = move16toMove(Move(entry.fromToPro), pos_copy);
+                score = entry.score;
+            }
+            else {
+                const auto itr = policyMap.find(key);
+                if (itr == policyMap.end())
+                    break;
+                const auto& entry = itr->second[0];
+                move = move16toMove(Move(entry.fromToPro), pos_copy);
+                score = entry.score;
+                if (first_score == ScoreNotEvaluated)
+                    first_score = score;
+            }
+            std::cout << " " << move.toUSI();
+            states->emplace_back(StateInfo());
+            pos_copy.doMove(move, states->back());
+
+            bool is_draw = false;
+            switch (pos_copy.isDraw()) {
+                case RepetitionDraw:
+                    std::cout << " draw" << std::endl;
+                    is_draw = true;
+                    break;
+                case RepetitionWin:
+                    std::cout << " repetition win" << std::endl;
+                    is_draw = true;
+                    break;
+                case RepetitionLose:
+                    std::cout << " repetition lose" << std::endl;
+                    is_draw = true;
+                    break;
+            }
+            if (is_draw)
+                break;
+        }
+        std::cout << std::endl;
+        std::cout << "first score: " << first_score << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " last score: " << score << std::endl;
+    }
 }
 #endif
