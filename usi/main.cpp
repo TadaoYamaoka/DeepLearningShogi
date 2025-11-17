@@ -1617,6 +1617,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	int playoutNum;
 	int diff;
     int threashold = 150;
+    int opp_threashold = 30;
 
 	ssCmd >> bookFileName;
     ssCmd >> policyFileName;
@@ -1624,8 +1625,9 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
     ssCmd >> threashold;
+    ssCmd >> opp_threashold;
 
-    std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << std::endl;
+    std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold:" << opp_threashold << std::endl;
 
 	// プレイアウト数固定
 	LimitsType limits;
@@ -1670,7 +1672,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
     std::unordered_map<Key, std::vector<BookEntry> > policyMap;
     read_book(policyFileName, policyMap);
 
-    diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threashold, outFileName, book_pos_cmd, book_starting_pos_key);
+    diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
@@ -1692,16 +1694,18 @@ void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::str
 	int playoutNum;
 	int diff;
     int threashold = 150;
+    int opp_threashold = 30;
 
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
     ssCmd >> threashold;
+    ssCmd >> opp_threashold;
 
 	while (true) {
 		std::istringstream ssCmdEvalPos(bookFileName + " " + evalOutFileName + " " + std::to_string(engine_num));
 		evalPositionsWithUsiEngine(ssCmdEvalPos, posCmd);
 
-		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + policyFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff) + " " + std::to_string(threashold));
+		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + policyFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff) + " " + std::to_string(threashold) + " " + std::to_string(opp_threashold));
 		const auto ret = diffEval(ssCmdEvalDiff, posCmd);
 		if (!ret)
 			break;

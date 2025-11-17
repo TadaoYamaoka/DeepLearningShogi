@@ -1347,7 +1347,7 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 }
 
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const Score opp_threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(outMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
@@ -1376,7 +1376,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
 
             // 評価値の符号が異なるか
-            const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + threashold) < 0 || score * (opp_score - threashold) < 0;
+            const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + opp_threashold) < 0 || score * (opp_score - opp_threashold) < 0;
             // 評価値の符号が異なり、差がdiff以上か
             bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
 
