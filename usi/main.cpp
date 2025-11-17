@@ -1627,7 +1627,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
     ssCmd >> threashold;
     ssCmd >> opp_threashold;
 
-    std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold:" << opp_threashold << std::endl;
+    std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
 
 	// プレイアウト数固定
 	LimitsType limits;
