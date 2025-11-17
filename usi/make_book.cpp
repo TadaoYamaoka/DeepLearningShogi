@@ -1376,7 +1376,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
 
             // 評価値の符号が異なるか
-            const bool is_opposite_sign = (score + threashold)* opp_score < 0 || (score - threashold) * opp_score < 0;
+            const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + threashold) < 0 || score * (opp_score - threashold) < 0;
             // 評価値の符号が異なり、差がdiff以上か
             bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
 
