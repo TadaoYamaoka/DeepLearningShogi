@@ -3008,15 +3008,15 @@ void make_white_book(Position& pos, const std::string& posCmd, const std::string
 			bool is_draw = false;
 			switch (pos_copy.isDraw()) {
 				case RepetitionDraw:
-					std::cout << " draw" << std::endl;
+					std::cout << " draw";
 					is_draw = true;
 					break;
 				case RepetitionWin:
-					std::cout << " repetition win" << std::endl;
+					std::cout << " repetition win";
 					is_draw = true;
 					break;
 				case RepetitionLose:
-					std::cout << " repetition lose" << std::endl;
+					std::cout << " repetition lose";
 					is_draw = true;
 					break;
 			}
@@ -3069,15 +3069,15 @@ void book_pv(Position& pos, const std::string& posCmd, const std::string& blackF
         bool is_draw = false;
         switch (pos_copy.isDraw()) {
         case RepetitionDraw:
-            std::cout << " draw" << std::endl;
+            std::cout << " draw";
             is_draw = true;
             break;
         case RepetitionWin:
-            std::cout << " repetition win" << std::endl;
+            std::cout << " repetition win";
             is_draw = true;
             break;
         case RepetitionLose:
-            std::cout << " repetition lose" << std::endl;
+            std::cout << " repetition lose";
             is_draw = true;
             break;
         }
