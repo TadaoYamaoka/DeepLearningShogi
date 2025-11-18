@@ -56,12 +56,13 @@ struct MySearcher : Searcher {
 	static void makeImportantHcp(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeImportantSfen(std::istringstream& ssCmd, const std::string& posCmd);
 	static void statBook(std::istringstream& ssCmd, const std::string& posCmd);
-    static void statBookDfs(std::istringstream& ssCmd, const std::string& posCmd);
+	static void statBookDfs(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookToLeafHcp(std::istringstream& ssCmd, const std::string& posCmd);
-    static void filterBook(std::istringstream& ssCmd, const std::string& posCmd);
-    static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
-    static void bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd);
-    static void makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void filterBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd);
+    static void bookPv(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -455,12 +456,13 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_important_hcp") makeImportantHcp(ssCmd, posCmd);
 		else if (token == "make_important_sfen") makeImportantSfen(ssCmd, posCmd);
 		else if (token == "stat_book") statBook(ssCmd, posCmd);
-        else if (token == "stat_book_dfs") statBookDfs(ssCmd, posCmd);
+		else if (token == "stat_book_dfs") statBookDfs(ssCmd, posCmd);
 		else if (token == "book_to_leaf_hcp") bookToLeafHcp(ssCmd, posCmd);
-        else if (token == "filter_book") filterBook(ssCmd, posCmd);
-        else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
-        else if (token == "book_pv_depth") bookPvDepth(ssCmd, posCmd);
-        else if (token == "make_white_book") makeWhiteBook(ssCmd, posCmd);
+		else if (token == "filter_book") filterBook(ssCmd, posCmd);
+		else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
+		else if (token == "book_pv_depth") bookPvDepth(ssCmd, posCmd);
+		else if (token == "make_white_book") makeWhiteBook(ssCmd, posCmd);
+        else if (token == "book_pv") bookPv(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -949,7 +951,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				}
 				book_map_mutex.unlock();
 
-                #pragma omp atomic
+				#pragma omp atomic
 				trial++;
 
 				// 先手番
@@ -1346,10 +1348,10 @@ void MySearcher::makeBookPosition(std::istringstream& ssCmd, const std::string& 
 			ssPosCmd >> token; // "moves" が入力されるはず。
 		}
 		else if (token == "sfen") {
-            while (ssPosCmd >> token && token != "moves") {
-                sfen += token + " ";
-                book_pos_cmd += " " + token;
-            }
+			while (ssPosCmd >> token && token != "moves") {
+				sfen += token + " ";
+				book_pos_cmd += " " + token;
+			}
 		}
 		else
 			return;
@@ -1612,22 +1614,22 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	HuffmanCodedPos::init();
 
 	std::string bookFileName;
-    std::string policyFileName;
-    std::string outFileName;
+	std::string policyFileName;
+	std::string outFileName;
 	int playoutNum;
 	int diff;
-    int threashold = 150;
-    int opp_threashold = 30;
+	int threashold = 150;
+	int opp_threashold = 30;
 
 	ssCmd >> bookFileName;
-    ssCmd >> policyFileName;
-    ssCmd >> outFileName;
+	ssCmd >> policyFileName;
+	ssCmd >> outFileName;
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
-    ssCmd >> threashold;
-    ssCmd >> opp_threashold;
+	ssCmd >> threashold;
+	ssCmd >> opp_threashold;
 
-    std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
+	std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
 
 	// プレイアウト数固定
 	LimitsType limits;
@@ -1669,10 +1671,10 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
-    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
-    read_book(policyFileName, policyMap);
+	std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+	read_book(policyFileName, policyMap);
 
-    diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
+	diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
@@ -1682,24 +1684,24 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 // eval_positions_with_usi_engineとdiff_evalを交互に繰り返す
 void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd) {
 	std::string bookFileName;
-    std::string policyFileName;
-    std::string evalOutFileName;
+	std::string policyFileName;
+	std::string evalOutFileName;
 	int engine_num;
 
 	ssCmd >> bookFileName;
-    ssCmd >> policyFileName;
-    ssCmd >> evalOutFileName;
+	ssCmd >> policyFileName;
+	ssCmd >> evalOutFileName;
 	ssCmd >> engine_num;
 
 	int playoutNum;
 	int diff;
-    int threashold = 150;
-    int opp_threashold = 30;
+	int threashold = 150;
+	int opp_threashold = 30;
 
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
-    ssCmd >> threashold;
-    ssCmd >> opp_threashold;
+	ssCmd >> threashold;
+	ssCmd >> opp_threashold;
 
 	while (true) {
 		std::istringstream ssCmdEvalPos(bookFileName + " " + evalOutFileName + " " + std::to_string(engine_num));
@@ -2110,7 +2112,7 @@ void MySearcher::makeGokakuSfen(std::istringstream& ssCmd, const std::string& po
 	int diff;
 
 	ssCmd >> bookFileName;
-    ssCmd >> outFileName;
+	ssCmd >> outFileName;
 	ssCmd >> diff;
 
 	// 開始局面設定
@@ -2189,18 +2191,18 @@ void MySearcher::statBook(std::istringstream& ssCmd, const std::string& posCmd) 
 }
 
 void MySearcher::statBookDfs(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string bookFileName;
+	std::string bookFileName;
 
-    ssCmd >> bookFileName;
+	ssCmd >> bookFileName;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    stat_book_dfs(pos, posCmd, bookFileName);
+	stat_book_dfs(pos, posCmd, bookFileName);
 }
 
 // 末端の局面をHcpにする
@@ -2228,85 +2230,101 @@ void MySearcher::bookToLeafHcp(std::istringstream& ssCmd, const std::string& pos
 
 // 定跡を深さと評価値でフィルターする
 void MySearcher::filterBook(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string bookFileName;
-    std::string outFileName;
-    int depth = 512;
-    int limitScore = ScoreInfinite;
+	std::string bookFileName;
+	std::string outFileName;
+	int depth = 512;
+	int limitScore = ScoreInfinite;
 
-    ssCmd >> bookFileName;
-    ssCmd >> outFileName;
-    ssCmd >> depth;
-    ssCmd >> limitScore;
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> depth;
+	ssCmd >> limitScore;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    filter_book(pos, bookFileName, outFileName, depth, limitScore);
+	filter_book(pos, bookFileName, outFileName, depth, limitScore);
 
-    // 結果表示
-    std::cout << "done" << std::endl;
+	// 結果表示
+	std::cout << "done" << std::endl;
 }
 
 void MySearcher::bfsPosition(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string bookFileName;
-    std::string policyFileName;
-    ssCmd >> bookFileName;
-    ssCmd >> policyFileName;
+	std::string bookFileName;
+	std::string policyFileName;
+	ssCmd >> bookFileName;
+	ssCmd >> policyFileName;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    bfs_position(pos, bookFileName, policyFileName);
+	bfs_position(pos, bookFileName, policyFileName);
 }
 
 void MySearcher::bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string policyFileName;
-    ssCmd >> policyFileName;
+	std::string policyFileName;
+	ssCmd >> policyFileName;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    book_pv_depth(pos, policyFileName);
+	book_pv_depth(pos, policyFileName);
 }
 
 void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string policyFileName;
+	std::string bookFileName; // 相手の定跡
+	std::string outFileName;
+	int threshold = 30;
+	ssCmd >> policyFileName;
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> threshold;
+
+	std::cout << "threshold: " << threshold << std::endl;
+
+	// 千日手の評価値
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	make_white_book(pos, posCmd, policyFileName, bookFileName, outFileName, threshold);
+}
+
+void MySearcher::bookPv(std::istringstream& ssCmd, const std::string& posCmd) {
     HuffmanCodedPos::init();
 
-    std::string policyFileName;
-    std::string bookFileName; // 相手の定跡
-    std::string outFileName;
-    int threshold = 30;
-    ssCmd >> policyFileName;
-    ssCmd >> bookFileName;
-    ssCmd >> outFileName;
-    ssCmd >> threshold;
-
-    std::cout << "threshold: " << threshold << std::endl;
-
-    // 千日手の評価値
-    SetEvalCoef(options["Eval_Coef"]);
-    const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
-    const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
-    draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
-    draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+    std::string blackFileName;
+    std::string whiteFileName;
+    ssCmd >> blackFileName;
+    ssCmd >> whiteFileName;
 
     // 開始局面設定
     Position pos(DefaultStartPositionSFEN, thisptr);
     std::istringstream ssPosCmd(posCmd);
     setPosition(pos, ssPosCmd);
 
-    make_white_book(pos, posCmd, policyFileName, bookFileName, outFileName, threshold);
+    book_pv(pos, posCmd, blackFileName, whiteFileName);
 }
 #endif
