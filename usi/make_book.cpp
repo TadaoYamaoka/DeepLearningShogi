@@ -3096,39 +3096,49 @@ void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector
         return;
     }
 
+    const std::vector<BookEntry>* entries = nullptr;
+
     if (pos.turn() == Black) {
-        const auto itr = blackMap.find(key);
-        if (itr == blackMap.end()) {
-            ofs << pv << "\n";
-            return;
+        const auto itr_black = blackMap.find(key);
+        if (itr_black != blackMap.end()) {
+            entries = &itr_black->second;
         }
-        const auto& entry0 = itr->second[0];
-        for (const auto& entry : itr->second) {
-            if (entry.score < entry0.score)
-                break;
-            Move move = move16toMove(Move(entry.fromToPro), pos);
-            StateInfo state;
-            pos.doMove(move, state);
-            book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
-            pos.undoMove(move);
+        else {
+            const auto itr_white = whiteMap.find(key);
+            if (itr_white != whiteMap.end()) {
+                entries = &itr_white->second;
+            }
         }
+        
     }
     else {
-        const auto itr = whiteMap.find(key);
-        if (itr == whiteMap.end()) {
-            ofs << pv << "\n";
-            return;
+        const auto itr_white = whiteMap.find(key);
+        if (itr_white != whiteMap.end()) {
+            entries = &itr_white->second;
         }
-        const auto& entry0 = itr->second[0];
-        for (const auto& entry : itr->second) {
-            if (entry.score < entry0.score)
-                break;
-            Move move = move16toMove(Move(entry.fromToPro), pos);
-            StateInfo state;
-            pos.doMove(move, state);
-            book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
-            pos.undoMove(move);
+        else {
+            const auto itr_black = blackMap.find(key);
+            if (itr_black != blackMap.end()) {
+                entries = &itr_black->second;
+            }
         }
+    }
+
+    if (entries == nullptr)
+    {
+        ofs << pv << "\n";
+        return;
+    }
+
+    const auto& entry0 = entries->at(0);
+    for (const auto& entry : *entries) {
+        if (entry.score < entry0.score)
+            break;
+        Move move = move16toMove(Move(entry.fromToPro), pos);
+        StateInfo state;
+        pos.doMove(move, state);
+        book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
+        pos.undoMove(move);
     }
 }
 
