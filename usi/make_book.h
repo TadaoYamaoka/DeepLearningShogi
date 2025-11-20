@@ -87,4 +87,5 @@ void bfs_position(Position& pos, const std::string& bookFileName, const std::str
 void book_pv_depth(Position& pos, const std::string& policyFileName);
 void make_white_book(Position& pos, const std::string& posCmd, const std::string& policyFileName, const std::string& bookFileName, const std::string& outFileName, const int threshold);
 void book_pv(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName);
+void book_pv_sfen(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName);
 #endif

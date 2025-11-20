@@ -3087,4 +3087,68 @@ void book_pv(Position& pos, const std::string& posCmd, const std::string& blackF
     std::cout << std::endl;
     std::cout << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " black score: " << blackScore << " white score: " << whiteScore << std::endl;
 }
+
+void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ofstream &ofs, std::string pv, std::unordered_set<Key> &visited) {
+    const Key key = Book::bookKey(pos);
+
+    if (!visited.emplace(key).second) {
+        ofs << pv << "\n";
+        return;
+    }
+
+    if (pos.turn() == Black) {
+        const auto itr = blackMap.find(key);
+        if (itr == blackMap.end()) {
+            ofs << pv << "\n";
+            return;
+        }
+        const auto& entry0 = itr->second[0];
+        for (const auto& entry : itr->second) {
+            if (entry.score < entry0.score)
+                break;
+            Move move = move16toMove(Move(entry.fromToPro), pos);
+            StateInfo state;
+            pos.doMove(move, state);
+            book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
+            pos.undoMove(move);
+        }
+    }
+    else {
+        const auto itr = whiteMap.find(key);
+        if (itr == whiteMap.end()) {
+            ofs << pv << "\n";
+            return;
+        }
+        const auto& entry0 = itr->second[0];
+        for (const auto& entry : itr->second) {
+            if (entry.score < entry0.score)
+                break;
+            Move move = move16toMove(Move(entry.fromToPro), pos);
+            StateInfo state;
+            pos.doMove(move, state);
+            book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
+            pos.undoMove(move);
+        }
+    }
+}
+
+void book_pv_sfen(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName) {
+    std::unordered_map<Key, std::vector<BookEntry> > blackMap;
+    read_book(blackFileName, blackMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
+    read_book(whiteFileName, whiteMap);
+
+    std::ofstream ofs(outFileName.c_str());
+
+    std::unordered_set<Key> visited;
+
+    std::string pv = posCmd;
+    if (pv == "startpos")
+        pv += " moves";
+
+    book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv, visited);
+
+    std::cout << "done" << std::endl;
+}
 #endif

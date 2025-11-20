@@ -63,6 +63,7 @@ struct MySearcher : Searcher {
 	static void bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd);
     static void bookPv(std::istringstream& ssCmd, const std::string& posCmd);
+    static void bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -463,6 +464,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "book_pv_depth") bookPvDepth(ssCmd, posCmd);
 		else if (token == "make_white_book") makeWhiteBook(ssCmd, posCmd);
         else if (token == "book_pv") bookPv(ssCmd, posCmd);
+        else if (token == "book_pv_sfen") bookPvSfen(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2326,5 +2328,23 @@ void MySearcher::bookPv(std::istringstream& ssCmd, const std::string& posCmd) {
     setPosition(pos, ssPosCmd);
 
     book_pv(pos, posCmd, blackFileName, whiteFileName);
+}
+
+void MySearcher::bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string blackFileName;
+    std::string whiteFileName;
+    std::string outFileName;
+    ssCmd >> blackFileName;
+    ssCmd >> whiteFileName;
+    ssCmd >> outFileName;
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::istringstream ssPosCmd(posCmd);
+    setPosition(pos, ssPosCmd);
+
+    book_pv_sfen(pos, posCmd, blackFileName, whiteFileName, outFileName);
 }
 #endif
