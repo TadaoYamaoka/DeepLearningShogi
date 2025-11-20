@@ -3088,7 +3088,7 @@ void book_pv(Position& pos, const std::string& posCmd, const std::string& blackF
     std::cout << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " black score: " << blackScore << " white score: " << whiteScore << std::endl;
 }
 
-void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ofstream &ofs, std::string pv, std::unordered_set<Key> &visited) {
+void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ofstream &ofs, std::string pv, const Move &prevMove, std::unordered_set<Key> &visited) {
     const Key key = Book::bookKey(pos);
 
     if (!visited.emplace(key).second) {
@@ -3129,6 +3129,9 @@ void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector
         ofs << pv << "\n";
         return;
     }
+    std::string next_pv = pv;
+    if (prevMove != Move::moveNone())
+        next_pv += " " + prevMove.toUSI();
 
     const auto& entry0 = entries->at(0);
     for (const auto& entry : *entries) {
@@ -3137,7 +3140,7 @@ void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector
         Move move = move16toMove(Move(entry.fromToPro), pos);
         StateInfo state;
         pos.doMove(move, state);
-        book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv + " " + move.toUSI(), visited);
+        book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, next_pv, move, visited);
         pos.undoMove(move);
     }
 }
@@ -3157,7 +3160,7 @@ void book_pv_sfen(Position& pos, const std::string& posCmd, const std::string& b
     if (pv == "startpos")
         pv += " moves";
 
-    book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv, visited);
+    book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv, Move::moveNone(), visited);
 
     std::cout << "done" << std::endl;
 }
