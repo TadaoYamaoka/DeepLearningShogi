@@ -62,8 +62,9 @@ struct MySearcher : Searcher {
 	static void bfsPosition(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookPvDepth(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeWhiteBook(std::istringstream& ssCmd, const std::string& posCmd);
-    static void bookPv(std::istringstream& ssCmd, const std::string& posCmd);
-    static void bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookPv(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookPvFromSfen(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -463,8 +464,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "bfs_position") bfsPosition(ssCmd, posCmd);
 		else if (token == "book_pv_depth") bookPvDepth(ssCmd, posCmd);
 		else if (token == "make_white_book") makeWhiteBook(ssCmd, posCmd);
-        else if (token == "book_pv") bookPv(ssCmd, posCmd);
-        else if (token == "book_pv_sfen") bookPvSfen(ssCmd, posCmd);
+		else if (token == "book_pv") bookPv(ssCmd, posCmd);
+		else if (token == "book_pv_sfen") bookPvSfen(ssCmd, posCmd);
+		else if (token == "book_pv_from_sfen") bookPvFromSfen(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2315,36 +2317,51 @@ void MySearcher::makeWhiteBook(std::istringstream& ssCmd, const std::string& pos
 }
 
 void MySearcher::bookPv(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string blackFileName;
-    std::string whiteFileName;
-    ssCmd >> blackFileName;
-    ssCmd >> whiteFileName;
+	std::string blackFileName;
+	std::string whiteFileName;
+	ssCmd >> blackFileName;
+	ssCmd >> whiteFileName;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    book_pv(pos, posCmd, blackFileName, whiteFileName);
+	book_pv(pos, posCmd, blackFileName, whiteFileName);
 }
 
 void MySearcher::bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd) {
-    HuffmanCodedPos::init();
+	HuffmanCodedPos::init();
 
-    std::string blackFileName;
-    std::string whiteFileName;
-    std::string outFileName;
-    ssCmd >> blackFileName;
-    ssCmd >> whiteFileName;
-    ssCmd >> outFileName;
+	std::string blackFileName;
+	std::string whiteFileName;
+	std::string outFileName;
+	ssCmd >> blackFileName;
+	ssCmd >> whiteFileName;
+	ssCmd >> outFileName;
 
-    // 開始局面設定
-    Position pos(DefaultStartPositionSFEN, thisptr);
-    std::istringstream ssPosCmd(posCmd);
-    setPosition(pos, ssPosCmd);
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
 
-    book_pv_sfen(pos, posCmd, blackFileName, whiteFileName, outFileName);
+	book_pv_sfen(pos, posCmd, blackFileName, whiteFileName, outFileName);
+}
+
+void MySearcher::bookPvFromSfen(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+
+	std::string sfenFileName;
+	std::string blackFileName;
+	std::string whiteFileName;
+	std::string outFileName;
+	ssCmd >> sfenFileName;
+	ssCmd >> blackFileName;
+	ssCmd >> whiteFileName;
+	ssCmd >> outFileName;
+
+	book_pv_from_sfen(sfenFileName, blackFileName, whiteFileName, outFileName);
 }
 #endif

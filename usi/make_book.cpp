@@ -3029,139 +3029,256 @@ void make_white_book(Position& pos, const std::string& posCmd, const std::string
 }
 
 void book_pv(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName) {
-    std::unordered_map<Key, std::vector<BookEntry> > blackMap;
-    read_book(blackFileName, blackMap);
+	std::unordered_map<Key, std::vector<BookEntry> > blackMap;
+	read_book(blackFileName, blackMap);
 
-    std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
-    read_book(whiteFileName, whiteMap);
+	std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
+	read_book(whiteFileName, whiteMap);
 
-    Score blackScore = ScoreNotEvaluated;
-    Score whiteScore = ScoreNotEvaluated;
-    Position pos_copy(pos);
-    auto states = StateListPtr(new std::deque<StateInfo>(1));
-    std::cout << "position " << posCmd;
-    if (posCmd == "startpos")
-        std::cout << " moves";
-    while (true)
-    {
-        Move move;
-        const Key key = Book::bookKey(pos_copy);
-        if (pos_copy.turn() == Black) {
-            const auto itr = blackMap.find(key);
-            if (itr == blackMap.end())
-                break;
-            const auto& entry = itr->second[0];
-            move = move16toMove(Move(entry.fromToPro), pos_copy);
-            blackScore = entry.score;
-        }
-        else {
-            const auto itr = whiteMap.find(key);
-            if (itr == whiteMap.end())
-                break;
-            const auto& entry = itr->second[0];
-            move = move16toMove(Move(entry.fromToPro), pos_copy);
-            whiteScore = entry.score;
-        }
-        std::cout << " " << move.toUSI();
-        states->emplace_back(StateInfo());
-        pos_copy.doMove(move, states->back());
+	Score blackScore = ScoreNotEvaluated;
+	Score whiteScore = ScoreNotEvaluated;
+	Position pos_copy(pos);
+	auto states = StateListPtr(new std::deque<StateInfo>(1));
+	std::cout << "position " << posCmd;
+	if (posCmd == "startpos")
+		std::cout << " moves";
+	while (true)
+	{
+		Move move;
+		const Key key = Book::bookKey(pos_copy);
+		if (pos_copy.turn() == Black) {
+			const auto itr = blackMap.find(key);
+			if (itr == blackMap.end())
+				break;
+			const auto& entry = itr->second[0];
+			move = move16toMove(Move(entry.fromToPro), pos_copy);
+			blackScore = entry.score;
+		}
+		else {
+			const auto itr = whiteMap.find(key);
+			if (itr == whiteMap.end())
+				break;
+			const auto& entry = itr->second[0];
+			move = move16toMove(Move(entry.fromToPro), pos_copy);
+			whiteScore = entry.score;
+		}
+		std::cout << " " << move.toUSI();
+		states->emplace_back(StateInfo());
+		pos_copy.doMove(move, states->back());
 
-        bool is_draw = false;
-        switch (pos_copy.isDraw()) {
-        case RepetitionDraw:
-            std::cout << " draw";
-            is_draw = true;
-            break;
-        case RepetitionWin:
-            std::cout << " repetition win";
-            is_draw = true;
-            break;
-        case RepetitionLose:
-            std::cout << " repetition lose";
-            is_draw = true;
-            break;
-        }
-        if (is_draw)
-            break;
-    }
-    std::cout << std::endl;
-    std::cout << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " black score: " << blackScore << " white score: " << whiteScore << std::endl;
+		bool is_draw = false;
+		switch (pos_copy.isDraw()) {
+		case RepetitionDraw:
+			std::cout << " draw";
+			is_draw = true;
+			break;
+		case RepetitionWin:
+			std::cout << " repetition win";
+			is_draw = true;
+			break;
+		case RepetitionLose:
+			std::cout << " repetition lose";
+			is_draw = true;
+			break;
+		}
+		if (is_draw)
+			break;
+	}
+	std::cout << std::endl;
+	std::cout << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " black score: " << blackScore << " white score: " << whiteScore << std::endl;
 }
 
-void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ofstream &ofs, std::string pv, const Move &prevMove, std::unordered_set<Key> &visited) {
-    const Key key = Book::bookKey(pos);
+void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ostream &ofs, std::string pv, const Move &prevMove, std::unordered_set<Key> &visited) {
+	const Key key = Book::bookKey(pos);
 
-    if (!visited.emplace(key).second) {
-        ofs << pv << "\n";
-        return;
-    }
+	if (!visited.emplace(key).second) {
+		ofs << pv << "\n";
+		return;
+	}
 
-    const std::vector<BookEntry>* entries = nullptr;
+	const std::vector<BookEntry>* entries = nullptr;
 
-    if (pos.turn() == Black) {
-        const auto itr_black = blackMap.find(key);
-        if (itr_black != blackMap.end()) {
-            entries = &itr_black->second;
-        }
-        else {
-            const auto itr_white = whiteMap.find(key);
-            if (itr_white != whiteMap.end()) {
-                entries = &itr_white->second;
-            }
-        }
-        
-    }
-    else {
-        const auto itr_white = whiteMap.find(key);
-        if (itr_white != whiteMap.end()) {
-            entries = &itr_white->second;
-        }
-        else {
-            const auto itr_black = blackMap.find(key);
-            if (itr_black != blackMap.end()) {
-                entries = &itr_black->second;
-            }
-        }
-    }
+	if (pos.turn() == Black) {
+		const auto itr_black = blackMap.find(key);
+		if (itr_black != blackMap.end()) {
+			entries = &itr_black->second;
+		}
+		else {
+			const auto itr_white = whiteMap.find(key);
+			if (itr_white != whiteMap.end()) {
+				entries = &itr_white->second;
+			}
+		}
+		
+	}
+	else {
+		const auto itr_white = whiteMap.find(key);
+		if (itr_white != whiteMap.end()) {
+			entries = &itr_white->second;
+		}
+		else {
+			const auto itr_black = blackMap.find(key);
+			if (itr_black != blackMap.end()) {
+				entries = &itr_black->second;
+			}
+		}
+	}
 
-    if (entries == nullptr)
-    {
-        ofs << pv << "\n";
-        return;
-    }
-    std::string next_pv = pv;
-    if (prevMove != Move::moveNone())
-        next_pv += " " + prevMove.toUSI();
+	if (entries == nullptr)
+	{
+		ofs << pv << "\n";
+		return;
+	}
+	std::string next_pv = pv;
+	if (prevMove != Move::moveNone())
+		next_pv += " " + prevMove.toUSI();
 
-    const auto& entry0 = entries->at(0);
-    for (const auto& entry : *entries) {
-        if (entry.score < entry0.score)
-            break;
-        Move move = move16toMove(Move(entry.fromToPro), pos);
-        StateInfo state;
-        pos.doMove(move, state);
-        book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, next_pv, move, visited);
-        pos.undoMove(move);
-    }
+	const auto& entry0 = entries->at(0);
+	for (const auto& entry : *entries) {
+		if (entry.score < entry0.score)
+			break;
+		Move move = move16toMove(Move(entry.fromToPro), pos);
+		StateInfo state;
+		pos.doMove(move, state);
+		book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, next_pv, move, visited);
+		pos.undoMove(move);
+	}
 }
 
 void book_pv_sfen(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName) {
-    std::unordered_map<Key, std::vector<BookEntry> > blackMap;
-    read_book(blackFileName, blackMap);
+	std::unordered_map<Key, std::vector<BookEntry> > blackMap;
+	read_book(blackFileName, blackMap);
 
-    std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
-    read_book(whiteFileName, whiteMap);
+	std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
+	read_book(whiteFileName, whiteMap);
 
-    std::ofstream ofs(outFileName.c_str());
+	std::ofstream ofs(outFileName.c_str());
 
-    std::unordered_set<Key> visited;
+	std::unordered_set<Key> visited;
 
-    std::string pv = posCmd;
-    if (pv == "startpos")
-        pv += " moves";
+	std::string pv = posCmd;
+	if (pv == "startpos")
+		pv += " moves";
 
-    book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv, Move::moveNone(), visited);
+	book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, pv, Move::moveNone(), visited);
 
-    std::cout << "done" << std::endl;
+	std::cout << "done" << std::endl;
+}
+
+void book_pv_from_sfen(const std::string& sfenFileName, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName) {
+	std::unordered_map<Key, std::vector<BookEntry> > blackMap;
+	read_book(blackFileName, blackMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > whiteMap;
+	read_book(whiteFileName, whiteMap);
+
+	std::ifstream ifs(sfenFileName);
+	std::set<std::string> sfenLines;
+
+	std::string line;
+
+	while (std::getline(ifs, line)) {
+		if (line.empty()) continue;
+
+		// 行が "startpos" でも "sfen" でも始まらない場合はスキップ
+		// (findは先頭で見つかれば 0 を返すので、0以外なら先頭ではないと判断)
+		if (line.find("startpos") != 0 && line.find("sfen") != 0) {
+			continue;
+		}
+
+		// "moves" の位置を探す
+		auto pos = line.find("moves");
+
+		// movesが見つからない場合は行全体を保存して次へ
+		if (pos == std::string::npos) {
+			sfenLines.emplace(line);
+			continue;
+		}
+
+		// 1. movesを含む前半部分を切り出す ("startpos moves" や "sfen ... moves")
+		// pos + 5 は "moves" の文字数分進めるため
+		std::string header = line.substr(0, pos + 5);
+
+		// まず "startpos moves" 単体を保存
+		sfenLines.emplace(header);
+
+		// 2. movesより後ろ（指し手部分）を取得してストリームに入れる
+		std::string movesPart = line.substr(pos + 5);
+		std::stringstream ss(movesPart);
+		std::string move;
+		std::string currentSfen = header;
+
+		// 指し手を一つずつ取り出して連結しながら保存
+		while (ss >> move) {
+			currentSfen += " ";  // 空白を入れる
+			currentSfen += move; // 指し手を追加
+			sfenLines.emplace(currentSfen);
+		}
+	}
+
+	// 直接ファイルに出力せず、一旦vectorに保存
+	std::vector<std::string> buffer;
+	buffer.reserve(sfenLines.size()); // 少なくとも入力行数分は確保
+
+	for (const auto& posCmd : sfenLines) {
+		std::unordered_set<Key> visited;
+
+		Position pos(DefaultStartPositionSFEN, nullptr);
+		std::istringstream ssPosCmd(posCmd);
+		setPosition(pos, ssPosCmd);
+
+		std::string pv = posCmd;
+		if (pv == "startpos")
+			pv += " moves";
+
+		std::stringstream ssInner;
+		book_pv_sfen_inner(pos, blackMap, whiteMap, ssInner, pv, Move::moveNone(), visited);
+
+		// キャプチャした内容を行ごとにバッファへ追加
+		std::string tempLine;
+		while (std::getline(ssInner, tempLine)) {
+			if (!tempLine.empty()) {
+				buffer.push_back(tempLine);
+			}
+		}
+	}
+
+	// --- ソートと重複排除 ---
+	// 文字列順にソートすることで、「短い文字列」の直後に「それを含む長い文字列」が並ぶようになる
+	// 例: "A B", "A B C" の順
+	std::sort(buffer.begin(), buffer.end());
+	buffer.erase(std::unique(buffer.begin(), buffer.end()), buffer.end());
+
+	// --- フィルタリングとファイル出力 ---
+	std::ofstream ofs(outFileName.c_str());
+
+	for (size_t i = 0; i < buffer.size(); ++i) {
+		bool isSubstring = false;
+
+		// 次の行が存在する場合のみチェック
+		if (i + 1 < buffer.size()) {
+			const std::string& current = buffer[i];
+			const std::string& next = buffer[i + 1];
+
+			// 現在の行が、次の行の先頭（前方一致）になっているか確認
+			if (next.find(current) == 0) {
+				// 単なる前方一致だけでなく、単語の区切り目であることを確認する安全策
+				// 例: "moves 3g3f" が "moves 3g3f+" にマッチしないように、長さチェックと空白チェックを行う
+				// (sfenはスペース区切りなので、nextの[current.length()]がスペースなら完全な部分文字列)
+				if (next.length() > current.length()) {
+					if (next[current.length()] == ' ') {
+						isSubstring = true;
+					}
+				}
+			}
+		}
+
+		// 部分文字列でなければ（＝最長の手順であれば）出力
+		if (!isSubstring) {
+			ofs << buffer[i] << "\n";
+		}
+	}
+
+	std::cout << "done" << std::endl;
 }
 #endif
