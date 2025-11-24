@@ -1623,7 +1623,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	int playoutNum;
 	int diff;
 	int threashold = 150;
-	int opp_threashold = 30;
+	int opp_threashold = 1;
 
 	ssCmd >> bookFileName;
 	ssCmd >> policyFileName;
@@ -1700,7 +1700,7 @@ void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::str
 	int playoutNum;
 	int diff;
 	int threashold = 150;
-	int opp_threashold = 30;
+	int opp_threashold = 1;
 
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
