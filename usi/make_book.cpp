@@ -2831,14 +2831,28 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
 			break;
 		const Move move = move16toMove(Move(bookEntry.fromToPro), pos);
 		switch (pos.moveIsDraw(move)) {
-		case RepetitionDraw:
-			// 千日手の評価
-            bestScore = pos.turn() == Black ? draw_score_white : draw_score_black;
+        case RepetitionDraw:
+        {
+            // 千日手の評価
+            Score score = pos.turn() == Black ? draw_score_white : draw_score_black;
+            if (score > bestScore)
+                bestScore = score;
             continue;
-		case RepetitionWin:
-			return ScoreMaxEvaluate;
-		case RepetitionLose:
-			return -ScoreMaxEvaluate;
+        }
+        case RepetitionWin:
+        {
+            Score score = -ScoreMaxEvaluate;
+            if (score > bestScore)
+                bestScore = score;
+            continue;
+        }
+        case RepetitionLose:
+        {
+            Score score = ScoreMaxEvaluate;
+            if (score > bestScore)
+                bestScore = score;
+            continue;
+        }
 		}
 		StateInfo state;
 		pos.doMove(move, state);
