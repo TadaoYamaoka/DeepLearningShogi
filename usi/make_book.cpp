@@ -2833,7 +2833,8 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
 		switch (pos.moveIsDraw(move)) {
 		case RepetitionDraw:
 			// 千日手の評価
-			return pos.turn() == Black ? draw_score_black : draw_score_white;
+            bestScore = pos.turn() == Black ? draw_score_white : draw_score_black;
+            continue;
 		case RepetitionWin:
 			return ScoreMaxEvaluate;
 		case RepetitionLose:
