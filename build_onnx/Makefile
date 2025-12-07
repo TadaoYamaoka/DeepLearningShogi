@@ -1,7 +1,9 @@
 ﻿CC = g++
 CFLAGS = -std=c++17 -Wextra -Ofast -MMD -MP -fopenmp -DLEARN -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2
+NVCC_CFLAGS =
 ifneq ($(NYUGYOKU_FEATURES),)
 CFLAGS += -DNYUGYOKU_FEATURES
+NVCC_CFLAGS += -DNYUGYOKU_FEATURES
 endif
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
 INCLUDE = -I../cppshogi -I../usi -I../selfplay -I/usr/local/cuda/include
@@ -34,7 +36,7 @@ obj/%.o: ../cppshogi/%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 obj/%.o: ../usi/%.cu
-	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast" -o $@ $<
+	nvcc -x cu -I../cppshogi -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG $(NVCC_CFLAGS) -Xcompiler "-Ofast" -o $@ $<
 
 all: $(target)
 
