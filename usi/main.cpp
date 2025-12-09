@@ -42,6 +42,7 @@ struct MySearcher : Searcher {
 	static void evalPositionsWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
 	static bool diffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::string& posCmd);
+    static void iterDiffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd);
@@ -444,6 +445,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "eval_positions_with_usi_engine") evalPositionsWithUsiEngine(ssCmd, posCmd);
 		else if (token == "diff_eval") diffEval(ssCmd, posCmd);
 		else if (token == "diff_eval_with_usi_engine") diffEvalWithUsiEngine(ssCmd, posCmd);
+        else if (token == "iter_diff_eval") iterDiffEval(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "make_all_minmax_book_ra") makeAllMinMaxBookRA(ssCmd, posCmd);
@@ -1717,6 +1719,69 @@ void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::str
 			break;
 	}
 	std::cout << "done" << std::endl;
+}
+
+// eval_positions_with_usi_engineとdiff_evalを交互に繰り返す(統合版)
+void MySearcher::iterDiffEval(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string bookFileName;
+    std::string policyFileName;
+    std::string evalOutFileName;
+    int engine_num;
+
+    ssCmd >> bookFileName;
+    ssCmd >> policyFileName;
+    ssCmd >> evalOutFileName;
+    ssCmd >> engine_num;
+
+    int playout_num;
+    int diff;
+    int threashold = 150;
+    int opp_threashold = 1;
+
+    ssCmd >> playout_num;
+    ssCmd >> diff;
+    ssCmd >> threashold;
+    ssCmd >> opp_threashold;
+
+
+    std::cout << "engine_num: " << engine_num << " playout_num: " << playout_num << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
+
+    // 定跡読み込み
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > evalMap;
+    read_book(evalOutFileName, evalMap);
+
+    // プレイアウト数固定
+    LimitsType limits;
+    limits.nodes = playout_num;
+
+    // 訪問回数の閾値(1000分率)
+    book_visit_threshold = options["Book_Visit_Threshold"] / 1000.0;
+
+    book_cutoff = options["Book_Cutoff"] / 1000.0f;
+
+    // 探索打ち切りを使用する
+    use_interruption = options["Use_Interruption"];
+
+    SetReuseSubtree(options["ReuseSubtree"]);
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::string book_pos_cmd;
+    Key book_starting_pos_key;
+    std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
+
+    iter_diff_eval(pos, bookMap, evalMap, policyMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, evalOutFileName, bookFileName, book_pos_cmd, book_starting_pos_key);
+
+    std::cout << "outMap.size:" << bookMap.size() << std::endl;
+    std::cout << "done" << std::endl;
 }
 
 // 評価値が最大値を超える局面を削除

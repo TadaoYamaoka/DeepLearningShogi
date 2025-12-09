@@ -19,6 +19,7 @@
 #include <numeric>
 #include <omp.h>
 #include <chrono>
+#include <optional>
 
 struct child_node_t_copy {
 	Move move;       // 着手する座標
@@ -1346,8 +1347,114 @@ void enumerate_positions_with_move(const Position& pos_root, const std::unordere
 	}
 }
 
+// ----------------------------------------------------------------------------
+// 共通ロジック: 1つの局面に対してDiff評価を行い、必要なら定跡を拡張する
+// 戻り値: 拡張が行われた場合はその指し手と遷移先のKey、行われなかった場合はnullopt
+// ----------------------------------------------------------------------------
+std::optional<std::pair<Move, Key>> process_diff_eval_entry(
+	const PositionWithMove& position_node,
+	const Position& pos_root, // ルート局面（パス再生用）
+	const std::unordered_map<Key, std::vector<BookEntry>>& engineMap,
+	const std::unordered_map<Key, std::vector<BookEntry>>& policyMap,
+	std::unordered_map<Key, std::vector<BookEntry>>& outMap,
+	LimitsType& limits,
+	const Score diff,
+	const Score threashold,
+	const Score opp_threashold,
+	const std::string& outFileName,
+	const std::string& book_pos_cmd,
+	const Key& book_starting_pos_key
+) {
+	const Key key = position_node.key;
+
+	// 定跡(outMap)とEngine評価(engineMap)の両方にエントリが必要
+	auto itr_book = engineMap.find(key);
+	auto itr_out = outMap.find(key);
+
+	if (itr_book == engineMap.end() || itr_out == outMap.end()) {
+		return std::nullopt;
+	}
+
+	const auto& entry = itr_out->second[0];
+	Score score = entry.score;
+	const auto& opp_entry = itr_book->second[0];
+	const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
+	// 相手が詰みを見つけているか
+	const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
+
+	// 評価値の符号が異なるか
+	const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + opp_threashold) < 0 || score * (opp_score - opp_threashold) < 0;
+	// 評価値の符号が異なり、差がdiff以上か
+	bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
+
+	// policyのスコアも確認する
+	if (!is_over_diff && !opp_mate) {
+		const auto itr_policy = policyMap.find(key);
+		if (itr_policy != policyMap.end()) {
+			const Score policy_score = itr_policy->second[0].score;
+			if ((policy_score + threashold) * opp_score < 0 || (policy_score - threashold) * opp_score < 0) {
+				// 評価値の符号が異なり、差がdiff以上
+				if (std::abs(opp_score - policy_score) >= diff) {
+					score = policy_score;
+					is_over_diff = true;
+				}
+			}
+		}
+	}
+	// 評価値の符号が異なり、差がdiff以上、もしくは詰み
+	if (is_over_diff || opp_mate) {
+		// パスを復元して局面を再生
+		Position pos_copy(pos_root);
+		const PositionWithMove* ptr = &position_node;
+		std::vector<Move> path_moves(ptr->depth);
+
+		// 親を辿って指し手を収集
+		for (int j = ptr->depth - 1; j >= 0; --j) {
+			path_moves[j] = ptr->move;
+			ptr = ptr->parent;
+		}
+
+		// 局面を進める
+		auto states = StateListPtr(new std::deque<StateInfo>(1));
+		for (const Move m : path_moves) {
+			states->emplace_back(StateInfo());
+			pos_copy.doMove(m, states->back());
+		}
+
+		// 次の指し手を選択
+		const Move move = (score < opp_score) ?
+			// 悲観している局面では、相手の指し手を選ぶ
+			move16toMove(Move(opp_entry.fromToPro), pos_copy) :
+			// 楽観している局面では、自分の指し手を選ぶ
+			move16toMove(Move(entry.fromToPro), pos_copy);
+
+		Key key_after = Book::bookKeyAfter(pos_copy, key, move);
+
+		// 新しい局面がまだ定跡にない場合、UCT探索を行って追加
+		if (outMap.find(key_after) == outMap.end()) {
+			std::cout << "diff: " << score << ", " << opp_entry.score << std::endl;
+
+			StateInfo state;
+			int count = 0;
+			pos_copy.doMove(move, state);
+			path_moves.emplace_back(move);
+
+			// make_book_entry_with_uct は outMap を更新する
+			bool added = make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, path_moves, book_pos_cmd, book_starting_pos_key);
+
+			if (added) {
+				// 保存
+				saveOutmap(outFileName, outMap);
+				return std::make_pair(move, key_after);
+			}
+		}
+	}
+
+	return std::nullopt;
+}
+
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const Score opp_threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& engineMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const Score opp_threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(outMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
@@ -1360,79 +1467,182 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 
 	// 評価値が割れる局面を延長する
 	for (const auto& position : positions) {
-		const Key key = position.key;
+		process_diff_eval_entry(position, pos, engineMap, policyMap, outMap, limits, diff, threashold, opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
+	}
+}
 
-		// 評価値差分
-		const auto itr_book = bookMap.find(key);
-		if (itr_book != bookMap.end()) {
-			const auto& itr = outMap.find(key);
-			if (itr == outMap.end())
-				continue;
-			const auto& entry = itr->second[0];
-			Score score = entry.score;
-			const auto& opp_entry = itr_book->second[0];
-			const auto opp_score = std::min(std::max(opp_entry.score, -ScoreMaxEvaluate), ScoreMaxEvaluate);
-			// 相手が詰みを見つけているか
-			const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
 
-			// 評価値の符号が異なるか
-			const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + opp_threashold) < 0 || score * (opp_score - opp_threashold) < 0;
-			// 評価値の符号が異なり、差がdiff以上か
-			bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
+// USI評価とDiff拡張を交互に繰り返す
+void iter_diff_eval(
+	Position& root_pos,
+	std::unordered_map<Key, std::vector<BookEntry>>& outMap,        // 兼用: bookMap兼outMap (UCT結果)
+	std::unordered_map<Key, std::vector<BookEntry>>& outEngineMap,  // エンジン評価結果
+	const std::unordered_map<Key, std::vector<BookEntry>>& policyMap,
+	const std::string& engine_path,
+	const std::string& engine_options,
+	const int nodes,
+	const int engine_num,
+	LimitsType& limits,
+	const Score diff,
+	const Score threashold,
+	const Score opp_threashold,
+    const std::string& outEngineFileName,
+	const std::string& outFileName,
+	const std::string& book_pos_cmd,
+	const Key& book_starting_pos_key
+) {
+	// 1. エンジン初期化 (ループ外で一度だけ行い、使い回す)
+	std::cout << "Initializing " << engine_num << " engines..." << std::endl;
+	std::vector<std::unique_ptr<USIBookEngine>> usi_book_engines(engine_num);
+	#pragma omp parallel for num_threads(engine_num)
+	for (int i = 0; i < engine_num; ++i) {
+		usi_book_engines[omp_get_thread_num()] = create_usi_book_engine(engine_path, engine_options, false);
+	}
+	usi_book_engine_nodes = nodes;
 
-			// policyのスコアも確認する
-			if (!is_over_diff && !opp_mate) {
-				const auto itr_policy = policyMap.find(key);
-				if (itr_policy != policyMap.end()) {
-					const Score policy_score = itr_policy->second[0].score;
-					if ((policy_score + threashold) * opp_score < 0 || (policy_score - threashold) * opp_score < 0) {
-						// 評価値の符号が異なり、差がdiff以上
-						if (std::abs(opp_score - policy_score) >= diff) {
-							score = policy_score;
-							is_over_diff = true;
+	// 2. データ構造の準備
+	// PositionWithMoveのポインタを保持し続けるため、vectorではなくdequeを使用する(リサイズ時のポインタ無効化防止)
+	std::deque<PositionWithMove> all_positions_storage;
+
+	std::vector<PositionWithMove> initial_positions_vec;
+	initial_positions_vec.reserve(outMap.size() + 1);
+
+	std::cout << "Initial enumeration..." << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+	enumerate_positions_with_move(root_pos, outMap, policyMap, initial_positions_vec);
+	auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "positions: " << initial_positions_vec.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+
+	// deque にコピー (parent ポインタの再リンクが必要だが、
+	// initial_positions_vec はフラットな配列で index ベースで parent を持っているわけではなく、
+	// 実際の実装ではポインタで持っているため、単純コピーするとダングリングポインタになる危険がある。
+	// vector が破棄されるとポインタが無効になるため、ロジックには注意が必要。
+	// 初回の vector はそのまま保持し、追加分のみ deque で管理し、ポインタを繋ぐ形にする。
+
+	// 安全策: initial_positions_vec はこのスコープ内でずっと生存させる
+	// processing_queue には PositionWithMove のポインタを格納する
+	std::vector<const PositionWithMove*> processing_queue;
+	processing_queue.reserve(initial_positions_vec.size());
+	for (const auto& p : initial_positions_vec) {
+		processing_queue.push_back(&p);
+	}
+
+	int loop_count = 0;
+
+	// 3. ループ処理
+	while (!processing_queue.empty()) {
+		loop_count++;
+		std::cout << "=== Iteration " << loop_count << " ===" << std::endl;
+		std::cout << "Target positions: " << processing_queue.size() << std::endl;
+
+		// ---------------------------------------------------------
+		// Phase A: USI Engine Evaluation
+		// ---------------------------------------------------------
+		std::vector<const PositionWithMove*> nodes_to_eval;
+		nodes_to_eval.reserve(std::min(processing_queue.size(), (size_t)100000));
+
+		// 未評価のものだけ抽出
+		for (const auto* ptr : processing_queue) {
+			if (outEngineMap.find(ptr->key) == outEngineMap.end()) {
+				nodes_to_eval.emplace_back(ptr);
+			}
+		}
+
+		if (!nodes_to_eval.empty()) {
+			std::cout << "Evaluating " << nodes_to_eval.size() << " positions with USI engines..." << std::endl;
+			const int eval_size = (int)nodes_to_eval.size();
+			int processed_count = 0;
+			std::regex re(R"*(score +(cp|mate) +([+\-]?\d*))*");
+
+			#pragma omp parallel for num_threads(engine_num) schedule(dynamic)
+			for (int i = 0; i < eval_size; ++i) {
+				const auto* node_ptr = nodes_to_eval[i];
+
+				// 局面復元 (PositionWithMove から Position を作成)
+				Position pos_local(root_pos);
+				std::vector<Move> path_moves(node_ptr->depth);
+				const PositionWithMove* curr = node_ptr;
+				for (int j = node_ptr->depth - 1; j >= 0; --j) {
+					path_moves[j] = curr->move;
+					curr = curr->parent;
+				}
+				auto states = StateListPtr(new std::deque<StateInfo>(1));
+				for (const Move m : path_moves) {
+					states->emplace_back(StateInfo());
+					pos_local.doMove(m, states->back());
+				}
+
+				// エンジン探索
+				const std::vector<Move> empty_moves = {};
+				const auto usi_result = usi_book_engines[omp_get_thread_num()]->Go("position " + pos_local.toSFEN(), empty_moves, usi_book_engine_nodes);
+
+				if (usi_result.bestMove != "resign" && usi_result.bestMove != "win") {
+					BookEntry be;
+					be.key = node_ptr->key;
+					be.fromToPro = (u16)usiToMove(pos_local, usi_result.bestMove).value();
+					be.count = 1;
+
+					std::smatch m;
+					if (std::regex_search(usi_result.info, m, re)) {
+						if (m[1].str() == "cp") {
+							be.score = (Score)std::stoi(m[2].str());
+						}
+						else { // mate
+							if (m[2].str()[0] == '-') be.score = -ScoreMaxEvaluate;
+							else be.score = ScoreMaxEvaluate;
+						}
+
+						#pragma omp critical
+						{
+							outEngineMap[node_ptr->key].emplace_back(be);
+							processed_count++;
+							if (processed_count % 1000 == 0) {
+								std::cout << "USI progress: " << processed_count << "/" << eval_size << std::endl;
+								// 必要に応じて途中保存
+							}
 						}
 					}
 				}
 			}
-			// 評価値の符号が異なり、差がdiff以上、もしくは詰み
-			if (is_over_diff || opp_mate) {
-				Position pos_copy(pos);
-				const PositionWithMove* position_ptr = &position;
-				std::vector<Move> moves(position_ptr->depth);
-				for (int j = position_ptr->depth - 1; j >= 0; --j) {
-					moves[j] = position_ptr->move;
-					position_ptr = position_ptr->parent;
-				}
-				assert(position_ptr->parent == nullptr);
+			std::cout << "Evaluation completed. Processed " << processed_count << " positions." << std::endl;
+			std::cout << "Saving engine evaluation results to " << outEngineFileName << " ..." << std::endl;
+			saveOutmap(outEngineFileName, outEngineMap); // フェーズ終了時に保存
+		}
 
-				// move
-				auto states = StateListPtr(new std::deque<StateInfo>(1));
-				for (const Move move : moves) {
-					states->emplace_back(StateInfo());
-					pos_copy.doMove(move, states->back());
-				}
+		// ---------------------------------------------------------
+		// Phase B: Diff Eval & Extension
+		// ---------------------------------------------------------
+		std::cout << "Diff check and Extension..." << std::endl;
+		std::vector<const PositionWithMove*> next_queue;
 
-				const Move move = (score < opp_score) ?
-					// 悲観している局面では、相手の指し手を選ぶ
-					move16toMove(Move(opp_entry.fromToPro), pos_copy) :
-					// 楽観している局面では、自分の指し手を選ぶ
-					move16toMove(Move(entry.fromToPro), pos_copy);
-				Key key_after = Book::bookKeyAfter(pos_copy, key, move);
-				if (outMap.find(key_after) == outMap.end()) {
-					// 最善手が定跡にない場合
-					std::cout << "diff: " << score << ", " << opp_entry.score << std::endl;
-					// 最善手を指して、定跡を延長
-					StateInfo state;
-					int count = 0;
-					pos_copy.doMove(move, state);
-					moves.emplace_back(move);
-					make_book_entry_with_uct(pos_copy, limits, key_after, outMap, count, moves, book_pos_cmd, book_starting_pos_key);
-					// 保存
-					saveOutmap(outFileName, outMap);
-				}
+		// processing_queue にある局面をチェックし、拡張されたら新しいノードを作る
+		for (const auto* node_ptr : processing_queue) {
+			auto result = process_diff_eval_entry(
+				*node_ptr, root_pos, outEngineMap, policyMap, outMap, limits,
+				diff, threashold, opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key
+			);
+
+			if (result.has_value()) {
+				// 新しい局面が追加された
+				Move new_move = result->first;
+				Key new_key = result->second;
+				int new_depth = node_ptr->depth + 1;
+
+				// dequeに追加 (メモリ位置を固定するため)
+				// parent は現在の node_ptr (これは vector または deque 内のアドレスを指している)
+				all_positions_storage.push_back({ new_key, new_move, new_depth, node_ptr });
+
+				// 次のループ対象に追加
+				next_queue.push_back(&all_positions_storage.back());
 			}
 		}
+
+		// 次のループのためにキューを更新
+		// 新しく生成された局面のみを次の対象にする
+		processing_queue = next_queue;
 	}
+
+	std::cout << "Iterative evaluation finished." << std::endl;
 }
 
 // 全ての局面についてαβで定跡を作る
@@ -1501,7 +1711,7 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 		{
 			auto& out_entries = outMap[key];
 			assert(out_entries.size() == 0);
-			out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score});
+			out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
 			if ((outMap.size() - initial_size) % 10000 == 0)
 				std::cout << "progress: " << (outMap.size() - initial_size) * 100 / indexes_size << "%" << std::endl;
 		}
@@ -2831,28 +3041,28 @@ Score make_white_book_inner_black(Position& pos, const std::unordered_map<Key, s
 			break;
 		const Move move = move16toMove(Move(bookEntry.fromToPro), pos);
 		switch (pos.moveIsDraw(move)) {
-        case RepetitionDraw:
-        {
-            // 千日手の評価
-            Score score = pos.turn() == Black ? draw_score_white : draw_score_black;
-            if (score > bestScore)
-                bestScore = score;
-            continue;
-        }
-        case RepetitionWin:
-        {
-            Score score = -ScoreMaxEvaluate;
-            if (score > bestScore)
-                bestScore = score;
-            continue;
-        }
-        case RepetitionLose:
-        {
-            Score score = ScoreMaxEvaluate;
-            if (score > bestScore)
-                bestScore = score;
-            continue;
-        }
+		case RepetitionDraw:
+		{
+			// 千日手の評価
+			Score score = pos.turn() == Black ? draw_score_white : draw_score_black;
+			if (score > bestScore)
+				bestScore = score;
+			continue;
+		}
+		case RepetitionWin:
+		{
+			Score score = -ScoreMaxEvaluate;
+			if (score > bestScore)
+				bestScore = score;
+			continue;
+		}
+		case RepetitionLose:
+		{
+			Score score = ScoreMaxEvaluate;
+			if (score > bestScore)
+				bestScore = score;
+			continue;
+		}
 		}
 		StateInfo state;
 		pos.doMove(move, state);
