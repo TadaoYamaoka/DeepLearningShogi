@@ -711,7 +711,7 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
 // dropoff: モデルの推論結果の方策の確率をトップから何%低下までを採用するか
 // temperature: softmax温度パラメータ
 void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates, const float temperature) {
-    unsigned int* index = reinterpret_cast<unsigned int*>(ndindex);
+    size_t* index = reinterpret_cast<size_t*>(ndindex);
     auto logits = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlogits);
     float* values = reinterpret_cast<float*>(ndvalue);
 
@@ -741,7 +741,7 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
         }
     };
 
-#pragma omp parallel for num_threads(4)
+    #pragma omp parallel for num_threads(4)
     for (int64_t i = 0; i < len; i++) {
         auto& hcpe3 = trainingData[i + start_index];
         hcpe3 = get_cache_with_lock(index[i]);
