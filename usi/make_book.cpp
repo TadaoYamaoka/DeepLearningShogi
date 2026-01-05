@@ -20,6 +20,7 @@
 #include <omp.h>
 #include <chrono>
 #include <optional>
+#include <atomic>
 
 struct child_node_t_copy {
 	Move move;       // 着手する座標
@@ -2039,6 +2040,275 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 	}
 }
 
+namespace make_book_bfs_ra {
+	struct BfsNode;
+	struct BfsEdge {
+		Move move;
+		BfsNode* child;
+		Score score;
+	};
+	struct BfsNode {
+		Key key;
+		int depth;
+		Move move;
+		const BfsNode* parent;
+		std::vector<std::unique_ptr<BfsEdge>> edges;
+		Score best_score;
+	};
+	struct EvalTask {
+		BfsEdge* edge;
+		const BfsNode* parent;
+	};
+
+	void build_path_moves(const BfsNode* node, std::vector<Move>& moves) {
+		moves.resize(node->depth);
+		const BfsNode* curr = node;
+		for (int i = node->depth - 1; i >= 0; --i) {
+			moves[i] = curr->move;
+			curr = curr->parent;
+		}
+	}
+}
+
+void make_policy_book_bfs_ra(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const double beta) {
+	using namespace make_book_bfs_ra;
+	const Key root_key = Book::bookKey(pos);
+	if (bookMap.find(root_key) == bookMap.end()) {
+		std::cout << "root not found in bookMap" << std::endl;
+		return;
+	}
+
+	std::deque<BfsNode> nodes;
+	nodes.emplace_back(BfsNode{ root_key, 0, Move::moveNone(), nullptr, {}, ScoreNotEvaluated });
+
+	std::unordered_map<Key, BfsNode*> visited;
+	visited.reserve(bookMap.size() + 1);
+	visited.emplace(root_key, &nodes.front());
+
+	std::vector<BfsNode*> bfs_order;
+	bfs_order.reserve(bookMap.size() + 1);
+	bfs_order.emplace_back(&nodes.front());
+
+	std::vector<BfsNode*> queue;
+	queue.reserve(bookMap.size() + 1);
+	queue.emplace_back(&nodes.front());
+
+	std::vector<EvalTask> eval_tasks;
+	eval_tasks.reserve(bookMap.size());
+
+	size_t queue_index = 0;
+	std::vector<Move> path_moves;
+	while (queue_index < queue.size()) {
+		BfsNode* node = queue[queue_index++];
+
+		Position pos_copy(pos);
+		build_path_moves(node, path_moves);
+		auto states = StateListPtr(new std::deque<StateInfo>(1));
+		for (const Move move : path_moves) {
+			states->emplace_back(StateInfo());
+			pos_copy.doMove(move, states->back());
+		}
+
+		const auto itr = bookMap.find(node->key);
+		if (itr == bookMap.end()) {
+			continue;
+		}
+		const auto& entries = itr->second;
+		const Score entry0_score = entries.empty() ? ScoreNone : entries[0].score;
+
+		struct MoveCandidate {
+			Move move;
+			Score entry_score;
+			bool is_entry;
+		};
+		std::vector<MoveCandidate> candidates;
+		candidates.reserve(entries.size() + MaxLegalMoves);
+		std::unordered_set<u16> entry_moves;
+		entry_moves.reserve(entries.size() * 2 + 1);
+
+		for (const auto& entry : entries) {
+			const Move move = move16toMove(Move(entry.fromToPro), pos_copy);
+			candidates.push_back(MoveCandidate{ move, entry.score, true });
+			entry_moves.emplace(entry.fromToPro);
+		}
+
+		for (MoveList<LegalAll> ml(pos_copy); !ml.end(); ++ml) {
+			const Move move = ml.move();
+			const u16 move16 = (u16)move.value();
+			if (entry_moves.find(move16) != entry_moves.end()) {
+				continue;
+			}
+			const Key key_after = Book::bookKeyAfter(pos_copy, node->key, move);
+			if (bookMap.find(key_after) == bookMap.end()) {
+				continue;
+			}
+			candidates.push_back(MoveCandidate{ move, ScoreNone, false });
+		}
+
+		node->edges.reserve(candidates.size());
+		for (const auto& cand : candidates) {
+			const Move move = cand.move;
+			const auto rep = pos_copy.moveIsDraw(move);
+			if (rep == RepetitionDraw || rep == RepetitionWin || rep == RepetitionLose) {
+				Score score = ScoreNone;
+				if (rep == RepetitionDraw) {
+					score = (pos_copy.turn() == Black) ? draw_score_black : draw_score_white;
+				}
+				else if (rep == RepetitionWin) {
+					score = ScoreMaxEvaluate;
+				}
+				else {
+					score = -ScoreMaxEvaluate;
+				}
+				node->edges.emplace_back(new BfsEdge{ move, nullptr, score });
+				continue;
+			}
+
+			const Key key_after = Book::bookKeyAfter(pos_copy, node->key, move);
+			auto itr_after = bookMap.find(key_after);
+			if (itr_after == bookMap.end()) {
+				if (!cand.is_entry) {
+					continue;
+				}
+				Score score = cand.entry_score;
+				if (!entries.empty() && score > entry0_score) {
+					score = entry0_score;
+				}
+				node->edges.emplace_back(new BfsEdge{ move, nullptr, score });
+				continue;
+			}
+
+			auto itr_seen = visited.find(key_after);
+			const bool is_existing = itr_seen != visited.end();
+			BfsNode* child = nullptr;
+			if (is_existing) {
+				child = itr_seen->second;
+			}
+			else {
+				nodes.emplace_back(BfsNode{ key_after, node->depth + 1, move, node, {}, ScoreNotEvaluated });
+				child = &nodes.back();
+				visited.emplace(key_after, child);
+				queue.emplace_back(child);
+				bfs_order.emplace_back(child);
+			}
+
+			auto& edge = node->edges.emplace_back(new BfsEdge{ move, child, ScoreNotEvaluated });
+			if (is_existing) {
+				eval_tasks.push_back(EvalTask{ edge.get(), node });
+			}
+		}
+	}
+
+	std::cout << "nodes: " << nodes.size() << " eval_edges: " << eval_tasks.size() << std::endl;
+
+	if (!eval_tasks.empty()) {
+		const int eval_threads = std::max(1, threads);
+		const int eval_size = (int)eval_tasks.size();
+		const int progress_interval = 100000;
+		std::atomic<int> eval_done{ 0 };
+		const auto eval_start = std::chrono::steady_clock::now();
+		#pragma omp parallel for num_threads(eval_threads) schedule(dynamic)
+		for (int i = 0; i < eval_size; ++i) {
+			const auto& task = eval_tasks[i];
+			std::vector<Move> moves;
+			build_path_moves(task.parent, moves);
+
+			Position pos_local(pos);
+			auto states = StateListPtr(new std::deque<StateInfo>(1));
+			for (const Move move : moves) {
+				states->emplace_back(StateInfo());
+				pos_local.doMove(move, states->back());
+			}
+			StateInfo state;
+			pos_local.doMove(task.edge->move, state);
+
+			const Key child_key = task.edge->child->key;
+			const auto itr_entries = bookMap.find(child_key);
+			if (itr_entries == bookMap.end()) {
+				task.edge->score = ScoreNone;
+				continue;
+			}
+			moves.emplace_back(task.edge->move);
+			const auto& child_entries = itr_entries->second;
+			int index;
+			Move best_move;
+			Score score;
+			std::tie(index, best_move, score) = select_best_book_entry(pos_local, bookMap, child_entries, moves, bookMapBest);
+			task.edge->score = -score;
+
+			const int done = eval_done.fetch_add(1) + 1;
+			if (done % progress_interval == 0 || done == eval_size) {
+				const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+					std::chrono::steady_clock::now() - eval_start).count();
+				#pragma omp critical
+				{
+					std::cout << "eval_tasks: " << done << " / " << eval_size
+						<< " elapsed: " << elapsed << " s" << std::endl;
+				}
+			}
+		}
+	}
+
+	for (auto it = bfs_order.rbegin(); it != bfs_order.rend(); ++it) {
+		BfsNode* node = *it;
+		for (auto& edge : node->edges) {
+			if (edge->score == ScoreNotEvaluated) {
+				if (edge->child == nullptr || edge->child->best_score == ScoreNotEvaluated) {
+					edge->score = ScoreNone;
+				}
+				else {
+					edge->score = -edge->child->best_score;
+				}
+			}
+		}
+		if (node->edges.empty()) {
+			node->best_score = ScoreNone;
+			continue;
+		}
+		Score best_score = -ScoreInfinite;
+		for (const auto& edge : node->edges) {
+			if (edge->score > best_score) {
+				best_score = edge->score;
+			}
+		}
+		node->best_score = best_score;
+	}
+
+	for (auto& node : nodes) {
+		if (node.edges.empty()) {
+			continue;
+		}
+		std::stable_sort(node.edges.begin(), node.edges.end(), [](const auto& l, const auto& r) {
+			return l->score > r->score;
+		});
+
+		auto& entries = outMap[node.key];
+		entries.reserve(node.edges.size());
+		for (const auto& edge : node.edges) {
+			entries.emplace_back(BookEntry{ node.key, (u16)edge->move.value(), 0, edge->score });
+		}
+
+		const Score max_score = entries[0].score;
+		std::vector<double> prob;
+		double sum = 0;
+		for (const auto& entry : entries) {
+			double x = (double)(entry.score - max_score) * beta / 754.3;
+			x = exp(x);
+			prob.emplace_back(x);
+			sum += x;
+		}
+		for (auto& x : prob) {
+			x /= sum;
+		}
+		for (size_t i = 0; i < entries.size(); ++i) {
+			entries[i].count = (u16)(prob[i] * USHRT_MAX);
+			if (i > 0 && entries[i].count == entries[0].count) {
+				entries[i].count--;
+			}
+		}
+	}
+}
+
 // 評価値が30000以上の局面を再評価
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
@@ -3334,7 +3604,7 @@ void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector
 				entries = &itr_white->second;
 			}
 		}
-		
+
 	}
 	else {
 		const auto itr_white = whiteMap.find(key);

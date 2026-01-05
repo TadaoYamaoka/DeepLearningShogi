@@ -46,6 +46,7 @@ struct MySearcher : Searcher {
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makePolicyBookBfsRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
 	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd);
@@ -449,6 +450,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
 		else if (token == "make_all_minmax_book_ra") makeAllMinMaxBookRA(ssCmd, posCmd);
+		else if (token == "make_policy_book_bfs_ra") makePolicyBookBfsRA(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
 		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
 		else if (token == "minmax_book_to_cache") minmaxBookToCache(ssCmd, posCmd);
@@ -1907,6 +1909,57 @@ void MySearcher::makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::strin
 	// 定跡をmin-max探索
 	std::map<Key, std::vector<BookEntry> > outMap;
 	make_all_minmax_book_ra(pos, outMap, 1.0 / temperature);
+
+	// 出力
+	saveOutmap(outFileName, outMap);
+	std::cout << "outMap.size:" << outMap.size() << std::endl;
+
+	// PV出力
+	const auto pv = getBookPV(pos, outFileName);
+	std::cout << "pv " << pv << std::endl;
+}
+
+void MySearcher::makePolicyBookBfsRA(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+	std::string bookFileName;
+	std::string outFileName;
+	int threads = 1;
+
+	ssCmd >> bookFileName;
+	ssCmd >> outFileName;
+	ssCmd >> threads;
+	if (threads <= 0) {
+		threads = 1;
+	}
+
+	// 千日手の評価値
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// αβ探索で特定局面の評価値を置き換える
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// MinMaxの探索順に使用する定跡
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	const double temperature = (int)options["Book_To_Prob_Temperature"] / 1000.0;
+
+	// 定跡をmin-max探索
+	std::map<Key, std::vector<BookEntry> > outMap;
+	make_policy_book_bfs_ra(pos, outMap, threads, bookMapBest, 1.0 / temperature);
 
 	// 出力
 	saveOutmap(outFileName, outMap);
