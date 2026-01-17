@@ -14,6 +14,7 @@
 #include <mutex>
 #include <memory>
 #include <signal.h>
+#include <chrono>
 
 #include "Node.h"
 #include "LruCache.h"
@@ -34,6 +35,22 @@ auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
 auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
 
 using namespace std;
+
+namespace {
+	class MonotonicTimer {
+	public:
+		using clock = std::chrono::steady_clock;
+		MonotonicTimer() : start_(clock::now()) {}
+		void restart() { start_ = clock::now(); }
+		int64_t elapsed_msec() const {
+			using namespace std::chrono;
+			return duration_cast<milliseconds>(clock::now() - start_).count();
+		}
+
+	private:
+		clock::time_point start_;
+	};
+}
 
 // 候補手の最大数(盤上全体)
 constexpr int UCT_CHILD_MAX = 593;
@@ -1589,7 +1606,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		group_pairs[i].Run();
 
 	// 進捗状況表示
-	auto progressFunc = [&gpu_id, &group_pairs](Timer& t) {
+	auto progressFunc = [&gpu_id, &group_pairs](MonotonicTimer& t) {
 		ostringstream ss;
 		for (size_t i = 0; i < gpu_id.size(); i++) {
 			if (i > 0) ss << " ";
@@ -1598,12 +1615,12 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		while (!stopflg) {
 			std::this_thread::sleep_for(std::chrono::seconds(10)); // 指定秒だけ待機し、進捗を表示する。
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
-			auto elapsed_msec = t.elapsed();
+			const int64_t elapsed_msec = std::max<int64_t>(0, t.elapsed_msec());
 			if (progress > 0.0) // 0 除算を回避する。
 				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
-					static_cast<double>(idx) / elapsed_msec * 1000.0,
+					(elapsed_msec > 0 ? static_cast<double>(idx) / elapsed_msec * 1000.0 : 0.0),
 					games,
 					draws,
 					nyugyokus,
@@ -1631,7 +1648,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		if (running > 0)
 			break;
 	}
-	Timer t = Timer::currentTime();
+	MonotonicTimer t;
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
 	// 探索スレッド終了待機
@@ -1645,7 +1662,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
-		madeTeacherNodes, t.elapsed() / 1000,
+		madeTeacherNodes, t.elapsed_msec() / 1000,
 		games,
 		draws,
 		static_cast<double>(madeTeacherNodes) / games,
