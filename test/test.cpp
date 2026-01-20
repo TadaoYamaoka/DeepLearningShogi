@@ -71,6 +71,33 @@ TEST(HcpeTest, make_hcpe) {
 	ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
 }
 
+TEST(HuffmanCodedPosTest, roundtrip_encode_decode) {
+	initTable();
+	Position::initZobrist();
+	HuffmanCodedPos::init();
+
+	const std::vector<std::string> sfens = {
+		"lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1",
+		"lnsgkgsnl/1r7/ppppppbpp/6pP1/9/9/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1",
+		"8l/+S8/1P4+Sp1/K4p2p/PNG1g2G1/2P6/6+n1k/9/3+lP4 b BG2SNL9P2rbnl2p 1",
+		"lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL b - 1"
+	};
+
+	for (const auto& sfen : sfens) {
+		Position pos;
+		pos.set(sfen);
+		const HuffmanCodedPos hcp = pos.toHuffmanCodedPos();
+		EXPECT_TRUE(hcp.isOK());
+
+		Position decoded;
+		EXPECT_TRUE(decoded.set(hcp));
+		const HuffmanCodedPos hcp2 = decoded.toHuffmanCodedPos();
+		EXPECT_EQ(hcp, hcp2);
+
+		EXPECT_EQ(std::string("sfen ") + sfen, decoded.toSFEN());
+	}
+}
+
 TEST(Hcpe3Test, merge_cache) {
 	initTable();
 	Position::initZobrist();
@@ -897,7 +924,7 @@ int main() {
 	checkInfo.dcBB.printBoard();
 	std::cout << "pinned" << std::endl;
 	checkInfo.pinned.printBoard();
-	
+
 }
 #endif
 
@@ -1248,7 +1275,7 @@ TEST(DfPn, dfpn) {
 		"+B2B1n2K/7+R1/p2p1p1ps/3g2+r1k/1p3n3/4n1P+s1/PP7/1S7/L8 b 3GSL7Pn2l3p 1", // 不詰み
 		"ln2g3l/2+Rskg3/p2sppL2/2pp1sP1p/2P2n3/B2P1N1p1/P1NKPP2P/1G1S1+p1P1/7+rL b B2Pg 98", // 不詰み
 	};
-	
+
 	auto start0 = std::chrono::system_clock::now();
 	auto total = start0 - start0;
     for (const auto& [sfens, mate] : {
@@ -1680,7 +1707,7 @@ int main(int argc, char* argv[]) {
 	std::string str;
 	char buf[sizeof(Position)] = {};
 	auto re = std::regex(R"([0-9a-f]{2})");
-	
+
 	for (int i = 0; i < sizeof(Position); ) {
 		is >> str;
 		if (str.size() != 2) continue;
@@ -2145,7 +2172,7 @@ int main(int argc, char* argv[])
 				data.ply = i;
 				data.count++;
 				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
-				
+
 			}
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 			pos.doMove(move, states->emplace_back(StateInfo()));

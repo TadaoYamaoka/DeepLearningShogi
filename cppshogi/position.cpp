@@ -76,6 +76,8 @@ const HuffmanCode HuffmanCodedPos::handCodeTable[HandPieceNum][ColorNum] = {
 
 HuffmanCodeToPieceHash HuffmanCodedPos::boardCodeToPieceHash;
 HuffmanCodeToPieceHash HuffmanCodedPos::handCodeToPieceHash;
+HuffmanCodedPos::DecodeEntry HuffmanCodedPos::boardDecodeTable[256];
+HuffmanCodedPos::DecodeEntry HuffmanCodedPos::handDecodeTable[256];
 
 const CharToPieceUSI g_charToPieceUSI;
 
@@ -1658,7 +1660,7 @@ std::string Position::toSFEN(const Ply ply) const {
 HuffmanCodedPos Position::toHuffmanCodedPos() const {
     HuffmanCodedPos result;
     result.clear();
-    BitStream bs(result.data);
+    BitStreamWriter bs(result.data);
     // 手番 (1bit)
     bs.putBit(turn());
 
@@ -2004,7 +2006,7 @@ bool Position::set(const HuffmanCodedPos& hcp) {
     setSearcher(s);
 
     HuffmanCodedPos tmp = hcp; // ローカルにコピー
-    BitStream bs(tmp.data);
+    BitStreamReader bs(tmp.data);
 
     // 手番
     turn_ = static_cast<Color>(bs.getBit());
@@ -2019,31 +2021,19 @@ bool Position::set(const HuffmanCodedPos& hcp) {
     for (Square sq = SQ11; sq < SquareNum; ++sq) {
         if (pieceToPieceType(piece(sq)) == King) // piece(sq) は BKing, WKing, Empty のどれか。
             continue;
-        HuffmanCode hc = {0, 0};
-        while (hc.numOfBits <= 8) {
-            hc.code |= bs.getBit() << hc.numOfBits++;
-            if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) != PieceNone) {
-                const Piece pc = HuffmanCodedPos::boardCodeToPieceHash.value(hc.key);
-                if (pc != Empty)
-                    setPiece(HuffmanCodedPos::boardCodeToPieceHash.value(hc.key), sq);
-                break;
-            }
-        }
-        if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) == PieceNone)
+        const HuffmanCodedPos::DecodeEntry entry = HuffmanCodedPos::boardDecodeTable[bs.peekBits8()];
+        if (entry.bits == 0)
             goto INCORRECT_HUFFMAN_CODE;
+        bs.skipBits(entry.bits);
+        if (entry.pc != Empty)
+            setPiece(entry.pc, sq);
     }
     while (bs.data() != std::end(tmp.data)) {
-        HuffmanCode hc = {0, 0};
-        while (hc.numOfBits <= 8) {
-            hc.code |= bs.getBit() << hc.numOfBits++;
-            const Piece pc = HuffmanCodedPos::handCodeToPieceHash.value(hc.key);
-            if (pc != PieceNone) {
-                hand_[pieceToColor(pc)].plusOne(pieceTypeToHandPiece(pieceToPieceType(pc)));
-                break;
-            }
-        }
-        if (HuffmanCodedPos::handCodeToPieceHash.value(hc.key) == PieceNone)
+        const HuffmanCodedPos::DecodeEntry entry = HuffmanCodedPos::handDecodeTable[bs.peekBits8()];
+        if (entry.bits == 0)
             goto INCORRECT_HUFFMAN_CODE;
+        bs.skipBits(entry.bits);
+        hand_[pieceToColor(entry.pc)].plusOne(pieceTypeToHandPiece(pieceToPieceType(entry.pc)));
     }
 
     kingSquare_[Black] = bbOf(King, Black).constFirstOneFromSQ11();

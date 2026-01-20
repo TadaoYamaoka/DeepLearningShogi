@@ -69,56 +69,145 @@ struct StateInfo {
 
 using StateListPtr = std::unique_ptr<std::deque<StateInfo>>;
 
-class BitStream {
+class BitStreamWriter {
 public:
-    // 読み込む先頭データのポインタをセットする。
-    BitStream(u8* d) : data_(d), curr_() {}
-    // 読み込む先頭データのポインタをセットする。
+    // 書き込む先頭データのポインタをセットする。
+    BitStreamWriter(u8* d) : start_(d), data_(d), buf_(0), bitCount_(0) {}
+    // 書き込む先頭データのポインタをセットする。
     void set(u8* d) {
+        start_ = d;
         data_ = d;
-        curr_ = 0;
-    }
-    // １ bit 読み込む。どこまで読み込んだかを表す bit の位置を 1 個進める。
-    u8 getBit() {
-        const u8 result = (*data_ & (1 << curr_++)) ? 1 : 0;
-        if (curr_ == 8) {
-            ++data_;
-            curr_ = 0;
-        }
-        return result;
-    }
-    // numOfBits bit読み込む。どこまで読み込んだかを表す bit の位置を numOfBits 個進める。
-    u8 getBits(const int numOfBits) {
-        assert(numOfBits <= 8);
-        u8 result = 0;
-        for (int i = 0; i < numOfBits; ++i)
-            result |= getBit() << i;
-        return result;
+        buf_ = 0;
+        bitCount_ = 0;
     }
     // 1 bit 書き込む。
     void putBit(const u8 bit) {
         assert(bit <= 1);
-        *data_ |= bit << curr_++;
-        if (curr_ == 8) {
-            ++data_;
-            curr_ = 0;
+        buf_ |= (uint64_t)bit << bitCount_++;
+        if (bitCount_ >= 8) {
+            *data_++ = (u8)buf_;
+            buf_ >>= 8;
+            bitCount_ -= 8;
         }
     }
     // val の値を numOfBits bit 書き込む。8 bit まで。
     void putBits(u8 val, const int numOfBits) {
         assert(numOfBits <= 8);
-        for (int i = 0; i < numOfBits; ++i) {
-            const u8 bit = val & 1;
-            val >>= 1;
-            putBit(bit);
+        const uint64_t mask = ((1ull << numOfBits) - 1ull) << bitCount_;
+        buf_ |= pdep_u64((uint64_t)val, mask);
+        bitCount_ += numOfBits;
+        while (bitCount_ >= 8) {
+            *data_++ = (u8)buf_;
+            buf_ >>= 8;
+            bitCount_ -= 8;
         }
     }
     u8* data() const { return data_; }
-    int curr() const { return curr_; }
+    int curr() const { return bitCount_; }
 
 private:
+#if defined(HAVE_BMI2)
+    static FORCE_INLINE uint64_t pdep_u64(uint64_t val, uint64_t mask) {
+        return _pdep_u64(val, mask);
+    }
+#else
+    static FORCE_INLINE uint64_t pdep_u64(uint64_t val, uint64_t mask) {
+        uint64_t result = 0;
+        for (uint64_t bb = 1; mask; bb <<= 1) {
+            const uint64_t bit = mask & -mask;
+            if (val & bb)
+                result |= bit;
+            mask ^= bit;
+        }
+        return result;
+    }
+#endif
+
+    u8* start_;
     u8* data_;
-    int curr_; // 1byte 中の bit の位置
+    uint64_t buf_;
+    int bitCount_;
+};
+
+class BitStreamReader {
+public:
+    // 読み込む先頭データのポインタをセットする。
+    BitStreamReader(u8* d) : start_(d), data_(d), buf_(0), bitCount_(0), bitsRead_(0) {}
+    // 読み込む先頭データのポインタをセットする。
+    void set(u8* d) {
+        start_ = d;
+        data_ = d;
+        buf_ = 0;
+        bitCount_ = 0;
+        bitsRead_ = 0;
+    }
+    // 1 bit 読み込む。
+    u8 getBit() {
+        ensure(1);
+        const u8 result = (u8)(buf_ & 1u);
+        buf_ >>= 1;
+        --bitCount_;
+        ++bitsRead_;
+        return result;
+    }
+    // numOfBits bit 読み込む。8 bit まで。
+    u8 getBits(const int numOfBits) {
+        assert(numOfBits <= 8);
+        ensure(numOfBits);
+        const uint64_t mask = (1ull << numOfBits) - 1ull;
+        const u8 result = (u8)pext_u64(buf_, mask);
+        buf_ >>= numOfBits;
+        bitCount_ -= numOfBits;
+        bitsRead_ += numOfBits;
+        return result;
+    }
+    // 8 bit を先読みする。
+    u8 peekBits8() {
+        ensure(8);
+        return (u8)pext_u64(buf_, 0xFFu);
+    }
+    // numOfBits bit を消費する。8 bit まで。
+    void skipBits(const int numOfBits) {
+        assert(numOfBits <= 8);
+        ensure(numOfBits);
+        buf_ >>= numOfBits;
+        bitCount_ -= numOfBits;
+        bitsRead_ += numOfBits;
+    }
+    u8* data() const { return const_cast<u8*>(start_ + (bitsRead_ >> 3)); }
+    int curr() const { return (int)(bitsRead_ & 7); }
+
+private:
+#if defined(HAVE_BMI2)
+    static FORCE_INLINE uint64_t pext_u64(uint64_t val, uint64_t mask) {
+        return _pext_u64(val, mask);
+    }
+#else
+    static FORCE_INLINE uint64_t pext_u64(uint64_t val, uint64_t mask) {
+        uint64_t result = 0;
+        for (uint64_t bb = 1; mask; bb <<= 1) {
+            const uint64_t bit = mask & -mask;
+            if (val & bit)
+                result |= bb;
+            mask ^= bit;
+        }
+        return result;
+    }
+#endif
+
+    void ensure(const int numOfBits) {
+        while (bitCount_ < numOfBits) {
+            buf_ |= (uint64_t)(*data_) << bitCount_;
+            ++data_;
+            bitCount_ += 8;
+        }
+    }
+
+    u8* start_;
+    u8* data_;
+    uint64_t buf_;
+    int bitCount_;
+    size_t bitsRead_;
 };
 
 union HuffmanCode {
@@ -140,10 +229,16 @@ struct HuffmanCodeToPieceHash : public std::unordered_map<u16, Piece> {
 
 // Huffman 符号化された局面のデータ構造。256 bit で局面を表す。
 struct HuffmanCodedPos {
+    struct DecodeEntry {
+        Piece pc;
+        u8 bits;
+    };
     static const HuffmanCode boardCodeTable[PieceNone];
     static const HuffmanCode handCodeTable[HandPieceNum][ColorNum];
     static HuffmanCodeToPieceHash boardCodeToPieceHash;
     static HuffmanCodeToPieceHash handCodeToPieceHash;
+    static DecodeEntry boardDecodeTable[256];
+    static DecodeEntry handDecodeTable[256];
     static void init() {
         for (Piece pc = Empty; pc <= BDragon; ++pc)
             if (pieceToPieceType(pc) != King) // 玉は位置で符号化するので、駒の種類では符号化しない。
@@ -154,6 +249,38 @@ struct HuffmanCodedPos {
         for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp)
             for (Color c = Black; c < ColorNum; ++c)
                 handCodeToPieceHash[handCodeTable[hp][c].key] = colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
+
+        std::fill(std::begin(boardDecodeTable), std::end(boardDecodeTable), DecodeEntry{PieceNone, 0});
+        std::fill(std::begin(handDecodeTable), std::end(handDecodeTable), DecodeEntry{PieceNone, 0});
+
+        auto fillDecodeEntry = [](DecodeEntry* table, const Piece pc, const HuffmanCode hc) {
+            if (hc.numOfBits == 0)
+                return;
+            const int mask = (int)((1u << hc.numOfBits) - 1);
+            for (int b = 0; b < 256; ++b) {
+                if ((b & mask) == hc.code) {
+                    if (table[b].bits == 0 || table[b].bits > hc.numOfBits)
+                        table[b] = DecodeEntry{pc, hc.numOfBits};
+                }
+            }
+        };
+
+        for (Piece pc = Empty; pc <= BDragon; ++pc) {
+            if (pieceToPieceType(pc) == King)
+                continue;
+            fillDecodeEntry(boardDecodeTable, pc, boardCodeTable[pc]);
+        }
+        for (Piece pc = WPawn; pc <= WDragon; ++pc) {
+            if (pieceToPieceType(pc) == King)
+                continue;
+            fillDecodeEntry(boardDecodeTable, pc, boardCodeTable[pc]);
+        }
+        for (HandPiece hp = HPawn; hp < HandPieceNum; ++hp) {
+            for (Color c = Black; c < ColorNum; ++c) {
+                const Piece pc = colorAndPieceTypeToPiece(c, handPieceToPieceType(hp));
+                fillDecodeEntry(handDecodeTable, pc, handCodeTable[hp][c]);
+            }
+        }
     }
     void clear() { std::fill(std::begin(data), std::end(data), 0); }
     Color color() const { return (Color)(data[0] & 1); }
@@ -168,7 +295,7 @@ struct HuffmanCodedPos {
     }
     bool isOK() const {
         HuffmanCodedPos tmp = *this; // ローカルにコピー
-        BitStream bs(tmp.data);
+        BitStreamReader bs(tmp.data);
 
         // 手番
         static_cast<Color>(bs.getBit());
@@ -183,27 +310,16 @@ struct HuffmanCodedPos {
         for (Square sq = SQ11; sq < SquareNum; ++sq) {
             if (sq == sq0 || sq == sq1) // piece(sq) は BKing, WKing, Empty のどれか。
                 continue;
-            HuffmanCode hc = { 0, 0 };
-            while (hc.numOfBits <= 8) {
-                hc.code |= bs.getBit() << hc.numOfBits++;
-                if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) != PieceNone) {
-                    break;
-                }
-            }
-            if (HuffmanCodedPos::boardCodeToPieceHash.value(hc.key) == PieceNone)
+            const DecodeEntry entry = boardDecodeTable[bs.peekBits8()];
+            if (entry.bits == 0)
                 return false;
+            bs.skipBits(entry.bits);
         }
         while (bs.data() != std::end(tmp.data)) {
-            HuffmanCode hc = { 0, 0 };
-            while (hc.numOfBits <= 8) {
-                hc.code |= bs.getBit() << hc.numOfBits++;
-                const Piece pc = HuffmanCodedPos::handCodeToPieceHash.value(hc.key);
-                if (pc != PieceNone) {
-                    break;
-                }
-            }
-            if (HuffmanCodedPos::handCodeToPieceHash.value(hc.key) == PieceNone)
+            const DecodeEntry entry = handDecodeTable[bs.peekBits8()];
+            if (entry.bits == 0)
                 return false;
+            bs.skipBits(entry.bits);
         }
 
         return true;
