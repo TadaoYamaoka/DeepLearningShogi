@@ -1626,18 +1626,18 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::string outFileName;
 	int playoutNum;
 	int diff;
-	int threashold = 150;
-	int opp_threashold = 1;
+	int threshold = 150;
+	int opp_threshold = 1;
 
 	ssCmd >> bookFileName;
 	ssCmd >> policyFileName;
 	ssCmd >> outFileName;
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
-	ssCmd >> threashold;
-	ssCmd >> opp_threashold;
+	ssCmd >> threshold;
+	ssCmd >> opp_threshold;
 
-	std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
+	std::cout << "playoutNum: " << playoutNum << " diff: " << diff << " threshold: " << threshold << " opp_threshold: " << opp_threshold << std::endl;
 
 	// プレイアウト数固定
 	LimitsType limits;
@@ -1682,7 +1682,7 @@ bool MySearcher::diffEval(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::unordered_map<Key, std::vector<BookEntry> > policyMap;
 	read_book(policyFileName, policyMap);
 
-	diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
+	diff_eval(pos, bookMap, policyMap, outMap, limits, (Score)diff, (Score)threshold, (Score)opp_threshold, outFileName, book_pos_cmd, book_starting_pos_key);
 
 	// 結果表示
 	std::cout << "outMap.size:" << outMap.size() << std::endl;
@@ -1703,19 +1703,19 @@ void MySearcher::diffEvalWithUsiEngine(std::istringstream& ssCmd, const std::str
 
 	int playoutNum;
 	int diff;
-	int threashold = 150;
-	int opp_threashold = 1;
+	int threshold = 150;
+	int opp_threshold = 1;
 
 	ssCmd >> playoutNum;
 	ssCmd >> diff;
-	ssCmd >> threashold;
-	ssCmd >> opp_threashold;
+	ssCmd >> threshold;
+	ssCmd >> opp_threshold;
 
 	while (true) {
 		std::istringstream ssCmdEvalPos(bookFileName + " " + evalOutFileName + " " + std::to_string(engine_num));
 		evalPositionsWithUsiEngine(ssCmdEvalPos, posCmd);
 
-		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + policyFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff) + " " + std::to_string(threashold) + " " + std::to_string(opp_threashold));
+		std::istringstream ssCmdEvalDiff(evalOutFileName + " " + policyFileName + " " + bookFileName + " " + std::to_string(playoutNum) + " " + std::to_string(diff) + " " + std::to_string(threshold) + " " + std::to_string(opp_threshold));
 		const auto ret = diffEval(ssCmdEvalDiff, posCmd);
 		if (!ret)
 			break;
@@ -1739,16 +1739,16 @@ void MySearcher::iterDiffEval(std::istringstream& ssCmd, const std::string& posC
 
     int playout_num;
     int diff;
-    int threashold = 150;
-    int opp_threashold = 1;
+    int threshold = 150;
+    int opp_threshold = 1;
 
     ssCmd >> playout_num;
     ssCmd >> diff;
-    ssCmd >> threashold;
-    ssCmd >> opp_threashold;
+    ssCmd >> threshold;
+    ssCmd >> opp_threshold;
 
 
-    std::cout << "engine_num: " << engine_num << " playout_num: " << playout_num << " diff: " << diff << " threashold: " << threashold << " opp_threashold: " << opp_threashold << std::endl;
+    std::cout << "engine_num: " << engine_num << " playout_num: " << playout_num << " diff: " << diff << " threshold: " << threshold << " opp_threshold: " << opp_threshold << std::endl;
 
     // 定跡読み込み
     std::unordered_map<Key, std::vector<BookEntry> > bookMap;
@@ -1780,7 +1780,7 @@ void MySearcher::iterDiffEval(std::istringstream& ssCmd, const std::string& posC
     Key book_starting_pos_key;
     std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos, posCmd);
 
-    iter_diff_eval(pos, bookMap, evalMap, policyMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num, limits, (Score)diff, (Score)threashold, (Score)opp_threashold, evalOutFileName, bookFileName, book_pos_cmd, book_starting_pos_key);
+    iter_diff_eval(pos, bookMap, evalMap, policyMap, options["USI_Book_Engine"], options["USI_Book_Engine_Options"], options["USI_Book_Engine_Nodes"], engine_num, limits, (Score)diff, (Score)threshold, (Score)opp_threshold, evalOutFileName, bookFileName, book_pos_cmd, book_starting_pos_key);
 
     std::cout << "outMap.size:" << bookMap.size() << std::endl;
     std::cout << "done" << std::endl;

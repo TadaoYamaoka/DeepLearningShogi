@@ -1360,8 +1360,8 @@ std::optional<std::pair<Move, Key>> process_diff_eval_entry(
 	std::unordered_map<Key, std::vector<BookEntry>>& outMap,
 	LimitsType& limits,
 	const Score diff,
-	const Score threashold,
-	const Score opp_threashold,
+	const Score threshold,
+	const Score opp_threshold,
 	const std::string& outFileName,
 	const std::string& book_pos_cmd,
 	const Key& book_starting_pos_key
@@ -1384,7 +1384,7 @@ std::optional<std::pair<Move, Key>> process_diff_eval_entry(
 	const bool opp_mate = std::abs(opp_score) >= 30000 && std::abs(score) < 30000;
 
 	// 評価値の符号が異なるか
-	const bool is_opposite_sign = (score + threashold) * opp_score < 0 || (score - threashold) * opp_score < 0 || score * (opp_score + opp_threashold) < 0 || score * (opp_score - opp_threashold) < 0;
+	const bool is_opposite_sign = (score + threshold) * opp_score < 0 || (score - threshold) * opp_score < 0 || score * (opp_score + opp_threshold) < 0 || score * (opp_score - opp_threshold) < 0;
 	// 評価値の符号が異なり、差がdiff以上か
 	bool is_over_diff = is_opposite_sign && std::abs(opp_score - score) >= diff;
 
@@ -1393,7 +1393,7 @@ std::optional<std::pair<Move, Key>> process_diff_eval_entry(
 		const auto itr_policy = policyMap.find(key);
 		if (itr_policy != policyMap.end()) {
 			const Score policy_score = itr_policy->second[0].score;
-			if ((policy_score + threashold) * opp_score < 0 || (policy_score - threashold) * opp_score < 0) {
+			if ((policy_score + threshold) * opp_score < 0 || (policy_score - threshold) * opp_score < 0) {
 				// 評価値の符号が異なり、差がdiff以上
 				if (std::abs(opp_score - policy_score) >= diff) {
 					score = policy_score;
@@ -1455,7 +1455,7 @@ std::optional<std::pair<Move, Key>> process_diff_eval_entry(
 }
 
 // 評価値が割れる局面を延長する
-void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& engineMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threashold, const Score opp_threashold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& engineMap, const std::unordered_map<Key, std::vector<BookEntry> >& policyMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, LimitsType& limits, const Score diff, const Score threshold, const Score opp_threshold, const std::string& outFileName, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
 	std::vector<PositionWithMove> positions;
 	positions.reserve(outMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
@@ -1468,7 +1468,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 
 	// 評価値が割れる局面を延長する
 	for (const auto& position : positions) {
-		process_diff_eval_entry(position, pos, engineMap, policyMap, outMap, limits, diff, threashold, opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key);
+		process_diff_eval_entry(position, pos, engineMap, policyMap, outMap, limits, diff, threshold, opp_threshold, outFileName, book_pos_cmd, book_starting_pos_key);
 	}
 }
 
@@ -1485,8 +1485,8 @@ void iter_diff_eval(
 	const int engine_num,
 	LimitsType& limits,
 	const Score diff,
-	const Score threashold,
-	const Score opp_threashold,
+	const Score threshold,
+	const Score opp_threshold,
     const std::string& outEngineFileName,
 	const std::string& outFileName,
 	const std::string& book_pos_cmd,
@@ -1620,7 +1620,7 @@ void iter_diff_eval(
 		for (const auto* node_ptr : processing_queue) {
 			auto result = process_diff_eval_entry(
 				*node_ptr, root_pos, outEngineMap, policyMap, outMap, limits,
-				diff, threashold, opp_threashold, outFileName, book_pos_cmd, book_starting_pos_key
+				diff, threshold, opp_threshold, outFileName, book_pos_cmd, book_starting_pos_key
 			);
 
 			if (result.has_value()) {
