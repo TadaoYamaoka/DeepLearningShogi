@@ -67,6 +67,7 @@ struct MySearcher : Searcher {
 	static void bookPv(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookPvSfen(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookPvFromSfen(std::istringstream& ssCmd, const std::string& posCmd);
+    static void bookFindKey(std::istringstream& ssCmd, const std::string& posCmd);
 #endif
 	static Key starting_pos_key;
 	static std::vector<Move> moves;
@@ -471,6 +472,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "book_pv") bookPv(ssCmd, posCmd);
 		else if (token == "book_pv_sfen") bookPvSfen(ssCmd, posCmd);
 		else if (token == "book_pv_from_sfen") bookPvFromSfen(ssCmd, posCmd);
+        else if (token == "book_find_key") bookFindKey(ssCmd, posCmd);
 #endif
 	} while (token != "quit" && argc == 1);
 
@@ -2481,5 +2483,27 @@ void MySearcher::bookPvFromSfen(std::istringstream& ssCmd, const std::string& po
 	ssCmd >> outFileName;
 
 	book_pv_from_sfen(sfenFileName, blackFileName, whiteFileName, outFileName);
+}
+
+void MySearcher::bookFindKey(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+
+    std::string policyFileName;
+    std::string bookFileName; // 相手の定跡
+    Key key;
+    ssCmd >> policyFileName;
+    ssCmd >> bookFileName;
+    ssCmd >> key;
+
+    std::cout << "policyFileName: " << policyFileName << std::endl;
+    std::cout << "bookFileName: " << bookFileName << std::endl;
+    std::cout << "key: " << key << std::endl;
+
+    // 開始局面設定
+    Position pos(DefaultStartPositionSFEN, thisptr);
+    std::istringstream ssPosCmd(posCmd);
+    setPosition(pos, ssPosCmd);
+
+    book_find_key(pos, posCmd, policyFileName, bookFileName, key);
 }
 #endif

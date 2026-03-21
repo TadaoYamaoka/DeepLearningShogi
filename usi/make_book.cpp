@@ -3776,4 +3776,48 @@ void book_pv_from_sfen(const std::string& sfenFileName, const std::string& black
 
 	std::cout << "done" << std::endl;
 }
+
+void book_find_key(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const Key key) {
+    std::unordered_map<Key, std::vector<BookEntry> > policyMap;
+    read_book(policyFileName, policyMap);
+
+    std::unordered_map<Key, std::vector<BookEntry> > bookMap;
+    read_book(bookFileName, bookMap);
+
+    std::vector<PositionWithMove> positions;
+    positions.reserve(policyMap.size() + 1); // 追加でparentのポインターが無効にならないようにする
+    auto start = std::chrono::high_resolution_clock::now();
+    enumerate_positions_with_move(pos, policyMap, bookMap, positions);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "positions: " << positions.size() << " duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+
+    assert(positions.size() <= policyMap.size());
+
+    for (auto it = positions.begin(); it != positions.end(); ++it) {
+        const auto& position = *it;
+
+        if (position.key != key) continue;
+
+        Position pos_copy(pos);
+        const PositionWithMove* position_ptr = &position;
+        std::vector<Move> moves(position_ptr->depth);
+        for (int j = position_ptr->depth - 1; j >= 0; --j) {
+            moves[j] = position_ptr->move;
+            position_ptr = position_ptr->parent;
+        }
+        assert(position_ptr->parent == nullptr);
+
+        std::string pos_str = posCmd;
+        if (pos_str == "startpos")
+            pos_str += " moves";
+
+        for (const Move move : moves) {
+            pos_str += " " + move.toUSI();
+        }
+
+        std::cout << pos_str << std::endl;
+        break;
+    }
+}
+
 #endif

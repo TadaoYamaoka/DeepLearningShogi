@@ -91,4 +91,5 @@ void make_white_book(Position& pos, const std::string& posCmd, const std::string
 void book_pv(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName);
 void book_pv_sfen(Position& pos, const std::string& posCmd, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName);
 void book_pv_from_sfen(const std::string& sfenFileName, const std::string& blackFileName, const std::string& whiteFileName, const std::string& outFileName);
+void book_find_key(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const Key key);
 #endif
