@@ -223,7 +223,9 @@ struct Searched {
 	Score beta;
 };
 Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
-	const Key key = Book::bookKey(pos);
+    if (pos.gamePly() > 512) return pos.turn() == Black ? draw_score_white : draw_score_black;
+
+    const Key key = Book::bookKey(pos);
 
 	// 特定局面の評価値を置き換える
 	if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
