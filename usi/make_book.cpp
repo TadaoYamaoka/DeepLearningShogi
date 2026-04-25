@@ -1979,8 +1979,6 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 
 		// update
 		for (auto& node : nodes) {
-			if (node.parents.size() == 0)
-				continue;
 			for (auto& edge : node.childs) {
 				if (edge->score_for_update != ScoreNotEvaluated) {
 					edge->score = edge->score_for_update;
