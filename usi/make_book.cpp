@@ -1996,16 +1996,26 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 			}
 		}
 		std::stable_sort(node.childs.begin(), node.childs.end(), [&node](const auto& l, const auto& r) {
-			if (l->score == r->score) {
-				if (l->depth != BOOK_DEPTH_INF && r->depth == BOOK_DEPTH_INF && node.color == Black)
-					return true;
-				if (l->depth == BOOK_DEPTH_INF && r->depth != BOOK_DEPTH_INF && node.color == White)
-					return true;
-				return l->depth > r->depth;
-			}
-			else {
+			if (l->score != r->score)
 				return l->score > r->score;
+
+			const bool l_inf = l->depth == BOOK_DEPTH_INF;
+			const bool r_inf = r->depth == BOOK_DEPTH_INF;
+
+			// 同点時は千日手の扱いを手番で切り替える
+			if (l_inf != r_inf) {
+				if (node.color == Black) {
+					// 先手は千日手を避ける: 有限深さを優先
+					return !l_inf;
+				}
+				else {
+					// 後手は千日手を選ぶ: INFを優先
+					return l_inf;
+				}
 			}
+
+			// 定跡が長く続く手順を優先する
+			return l->depth > r->depth;
 			});
 		auto& entries = outMap[node.key];
 		for (const auto& edge : node.childs) {
