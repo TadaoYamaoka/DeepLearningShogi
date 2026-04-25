@@ -1967,7 +1967,7 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 			const auto parent_depth = best->depth == BOOK_DEPTH_INF ? best->depth : best->depth + 1;
 			// 親に伝播
 			for (auto& parent : node.parents) {
-				if (parent->edge->score != parent_score || parent->edge->depth != parent_depth) {
+				if (parent->edge->score != parent_score) {
 					update_count++;
 				}
 				parent->edge->score_for_update = parent_score;
