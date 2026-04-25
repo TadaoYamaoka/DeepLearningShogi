@@ -1803,7 +1803,6 @@ namespace make_book_ra {
 
 	// バッグトラッキングして、連続王手になる手順があるかチェックする
 	bool repetition_check(BookNode* node, const Key key, bool is_evasion, std::unordered_set<Key>& searched) {
-		bool repetition_any = false;
 		for (auto& parent : node->parents) {
 			if (parent->edge->depth == BOOK_DEPTH_INF && parent->node->in_check == is_evasion) {
 				// evasionでなければ王手であること
