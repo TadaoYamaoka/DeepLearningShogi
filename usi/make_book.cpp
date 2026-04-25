@@ -1954,8 +1954,12 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 						}
 					}
 					else {
+						const bool best_draw = best->depth == BOOK_DEPTH_INF && best->score == ScoreNone;
+						if (node.color == Black && best_draw) {
+							best = edge.get();
+						}
 						// 手順が長い方(定跡が長く続く方)を選択
-						if (edge->depth > best->depth) {
+						else if (edge->depth > best->depth) {
 							best = edge.get();
 						}
 					}
