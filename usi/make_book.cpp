@@ -1841,7 +1841,7 @@ void make_all_minmax_book_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 		enumerate_book_nodes(pos, bookMap, nodes, &root_node, searched);
 	}
 	std::cout << "nodes: " << nodes.size() << std::endl;
-	assert(positions.size() <= bookMap.size());
+	assert(nodes.size() <= bookMap.size());
 
 
 	// 出次数0のnodeをqueueに追加
