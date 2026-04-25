@@ -1748,12 +1748,11 @@ namespace make_book_ra {
 	};
 	void enumerate_book_nodes(Position& pos, const std::unordered_map<Key, std::vector<BookEntry>>& bookMap, std::vector<BookNode>& nodes, BookNode* node, std::unordered_map<Key, BookNode*>& searched) {
 		const Key key = node->key;
-		const auto itr = bookMap.find(key);
+        const auto itr_curr = bookMap.find(key);
+        const auto& entries = itr_curr->second;
 
 		std::vector<std::pair<Move, Score>> moves;
 		{
-			const auto itr_curr = bookMap.find(key);
-			const auto& entries = itr_curr->second;
 			moves.reserve(entries.size());
 			Score trusted_score = entries[0].score;
 			for (const auto& entry : entries) {
