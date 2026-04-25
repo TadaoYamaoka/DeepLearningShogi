@@ -1762,8 +1762,9 @@ namespace make_book_ra {
 					trusted_score = entry.score;
 				moves.emplace_back(move, trusted_score);
 			}
-			for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-				const auto move = ml.move();
+			auto ml = std::make_unique<MoveList<LegalAll>>(pos);
+			for (; !ml->end(); ++(*ml)) {
+				const auto move = ml->move();
 				if (std::find_if(entries.begin(), entries.end(), [&move](const auto& entry) { return entry.fromToPro == (u16)move.value(); }) == entries.end())
 					moves.emplace_back(move, ScoreNone);
 			}
