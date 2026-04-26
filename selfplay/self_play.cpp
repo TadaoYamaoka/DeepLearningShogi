@@ -280,7 +280,7 @@ inline s16 value_to_score(const float value) {
 // 詰み探索スロット
 struct MateSearchEntry {
 	Position *pos;
-	enum State { RUNING, NOMATE, WIN, LOSE };
+	enum State { RUNNING, NOMATE, WIN, LOSE };
 	atomic<State> status;
 	Move move;
 };
@@ -315,7 +315,7 @@ public:
 	void QueuingMateSearch(Position *pos, const int id) {
 		lock_guard<mutex> lock(mate_search_mutex);
 		mate_search_slot[id].pos = pos;
-		mate_search_slot[id].status = MateSearchEntry::RUNING;
+		mate_search_slot[id].status = MateSearchEntry::RUNNING;
 		mate_search_queue.push_back(id);
 	}
 	MateSearchEntry::State GetMateSearchStatus(const int id) {
@@ -458,13 +458,13 @@ private:
 	std::vector<Record> records;
 
 	// 局面追加
-	// 訓練に使用しない手はtrainningをfalseにする
-	void AddRecord(Move move, s16 eval, bool trainning) {
+	// 訓練に使用しない手はtrainingをfalseにする
+	void AddRecord(Move move, s16 eval, bool training) {
 		Record& record = records.emplace_back(
 			static_cast<u16>(move.value()),
 			eval
 		);
-		if (trainning) {
+		if (training) {
 			const auto child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
 			const size_t child_num = root_node->child_num;
@@ -1179,7 +1179,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 
 			// ルート局面を詰み探索キューに追加
 			if (ROOT_MATE_SEARCH_DEPTH > 0) {
-				mate_status = MateSearchEntry::RUNING;
+				mate_status = MateSearchEntry::RUNNING;
 				grp->QueuingMateSearch(pos_root, id);
 			}
 
@@ -1244,9 +1244,9 @@ void UCTSearcher::NextStep()
 	}
 
 	// 詰み探索の結果を調べる
-	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNING) {
+	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNNING) {
 		mate_status = grp->GetMateSearchStatus(id);
-		if (mate_status != MateSearchEntry::RUNING) {
+		if (mate_status != MateSearchEntry::RUNNING) {
 			// 詰みの場合
 			switch (mate_status) {
 			case MateSearchEntry::WIN:
@@ -1281,7 +1281,7 @@ void UCTSearcher::NextStep()
 
 		// 詰み探索の結果を待つ
 		if (ROOT_MATE_SEARCH_DEPTH > 0) {
-			while (mate_status == MateSearchEntry::RUNING) {
+			while (mate_status == MateSearchEntry::RUNNING) {
 				this_thread::yield();
 				mate_status = grp->GetMateSearchStatus(id);
 			}
