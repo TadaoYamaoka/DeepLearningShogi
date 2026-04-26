@@ -226,8 +226,14 @@ def load_openings(path: Optional[str]) -> List[List[str]]:
     return openings or [[]]
 
 
-def apply_opening(board: Board, opening_moves: Sequence[str], max_moves: Optional[int]) -> List[str]:
+def apply_opening(
+    board: Board,
+    opening_moves: Sequence[str],
+    max_moves: Optional[int],
+) -> Tuple[List[str], defaultdict[int, int]]:
     usi_moves: List[str] = []
+    repetition_hash: defaultdict[int, int] = defaultdict(int)
+    repetition_hash[board.zobrist_hash()] += 1
     for usi in opening_moves:
         if max_moves is not None and len(usi_moves) >= max_moves:
             break
@@ -236,12 +242,13 @@ def apply_opening(board: Board, opening_moves: Sequence[str], max_moves: Optiona
             raise ValueError(f"illegal opening move {usi!r} at ply {len(usi_moves) + 1}")
         board.push(move)
         usi_moves.append(usi)
-    return usi_moves
+        repetition_hash[board.zobrist_hash()] += 1
+    return usi_moves, repetition_hash
 
 
 def write_game_hcpe3(
     f,
-    start_board: Board,
+    start_hcp: np.ndarray,
     result: int,
     records: Sequence[Tuple[int, int, List[Tuple[int, int]]]],
 ) -> int:
@@ -249,7 +256,7 @@ def write_game_hcpe3(
     hcpe = np.zeros(1, HuffmanCodedPosAndEval3)
     hcpe["result"] = result
     hcpe["opponent"] = 0
-    start_board.to_hcp(hcpe["hcp"])
+    hcpe["hcp"] = start_hcp
     hcpe["moveNum"] = len(records)
     hcpe.tofile(f)
 
@@ -315,12 +322,10 @@ def play_one_game(
     if args.opening_seed is not None:
         # Deterministic but varied when openings were shuffled before the loop.
         opening = openings[game_index % len(openings)]
-    played_opening = apply_opening(board, opening, args.opening_moves)
-    start_board = board.copy()
+    played_opening, repetition_hash = apply_opening(board, opening, args.opening_moves)
+    start_hcp = np.zeros(1, dtypeHcp)
+    board.to_hcp(start_hcp)
     usi_moves = list(played_opening)
-
-    repetition_hash = defaultdict(int)
-    repetition_hash[board.zobrist_hash()] += 1
 
     records: List[Tuple[int, int, List[Tuple[int, int]]]] = []
     remain_time: List[Optional[int]] = [args.time, args.time]
@@ -443,7 +448,7 @@ def play_one_game(
 
     stored = write_game_hcpe3(
         out_file,
-        start_board,
+        start_hcp,
         result_code(win, repetition=is_repetition, nyugyoku=is_nyugyoku, max_moves=is_max_moves),
         records,
     )
