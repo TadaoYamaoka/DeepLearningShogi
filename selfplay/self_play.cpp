@@ -1768,7 +1768,7 @@ int main(int argc, char* argv[]) {
 		cerr << "too few playout_num" << endl;
 		return 0;
 	}
-	if (threads < 0) {
+	if (threads <= 0) {
 		cerr << "too few threads number" << endl;
 		return 0;
 	}
