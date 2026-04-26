@@ -1356,9 +1356,9 @@ void UCTSearcher::NextStep()
 		else {
 			// 探索回数最大の手を見つける
 			unsigned int select_index = 0;
-			int max_count = uct_child[0].move_count;
+			int max_count = -1;
 			int second_index = 0;
-			int second_count = 0;
+			int second_count = -1;
 			int child_win_count = 0;
 			int child_lose_count = 0;
 			const int child_num = root_node->child_num;
@@ -1376,7 +1376,7 @@ void UCTSearcher::NextStep()
 				else if (uct_child[i].IsLose()) {
 					// 子ノードに一つでも負けがあれば、勝ちなので選択する
 					if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-						// すべて勝ちの場合は、探索回数が最大の手を選択する
+						// 勝ち確定手が複数ある場合は、探索回数が最大の手を選択する
 						select_index = i;
 						max_count = uct_child[i].move_count;
 					}
@@ -1384,15 +1384,28 @@ void UCTSearcher::NextStep()
 					continue;
 				}
 
-				if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-					second_index = select_index;
-					second_count = max_count;
-					select_index = i;
-					max_count = uct_child[i].move_count;
-				}
-			}
+                if (child_lose_count == 0) {
+                    // 先頭から IsWin() が続いた後に初めて通常手を見つけた場合、
+                    // IsWin() 用の fallback 候補を捨てて通常手から選び直す
+                    if (child_win_count == i) {
+                        max_count = -1;
+                    }
 
-			if (RANDOM2 > 1) {
+                    const int count = uct_child[i].move_count;
+                    if (count > max_count) {
+                        second_index = select_index;
+                        second_count = max_count;
+                        select_index = i;
+                        max_count = count;
+                    }
+                    else if (count > second_count) {
+                        second_index = i;
+                        second_count = count;
+                    }
+                }
+            }
+
+			if (RANDOM2 > 1 && child_lose_count == 0 && second_count >= 0) {
 				// 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
 				if (max_count < second_count * RANDOM2) {
 					vector<int> probabilities{ second_count, max_count };
