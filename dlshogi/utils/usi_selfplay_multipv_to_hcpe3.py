@@ -466,7 +466,7 @@ def main() -> None:
     parser.add_argument("--byoyomi", type=int, help="go byoyomi in milliseconds")
     parser.add_argument("--time", type=int, help="initial time per side in milliseconds")
     parser.add_argument("--inc", type=int, default=0, help="increment per move in milliseconds")
-    parser.add_argument("--draw", type=int, default=256, help="max move_number before max-move draw flag")
+    parser.add_argument("--draw", type=int, default=512, help="max move_number before max-move draw flag")
     parser.add_argument("--resign", type=int, help="resign when selected eval <= -resign")
     parser.add_argument("--mate-score", type=int, default=30000, help="cp value used for mate scores")
     parser.add_argument("--visits-sum", type=int, default=65535, help="sum of visitNum over candidates at each position")
