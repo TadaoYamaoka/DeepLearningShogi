@@ -328,7 +328,7 @@ public:
 
 	int group_id;
 	int gpu_id;
-	bool running;
+    std::atomic_bool running;
 	// USIEngine
 	vector<USIEngine> usi_engines;
 
