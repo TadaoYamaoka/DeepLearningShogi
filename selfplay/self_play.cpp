@@ -1577,8 +1577,12 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	entryNum = ifs.tellg() / sizeof(HuffmanCodedPos);
+    if (entryNum == 0) {
+        cerr << "empty hcp file" << endl;
+        exit(EXIT_FAILURE);
+    }
 
-	// 教師局面を保存するファイル
+    // 教師局面を保存するファイル
 	ofs.open(outputFileName, ios::binary);
 	if (!ofs) {
 		cerr << "Error: cannot open " << outputFileName << endl;
