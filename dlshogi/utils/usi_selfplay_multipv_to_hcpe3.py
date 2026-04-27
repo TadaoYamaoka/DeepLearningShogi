@@ -509,6 +509,8 @@ def main() -> None:
             total_positions = 0
             for game_index in range(args.games):
                 win, move_count, stored = play_one_game(engine, listener, openings, game_index, args, f)
+                f.flush()
+                os.fsync(f.fileno())
                 total_positions += stored
                 if win == BLACK:
                     wins[BLACK] += 1
