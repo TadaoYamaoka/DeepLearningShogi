@@ -10,6 +10,7 @@ parser.add_argument('sfen')
 parser.add_argument('--margin', type=int, default=350)
 parser.add_argument('--diff', type=int, default=400)
 parser.add_argument('--win_names', nargs='*', default=[])
+parser.add_argument('--min_moves', type=int, default=0)
 parser.add_argument('--limit_moves', type=int, default=512)
 args = parser.parse_args()
 
@@ -48,7 +49,7 @@ with open(args.sfen, 'w', newline='\n') as f:
                 if diff_sign(score, prev_score, args.margin) and abs(score - prev_score) > args.diff:
                     is_important = True
 
-                if is_important:
+                if is_important and len(board.history) > args.min_moves:
                     # 局面を出力
                     f.write('startpos moves ' + ' '.join(move_to_usi(m) for m in board.history) + '\n')
 

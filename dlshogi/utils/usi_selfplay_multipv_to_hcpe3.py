@@ -490,7 +490,7 @@ def main() -> None:
     openings = load_openings(args.opening)
     if args.opening_seed is not None:
         random.seed(args.opening_seed)
-        random.shuffle(openings)
+    random.shuffle(openings)
 
     listener = MultiPVListener(debug=args.debug)
     engine = Engine(args.engine, connect=False)
