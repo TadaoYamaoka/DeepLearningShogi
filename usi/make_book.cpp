@@ -2959,7 +2959,7 @@ void make_important_hcp(Position& pos, const std::string& posCmd, const std::str
 	std::cout << "output: " << count << std::endl;
 }
 
-void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff) {
+void make_important_sfen(Position& pos, const std::string& posCmd, const std::string& bookFileName, const std::string& policyFileName, const std::string& outFileName, const int diff, const int minPly) {
 	std::unordered_map<Key, std::vector<BookEntry> > bookMap;
 	read_book(bookFileName, bookMap);
 
@@ -2989,6 +2989,9 @@ void make_important_sfen(Position& pos, const std::string& posCmd, const std::st
 			position_ptr = position_ptr->parent;
 		}
 		assert(position_ptr->parent == nullptr);
+
+		if (position.depth <= minPly)
+			continue;
 
 		const Key key = position.key;
 

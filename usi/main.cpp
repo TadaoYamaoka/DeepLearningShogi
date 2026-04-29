@@ -2281,18 +2281,20 @@ void MySearcher::makeImportantSfen(std::istringstream& ssCmd, const std::string&
 	std::string policyFileName;
 	std::string outFileName;
 	int diff;
+	int minPly = 0;
 
 	ssCmd >> bookFileName;
 	ssCmd >> policyFileName;
 	ssCmd >> outFileName;
 	ssCmd >> diff;
+	ssCmd >> minPly;
 
 	// 開始局面設定
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	std::istringstream ssPosCmd(posCmd);
 	setPosition(pos, ssPosCmd);
 
-	make_important_sfen(pos, posCmd, bookFileName, policyFileName, outFileName, diff);
+	make_important_sfen(pos, posCmd, bookFileName, policyFileName, outFileName, diff, minPly);
 
 	std::cout << "done" << std::endl;
 }
