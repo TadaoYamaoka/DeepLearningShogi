@@ -76,6 +76,7 @@
     <Compile Include="utils\csa_to_roots_hcp.py" />
     <Compile Include="utils\feature_importance.py" />
     <Compile Include="utils\find_position_in_csa_dir.py" />
+    <Compile Include="utils\merge_hcpe3.py" />
     <Compile Include="utils\spsa_usi_tuner.py" />
     <Compile Include="utils\stat_hcpe3_cache.py" />
     <Compile Include="utils\hcpe3_cache_re_eval.py" />

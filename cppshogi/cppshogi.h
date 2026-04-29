@@ -132,4 +132,4 @@ struct TrainingData {
 
 constexpr u8 GAMERESULT_SENNICHITE = 0x4;
 constexpr u8 GAMERESULT_NYUGYOKU = 0x8;
-constexpr u8 GAMERESULT_MAXMOVE = 0x16;
+constexpr u8 GAMERESULT_MAXMOVE = 0x10;
