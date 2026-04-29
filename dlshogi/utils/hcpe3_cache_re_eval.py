@@ -45,7 +45,7 @@ serializers.load_npz(args.model, model)
 model.eval()
 
 data_len, actual_len = Hcpe3DataLoader.load_files([], cache=args.cache)
-indexes = np.arange(data_len, dtype=np.uint32)
+indexes = np.arange(data_len, dtype=np.uint64)
 dataloader = Hcpe3DataLoader(indexes, batch_size, device)
 
 hcpe3_reserve_train_data(data_len)
@@ -55,7 +55,7 @@ for i in tqdm(range(0, len(indexes), batch_size)):
     chunk_size = len(chunk)
     if chunk_size < batch_size:
         chunk_tmp = chunk
-        chunk = np.zeros(batch_size, dtype=np.uint32)
+        chunk = np.zeros(batch_size, dtype=np.uint64)
         chunk[:chunk_size] = chunk_tmp
 
     x1, x2, t1, t2, value = dataloader.mini_batch(chunk)

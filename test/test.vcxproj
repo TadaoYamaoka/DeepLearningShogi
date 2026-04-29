@@ -139,14 +139,11 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>
-      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -163,8 +160,6 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>
-      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -172,7 +167,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">
@@ -189,8 +183,6 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>
-      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -198,7 +190,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">
@@ -209,13 +200,12 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>MAKE_BOOK;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -223,7 +213,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">
@@ -231,16 +220,15 @@
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>Disabled</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>MAKE_BOOK;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
-      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -248,7 +236,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">
@@ -264,8 +251,6 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <OpenMPSupport>
-      </OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -273,7 +258,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>nvinfer.lib;nvparsers.lib;nvonnxparser.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <StackReserveSize>67108864</StackReserveSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -293,15 +277,8 @@
     <ClCompile Include="..\cppshogi\square.cpp" />
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
-    <ClCompile Include="..\usi\make_book.cpp" />
-    <ClCompile Include="..\usi\make_book_mcts.cpp" />
-    <ClCompile Include="..\usi\Message.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
-    <ClCompile Include="..\usi\Node.cpp" />
-    <ClCompile Include="..\usi\UctSearch.cpp" />
-    <ClCompile Include="..\usi\USIBookEngine.cpp" />
     <ClCompile Include="gpubenchmark.cpp" />
-    <ClCompile Include="make_book_test.cpp" />
     <ClCompile Include="tensorrt_benchmark.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
@@ -309,17 +286,13 @@
     <CustomBuild Include="..\usi\unpack.cu">
       <FileType>Document</FileType>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">"$(CUDA_PATH_v12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

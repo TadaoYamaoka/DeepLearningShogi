@@ -14,6 +14,7 @@
 #include <mutex>
 #include <memory>
 #include <signal.h>
+#include <chrono>
 
 #include "Node.h"
 #include "LruCache.h"
@@ -34,6 +35,22 @@ auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
 auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
 
 using namespace std;
+
+namespace {
+	class MonotonicTimer {
+	public:
+		using clock = std::chrono::steady_clock;
+		MonotonicTimer() : start_(clock::now()) {}
+		void restart() { start_ = clock::now(); }
+		int64_t elapsed_msec() const {
+			using namespace std::chrono;
+			return duration_cast<milliseconds>(clock::now() - start_).count();
+		}
+
+	private:
+		clock::time_point start_;
+	};
+}
 
 // 候補手の最大数(盤上全体)
 constexpr int UCT_CHILD_MAX = 593;
@@ -263,7 +280,7 @@ inline s16 value_to_score(const float value) {
 // 詰み探索スロット
 struct MateSearchEntry {
 	Position *pos;
-	enum State { RUNING, NOMATE, WIN, LOSE };
+	enum State { RUNNING, NOMATE, WIN, LOSE };
 	atomic<State> status;
 	Move move;
 };
@@ -298,7 +315,7 @@ public:
 	void QueuingMateSearch(Position *pos, const int id) {
 		lock_guard<mutex> lock(mate_search_mutex);
 		mate_search_slot[id].pos = pos;
-		mate_search_slot[id].status = MateSearchEntry::RUNING;
+		mate_search_slot[id].status = MateSearchEntry::RUNNING;
 		mate_search_queue.push_back(id);
 	}
 	MateSearchEntry::State GetMateSearchStatus(const int id) {
@@ -311,7 +328,7 @@ public:
 
 	int group_id;
 	int gpu_id;
-	bool running;
+    std::atomic_bool running;
 	// USIEngine
 	vector<USIEngine> usi_engines;
 
@@ -441,13 +458,13 @@ private:
 	std::vector<Record> records;
 
 	// 局面追加
-	// 訓練に使用しない手はtrainningをfalseにする
-	void AddRecord(Move move, s16 eval, bool trainning) {
+	// 訓練に使用しない手はtrainingをfalseにする
+	void AddRecord(Move move, s16 eval, bool training) {
 		Record& record = records.emplace_back(
 			static_cast<u16>(move.value()),
 			eval
 		);
-		if (trainning) {
+		if (training) {
 			const auto child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
 			const size_t child_num = root_node->child_num;
@@ -1162,7 +1179,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 
 			// ルート局面を詰み探索キューに追加
 			if (ROOT_MATE_SEARCH_DEPTH > 0) {
-				mate_status = MateSearchEntry::RUNING;
+				mate_status = MateSearchEntry::RUNNING;
 				grp->QueuingMateSearch(pos_root, id);
 			}
 
@@ -1227,9 +1244,9 @@ void UCTSearcher::NextStep()
 	}
 
 	// 詰み探索の結果を調べる
-	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNING) {
+	if (ROOT_MATE_SEARCH_DEPTH > 0 && mate_status == MateSearchEntry::RUNNING) {
 		mate_status = grp->GetMateSearchStatus(id);
-		if (mate_status != MateSearchEntry::RUNING) {
+		if (mate_status != MateSearchEntry::RUNNING) {
 			// 詰みの場合
 			switch (mate_status) {
 			case MateSearchEntry::WIN:
@@ -1264,7 +1281,7 @@ void UCTSearcher::NextStep()
 
 		// 詰み探索の結果を待つ
 		if (ROOT_MATE_SEARCH_DEPTH > 0) {
-			while (mate_status == MateSearchEntry::RUNING) {
+			while (mate_status == MateSearchEntry::RUNNING) {
 				this_thread::yield();
 				mate_status = grp->GetMateSearchStatus(id);
 			}
@@ -1339,9 +1356,9 @@ void UCTSearcher::NextStep()
 		else {
 			// 探索回数最大の手を見つける
 			unsigned int select_index = 0;
-			int max_count = uct_child[0].move_count;
+			int max_count = -1;
 			int second_index = 0;
-			int second_count = 0;
+			int second_count = -1;
 			int child_win_count = 0;
 			int child_lose_count = 0;
 			const int child_num = root_node->child_num;
@@ -1359,7 +1376,7 @@ void UCTSearcher::NextStep()
 				else if (uct_child[i].IsLose()) {
 					// 子ノードに一つでも負けがあれば、勝ちなので選択する
 					if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
-						// すべて勝ちの場合は、探索回数が最大の手を選択する
+						// 勝ち確定手が複数ある場合は、探索回数が最大の手を選択する
 						select_index = i;
 						max_count = uct_child[i].move_count;
 					}
@@ -1367,15 +1384,28 @@ void UCTSearcher::NextStep()
 					continue;
 				}
 
-				if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
-					second_index = select_index;
-					second_count = max_count;
-					select_index = i;
-					max_count = uct_child[i].move_count;
-				}
-			}
+                if (child_lose_count == 0) {
+                    // 先頭から IsWin() が続いた後に初めて通常手を見つけた場合、
+                    // IsWin() 用の fallback 候補を捨てて通常手から選び直す
+                    if (child_win_count == i) {
+                        max_count = -1;
+                    }
 
-			if (RANDOM2 > 1) {
+                    const int count = uct_child[i].move_count;
+                    if (count > max_count) {
+                        second_index = select_index;
+                        second_count = max_count;
+                        select_index = i;
+                        max_count = count;
+                    }
+                    else if (count > second_count) {
+                        second_index = i;
+                        second_count = count;
+                    }
+                }
+            }
+
+			if (RANDOM2 > 1 && child_lose_count == 0 && second_count >= 0) {
 				// 訪問回数が最大の手が2番目の手のx倍以内の場合にランダムに選択する
 				if (max_count < second_count * RANDOM2) {
 					vector<int> probabilities{ second_count, max_count };
@@ -1560,8 +1590,12 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		exit(EXIT_FAILURE);
 	}
 	entryNum = ifs.tellg() / sizeof(HuffmanCodedPos);
+    if (entryNum == 0) {
+        cerr << "empty hcp file" << endl;
+        exit(EXIT_FAILURE);
+    }
 
-	// 教師局面を保存するファイル
+    // 教師局面を保存するファイル
 	ofs.open(outputFileName, ios::binary);
 	if (!ofs) {
 		cerr << "Error: cannot open " << outputFileName << endl;
@@ -1589,7 +1623,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		group_pairs[i].Run();
 
 	// 進捗状況表示
-	auto progressFunc = [&gpu_id, &group_pairs](Timer& t) {
+	auto progressFunc = [&gpu_id, &group_pairs](MonotonicTimer& t) {
 		ostringstream ss;
 		for (size_t i = 0; i < gpu_id.size(); i++) {
 			if (i > 0) ss << " ";
@@ -1598,12 +1632,12 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		while (!stopflg) {
 			std::this_thread::sleep_for(std::chrono::seconds(10)); // 指定秒だけ待機し、進捗を表示する。
 			const double progress = static_cast<double>(madeTeacherNodes) / teacherNodes;
-			auto elapsed_msec = t.elapsed();
+			const int64_t elapsed_msec = std::max<int64_t>(0, t.elapsed_msec());
 			if (progress > 0.0) // 0 除算を回避する。
 				logger->info("Progress:{:.2f}%, nodes:{}, nodes/sec:{:.2f}, games:{}, draw:{}, nyugyoku:{}, ply/game:{:.2f}, playouts/node:{:.2f} gpu id:{}, usi_games:{}, usi_win:{}, usi_draw:{}, Elapsed:{}[s], Remaining:{}[s]",
 					std::min(100.0, progress * 100.0),
 					idx,
-					static_cast<double>(idx) / elapsed_msec * 1000.0,
+					(elapsed_msec > 0 ? static_cast<double>(idx) / elapsed_msec * 1000.0 : 0.0),
 					games,
 					draws,
 					nyugyokus,
@@ -1631,7 +1665,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		if (running > 0)
 			break;
 	}
-	Timer t = Timer::currentTime();
+	MonotonicTimer t;
 	std::thread progressThread([&progressFunc, &t] { progressFunc(t); });
 
 	// 探索スレッド終了待機
@@ -1645,7 +1679,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 	if (OUT_MIN_HCP) ofs_minhcp.close();
 
 	logger->info("Made {} teacher nodes in {} seconds. games:{}, draws:{}, ply/game:{}, usi_games:{}, usi_win:{}, usi_draw:{}, usi_winrate:{:.2f}%",
-		madeTeacherNodes, t.elapsed() / 1000,
+		madeTeacherNodes, t.elapsed_msec() / 1000,
 		games,
 		draws,
 		static_cast<double>(madeTeacherNodes) / games,
@@ -1751,7 +1785,7 @@ int main(int argc, char* argv[]) {
 		cerr << "too few playout_num" << endl;
 		return 0;
 	}
-	if (threads < 0) {
+	if (threads <= 0) {
 		cerr << "too few threads number" << endl;
 		return 0;
 	}

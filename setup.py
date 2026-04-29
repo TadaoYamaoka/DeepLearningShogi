@@ -18,7 +18,11 @@ class my_build_ext(build_ext):
 
     def finalize_options(self):
         build_ext.finalize_options(self)
-        __builtins__.__NUMPY_SETUP__ = False
+        try:
+            __builtins__.__NUMPY_SETUP__ = False
+        except:
+            import builtins
+            builtins.__NUMPY_SETUP__ = False
         import numpy
         self.include_dirs.append(numpy.get_include())
 

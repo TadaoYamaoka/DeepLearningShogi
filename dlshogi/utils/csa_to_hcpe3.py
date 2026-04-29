@@ -58,8 +58,12 @@ for filepath in csa_file_list:
         endgame = kif.endgame
         if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
             continue
-        if filter_rating > 0 and min(kif.ratings) < filter_rating:
-            continue
+        if filter_rating > 0:
+            if kif.win == DRAW:
+                if kif.ratings[0] < filter_rating or kif.ratings[1] < filter_rating:
+                    continue
+            elif kif.ratings[2 - kif.win] < filter_rating:
+                continue
         if filter_win_name and (kif.win == DRAW or kif.names[kif.win - 1] != filter_win_name):
             continue
         # 評価値がない棋譜を除外

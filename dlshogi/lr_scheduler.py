@@ -1,6 +1,6 @@
 import math
 
-from torch.optim.lr_scheduler import LRScheduler, StepLR
+from torch.optim.lr_scheduler import LRScheduler, StepLR, MultiStepLR
 
 
 class CosineLRScheduler(LRScheduler):
@@ -113,3 +113,38 @@ class WarmupStepLR(StepLR):
             return [group['lr'] for group in self.optimizer.param_groups]
         return [group['lr'] * self.gamma
                 for group in self.optimizer.param_groups]
+
+class WarmupMultiStepLR(MultiStepLR):
+    def __init__(
+        self,
+        optimizer,
+        milestones,
+        gamma=0.1,
+        warmup_t=0,
+        warmup_lr_init=0,
+        last_epoch=-1
+    ):
+        self.warmup_t = warmup_t
+        self.warmup_lr_init = warmup_lr_init
+
+        if last_epoch == -1:
+            base_lrs = [group["lr"] for group in optimizer.param_groups]
+        else:
+            base_lrs = [group["initial_lr"] for group in optimizer.param_groups]
+
+        if self.warmup_t:
+            self.warmup_steps = [(v - warmup_lr_init) / self.warmup_t for v in base_lrs]
+        else:
+            self.warmup_steps = [1 for _ in base_lrs]
+
+        super().__init__(optimizer, milestones, gamma, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup_t:
+            return [self.warmup_lr_init + self.last_epoch * s for s in self.warmup_steps]
+        elif self.last_epoch not in self.milestones:
+            return [group['lr'] for group in self.optimizer.param_groups]
+        return [
+            group['lr'] * self.gamma ** self.milestones[self.last_epoch]
+            for group in self.optimizer.param_groups
+        ]

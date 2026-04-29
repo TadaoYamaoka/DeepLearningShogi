@@ -3,7 +3,7 @@ import torch.nn as nn
 import re
 
 def policy_value_network(network, add_sigmoid=False):
-    m = re.match('^(.*?)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_.+){0,1}$', network)
+    m = re.match(r'^(.*?)(\d+)(x\d+){0,1}(_fcl\d+){0,1}(_reduction\d+){0,1}(_.+){0,1}$', network)
     # wideresnet10 and resnet10_swish are treated specially because there are published models
     if network == 'wideresnet10':
         from dlshogi.network.policy_value_network_wideresnet10 import PolicyValueNetwork

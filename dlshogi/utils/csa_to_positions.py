@@ -23,7 +23,10 @@ for filepath in csa_file_list:
     try:
         parser.parse_csa_file(filepath)
         if args.filter_rating:
-            if parser.ratings[0] < args.filter_rating or parser.ratings[1] < args.filter_rating:
+            if parser.win == DRAW:
+               if parser.ratings[0] < args.filter_rating or parser.ratings[1] < args.filter_rating:
+                continue
+            elif parser.ratings[2 - parser.win] < args.filter_rating:
                 continue
         board.set_sfen(parser.sfen)
         assert board.is_ok(), "{}:{}".format(filepath, parser.sfen)
