@@ -1,4 +1,14 @@
-﻿#include <numeric>
+﻿#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <numeric>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
 #include <omp.h>
 #include "cppshogi.h"
 
@@ -957,6 +967,534 @@ std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string&
         }
     }
     return std::make_pair(p, positions);
+}
+
+namespace {
+
+constexpr u16 HCPE3_MAX_MOVE_NUM = 513;
+constexpr u16 HCPE3_MAX_CANDIDATE_NUM = MaxLegalMoves - 1;
+
+enum class Hcpe3ReadResult {
+    Ok,
+    Eof,
+    Truncated,
+};
+
+struct Hcpe3ParsedMove {
+    MoveInfo moveInfo;
+    std::vector<MoveVisits> visits;
+};
+
+struct Hcpe3ParsedGame {
+    HuffmanCodedPos start;
+    u8 result;
+    u8 opponent;
+    std::vector<HuffmanCodedPos> positions;
+    std::vector<Hcpe3ParsedMove> moves;
+};
+
+struct Hcpe3MergedMove {
+    u16 selectedMove16;
+    int64_t evalSum;
+    uint64_t count;
+    std::unordered_map<u16, uint64_t> visitSums;
+};
+
+struct Hcpe3MergedGame {
+    HuffmanCodedPos start;
+    u8 result;
+    u8 opponent;
+    bool active;
+    std::vector<HuffmanCodedPos> positions;
+    std::vector<Hcpe3MergedMove> moves;
+};
+
+struct Hcpe3SuffixKey {
+    HuffmanCodedPos hcp;
+    u8 result;
+    size_t length;
+    uint64_t hash;
+
+    bool operator==(const Hcpe3SuffixKey& other) const {
+        return result == other.result && length == other.length && hash == other.hash && hcp == other.hcp;
+    }
+};
+
+struct Hcpe3SuffixKeyHash {
+    std::size_t operator()(const Hcpe3SuffixKey& key) const {
+        size_t h = std::hash<HuffmanCodedPos>()(key.hcp);
+        h ^= std::hash<uint64_t>()(key.hash) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        h ^= std::hash<size_t>()(key.length) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        h ^= std::hash<unsigned int>()(key.result) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+struct Hcpe3SuffixLocation {
+    size_t gameIndex;
+    size_t offset;
+};
+
+struct Hcpe3MergeStats {
+    size_t fileNum = 0;
+    size_t corruptedFileNum = 0;
+    size_t rawGameNum = 0;
+    size_t zeroMoveSkippedNum = 0;
+};
+
+Hcpe3ReadResult read_hcpe3_exact(std::ifstream& ifs, char* dst, const std::streamsize size) {
+    if (size == 0) {
+        return Hcpe3ReadResult::Ok;
+    }
+
+    ifs.read(dst, size);
+    if (ifs) {
+        return Hcpe3ReadResult::Ok;
+    }
+    if (ifs.gcount() == 0 && ifs.eof()) {
+        return Hcpe3ReadResult::Eof;
+    }
+    return Hcpe3ReadResult::Truncated;
+}
+
+uint64_t hcpe3_hash_move(const uint64_t hash, const u16 move16) {
+    uint64_t h = hash ^ move16;
+    h *= 1099511628211ULL;
+    h ^= h >> 32;
+    return h;
+}
+
+std::vector<uint64_t> hcpe3_suffix_hashes(const Hcpe3ParsedGame& game) {
+    std::vector<uint64_t> hashes(game.moves.size() + 1);
+    hashes[game.moves.size()] = 1469598103934665603ULL ^ game.result;
+    for (size_t i = game.moves.size(); i > 0; --i) {
+        hashes[i - 1] = hcpe3_hash_move(hashes[i], game.moves[i - 1].moveInfo.selectedMove16);
+    }
+    return hashes;
+}
+
+std::vector<uint64_t> hcpe3_suffix_hashes(const Hcpe3MergedGame& game) {
+    std::vector<uint64_t> hashes(game.moves.size() + 1);
+    hashes[game.moves.size()] = 1469598103934665603ULL ^ game.result;
+    for (size_t i = game.moves.size(); i > 0; --i) {
+        hashes[i - 1] = hcpe3_hash_move(hashes[i], game.moves[i - 1].selectedMove16);
+    }
+    return hashes;
+}
+
+Hcpe3SuffixKey hcpe3_make_suffix_key(const Hcpe3ParsedGame& game, const std::vector<uint64_t>& hashes, const size_t offset) {
+    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.moves.size() - offset, hashes[offset] };
+}
+
+Hcpe3SuffixKey hcpe3_make_suffix_key(const Hcpe3MergedGame& game, const std::vector<uint64_t>& hashes, const size_t offset) {
+    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.moves.size() - offset, hashes[offset] };
+}
+
+bool hcpe3_suffix_equals(const Hcpe3ParsedGame& parsed, const size_t parsedOffset, const Hcpe3MergedGame& merged, const size_t mergedOffset) {
+    const size_t length = parsed.moves.size() - parsedOffset;
+    if (!merged.active || parsed.result != merged.result || length != merged.moves.size() - mergedOffset) {
+        return false;
+    }
+    if (!(parsed.positions[parsedOffset] == merged.positions[mergedOffset])) {
+        return false;
+    }
+    for (size_t i = 0; i < length; ++i) {
+        if (parsed.moves[parsedOffset + i].moveInfo.selectedMove16 != merged.moves[mergedOffset + i].selectedMove16) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool hcpe3_suffix_equals(const Hcpe3MergedGame& lhs, const size_t lhsOffset, const Hcpe3MergedGame& rhs, const size_t rhsOffset) {
+    const size_t length = lhs.moves.size() - lhsOffset;
+    if (!lhs.active || !rhs.active || lhs.result != rhs.result || length != rhs.moves.size() - rhsOffset) {
+        return false;
+    }
+    if (!(lhs.positions[lhsOffset] == rhs.positions[rhsOffset])) {
+        return false;
+    }
+    for (size_t i = 0; i < length; ++i) {
+        if (lhs.moves[lhsOffset + i].selectedMove16 != rhs.moves[rhsOffset + i].selectedMove16) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void hcpe3_merge_visits(Hcpe3MergedMove& dst, const std::vector<MoveVisits>& visits) {
+    for (const auto& visit : visits) {
+        dst.visitSums[visit.move16] += visit.visitNum;
+    }
+}
+
+Hcpe3MergedGame hcpe3_make_merged_game(const Hcpe3ParsedGame& parsed) {
+    Hcpe3MergedGame merged;
+    merged.start = parsed.start;
+    merged.result = parsed.result;
+    merged.opponent = parsed.opponent;
+    merged.active = true;
+    merged.positions = parsed.positions;
+    merged.moves.reserve(parsed.moves.size());
+
+    for (const auto& move : parsed.moves) {
+        Hcpe3MergedMove mergedMove;
+        mergedMove.selectedMove16 = move.moveInfo.selectedMove16;
+        mergedMove.evalSum = move.moveInfo.eval;
+        mergedMove.count = 1;
+        hcpe3_merge_visits(mergedMove, move.visits);
+        merged.moves.emplace_back(std::move(mergedMove));
+    }
+    return merged;
+}
+
+void hcpe3_merge_parsed_into_merged(Hcpe3MergedGame& dst, const size_t dstOffset, const Hcpe3ParsedGame& src) {
+    for (size_t i = 0; i < src.moves.size(); ++i) {
+        auto& dstMove = dst.moves[dstOffset + i];
+        const auto& srcMove = src.moves[i];
+        dstMove.evalSum += srcMove.moveInfo.eval;
+        dstMove.count++;
+        hcpe3_merge_visits(dstMove, srcMove.visits);
+    }
+}
+
+void hcpe3_merge_merged_into_merged(Hcpe3MergedGame& dst, const size_t dstOffset, const Hcpe3MergedGame& src) {
+    for (size_t i = 0; i < src.moves.size(); ++i) {
+        auto& dstMove = dst.moves[dstOffset + i];
+        const auto& srcMove = src.moves[i];
+        dstMove.evalSum += srcMove.evalSum;
+        dstMove.count += srcMove.count;
+        for (const auto& kv : srcMove.visitSums) {
+            dstMove.visitSums[kv.first] += kv.second;
+        }
+    }
+}
+
+void hcpe3_add_suffixes(
+    std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash>& suffixIndex,
+    const std::vector<Hcpe3MergedGame>& games,
+    const size_t gameIndex) {
+    const auto& game = games[gameIndex];
+    const auto hashes = hcpe3_suffix_hashes(game);
+    for (size_t offset = 0; offset < game.moves.size(); ++offset) {
+        suffixIndex.emplace(hcpe3_make_suffix_key(game, hashes, offset), Hcpe3SuffixLocation{ gameIndex, offset });
+    }
+}
+
+bool hcpe3_find_existing_suffix(
+    const Hcpe3ParsedGame& parsed,
+    const std::vector<uint64_t>& parsedHashes,
+    const std::vector<Hcpe3MergedGame>& games,
+    const std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash>& suffixIndex,
+    Hcpe3SuffixLocation& location) {
+    if (parsed.moves.empty()) {
+        return false;
+    }
+
+    const auto key = hcpe3_make_suffix_key(parsed, parsedHashes, 0);
+    const auto range = suffixIndex.equal_range(key);
+    for (auto itr = range.first; itr != range.second; ++itr) {
+        const auto& candidate = itr->second;
+        if (candidate.gameIndex < games.size() && hcpe3_suffix_equals(parsed, 0, games[candidate.gameIndex], candidate.offset)) {
+            location = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<std::pair<size_t, size_t>> hcpe3_find_shorter_existing_games(
+    const Hcpe3ParsedGame& parsed,
+    const std::vector<uint64_t>& parsedHashes,
+    const std::vector<Hcpe3MergedGame>& games,
+    const std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash>& suffixIndex) {
+    std::vector<std::pair<size_t, size_t>> matches;
+    std::unordered_map<size_t, bool> matchedGames;
+
+    for (size_t offset = 1; offset < parsed.moves.size(); ++offset) {
+        const auto key = hcpe3_make_suffix_key(parsed, parsedHashes, offset);
+        const auto range = suffixIndex.equal_range(key);
+        for (auto itr = range.first; itr != range.second; ++itr) {
+            const auto& candidate = itr->second;
+            if (candidate.offset != 0 || candidate.gameIndex >= games.size() || matchedGames[candidate.gameIndex]) {
+                continue;
+            }
+            if (hcpe3_suffix_equals(parsed, offset, games[candidate.gameIndex], 0)) {
+                matches.emplace_back(candidate.gameIndex, offset);
+                matchedGames[candidate.gameIndex] = true;
+            }
+        }
+    }
+    return matches;
+}
+
+void hcpe3_add_game(
+    const Hcpe3ParsedGame& parsed,
+    std::vector<Hcpe3MergedGame>& games,
+    std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash>& suffixIndex) {
+    if (parsed.moves.empty()) {
+        return;
+    }
+
+    const auto parsedHashes = hcpe3_suffix_hashes(parsed);
+    Hcpe3SuffixLocation location;
+    if (hcpe3_find_existing_suffix(parsed, parsedHashes, games, suffixIndex, location)) {
+        hcpe3_merge_parsed_into_merged(games[location.gameIndex], location.offset, parsed);
+        return;
+    }
+
+    auto newGame = hcpe3_make_merged_game(parsed);
+    const auto shorterMatches = hcpe3_find_shorter_existing_games(parsed, parsedHashes, games, suffixIndex);
+    for (const auto& match : shorterMatches) {
+        const size_t gameIndex = match.first;
+        const size_t offset = match.second;
+        if (!games[gameIndex].active || !hcpe3_suffix_equals(parsed, offset, games[gameIndex], 0)) {
+            continue;
+        }
+        hcpe3_merge_merged_into_merged(newGame, offset, games[gameIndex]);
+        games[gameIndex].active = false;
+    }
+
+    const size_t newIndex = games.size();
+    games.emplace_back(std::move(newGame));
+    hcpe3_add_suffixes(suffixIndex, games, newIndex);
+}
+
+bool hcpe3_read_game(std::ifstream& ifs, const std::string& filepath, const size_t gameIndex, Hcpe3ParsedGame& game, bool& cleanEof) {
+    cleanEof = false;
+
+    HuffmanCodedPosAndEval3 hcpe3;
+    const auto headerResult = read_hcpe3_exact(ifs, reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+    if (headerResult == Hcpe3ReadResult::Eof) {
+        cleanEof = true;
+        return false;
+    }
+    if (headerResult == Hcpe3ReadResult::Truncated || hcpe3.moveNum > HCPE3_MAX_MOVE_NUM) {
+        return false;
+    }
+
+    Position pos;
+    if (!pos.set(hcpe3.hcp)) {
+        std::stringstream ss;
+        ss << "INCORRECT_HUFFMAN_CODE at " << filepath << "(" << gameIndex << ")";
+        throw std::runtime_error(ss.str());
+    }
+    StateListPtr states{ new std::deque<StateInfo>(1) };
+
+    game.start = hcpe3.hcp;
+    game.result = hcpe3.result;
+    game.opponent = hcpe3.opponent;
+    game.positions.clear();
+    game.moves.clear();
+    game.positions.reserve(hcpe3.moveNum);
+    game.moves.reserve(hcpe3.moveNum);
+
+    for (int i = 0; i < hcpe3.moveNum; ++i) {
+        Hcpe3ParsedMove parsedMove;
+        const auto moveInfoResult = read_hcpe3_exact(ifs, reinterpret_cast<char*>(&parsedMove.moveInfo), sizeof(MoveInfo));
+        if (moveInfoResult != Hcpe3ReadResult::Ok || parsedMove.moveInfo.candidateNum > HCPE3_MAX_CANDIDATE_NUM) {
+            return false;
+        }
+
+        parsedMove.visits.resize(parsedMove.moveInfo.candidateNum);
+        const auto visitsResult = read_hcpe3_exact(
+            ifs,
+            reinterpret_cast<char*>(parsedMove.visits.data()),
+            static_cast<std::streamsize>(sizeof(MoveVisits) * parsedMove.visits.size()));
+        if (visitsResult != Hcpe3ReadResult::Ok) {
+            return false;
+        }
+
+        const Move move = move16toMove((Move)parsedMove.moveInfo.selectedMove16, pos);
+        if (!pos.moveIsPseudoLegal<false>(move)) {
+            return false;
+        }
+
+        game.positions.emplace_back(pos.toHuffmanCodedPos());
+        game.moves.emplace_back(std::move(parsedMove));
+        pos.doMove(move, states->emplace_back(StateInfo()));
+    }
+
+    return true;
+}
+
+s16 hcpe3_average_eval(const Hcpe3MergedMove& move) {
+    const auto average = static_cast<int64_t>(std::llround(static_cast<double>(move.evalSum) / static_cast<double>(move.count)));
+    return static_cast<s16>(std::clamp<int64_t>(average, std::numeric_limits<s16>::min(), std::numeric_limits<s16>::max()));
+}
+
+u16 hcpe3_average_visit(const uint64_t sum, const uint64_t count) {
+    uint64_t average = (sum + count / 2) / count;
+    if (average == 0 && sum > 0) {
+        average = 1;
+    }
+    return static_cast<u16>(std::min<uint64_t>(average, std::numeric_limits<u16>::max()));
+}
+
+std::vector<MoveVisits> hcpe3_average_visits(const Hcpe3MergedMove& move) {
+    std::vector<MoveVisits> visits;
+    visits.reserve(move.visitSums.size());
+    for (const auto& kv : move.visitSums) {
+        visits.emplace_back(kv.first, hcpe3_average_visit(kv.second, move.count));
+    }
+    std::sort(visits.begin(), visits.end(), [](const MoveVisits& a, const MoveVisits& b) {
+        if (a.visitNum != b.visitNum) {
+            return a.visitNum > b.visitNum;
+        }
+        return a.move16 < b.move16;
+    });
+    if (visits.size() > HCPE3_MAX_CANDIDATE_NUM) {
+        std::stringstream ss;
+        ss << "too many candidates after merge: " << visits.size();
+        throw std::runtime_error(ss.str());
+    }
+    return visits;
+}
+
+void hcpe3_print_merge_stats(const Hcpe3MergeStats& stats, const std::vector<Hcpe3MergedGame>& games, const size_t mergedGameNum) {
+    size_t blackWinNum = 0;
+    size_t whiteWinNum = 0;
+    size_t drawNum = 0;
+    size_t sennichiteNum = 0;
+    size_t nyugyokuNum = 0;
+    size_t maxMoveNum = 0;
+    size_t minMoves = std::numeric_limits<size_t>::max();
+    size_t maxMoves = 0;
+    uint64_t totalMoves = 0;
+
+    for (const auto& game : games) {
+        if (!game.active) {
+            continue;
+        }
+        const size_t moveCount = game.moves.size();
+        minMoves = std::min(minMoves, moveCount);
+        maxMoves = std::max(maxMoves, moveCount);
+        totalMoves += moveCount;
+
+        const auto result = static_cast<GameResult>(game.result & 0x3);
+        if (result == BlackWin) {
+            blackWinNum++;
+        }
+        else if (result == WhiteWin) {
+            whiteWinNum++;
+        }
+        else if (result == Draw) {
+            drawNum++;
+        }
+
+        if (game.result & GAMERESULT_SENNICHITE) {
+            sennichiteNum++;
+        }
+        if (game.result & GAMERESULT_NYUGYOKU) {
+            nyugyokuNum++;
+        }
+        if (game.result & GAMERESULT_MAXMOVE) {
+            maxMoveNum++;
+        }
+    }
+
+    if (mergedGameNum == 0) {
+        minMoves = 0;
+    }
+    const double averageMoves = mergedGameNum == 0 ? 0.0 : static_cast<double>(totalMoves) / static_cast<double>(mergedGameNum);
+
+    std::cout << "Statistics" << std::endl;
+    std::cout << "Files: " << stats.fileNum << std::endl;
+    std::cout << "Files with truncated tail: " << stats.corruptedFileNum << std::endl;
+    std::cout << "Raw games before averaging: " << stats.rawGameNum << std::endl;
+    std::cout << "Skipped zero-move games: " << stats.zeroMoveSkippedNum << std::endl;
+    std::cout << "Games after averaging: " << mergedGameNum << std::endl;
+    std::cout << "Minimum moves: " << minMoves << std::endl;
+    std::cout << "Maximum moves: " << maxMoves << std::endl;
+    std::cout << "Average moves: " << std::fixed << std::setprecision(2) << averageMoves << std::endl;
+    std::cout << "Black wins: " << blackWinNum << std::endl;
+    std::cout << "White wins: " << whiteWinNum << std::endl;
+    std::cout << "Draws: " << drawNum << std::endl;
+    std::cout << "Games ended by sennichite: " << sennichiteNum << std::endl;
+    std::cout << "Games ended by nyugyoku declaration: " << nyugyokuNum << std::endl;
+    std::cout << "Games ended by max moves: " << maxMoveNum << std::endl;
+}
+
+} // namespace
+
+void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out) {
+    Hcpe3MergeStats stats;
+    stats.fileNum = files.size();
+
+    std::vector<Hcpe3MergedGame> games;
+    std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash> suffixIndex;
+
+    for (const auto& filepath : files) {
+        std::cout << filepath << std::endl;
+
+        std::ifstream ifs(filepath, std::ifstream::binary);
+        if (!ifs) {
+            std::stringstream ss;
+            ss << "failed to open " << filepath;
+            throw std::runtime_error(ss.str());
+        }
+
+        bool corrupted = false;
+        for (size_t gameIndex = 0;; ++gameIndex) {
+            Hcpe3ParsedGame parsed;
+            bool cleanEof = false;
+            if (!hcpe3_read_game(ifs, filepath, gameIndex, parsed, cleanEof)) {
+                if (!cleanEof) {
+                    corrupted = true;
+                }
+                break;
+            }
+            stats.rawGameNum++;
+            if (parsed.moves.empty()) {
+                stats.zeroMoveSkippedNum++;
+                continue;
+            }
+            hcpe3_add_game(parsed, games, suffixIndex);
+        }
+
+        if (corrupted) {
+            stats.corruptedFileNum++;
+        }
+    }
+
+    size_t mergedGameNum = 0;
+    {
+        std::ofstream ofs(out, std::ios::binary);
+        if (!ofs) {
+            std::stringstream ss;
+            ss << "failed to open " << out;
+            throw std::runtime_error(ss.str());
+        }
+
+        for (const auto& game : games) {
+            if (!game.active) {
+                continue;
+            }
+
+            HuffmanCodedPosAndEval3 hcpe3{};
+            hcpe3.hcp = game.start;
+            hcpe3.moveNum = static_cast<u16>(game.moves.size());
+            hcpe3.result = game.result;
+            hcpe3.opponent = game.opponent;
+            ofs.write(reinterpret_cast<const char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+
+            for (const auto& move : game.moves) {
+                const auto visits = hcpe3_average_visits(move);
+                MoveInfo moveInfo{};
+                moveInfo.selectedMove16 = move.selectedMove16;
+                moveInfo.eval = hcpe3_average_eval(move);
+                moveInfo.candidateNum = static_cast<u16>(visits.size());
+                ofs.write(reinterpret_cast<const char*>(&moveInfo), sizeof(MoveInfo));
+                if (!visits.empty()) {
+                    ofs.write(reinterpret_cast<const char*>(visits.data()), sizeof(MoveVisits) * visits.size());
+                }
+            }
+
+            mergedGameNum++;
+        }
+    }
+
+    hcpe3_print_merge_stats(stats, games, mergedGameNum);
 }
 
 std::pair<int, int> __hcpe3_clean(const std::string& file1, const std::string& file2) {

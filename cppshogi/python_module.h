@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <string>
+#include <vector>
 
 void init();
 void __hcpe_decode_with_value(const size_t len, char* ndhcpe, char* ndfeatures1, char* ndfeatures2, char* ndmove, char* ndresult, char* ndvalue);
@@ -20,4 +21,5 @@ void __hcpe3_reserve_train_data(unsigned int size);
 void __hcpe3_stat_cache();
 std::pair<int, int> __hcpe3_to_hcpe(const std::string& file1, const std::string& file2);
 std::pair<int, int> __hcpe3_clean(const std::string& file1, const std::string& file2);
+void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out);
 unsigned int __get_max_features2_nyugyoku_num();
