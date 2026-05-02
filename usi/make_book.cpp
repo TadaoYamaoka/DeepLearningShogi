@@ -228,9 +228,12 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
     const Key key = Book::bookKey(pos);
 
 	// 特定局面の評価値を置き換える
-	if (book_key_eval_map.size() > 0 && book_key_eval_map.find(key) != book_key_eval_map.end()) {
-		//std::cout << pos.toSFEN() << std::endl;
-		return -book_key_eval_map[key];
+	if (!book_key_eval_map.empty()) {
+		const auto itr_key_eval = book_key_eval_map.find(key);
+		if (itr_key_eval != book_key_eval_map.end()) {
+			//std::cout << pos.toSFEN() << std::endl;
+			return -itr_key_eval->second;
+		}
 	}
 
 	// 探索済みチェック
@@ -256,7 +259,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 
 	// MinMaxの探索順に使用する定跡
 	auto itr_best = bookMapBest.end();
-	if (bookMapBest.size() > 0) {
+	if (!bookMapBest.empty()) {
 		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
 			for (const auto& entry : itr_best->second) {
@@ -465,7 +468,7 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	// MinMaxの探索順に使用する定跡
 	Move topMove = Move::moveNone();
 	auto itr_best = bookMapBest.end();
-	if (bookMapBest.size() > 0) {
+	if (!bookMapBest.empty()) {
 		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
 			for (const auto& entry : itr_best->second) {
@@ -717,7 +720,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					const auto& entries = itr->second;
 					int index = 0;
 					Score score;
-					if (bookMapBest.size() > 0 && dist_prob(g_randomTimeSeed) < book_priority_prob && bookMapBest.find(key) != bookMapBest.end()) {
+					if (!bookMapBest.empty() && dist_prob(g_randomTimeSeed) < book_priority_prob && bookMapBest.find(key) != bookMapBest.end()) {
 						// 一定の確率でPriorityBookから確率的に選ぶ
 						std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature);
 					}
@@ -813,7 +816,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				entries = &outMap[key];
 			}
 
-			if (!use_book && bookMapBest.size() > 0 && dist_prob(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
+			if (!use_book && !bookMapBest.empty() && dist_prob(g_randomTimeSeed) < book_priority_prob_opp && bookMapBest.find(key) != bookMapBest.end()) {
 				// 一定の確率でPriorityBookから確率的に選ぶ
 				Score score;
 				std::tie(move, score) = select_priority_book_entry(pos, key, bookMapBest, book_priority_prob_temperature_opp);
