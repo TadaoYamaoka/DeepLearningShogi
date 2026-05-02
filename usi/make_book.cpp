@@ -222,7 +222,14 @@ struct Searched {
 	Score score;
 	Score beta;
 };
-Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::unordered_map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+struct MoveOrdering {
+	u16 move16;
+	Score score;
+};
+struct MoveOrderingCache {
+	std::unordered_map<Key, MoveOrdering> failHighMove;
+};
+Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::unordered_map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, MoveOrderingCache& moveOrderingCache) {
     if (pos.gamePly() > 512) return pos.turn() == Black ? draw_score_white : draw_score_black;
 
     const Key key = Book::bookKey(pos);
@@ -256,76 +263,145 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	}
 	const auto& entries = itr->second;
 	bool first = true;
+	auto store_fail_high = [&](const Move move, const Score move_score, const Score value) {
+		moveOrderingCache.failHighMove[key] = { (u16)move.value(), move_score };
+		searched[key] = { pos.gamePly(), value, beta };
+	};
 
 	// MinMaxの探索順に使用する定跡
 	auto itr_best = bookMapBest.end();
 	if (!bookMapBest.empty()) {
 		itr_best = bookMapBest.find(key);
-		if (itr_best != bookMapBest.end()) {
-			for (const auto& entry : itr_best->second) {
-				Score value;
-				Move move = move16toMove(Move(entry.fromToPro), pos);
-				StateInfo state;
-				pos.doMove(move, state);
-				//debug_moves.emplace_back(move);
-				switch (pos.isDraw()) {
-				case RepetitionDraw:
-					// 繰り返しになる場合、千日手の評価値
-					value = pos.turn() == Black ? draw_score_white : draw_score_black;
-					break;
-				case RepetitionWin:
-					value = -ScoreInfinite;
-					break;
-				case RepetitionLose:
-					value = ScoreMaxEvaluate;
-					break;
-				default:
-					if (!first) {
-						// Null window search
-						value = book_search(pos, outMap, -alpha - 1, -alpha, entry.score, searched, bookMapBest);
-						if (value >= beta) {
-							pos.undoMove(move);
-							searched[key] = { pos.gamePly(), value, beta };
-							return -value;
-						}
-						if (value <= alpha) {
-							pos.undoMove(move);
-							continue;
-						}
-						alpha = value;
+	}
+	std::unordered_set<u16> best_moves;
+	const auto itr_ordering = moveOrderingCache.failHighMove.find(key);
+	const bool has_ordering_move = itr_ordering != moveOrderingCache.failHighMove.end();
+	u16 ordering_move16 = has_ordering_move ? itr_ordering->second.move16 : 0;
+	auto is_best_move = [&](const u16 move16) {
+		return best_moves.find(move16) != best_moves.end();
+	};
+	bool searched_ordering_move = false;
+	if (has_ordering_move) {
+		const Score ordering_score = itr_ordering->second.score;
+		Move ordering_move = move16toMove(Move(ordering_move16), pos);
+		if (ordering_move != Move::moveNone()) {
+			Score value;
+			StateInfo state;
+			pos.doMove(ordering_move, state);
+			switch (pos.isDraw()) {
+			case RepetitionDraw:
+				// 繰り返しになる場合、千日手の評価値
+				value = pos.turn() == Black ? draw_score_white : draw_score_black;
+				break;
+			case RepetitionWin:
+				// 相手の勝ち(自分の負け)
+				value = -ScoreInfinite;
+				break;
+			case RepetitionLose:
+				// 相手の負け(自分の勝ち)
+				value = ScoreMaxEvaluate;
+				break;
+			default:
+				if (!first) {
+					// Null window search
+					value = book_search(pos, outMap, -alpha - 1, -alpha, ordering_score, searched, bookMapBest, moveOrderingCache);
+					if (value >= beta) {
+						pos.undoMove(ordering_move);
+						store_fail_high(ordering_move, ordering_score, value);
+						return -value;
 					}
-					else {
-						first = false;
+					if (value <= alpha) {
+						pos.undoMove(ordering_move);
+						searched_ordering_move = true;
+						break;
 					}
-					value = book_search(pos, outMap, -beta, -alpha, entry.score, searched, bookMapBest);
+					alpha = value;
 				}
-				pos.undoMove(move);
-				//debug_moves.pop_back();
-				//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
-
+				else {
+					first = false;
+				}
+				value = book_search(pos, outMap, -beta, -alpha, ordering_score, searched, bookMapBest, moveOrderingCache);
+			}
+			if (!searched_ordering_move) {
+				pos.undoMove(ordering_move);
 				if (value >= beta) {
-					searched[key] = { pos.gamePly(), value, beta };
+					store_fail_high(ordering_move, ordering_score, value);
 					return -value;
 				}
 				alpha = std::max(alpha, value);
+				searched_ordering_move = true;
 			}
+		}
+	}
+	if (itr_best != bookMapBest.end()) {
+		best_moves.reserve(itr_best->second.size());
+		for (const auto& entry : itr_best->second) {
+			best_moves.emplace(entry.fromToPro);
+			if (searched_ordering_move && entry.fromToPro == ordering_move16)
+				continue;
+			Score value;
+			Move move = move16toMove(Move(entry.fromToPro), pos);
+			StateInfo state;
+			pos.doMove(move, state);
+			//debug_moves.emplace_back(move);
+			switch (pos.isDraw()) {
+			case RepetitionDraw:
+				// 繰り返しになる場合、千日手の評価値
+				value = pos.turn() == Black ? draw_score_white : draw_score_black;
+				break;
+			case RepetitionWin:
+				value = -ScoreInfinite;
+				break;
+			case RepetitionLose:
+				value = ScoreMaxEvaluate;
+				break;
+			default:
+				if (!first) {
+					// Null window search
+					value = book_search(pos, outMap, -alpha - 1, -alpha, entry.score, searched, bookMapBest, moveOrderingCache);
+					if (value >= beta) {
+						pos.undoMove(move);
+						store_fail_high(move, entry.score, value);
+						return -value;
+					}
+					if (value <= alpha) {
+						pos.undoMove(move);
+						continue;
+					}
+					alpha = value;
+				}
+				else {
+					first = false;
+				}
+				value = book_search(pos, outMap, -beta, -alpha, entry.score, searched, bookMapBest, moveOrderingCache);
+			}
+			pos.undoMove(move);
+			//debug_moves.pop_back();
+			//std::cout << move.toUSI() << "\t" << entry.score << "\t" << value << std::endl;
+
+			if (value >= beta) {
+				store_fail_high(move, entry.score, value);
+				return -value;
+			}
+			alpha = std::max(alpha, value);
 		}
 	}
 
 	Score trusted_score = entries[0].score;
+	std::unordered_set<u16> entry_moves;
+	entry_moves.reserve(entries.size());
 	for (const auto& entry : entries) {
+		entry_moves.emplace(entry.fromToPro);
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
-		if (itr_best != bookMapBest.end()) {
-			const auto& entries_best = itr_best->second;
-			if (std::find_if(entries_best.begin(), entries_best.end(),
-				[&entry](const BookEntry& entry_best) { return entry_best.fromToPro == entry.fromToPro; }) != entries_best.end()) {
-				// 探索済み
-				continue;
-			}
+		if (is_best_move(entry.fromToPro)) {
+			// 探索済み
+			continue;
 		}
 		// 訪問回数が少ない評価値は信頼しない
 		if (entry.score < trusted_score)
 			trusted_score = entry.score;
+		if (searched_ordering_move && entry.fromToPro == ordering_move16)
+			continue;
 		//std::cout << pos.turn() << "\t" << move.toUSI() << std::endl;
 		/*if (key == 7172278114399076909UL && debug_moves[0].toUSI() == "4b5b" && move.toUSI() == "4a5b") {
 			print_debug_moves(entry.score);
@@ -351,10 +427,10 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		default:
 			if (!first) {
 				// Null window search
-				value = book_search(pos, outMap, -alpha - 1, -alpha, trusted_score, searched, bookMapBest);
+				value = book_search(pos, outMap, -alpha - 1, -alpha, trusted_score, searched, bookMapBest, moveOrderingCache);
 				if (value >= beta) {
 					pos.undoMove(move);
-					searched[key] = { pos.gamePly(), value, beta };
+					store_fail_high(move, trusted_score, value);
 					return -value;
 				}
 				if (value <= alpha) {
@@ -366,7 +442,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			else {
 				first = false;
 			}
-			value = book_search(pos, outMap, -beta, -alpha, trusted_score, searched, bookMapBest);
+			value = book_search(pos, outMap, -beta, -alpha, trusted_score, searched, bookMapBest, moveOrderingCache);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -377,7 +453,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (value >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			searched[key] = { pos.gamePly(), value, beta };
+			store_fail_high(move, trusted_score, value);
 			//}
 			return -value;
 		}
@@ -386,18 +462,14 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
 		const u16 move16 = (u16)(move.value());
-		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+		if (entry_moves.find(move16) != entry_moves.end())
 			continue;
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
-		if (itr_best != bookMapBest.end()) {
-			const auto& entries_best = itr_best->second;
-			if (std::find_if(entries_best.begin(), entries_best.end(),
-				[&move16](const BookEntry& entry_best) { return entry_best.fromToPro == move16; }) != entries_best.end()) {
-				// 探索済み
-				continue;
-			}
-		}
+		if (is_best_move(move16))
+			continue;
+		if (searched_ordering_move && move16 == ordering_move16)
+			continue;
 		Score value;
 		StateInfo state;
 		pos.doMove(move, state);
@@ -418,10 +490,10 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		default:
 			if (!first) {
 				// Null window search
-				value = book_search(pos, outMap, -alpha - 1, -alpha, ScoreNotEvaluated, searched, bookMapBest);
+				value = book_search(pos, outMap, -alpha - 1, -alpha, ScoreNotEvaluated, searched, bookMapBest, moveOrderingCache);
 				if (value >= beta) {
 					pos.undoMove(move);
-					searched[key] = { pos.gamePly(), value, beta };
+					store_fail_high(move, ScoreNotEvaluated, value);
 					return -value;
 				}
 				if (value <= alpha) {
@@ -433,7 +505,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 			else {
 				first = false;
 			}
-			value = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched, bookMapBest);
+			value = book_search(pos, outMap, -beta, -alpha, ScoreNotEvaluated, searched, bookMapBest, moveOrderingCache);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -444,7 +516,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 		if (value >= beta) {
 			//if (debug_moves.size() > 14 && debug_moves[14] == Move(10437) && value == 127) print_debug_moves(value);
 			//if (itr_searched == searched.end() || itr_searched->second.depth >= pos.gamePly() && itr_searched->second.beta <= beta) {
-			searched[key] = { pos.gamePly(), value, beta };
+			store_fail_high(move, ScoreNotEvaluated, value);
 			//}
 			return -value;
 		}
@@ -464,14 +536,18 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	int bestIndex = -1;
 	std::unordered_map<Key, Searched> searched;
     searched.max_load_factor(0.25);
+	MoveOrderingCache moveOrderingCache;
 
 	// MinMaxの探索順に使用する定跡
 	Move topMove = Move::moveNone();
 	auto itr_best = bookMapBest.end();
+	std::unordered_set<u16> best_moves;
 	if (!bookMapBest.empty()) {
 		itr_best = bookMapBest.find(key);
 		if (itr_best != bookMapBest.end()) {
+			best_moves.reserve(itr_best->second.size());
 			for (const auto& entry : itr_best->second) {
+				best_moves.emplace(entry.fromToPro);
 				Move move = move16toMove(Move(entry.fromToPro), pos);
 				StateInfo state;
 				pos.doMove(move, state);
@@ -489,7 +565,7 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 					value = ScoreMaxEvaluate;
 					break;
 				default:
-					value = book_search(pos, outMap, -ScoreInfinite, -alpha, entry.score, searched, bookMapBest);
+					value = book_search(pos, outMap, -ScoreInfinite, -alpha, entry.score, searched, bookMapBest, moveOrderingCache);
 				}
 				pos.undoMove(move);
 				//debug_moves.pop_back();
@@ -505,17 +581,16 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	}
 
 	Score trusted_score = entries[0].score;
+	std::unordered_set<u16> entry_moves;
+	entry_moves.reserve(entries.size());
 	for (const auto& entry : entries) {
+		entry_moves.emplace(entry.fromToPro);
 		const Move move = move16toMove(Move(entry.fromToPro), pos);
-		if (itr_best != bookMapBest.end()) {
-			const auto& entries_best = itr_best->second;
-			if (std::find_if(entries_best.begin(), entries_best.end(),
-				[&entry](const BookEntry& entry_best) { return entry_best.fromToPro == entry.fromToPro; }) != entries_best.end()) {
-				// 探索済み
-				if (move == topMove && move == bestMove)
-					bestIndex = (int)(&entry - &entries[0]);
-				continue;
-			}
+		if (best_moves.find(entry.fromToPro) != best_moves.end()) {
+			// 探索済み
+			if (move == topMove && move == bestMove)
+				bestIndex = (int)(&entry - &entries[0]);
+			continue;
 		}
 		// 訪問回数が少ない評価値は信頼しない
 		if (entry.score < trusted_score)
@@ -537,7 +612,7 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched, bookMapBest);
+			value = book_search(pos, outMap, -ScoreInfinite, -alpha, trusted_score, searched, bookMapBest, moveOrderingCache);
 		}
 		pos.undoMove(move);
 		//debug_moves.pop_back();
@@ -552,11 +627,11 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
 		const Move& move = ml.move();
 		const u16 move16 = (u16)(move.value());
-		if (std::any_of(entries.begin(), entries.end(), [move16](const BookEntry& entry) { return entry.fromToPro == move16; }))
+		if (entry_moves.find(move16) != entry_moves.end())
 			continue;
 		if (outMap.find(Book::bookKeyAfter(pos, key, move)) == outMap.end())
 			continue;
-		if (move == topMove)
+		if (best_moves.find(move16) != best_moves.end())
 			continue;
 		StateInfo state;
 		pos.doMove(move, state);
@@ -574,7 +649,7 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 			value = ScoreMaxEvaluate;
 			break;
 		default:
-			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched, bookMapBest);
+			const auto ret = book_search(pos, outMap, -ScoreInfinite, -alpha, ScoreNotEvaluated, searched, bookMapBest, moveOrderingCache);
 			value = ret;
 		}
 		pos.undoMove(move);
@@ -1482,7 +1557,7 @@ void diff_eval(Position& pos, const std::unordered_map<Key, std::vector<BookEntr
 // USI評価とDiff拡張を交互に繰り返す
 void iter_diff_eval(
 	Position& root_pos,
-	std::unordered_map<Key, std::vector<BookEntry>>& outMap,        // 兼用: bookMap兼outMap (UCT結果)
+	std::unordered_map<Key, std::vector<BookEntry>>& outMap,	    // 兼用: bookMap兼outMap (UCT結果)
 	std::unordered_map<Key, std::vector<BookEntry>>& outEngineMap,  // エンジン評価結果
 	const std::unordered_map<Key, std::vector<BookEntry>>& policyMap,
 	const std::string& engine_path,
