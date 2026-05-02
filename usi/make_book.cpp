@@ -222,7 +222,7 @@ struct Searched {
 	Score score;
 	Score beta;
 };
-Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, Score alpha, const Score beta, const Score score, std::unordered_map<Key, Searched>& searched, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
     if (pos.gamePly() > 512) return pos.turn() == Black ? draw_score_white : draw_score_black;
 
     const Key key = Book::bookKey(pos);
@@ -459,7 +459,8 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	Score alpha = -ScoreInfinite;
 	Move bestMove = Move::moveNone();
 	int bestIndex = -1;
-	std::map<Key, Searched> searched;
+	std::unordered_map<Key, Searched> searched;
+    searched.max_load_factor(0.25);
 
 	// MinMaxの探索順に使用する定跡
 	Move topMove = Move::moveNone();
