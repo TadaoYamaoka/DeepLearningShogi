@@ -48,6 +48,7 @@ struct MySearcher : Searcher {
 	static void makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makePolicyBookBfsRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
+	static void bookMoveAllMinmax(std::istringstream& ssCmd, const std::string& posCmd);
 	static void fixEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void minmaxBookToCache(std::istringstream& ssCmd, const std::string& posCmd);
 	static void overwriteHcpe3Cache(std::istringstream& ssCmd);
@@ -453,6 +454,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		else if (token == "make_all_minmax_book_ra") makeAllMinMaxBookRA(ssCmd, posCmd);
 		else if (token == "make_policy_book_bfs_ra") makePolicyBookBfsRA(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
+		else if (token == "book_move_all_minmax") bookMoveAllMinmax(ssCmd, posCmd);
 		else if (token == "fix_eval") fixEval(ssCmd, posCmd);
 		else if (token == "minmax_book_to_cache") minmaxBookToCache(ssCmd, posCmd);
 		else if (token == "overwrite_hcpe3_cache") overwriteHcpe3Cache(ssCmd);
@@ -2059,6 +2061,60 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	std::cout << "move: " << move.toUSI() << std::endl;
 	std::cout << "score: " << score << std::endl;
 	std::cout << "elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+}
+
+void MySearcher::bookMoveAllMinmax(std::istringstream& ssCmd, const std::string& posCmd) {
+    HuffmanCodedPos::init();
+	std::string bookFileName;
+
+	ssCmd >> bookFileName;
+
+	// 千日手の評価値
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	// αβ探索で特定局面の評価値を置き換える
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	// 定跡読み込み
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	// MinMaxの探索順に使用する定跡
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest, true);
+
+	// 開始局面設定
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	const Key key = Book::bookKey(pos);
+	const auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		std::cout << "no entry" << std::endl;
+		return;
+	}
+
+	int index;
+	Move move;
+	Score score;
+	long long build_elapsed = 0;
+	const auto start = std::chrono::system_clock::now();
+	std::tie(index, move, score) = select_best_book_entry_all_minmax(pos, bookMap, bookMapBest, build_elapsed);
+	const auto end = std::chrono::system_clock::now();
+	const auto total_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+	// 出力
+	std::cout << "index: " << index << std::endl;
+	std::cout << "move: " << move.toUSI() << std::endl;
+	std::cout << "score: " << score << std::endl;
+	std::cout << "build_elapsed: " << build_elapsed << std::endl;
+	std::cout << "elapsed: " << total_elapsed - build_elapsed << std::endl;
+	std::cout << "total_elapsed: " << total_elapsed << std::endl;
 }
 
 // 評価値が30000以上の局面を再評価
