@@ -913,7 +913,7 @@ Score book_search_all_minmax(Position& pos, const BookSearchIndex& bookSearchInd
 	return -alpha;
 }
 
-std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, const BookSearchIndex& bookSearchIndex) {
+std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, const BookSearchIndex& bookSearchIndex, MoveOrderingCache& moveOrderingCache) {
 	const Key key = Book::bookKey(pos);
 	const auto itr_node = bookSearchIndex.find(key);
 	assert(itr_node != bookSearchIndex.end() && itr_node->second.entries != nullptr);
@@ -925,9 +925,7 @@ std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, co
 	int bestIndex = -1;
 	std::unordered_map<Key, Searched> searched;
     searched.max_load_factor(0.25);
-	MoveOrderingCache moveOrderingCache;
     searched.reserve(1024);
-    moveOrderingCache.failHighMove.reserve(1024);
 
 	Move topMove = Move::moveNone();
 	if (node.best_entries != nullptr) {
@@ -1025,6 +1023,12 @@ std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, co
 		}
 	}
 	return { bestIndex, bestMove, alpha };
+}
+
+std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, const BookSearchIndex& bookSearchIndex) {
+	MoveOrderingCache moveOrderingCache;
+    moveOrderingCache.failHighMove.reserve(1024);
+	return select_best_book_entry_all_minmax(pos, bookSearchIndex, moveOrderingCache);
 }
 
 Score minmax_priority_book_score(Position& pos, const Key key, const Move move, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, Score alpha, Score beta, int depth) {
@@ -2190,12 +2194,12 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 
 	// 分割
 	if (chunk_num > 1) {
-		std::mt19937_64 g(0);
-		std::shuffle(indexes.begin(), indexes.end(), g);
-		const size_t chunk_size = (indexes.size() + chunk_num - 1) / chunk_num;
-		const size_t chunk_start = chunk_size * chunk_index;
-		const size_t chunk_end = std::min(chunk_start + chunk_size, indexes.size());
-		std::vector<int> chunk_indexes(indexes.begin() + chunk_start, indexes.begin() + chunk_end);
+		std::vector<int> chunk_indexes;
+		chunk_indexes.reserve((indexes.size() + chunk_num - 1) / chunk_num);
+		for (size_t i = 0; i < indexes.size(); ++i) {
+			if ((int)(i % chunk_num) == chunk_index)
+				chunk_indexes.emplace_back(indexes[i]);
+		}
 		std::cout << "chunk: " << chunk_num << " " << chunk_index << " chunk_indexes.size: " << chunk_indexes.size() << std::endl;
 		std::swap(indexes, chunk_indexes);
 	}
@@ -2203,34 +2207,39 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	// 並列でminmax定跡作成
 	const int indexes_size = (int)indexes.size();
 	const int initial_size = (int)outMap.size();
-	#pragma omp parallel for num_threads(threads) schedule(dynamic)
-	for (int i = 0; i < indexes_size; ++i) {
-		Position pos_copy(pos);
+	#pragma omp parallel num_threads(threads)
+	{
+		MoveOrderingCache moveOrderingCache;
+        moveOrderingCache.failHighMove.reserve(1024);
+		#pragma omp for schedule(dynamic)
+		for (int i = 0; i < indexes_size; ++i) {
+			Position pos_copy(pos);
 
-		const PositionWithMove& position = positions[indexes[i]];
-		std::vector<Move> moves;
-		build_position_path(position, moves);
+			const PositionWithMove& position = positions[indexes[i]];
+			std::vector<Move> moves;
+			build_position_path(position, moves);
 
-		// move
-		auto states = StateListPtr(new std::deque<StateInfo>(1));
-		for (const Move move : moves) {
-			states->emplace_back(StateInfo());
-			pos_copy.doMove(move, states->back());
-		}
+			// move
+			auto states = StateListPtr(new std::deque<StateInfo>(1));
+			for (const Move move : moves) {
+				states->emplace_back(StateInfo());
+				pos_copy.doMove(move, states->back());
+			}
 
-		const Key key = position.key;
-		assert(Book::bookKey(pos_copy) == key);
-		int index;
-		Move move;
-		Score score;
-		std::tie(index, move, score) = select_best_book_entry_all_minmax(pos_copy, bookSearchIndex);
-		#pragma omp critical
-		{
-			auto& out_entries = outMap[key];
-			assert(out_entries.size() == 0);
-			out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
-			if ((outMap.size() - initial_size) % 10000 == 0)
-				std::cout << "progress: " << (outMap.size() - initial_size) * 100 / indexes_size << "%" << std::endl;
+			const Key key = position.key;
+			assert(Book::bookKey(pos_copy) == key);
+			int index;
+			Move move;
+			Score score;
+			std::tie(index, move, score) = select_best_book_entry_all_minmax(pos_copy, bookSearchIndex, moveOrderingCache);
+			#pragma omp critical
+			{
+				auto& out_entries = outMap[key];
+				assert(out_entries.size() == 0);
+				out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
+				if ((outMap.size() - initial_size) % 10000 == 0)
+					std::cout << "progress: " << (outMap.size() - initial_size) * 100 / indexes_size << "%" << std::endl;
+			}
 		}
 	}
 }
