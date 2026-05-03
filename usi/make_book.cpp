@@ -926,6 +926,8 @@ std::tuple<int, Move, Score> select_best_book_entry_all_minmax(Position& pos, co
 	std::unordered_map<Key, Searched> searched;
     searched.max_load_factor(0.25);
 	MoveOrderingCache moveOrderingCache;
+    searched.reserve(1024);
+    moveOrderingCache.failHighMove.reserve(1024);
 
 	Move topMove = Move::moveNone();
 	if (node.best_entries != nullptr) {
