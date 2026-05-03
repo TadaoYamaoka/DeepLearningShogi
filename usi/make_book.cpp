@@ -2244,6 +2244,101 @@ void make_all_minmax_book(Position& pos, std::map<Key, std::vector<BookEntry> >&
 	}
 }
 
+void make_all_minmax_book_positions(Position& pos, std::map<Key, std::vector<BookEntry> >& outMap, const Color make_book_color, const int threads, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::vector<std::string>& positionCommands) {
+	std::vector<PositionWithMove> positions;
+	positions.reserve(bookMap.size() + 1);
+	enumerate_positions_with_move(pos, bookMap, bookMapBest, positions);
+	std::cout << "positions: " << positions.size() << std::endl;
+	assert(positions.size() <= bookMap.size());
+
+	const auto bookSearchIndex = build_book_search_index(pos, bookMap, bookMapBest, positions);
+
+	struct TargetPosition {
+		std::string sfen;
+		std::vector<std::string> moves;
+	};
+	std::vector<TargetPosition> targets;
+	for (const auto& positionCommand : positionCommands) {
+		std::istringstream ss(positionCommand);
+		std::string token;
+		if (!(ss >> token))
+			continue;
+		if (token == "position" && !(ss >> token))
+			continue;
+
+		std::string sfen;
+		bool has_moves = false;
+		if (token == "startpos") {
+			sfen = DefaultStartPositionSFEN;
+			has_moves = (ss >> token) && token == "moves";
+		}
+		else if (token == "sfen") {
+			while (ss >> token && token != "moves")
+				sfen += token + " ";
+			has_moves = token == "moves";
+		}
+		else {
+			std::cerr << "Error: unexpected position string: " << positionCommand << std::endl;
+			continue;
+		}
+
+		std::vector<std::string> moves;
+		targets.emplace_back(TargetPosition{ sfen, moves });
+		if (!has_moves)
+			continue;
+		while (ss >> token) {
+			moves.emplace_back(token);
+			targets.emplace_back(TargetPosition{ sfen, moves });
+		}
+	}
+	std::cout << "targets.size: " << targets.size() << std::endl;
+
+	const int targets_size = (int)targets.size();
+	const int initial_size = (int)outMap.size();
+	#pragma omp parallel num_threads(threads)
+	{
+		MoveOrderingCache moveOrderingCache;
+        moveOrderingCache.failHighMove.reserve(1024);
+		#pragma omp for schedule(dynamic)
+		for (int i = 0; i < targets_size; ++i) {
+			Position pos_copy;
+			pos_copy.set(targets[i].sfen);
+			auto states = StateListPtr(new std::deque<StateInfo>(1));
+			bool valid_position = true;
+			for (const auto& move_usi : targets[i].moves) {
+				const Move move = usiToMove(pos_copy, move_usi);
+				if (!move) {
+					valid_position = false;
+					break;
+				}
+				states->emplace_back(StateInfo());
+				pos_copy.doMove(move, states->back());
+			}
+			if (!valid_position)
+				continue;
+
+			if (make_book_color != ColorNum && pos_copy.turn() != make_book_color)
+				continue;
+			const Key key = Book::bookKey(pos_copy);
+			if (bookSearchIndex.find(key) == bookSearchIndex.end())
+				continue;
+			int index;
+			Move move;
+			Score score;
+			std::tie(index, move, score) = select_best_book_entry_all_minmax(pos_copy, bookSearchIndex, moveOrderingCache);
+			#pragma omp critical
+			{
+				if (outMap.find(key) == outMap.end()) {
+					auto& out_entries = outMap[key];
+					out_entries.emplace_back(BookEntry{ key, (u16)move.value(), 1, score });
+					if ((outMap.size() - initial_size) % 10000 == 0)
+						std::cout << "progress: " << (outMap.size() - initial_size) * 100 / targets_size << "%" << std::endl;
+				}
+			}
+		}
+	}
+}
+
 namespace make_book_ra {
 	constexpr size_t MAX_PLY = 256;
 	constexpr u16 BOOK_DEPTH_INF = 999;

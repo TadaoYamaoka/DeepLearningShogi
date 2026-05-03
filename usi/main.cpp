@@ -45,6 +45,7 @@ struct MySearcher : Searcher {
     static void iterDiffEval(std::istringstream& ssCmd, const std::string& posCmd);
 	static void deleteOverMaxEval(std::istringstream& ssCmd);
 	static void makeAllMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
+	static void makeAllMinMaxBookPositions(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makePolicyBookBfsRA(std::istringstream& ssCmd, const std::string& posCmd);
 	static void bookMove(std::istringstream& ssCmd, const std::string& posCmd);
@@ -451,6 +452,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
         else if (token == "iter_diff_eval") iterDiffEval(ssCmd, posCmd);
 		else if (token == "delete_over_max_eval") deleteOverMaxEval(ssCmd);
 		else if (token == "make_all_minmax_book") makeAllMinMaxBook(ssCmd, posCmd);
+		else if (token == "make_all_minmax_book_positions") makeAllMinMaxBookPositions(ssCmd, posCmd);
 		else if (token == "make_all_minmax_book_ra") makeAllMinMaxBookRA(ssCmd, posCmd);
 		else if (token == "make_policy_book_bfs_ra") makePolicyBookBfsRA(ssCmd, posCmd);
 		else if (token == "book_move") bookMove(ssCmd, posCmd);
@@ -1882,6 +1884,63 @@ void MySearcher::makeAllMinMaxBook(std::istringstream& ssCmd, const std::string&
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);
 	std::cout << "pv " << pv << std::endl;
+}
+
+void MySearcher::makeAllMinMaxBookPositions(std::istringstream& ssCmd, const std::string& posCmd) {
+	HuffmanCodedPos::init();
+	std::string bookFileName;
+	std::string positionsFileName;
+	std::string outFileName;
+	int threads = 1;
+
+	ssCmd >> bookFileName;
+	ssCmd >> positionsFileName;
+	ssCmd >> outFileName;
+	ssCmd >> threads;
+
+	const Color make_book_color = std::string(options["Make_Book_Color"]) == "black" ? Black : std::string(options["Make_Book_Color"]) == "white" ? White : ColorNum;
+
+	SetEvalCoef(options["Eval_Coef"]);
+	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
+	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
+	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
+	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
+
+	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
+
+	bookMap.clear();
+	read_book(bookFileName, bookMap);
+
+	std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
+	read_minmax_priority_book(options["Book_MinMax_Priority_Book"], bookMapBest);
+
+	std::vector<std::string> positionCommands;
+	{
+		std::ifstream ifs(positionsFileName.c_str());
+		if (!ifs) {
+			std::cerr << "Error: cannot open " << positionsFileName << std::endl;
+			return;
+		}
+
+		std::string line;
+		while (std::getline(ifs, line)) {
+			std::istringstream ssLine(line);
+			std::string token;
+			if (ssLine >> token)
+				positionCommands.emplace_back(line);
+		}
+	}
+	std::cout << "positionCommands.size: " << positionCommands.size() << std::endl;
+
+	Position pos(DefaultStartPositionSFEN, thisptr);
+	std::istringstream ssPosCmd(posCmd);
+	setPosition(pos, ssPosCmd);
+
+	std::map<Key, std::vector<BookEntry> > outMap;
+	make_all_minmax_book_positions(pos, outMap, make_book_color, threads, bookMapBest, positionCommands);
+
+	saveOutmap(outFileName, outMap);
+	std::cout << "outMap.size:" << outMap.size() << std::endl;
 }
 
 void MySearcher::makeAllMinMaxBookRA(std::istringstream& ssCmd, const std::string& posCmd) {
