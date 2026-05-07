@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
 	std::string onnx_path;
 	int batchsize;
 	int gpu_id;
+	int profile_count;
 
 	cxxopts::Options options("build_onnx");
 	options.positional_help("build_onnx onnxfile");
@@ -18,6 +19,7 @@ int main(int argc, char* argv[])
 			("onnxfile", "onnx file path", cxxopts::value<std::string>(onnx_path))
 			("b,batchsize", "batch size", cxxopts::value<int>(batchsize)->default_value("128"))
 			("g,gpu_id", "gpu id", cxxopts::value<int>(gpu_id)->default_value("0"))
+			("p,profiles", "optimization profile count", cxxopts::value<int>(profile_count)->default_value("1"))
 			("h,help", "Print help")
 			;
 		options.parse_positional({ "onnxfile" });
@@ -37,7 +39,7 @@ int main(int argc, char* argv[])
 
 	try {
 		cudaSetDevice(gpu_id);
-		NNTensorRT nn(onnx_path.c_str(), gpu_id, batchsize);
+		NNTensorRT nn(onnx_path.c_str(), gpu_id, batchsize, profile_count);
 	}
 	catch (std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;

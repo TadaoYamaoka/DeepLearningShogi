@@ -509,15 +509,15 @@ public:
 	}
 	void InitGPU() {
 		mutex_all_gpu.lock();
-		if (nn == nullptr) {
-			nn = (NN*)new NNTensorRT(model_path.c_str(), gpu_id, policy_value_batch_maxsize);
+		if (nn == nullptr || nn->slot_capacity() < threads) {
+			delete nn;
+			nn = (NN*)new NNTensorRT(model_path.c_str(), gpu_id, policy_value_batch_maxsize, threads);
 		}
+		nn->prepare_slots(threads);
 		mutex_all_gpu.unlock();
 	}
-	void nn_forward(const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
-		mutex_gpu.lock();
-		nn->forward(batch_size, x1, x2, y1, y2);
-		mutex_gpu.unlock();
+	void nn_forward(const int slot_id, const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
+		nn->forward(slot_id, batch_size, x1, x2, y1, y2);
 	}
 	int Running() {
 		int running = 0;
@@ -556,7 +556,7 @@ UCTSearcherGroup::Initialize()
 		while (std::getline(ss, field, ',')) {
 			const auto pos = field.find_first_of(":");
 			options.emplace_back(field.substr(0, pos), field.substr(pos + 1));
-		
+
 		}
 		usi_engines.reserve(usi_threads);
 		for (int i = 0; i < usi_threads; ++i) {
@@ -1025,7 +1025,7 @@ void UCTSearcherGroup::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	parent->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
+	parent->nn_forward(group_id, policy_value_batch_size, features1, features2, y1, y2);
 
 	DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	DType *value = y2;

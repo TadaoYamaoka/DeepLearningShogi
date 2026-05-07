@@ -63,8 +63,9 @@ int main(int argc, char* argv[]) {
 	showDevices(gpu_id);
 	cudaSetDevice(gpu_id);
 	std::unique_ptr<NN> nn;
-	if (model_path.find("onnx") != string::npos) {
-		nn.reset((NN*)new NNTensorRT(gpu_id, batchsize));
+	const bool use_tensorrt = model_path.find("onnx") != string::npos;
+	if (use_tensorrt) {
+		nn.reset((NN*)new NNTensorRT(model_path.c_str(), gpu_id, batchsize, 1));
 	}
 	else if (model_path.find("fused_wideresnet10") != std::string::npos) {
 		nn.reset((NN*)new NNFusedWideResnet10(batchsize));
@@ -79,7 +80,12 @@ int main(int argc, char* argv[]) {
 		nn.reset((NN*)new NNWideResnet10(batchsize));
 	}
 
-	nn->load_model(model_path.c_str());
+	if (!use_tensorrt) {
+		nn->load_model(model_path.c_str());
+	}
+	if (use_tensorrt) {
+		nn->prepare_slots(1);
+	}
 
 	features1_t* features1;
 	features2_t* features2;
@@ -127,7 +133,12 @@ int main(int argc, char* argv[]) {
 
 		// 推論
 		auto start = std::chrono::system_clock::now();
-		nn->forward(batchsize, features1, features2, (DType*)y1, y2);
+		if (use_tensorrt) {
+			nn->forward(0, batchsize, features1, features2, (DType*)y1, y2);
+		}
+		else {
+			nn->forward(batchsize, features1, features2, (DType*)y1, y2);
+		}
 		auto end = std::chrono::system_clock::now();
 
 		// 時間集計

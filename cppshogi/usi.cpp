@@ -72,6 +72,12 @@ namespace {
     const StringToPieceTypeCSA g_stringToPieceTypeCSA;
 }
 
+#ifdef NYUGYOKU_FEATURES
+#define ENGINE_NAME_NYUGYOKU_SUFFIX " NYUGYOKU_FEATURES"
+#else
+#define ENGINE_NAME_NYUGYOKU_SUFFIX ""
+#endif
+
 void OptionsMap::init(Searcher* s) {
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
@@ -209,9 +215,9 @@ void OptionsMap::init(Searcher* s) {
 #endif
     (*this)["DebugMessage"]                = USIOption(false);
 #ifdef NDEBUG
-    (*this)["Engine_Name"]                 = USIOption("dlshogi");
+    (*this)["Engine_Name"]                 = USIOption("dlshogi" ENGINE_NAME_NYUGYOKU_SUFFIX);
 #else
-    (*this)["Engine_Name"]                 = USIOption("dlshogi Debug Build");
+    (*this)["Engine_Name"]                 = USIOption("dlshogi Debug Build" ENGINE_NAME_NYUGYOKU_SUFFIX);
 #endif
 }
 
