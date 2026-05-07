@@ -222,14 +222,6 @@ struct Searched {
 	Score score;
 	Score beta;
 };
-struct MoveOrdering {
-	u16 move16;
-	Score score;
-};
-struct MoveOrderingCache {
-	std::unordered_map<Key, MoveOrdering> failHighMove;
-};
-
 struct BookSearchNode {
 	const std::vector<BookEntry>* entries = nullptr;
 	const std::vector<BookEntry>* best_entries = nullptr;
@@ -541,7 +533,7 @@ Score book_search(Position& pos, const std::unordered_map<Key, std::vector<BookE
 	return -alpha;
 }
 
-std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, MoveOrderingCache& moveOrderingCache) {
 	const Key key = Book::bookKey(pos);
 
 	Score alpha = -ScoreInfinite;
@@ -549,7 +541,6 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 	int bestIndex = -1;
 	std::unordered_map<Key, Searched> searched;
     searched.max_load_factor(0.25);
-	MoveOrderingCache moveOrderingCache;
 
 	// MinMaxの探索順に使用する定跡
 	Move topMove = Move::moveNone();
@@ -676,6 +667,11 @@ std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::un
 		}
 	}
 	return { bestIndex, bestMove, alpha };
+}
+
+std::tuple<int, Move, Score> select_best_book_entry(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& outMap, const std::vector<BookEntry>& entries, const std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest) {
+	MoveOrderingCache moveOrderingCache;
+	return select_best_book_entry(pos, outMap, entries, moves, bookMapBest, moveOrderingCache);
 }
 
 Score book_search_all_minmax(Position& pos, const BookSearchIndex& bookSearchIndex, Score alpha, const Score beta, const Score score, std::unordered_map<Key, Searched>& searched, MoveOrderingCache& moveOrderingCache) {
@@ -1133,7 +1129,7 @@ std::tuple<Move, Score> select_priority_book_entry(Position& pos, const Key key,
 }
 
 // 定跡作成(再帰処理)
-void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, select_best_book_entry_t select_best_book_entry, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, std::vector<Move>& moves, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key, MoveOrderingCache& moveOrderingCache) {
 	const Key key = Book::bookKey(pos);
 	if ((depth % 2 == 0) == isBlack) {
 
@@ -1167,7 +1163,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 					}
 					else {
 						// 一定の確率でmin-maxで選ぶ
-						std::tie(index, move, score) = (dist_prob(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
+						std::tie(index, move, score) = (dist_prob(g_randomTimeSeed) < book_minmax_prob) ? select_best_book_entry(pos, outMap, entries, moves, bookMapBest, moveOrderingCache) : std::make_tuple(0, move16toMove(Move(entries[0].fromToPro), pos), entries[0].score);
 					}
 
 					// 評価値が閾値を超えた場合、探索終了
@@ -1198,7 +1194,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 				moves.emplace_back(move);
 
 				// 次の手を探索
-				make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
+				make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 
 				pos.undoMove(move);
 			}
@@ -1264,7 +1260,7 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 			}
 			else if (!use_book && dist_prob(g_randomTimeSeed) < book_minmax_prob_opp) {
 				// 一定の確率でmin-maxで選ぶ
-				const auto& entry = select_best_book_entry(pos, outMap, *entries, moves, bookMapBest);
+				const auto& entry = select_best_book_entry(pos, outMap, *entries, moves, bookMapBest, moveOrderingCache);
 				move = std::get<Move>(entry);
 			}
 			else if (itr != bookMap.end() && book_best_move) {
@@ -1302,15 +1298,20 @@ void make_book_inner(Position& pos, LimitsType& limits, const std::unordered_map
 		moves.emplace_back(move);
 
 		// 次の手を探索
-		make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
+		make_book_inner(pos, limits, bookMap, outMap, count, depth + 1, isBlack, moves, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 
 		pos.undoMove(move);
 	}
 }
 
-void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key, MoveOrderingCache& moveOrderingCache) {
 	std::vector<Move> moves;
-	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, select_best_book_entry, bookMapBest, book_pos_cmd, book_starting_pos_key);
+	make_book_inner(pos, limits, bookMap, outMap, count, depth, isBlack, moves, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
+}
+
+void make_book_alpha_beta(Position& pos, LimitsType& limits, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_map<Key, std::vector<BookEntry> >& outMap, int& count, const int depth, const bool isBlack, const std::unordered_map<Key, std::vector<BookEntry> >& bookMapBest, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
+	MoveOrderingCache moveOrderingCache;
+	make_book_alpha_beta(pos, limits, bookMap, outMap, count, depth, isBlack, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 }
 
 // 定跡読み込み

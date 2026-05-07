@@ -932,11 +932,12 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int black_num = 0;
 	int white_num = 0;
 	size_t prev_num = outMapMaster.size();
-	const auto make_book_search = make_book_alpha_beta;
 	if (make_book_threads > 1) {
 		std::mutex book_map_mutex;
 		#pragma omp parallel num_threads(make_book_threads)
 		{
+			MoveOrderingCache moveOrderingCache;
+			moveOrderingCache.failHighMove.reserve(1024);
 			std::unordered_map<Key, std::vector<BookEntry> > bookMapBest;
 			for (std::unordered_map<Key, std::vector<BookEntry> > outMap; trial < limitTrialNum;) {
 				// 進捗状況表示
@@ -964,11 +965,11 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 						Key book_starting_pos_key_copy;
 						StateListPtr states;
 						std::tie(book_pos_cmd_copy, book_starting_pos_key_copy, states) = setStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
-						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy);
+						make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy, moveOrderingCache);
 					}
 					else {
 						Position pos_copy(pos);
-						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd, book_starting_pos_key);
+						make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, true, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 					}
 					#pragma omp atomic
 					black_num += count;
@@ -984,11 +985,11 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 						Key book_starting_pos_key_copy;
 						StateListPtr states;
 						std::tie(book_pos_cmd_copy, book_starting_pos_key_copy, states) = setStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
-						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy);
+						make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd_copy, book_starting_pos_key_copy, moveOrderingCache);
 					}
 					else {
 						Position pos_copy(pos);
-						make_book_search(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd, book_starting_pos_key);
+						make_book_alpha_beta(pos_copy, limits, bookMap, outMap, count, 0, false, bookMapBest, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 					}
 					#pragma omp atomic
 					white_num += count;
@@ -1024,6 +1025,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 		}
 	}
 	else {
+		MoveOrderingCache moveOrderingCache;
+		moveOrderingCache.failHighMove.reserve(1024);
 		for (; trial < limitTrialNum;) {
 			// 進捗状況表示
 			std::cout << trial << "/" << limitTrialNum << " (" << int((double)trial / limitTrialNum * 100) << "%)" << std::endl;
@@ -1039,7 +1042,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				if (positions.size() > 0) {
 					std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
 				}
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, true, bookMapBestMaster, book_pos_cmd, book_starting_pos_key);
+				make_book_alpha_beta(pos_copy, limits, bookMap, outMapMaster, count, 0, true, bookMapBestMaster, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 				black_num += count;
 			}
 
@@ -1052,7 +1055,7 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 				if (positions.size() > 0) {
 					std::tie(book_pos_cmd, book_starting_pos_key) = setThisStartPosition(pos_copy, positions[(trial - 1) % positions.size()]);
 				}
-				make_book_search(pos_copy, limits, bookMap, outMapMaster, count, 0, false, bookMapBestMaster, book_pos_cmd, book_starting_pos_key);
+				make_book_alpha_beta(pos_copy, limits, bookMap, outMapMaster, count, 0, false, bookMapBestMaster, book_pos_cmd, book_starting_pos_key, moveOrderingCache);
 				white_num += count;
 			}
 
