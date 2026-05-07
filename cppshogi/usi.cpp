@@ -180,12 +180,6 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Book_Priority_MinMax_Depth"]  = USIOption(2, 1, 1000);
     (*this)["Book_Priority_Prob_Opp"]      = USIOption(0, 0, 1000);
     (*this)["Book_Priority_Prob_Temperature_Opp"] = USIOption(10000, 0, 100000);
-    (*this)["Book_Use_Mcts"]               = USIOption(false);
-    (*this)["Book_Mcts_Playouts"]          = USIOption(10000000, 1, 1000000000);
-    (*this)["Book_Mcts_Threads"]           = USIOption(32, 1, 1024);
-    (*this)["Book_Mcts_Temperature"]       = USIOption(100, 1, 500);
-    (*this)["Book_Mcts_Debug"]             = USIOption(false);
-    (*this)["Book_Mcts_MinMax_Book"]       = USIOption("");
     (*this)["Make_Book_Threads"]           = USIOption(1, 1, 1024);
     (*this)["Book_To_Prob_Temperature"]    = USIOption(100, 0, 100000);
     (*this)["Make_MinMax_Book_Depth"]      = USIOption(INT_MAX, 0, INT_MAX);

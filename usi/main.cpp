@@ -34,7 +34,6 @@ struct MySearcher : Searcher {
 	static std::tuple<std::string, Key, StateListPtr> setStartPosition(Position& pos, const std::string& posCmd);
 	static void makeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeMinMaxBook(std::istringstream& ssCmd, const std::string& posCmd);
-	static void makeMctsBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void mergeBook(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPosition(std::istringstream& ssCmd, const std::string& posCmd);
 	static void makeBookPositions(std::istringstream& ssCmd);
@@ -441,7 +440,6 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #ifdef MAKE_BOOK
 		else if (token == "make_book") makeBook(ssCmd, posCmd);
 		else if (token == "make_minmax_book") makeMinMaxBook(ssCmd, posCmd);
-		else if (token == "make_mcts_book") makeMctsBook(ssCmd, posCmd);
 		else if (token == "merge_book") mergeBook(ssCmd, posCmd);
 		else if (token == "make_book_position") makeBookPosition(ssCmd, posCmd);
 		else if (token == "make_book_positions") makeBookPositions(ssCmd);
@@ -879,18 +877,6 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
-	// αβ探索の代わりにMCTSを使う
-	const bool book_use_mcts = options["Book_Use_Mcts"];
-	book_mcts_playouts = options["Book_Mcts_Playouts"];
-	book_mcts_threads = options["Book_Mcts_Threads"];
-	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
-	book_mcts_debug = options["Book_Mcts_Debug"];
-	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
-	if (book_mcts_minmax_book != "") {
-		minmaxBookMap.clear();
-		read_book(book_mcts_minmax_book, minmaxBookMap);
-	}
-
 	const int make_book_threads = options["Make_Book_Threads"];
 
 	SetReuseSubtree(options["ReuseSubtree"]);
@@ -946,8 +932,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd, const std::string& posCmd) 
 	int black_num = 0;
 	int white_num = 0;
 	size_t prev_num = outMapMaster.size();
-	const auto make_book_search = book_use_mcts ? make_book_mcts : make_book_alpha_beta;
-	if (!book_use_mcts && make_book_threads > 1) {
+	const auto make_book_search = make_book_alpha_beta;
+	if (make_book_threads > 1) {
 		std::mutex book_map_mutex;
 		#pragma omp parallel num_threads(make_book_threads)
 		{
@@ -1135,18 +1121,6 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
-	// αβ探索の代わりにMCTSを使う
-	const bool book_use_mcts = options["Book_Use_Mcts"];
-	book_mcts_playouts = options["Book_Mcts_Playouts"];
-	book_mcts_threads = options["Book_Mcts_Threads"];
-	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
-	book_mcts_debug = options["Book_Mcts_Debug"];
-	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
-	if (book_mcts_minmax_book != "") {
-		minmaxBookMap.clear();
-		read_book(book_mcts_minmax_book, minmaxBookMap);
-	}
-
 	// 深さ制限
 	make_minmax_book_depth = options["Make_MinMax_Book_Depth"];
 
@@ -1165,64 +1139,11 @@ void MySearcher::makeMinMaxBook(std::istringstream& ssCmd, const std::string& po
 
 	// 定跡をmin-max探索
 	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	make_minmax_book(pos, bookMapMinMax, make_book_color, book_use_mcts ? parallel_uct_search : select_best_book_entry, bookMapBest, threads);
+	make_minmax_book(pos, bookMapMinMax, make_book_color, select_best_book_entry, bookMapBest, threads);
 
 	// 出力
 	saveBookMapMinMax(outFileName, bookMapMinMax);
 	std::cout << "minmaxBook.size:" << bookMapMinMax.size() << std::endl;
-
-	// PV出力
-	const auto pv = getBookPV(pos, outFileName);
-	std::cout << "pv " << pv << std::endl;
-}
-
-void MySearcher::makeMctsBook(std::istringstream& ssCmd, const std::string& posCmd) {
-	HuffmanCodedPos::init();
-
-	std::string bookFileName;
-	std::string outFileName;
-
-	ssCmd >> bookFileName;
-	ssCmd >> outFileName;
-
-	// 千日手の評価値
-	SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
-	SetEvalCoef(options["Eval_Coef"]);
-	const auto book_draw_value_black = (float)options["Book_Draw_Value_Black"] / 1000.0f;
-	const auto book_draw_value_white = (float)options["Book_Draw_Value_White"] / 1000.0f;
-	draw_score_black = Score(-logf(1.0f / book_draw_value_black - 1.0f) * eval_coef);
-	draw_score_white = Score(-logf(1.0f / book_draw_value_white - 1.0f) * eval_coef);
-
-	book_mcts_playouts = options["Book_Mcts_Playouts"];
-	book_mcts_threads = options["Book_Mcts_Threads"];
-	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
-	book_mcts_debug = options["Book_Mcts_Debug"];
-
-	// 定跡読み込み
-	bookMap.clear();
-	read_book(bookFileName, bookMap);
-
-	// 開始局面設定
-	Position pos(DefaultStartPositionSFEN, thisptr);
-	std::istringstream ssPosCmd(posCmd);
-	setPosition(pos, ssPosCmd);
-
-	// 定跡をMCTSで探索
-	std::map<Key, std::vector<BookEntry> > outMap;
-	make_mcts_book(pos, bookMap, outMap);
-
-	// 出力
-	{
-		size_t count = 0;
-		std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-		for (auto& elem : outMap) {
-			for (auto& elel : elem.second) {
-				ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
-				count++;
-			}
-		}
-		std::cout << "outMap.size:" << outMap.size() << " count: " << count << std::endl;
-	}
 
 	// PV出力
 	const auto pv = getBookPV(pos, outFileName);
@@ -2048,18 +1969,6 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	// αβ探索で特定局面の評価値を置き換える
 	init_book_key_eval_map(options["Book_Key_Eval_Map"]);
 
-	// αβ探索の代わりにMCTSを使う
-	const bool book_use_mcts = options["Book_Use_Mcts"];
-	book_mcts_playouts = options["Book_Mcts_Playouts"];
-	book_mcts_threads = options["Book_Mcts_Threads"];
-	book_mcts_temperature = options["Book_Mcts_Temperature"] / 100.0f;
-	book_mcts_debug = options["Book_Mcts_Debug"];
-	const std::string book_mcts_minmax_book = options["Book_Mcts_MinMax_Book"];
-	if (book_mcts_minmax_book != "") {
-		minmaxBookMap.clear();
-		read_book(book_mcts_minmax_book, minmaxBookMap);
-	}
-
 	// 定跡読み込み
 	bookMap.clear();
 	read_book(bookFileName, bookMap);
@@ -2098,9 +2007,7 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 		}
 	}
 
-	// 定跡をmin-max探索
-	std::unordered_map<Key, MinMaxBookEntry> bookMapMinMax;
-	const auto select_best_function = book_use_mcts ? parallel_uct_search : select_best_book_entry;
+	// 定跡から最善手を選択
 	const Key key = Book::bookKey(pos);
 	const auto itr = bookMap.find(key);
 	if (itr == bookMap.end()) {
@@ -2112,7 +2019,7 @@ void MySearcher::bookMove(std::istringstream& ssCmd, const std::string& posCmd) 
 	Move move;
 	Score score;
 	const auto start = std::chrono::system_clock::now();
-	std::tie(index, move, score) = select_best_function(pos, bookMap, entries, moves, bookMapBest);
+	std::tie(index, move, score) = select_best_book_entry(pos, bookMap, entries, moves, bookMapBest);
 	const auto end = std::chrono::system_clock::now();
 
 	// 出力

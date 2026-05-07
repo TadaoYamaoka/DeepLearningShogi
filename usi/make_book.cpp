@@ -2954,6 +2954,68 @@ void make_policy_book_bfs_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 	}
 }
 
+void enumerate_positions(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::vector<std::pair<HuffmanCodedPos, const std::vector<BookEntry>*>>& positions, std::unordered_set<Key>& exists, const std::map<Key, std::vector<BookEntry> >& skip) {
+	const Key key = Book::bookKey(pos);
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end())
+		return;
+
+	if (!exists.emplace(key).second)
+		return;
+
+	if (skip.find(key) == skip.end())
+		positions.emplace_back() = { pos.toHuffmanCodedPos(), &itr->second };
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		enumerate_positions(pos, bookMap, positions, exists, skip);
+		pos.undoMove(move);
+	}
+}
+
+void output_none_connect_positions(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, std::unordered_set<Key>& exists, std::ofstream& ofs, int& count) {
+	const Key key = Book::bookKey(pos);
+
+	auto itr = bookMap.find(key);
+	if (itr == bookMap.end()) {
+		bool first = true;
+		for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+			const Move move = ml->move();
+			const Key key_after = Book::bookKeyAfter(pos, key, move);
+			if (bookMap.find(key_after) != bookMap.end()) {
+				if (first) {
+					if (!exists.emplace(key).second)
+						return;
+					count++;
+					ofs << pos.toSFEN() << std::endl;
+					first = false;
+				}
+				auto state = std::make_unique<StateInfo>();
+				pos.doMove(move, *state);
+				output_none_connect_positions(pos, bookMap, exists, ofs, count);
+				pos.undoMove(move);
+			}
+		}
+
+		return;
+	}
+
+	if (!exists.emplace(key).second)
+		return;
+
+	// Stack overflowを避けるためヒープに確保する
+	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
+		const Move move = ml->move();
+		auto state = std::make_unique<StateInfo>();
+		pos.doMove(move, *state);
+		output_none_connect_positions(pos, bookMap, exists, ofs, count);
+		pos.undoMove(move);
+	}
+}
+
 // 評価値が30000以上の局面を再評価
 void fix_eval(Position& pos, std::unordered_map<Key, std::vector<BookEntry> >& bookMap, LimitsType& limits, const std::string& book_pos_cmd, const Key& book_starting_pos_key) {
 	// 局面を列挙する
