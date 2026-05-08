@@ -10,7 +10,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+    ('gameInfo', np.uint8), # bit0-1:対戦相手, bit2-3:最大手数（0:不明、1:256、2:320、3:512）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
@@ -27,6 +27,9 @@ parser.add_argument('hcpe3')
 parser.add_argument('--num_positions', '-n', type=int)
 parser.add_argument('--opponent', type=int)
 args = parser.parse_args()
+
+def hcpe3_opponent(game_info):
+    return int(game_info) & 0x03
 
 if args.num_positions:
     num_positions = args.num_positions
@@ -47,7 +50,7 @@ while True:
         break
     hcpe3 = np.frombuffer(data, HuffmanCodedPosAndEval3, 1)[0]
     move_num = hcpe3['moveNum']
-    if args.opponent is not None and hcpe3['opponent'] != args.opponent:
+    if args.opponent is not None and hcpe3_opponent(hcpe3['gameInfo']) != args.opponent:
         for i in range(move_num):
             move_info = np.frombuffer(f.read(MoveInfo.itemsize), MoveInfo)[0]
             candidate_num = move_info['candidateNum']

@@ -67,7 +67,6 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 
 void PvMateSearcher::Run()
 {
-#ifdef THREAD_POOL
 	if (th == nullptr) {
 		th = new std::thread([&]() {
 			while (!term_th) {
@@ -94,17 +93,6 @@ void PvMateSearcher::Run()
 		ready_th = true;
 		cond_th.notify_all();
 	}
-#else
-	th = new std::thread([&]() {
-		// 停止になるまで繰り返す
-		while (!stop) {
-			// 盤面のコピー
-			Position pos_copy(*pos_root);
-			// PV上の詰み探索
-			SearchInner(pos_copy, tree->GetCurrentHead());
-		}
-	});
-#endif
 }
 
 void PvMateSearcher::Stop(const bool stop)
@@ -115,19 +103,15 @@ void PvMateSearcher::Stop(const bool stop)
 
 void PvMateSearcher::Join()
 {
-#ifdef THREAD_POOL
 	std::unique_lock<std::mutex> lk(mtx_th);
 	if (ready_th && !term_th)
 		cond_th.wait(lk, [this] { return !ready_th || term_th; });
-#else
-	th->join();
-	delete th;
-#endif
 }
 
-#ifdef THREAD_POOL
 // スレッドを終了
 void PvMateSearcher::Term() {
+	if (th == nullptr)
+		return;
 	{
 		std::unique_lock<std::mutex> lk(mtx_th);
 		term_th = true;
@@ -136,6 +120,6 @@ void PvMateSearcher::Term() {
 	}
 	th->join();
 	delete th;
+	th = nullptr;
 }
-#endif
 #endif

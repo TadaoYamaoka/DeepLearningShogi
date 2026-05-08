@@ -7,7 +7,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+    ('gameInfo', np.uint8), # bit0-1:対戦相手, bit2-3:最大手数（0:不明、1:256、2:320、3:512）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
@@ -19,6 +19,12 @@ MoveVisits = np.dtype([
     ('visitNum', np.uint16), # 訪問回数
     ])
 GAMERESULT_NYUGYOKU = 8
+
+def hcpe3_opponent(game_info):
+    return int(game_info) & 0x03
+
+def hcpe3_max_move(game_info):
+    return (0, 256, 320, 512)[(int(game_info) & 0x0c) >> 2]
 
 parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
@@ -40,7 +46,9 @@ while True:
     assert board.is_ok()
     move_num = hcpe['moveNum']
     result = hcpe['result']
-    opponent = hcpe['opponent']
+    game_info = hcpe['gameInfo']
+    opponent = hcpe3_opponent(game_info)
+    max_move = hcpe3_max_move(game_info)
 
     positions = 0
     sum_candidate_num = 0
@@ -75,6 +83,7 @@ while True:
         'draw': draw,
         'nyugyoku': nyugyoku,
         'opponent': opponent,
+        'max move': max_move,
         'positions': positions,
         'candidates avr': sum_candidate_num / positions if positions > 0 else 0,
         'max candidates': max_candidate_num,
@@ -86,11 +95,11 @@ df = pd.DataFrame(stats)
 if args.csv:
     df.to_csv(args.csv)
 
-print(df[['moves', 'black win', 'draw', 'nyugyoku', 'opponent']].describe())
+print(df[['moves', 'black win', 'draw', 'nyugyoku', 'opponent', 'max move']].describe())
 print('black win rate', df['black win'].sum() / (len(df) - df['draw'].sum()))
 for opponent in range(3):
     df2 = df[df.loc[:, 'opponent']==opponent]
-    print(df2[['moves', 'black win', 'draw', 'nyugyoku', 'opponent']].describe())
+    print(df2[['moves', 'black win', 'draw', 'nyugyoku', 'opponent', 'max move']].describe())
     print('black win rate', df2['black win'].sum() / (len(df2) - df2['draw'].sum()))
 print(df[['positions', 'candidates avr', 'max candidates', 'visits avr', 'top visits avr']].describe())
 sum_positions = df['positions'].sum()

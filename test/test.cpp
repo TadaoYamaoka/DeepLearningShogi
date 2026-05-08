@@ -897,7 +897,7 @@ int main() {
 	checkInfo.dcBB.printBoard();
 	std::cout << "pinned" << std::endl;
 	checkInfo.pinned.printBoard();
-	
+
 }
 #endif
 
@@ -1248,7 +1248,7 @@ TEST(DfPn, dfpn) {
 		"+B2B1n2K/7+R1/p2p1p1ps/3g2+r1k/1p3n3/4n1P+s1/PP7/1S7/L8 b 3GSL7Pn2l3p 1", // 不詰み
 		"ln2g3l/2+Rskg3/p2sppL2/2pp1sP1p/2P2n3/B2P1N1p1/P1NKPP2P/1G1S1+p1P1/7+rL b B2Pg 98", // 不詰み
 	};
-	
+
 	auto start0 = std::chrono::system_clock::now();
 	auto total = start0 - start0;
     for (const auto& [sfens, mate] : {
@@ -1680,7 +1680,7 @@ int main(int argc, char* argv[]) {
 	std::string str;
 	char buf[sizeof(Position)] = {};
 	auto re = std::regex(R"([0-9a-f]{2})");
-	
+
 	for (int i = 0; i < sizeof(Position); ) {
 		is >> str;
 		if (str.size() != 2) continue;
@@ -2026,7 +2026,7 @@ int main(int argc, char* argv[])
 					std::cout << (int)moveInfo.candidateNum << "\n";
 					std::cout << (int)moveInfo.eval << "\n";
 					std::cout << (int)hcpe3.result << "\n";
-					std::cout << (int)hcpe3.opponent << "\n";
+					std::cout << (int)hcpe3_opponent(hcpe3) << "\n";
 				}
 				break;
 			}
@@ -2063,23 +2063,24 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		if (!ofs[hcpe3.opponent].is_open()) {
+		const u8 opponent = hcpe3_opponent(hcpe3);
+		if (!ofs[opponent].is_open()) {
 			const auto ext_pos = filepath.rfind('.');
 			const std::string basepath = (ext_pos == std::string::npos) ? filepath : filepath.substr(0, ext_pos);
 			const std::string ext = (ext_pos == std::string::npos) ? "" : filepath.substr(ext_pos);
 
-			ofs[hcpe3.opponent].open(basepath + "_opp" + std::to_string(hcpe3.opponent) + ext, std::ios::binary);
+			ofs[opponent].open(basepath + "_opp" + std::to_string(opponent) + ext, std::ios::binary);
 		}
 
-		ofs[hcpe3.opponent].write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
+		ofs[opponent].write((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
 
 		for (int i = 0; i < hcpe3.moveNum; ++i) {
 			MoveInfo moveInfo;
 			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
-			ofs[hcpe3.opponent].write((char*)&moveInfo, sizeof(MoveInfo));
+			ofs[opponent].write((char*)&moveInfo, sizeof(MoveInfo));
 			if (moveInfo.candidateNum > 0) {
 				ifs.read((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
-				ofs[hcpe3.opponent].write((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
+				ofs[opponent].write((char*)moveVisits, sizeof(MoveVisits) * moveInfo.candidateNum);
 			}
 		}
 	}
@@ -2133,8 +2134,9 @@ int main(int argc, char* argv[])
 			MoveInfo moveInfo;
 			ifs.read((char*)&moveInfo, sizeof(MoveInfo));
 			if (moveInfo.candidateNum > 0) {
-				position_num[hcpe3.opponent]++;
-				auto& data = map_counts[hcpe3.opponent][pos.toHuffmanCodedPos()];
+				const u8 opponent = hcpe3_opponent(hcpe3);
+				position_num[opponent]++;
+				auto& data = map_counts[opponent][pos.toHuffmanCodedPos()];
 				const auto result = hcpe3.result & 3;
 				if (result == BlackWin)
 					data.black++;
@@ -2145,7 +2147,7 @@ int main(int argc, char* argv[])
 				data.ply = i;
 				data.count++;
 				ifs.seekg(sizeof(MoveVisits) * moveInfo.candidateNum, std::ios_base::cur);
-				
+
 			}
 			const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 			pos.doMove(move, states->emplace_back(StateInfo()));
@@ -2293,7 +2295,7 @@ L_EXIT:
 			}
 			std::cout << "\t" << (int)phcpe3->moveNum;
 			std::cout << "\t" << (int)phcpe3->result;
-			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << (int)hcpe3_opponent(*phcpe3);
 			std::cout << "\t" << counts[i].second << std::endl;
 		}
 	}
@@ -2474,7 +2476,7 @@ L_EXIT:
 			}
 			std::cout << "\t" << (int)phcpe3->moveNum;
 			std::cout << "\t" << (int)phcpe3->result;
-			std::cout << "\t" << (int)phcpe3->opponent;
+			std::cout << "\t" << (int)hcpe3_opponent(*phcpe3);
 			std::cout << "\t" << counts[i].second.count << std::endl;
 		}
 	}

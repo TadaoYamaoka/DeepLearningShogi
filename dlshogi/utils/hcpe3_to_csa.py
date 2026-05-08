@@ -11,7 +11,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+    ('gameInfo', np.uint8), # bit0-1:対戦相手, bit2-3:最大手数（0:不明、1:256、2:320、3:512）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
@@ -31,6 +31,12 @@ ENDGAME_SYMBOLS = {
     10: '%KACHI',
     16: '%CHUDAN',
 }
+
+def hcpe3_opponent(game_info):
+    return int(game_info) & 0x03
+
+def hcpe3_max_move(game_info):
+    return (0, 256, 320, 512)[(int(game_info) & 0x0c) >> 2]
 
 parser = argparse.ArgumentParser()
 parser.add_argument('hcpe3')
@@ -82,7 +88,8 @@ while p < end:
 
     need_output = p >= start and (not args.nyugyoku or result & 8 != 0)
     if need_output:
-        csa.info(board, comment=f"moveNum={move_num},result={result},opponent={hcpe['opponent']}")
+        game_info = hcpe['gameInfo']
+        csa.info(board, comment=f"moveNum={move_num},result={result},opponent={hcpe3_opponent(game_info)},maxMove={hcpe3_max_move(game_info)}")
 
     for i in range(move_num):
         move_info = np.frombuffer(f.read(MoveInfo.itemsize), MoveInfo, 1)[0]

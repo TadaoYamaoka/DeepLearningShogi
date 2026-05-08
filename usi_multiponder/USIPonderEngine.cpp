@@ -7,10 +7,8 @@
 #include <boost/iostreams/copy.hpp>
 
 USIPonderEngine::USIPonderEngine(const std::string path, const std::vector<std::pair<std::string, std::string>>& options) :
-#ifdef THREAD_POOL
 	ready_th(true),
 	term_th(false),
-#endif
 	proc(path, boost::process::std_in < ops, boost::process::std_out > ips, boost::process::start_dir(path.substr(0, path.find_last_of("\\/"))))
 {
 	th.reset(new std::thread([this, options] { Init(options); }));
@@ -19,7 +17,6 @@ USIPonderEngine::USIPonderEngine(const std::string path, const std::vector<std::
 USIPonderEngine::~USIPonderEngine()
 {
 	if (th) {
-#ifdef THREAD_POOL
 		// スレッドを終了
 		{
 			std::unique_lock<std::mutex> lk(mtx_th);
@@ -27,7 +24,6 @@ USIPonderEngine::~USIPonderEngine()
 			ready_th = false;
 			cond_th.notify_all();
 		}
-#endif
 		if (th->joinable())
 			th->join();
 	}
@@ -112,7 +108,6 @@ void USIPonderEngine::GoPonderAsync(const std::string& usi_position, const Limit
 	this->binc = limits.inc[Black];
 	this->winc = limits.inc[White];
 	this->byoyomi = limits.moveTime;
-#ifdef THREAD_POOL
 	if (!th) {
 		th.reset(new std::thread([&]() {
 			while (!term_th) {
@@ -133,22 +128,12 @@ void USIPonderEngine::GoPonderAsync(const std::string& usi_position, const Limit
 		ready_th = true;
 		cond_th.notify_all();
 	}
-#else
-	th.reset(new std::thread([this] {
-		promise_ponder.set_value(GoPonder());
-	}));
-#endif
 }
 
 void USIPonderEngine::Join() {
-#ifdef THREAD_POOL
 	std::unique_lock<std::mutex> lk(mtx_th);
 	if (ready_th && !term_th)
 		cond_th.wait(lk, [this] { return !ready_th || term_th; });
-#else
-	th->join();
-	th.reset();
-#endif
 }
 
 void USIPonderEngine::Stop()

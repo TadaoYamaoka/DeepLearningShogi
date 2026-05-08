@@ -4,6 +4,8 @@
 #include "Node.h"
 #include "dfpn.h"
 
+#include <condition_variable>
+
 class PvMateSearcher
 {
 public:
@@ -12,10 +14,8 @@ public:
 	}
 
 	PvMateSearcher(const int depth, const int nodes) :
-#ifdef THREAD_POOL
 		ready_th(true),
 		term_th(false),
-#endif
 		th(nullptr)
 	{
 		dfpn.init();
@@ -26,9 +26,7 @@ public:
 	void Run();
 	void Stop(const bool stop = true);
 	void Join();
-#ifdef THREAD_POOL
 	void Term();
-#endif
 
 private:
 	void SearchInner(Position& pos, uct_node_t* uct_node);
@@ -41,11 +39,9 @@ private:
 	DfPn dfpn;
 	std::atomic<bool> stop;
 
-#ifdef THREAD_POOL
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
 	bool ready_th;
 	bool term_th;
-#endif
 };

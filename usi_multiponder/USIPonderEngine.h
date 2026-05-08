@@ -58,11 +58,9 @@ private:
 	void Init(const std::vector<std::pair<std::string, std::string>>& options);
 	USIPonderResult GoPonder();
 
-#ifdef THREAD_POOL
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
 	bool ready_th;
 	bool term_th;
-#endif
 };

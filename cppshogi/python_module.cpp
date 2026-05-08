@@ -988,7 +988,7 @@ struct Hcpe3ParsedMove {
 struct Hcpe3ParsedGame {
     HuffmanCodedPos start;
     u8 result;
-    u8 opponent;
+    u8 gameInfo;
     std::vector<HuffmanCodedPos> positions;
     std::vector<Hcpe3ParsedMove> moves;
 };
@@ -1003,7 +1003,7 @@ struct Hcpe3MergedMove {
 struct Hcpe3MergedGame {
     HuffmanCodedPos start;
     u8 result;
-    u8 opponent;
+    u8 gameInfo;
     bool active;
     std::vector<HuffmanCodedPos> positions;
     std::vector<Hcpe3MergedMove> moves;
@@ -1012,11 +1012,12 @@ struct Hcpe3MergedGame {
 struct Hcpe3SuffixKey {
     HuffmanCodedPos hcp;
     u8 result;
+    u8 gameInfo;
     size_t length;
     uint64_t hash;
 
     bool operator==(const Hcpe3SuffixKey& other) const {
-        return result == other.result && length == other.length && hash == other.hash && hcp == other.hcp;
+        return result == other.result && gameInfo == other.gameInfo && length == other.length && hash == other.hash && hcp == other.hcp;
     }
 };
 
@@ -1026,6 +1027,7 @@ struct Hcpe3SuffixKeyHash {
         h ^= std::hash<uint64_t>()(key.hash) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
         h ^= std::hash<size_t>()(key.length) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
         h ^= std::hash<unsigned int>()(key.result) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        h ^= std::hash<unsigned int>()(key.gameInfo) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
         return h;
     }
 };
@@ -1083,16 +1085,16 @@ std::vector<uint64_t> hcpe3_suffix_hashes(const Hcpe3MergedGame& game) {
 }
 
 Hcpe3SuffixKey hcpe3_make_suffix_key(const Hcpe3ParsedGame& game, const std::vector<uint64_t>& hashes, const size_t offset) {
-    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.moves.size() - offset, hashes[offset] };
+    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.gameInfo, game.moves.size() - offset, hashes[offset] };
 }
 
 Hcpe3SuffixKey hcpe3_make_suffix_key(const Hcpe3MergedGame& game, const std::vector<uint64_t>& hashes, const size_t offset) {
-    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.moves.size() - offset, hashes[offset] };
+    return Hcpe3SuffixKey{ game.positions[offset], game.result, game.gameInfo, game.moves.size() - offset, hashes[offset] };
 }
 
 bool hcpe3_suffix_equals(const Hcpe3ParsedGame& parsed, const size_t parsedOffset, const Hcpe3MergedGame& merged, const size_t mergedOffset) {
     const size_t length = parsed.moves.size() - parsedOffset;
-    if (!merged.active || parsed.result != merged.result || length != merged.moves.size() - mergedOffset) {
+    if (!merged.active || parsed.result != merged.result || parsed.gameInfo != merged.gameInfo || length != merged.moves.size() - mergedOffset) {
         return false;
     }
     if (!(parsed.positions[parsedOffset] == merged.positions[mergedOffset])) {
@@ -1108,7 +1110,7 @@ bool hcpe3_suffix_equals(const Hcpe3ParsedGame& parsed, const size_t parsedOffse
 
 bool hcpe3_suffix_equals(const Hcpe3MergedGame& lhs, const size_t lhsOffset, const Hcpe3MergedGame& rhs, const size_t rhsOffset) {
     const size_t length = lhs.moves.size() - lhsOffset;
-    if (!lhs.active || !rhs.active || lhs.result != rhs.result || length != rhs.moves.size() - rhsOffset) {
+    if (!lhs.active || !rhs.active || lhs.result != rhs.result || lhs.gameInfo != rhs.gameInfo || length != rhs.moves.size() - rhsOffset) {
         return false;
     }
     if (!(lhs.positions[lhsOffset] == rhs.positions[rhsOffset])) {
@@ -1132,7 +1134,7 @@ Hcpe3MergedGame hcpe3_make_merged_game(const Hcpe3ParsedGame& parsed) {
     Hcpe3MergedGame merged;
     merged.start = parsed.start;
     merged.result = parsed.result;
-    merged.opponent = parsed.opponent;
+    merged.gameInfo = parsed.gameInfo;
     merged.active = true;
     merged.positions = parsed.positions;
     merged.moves.reserve(parsed.moves.size());
@@ -1283,7 +1285,7 @@ bool hcpe3_read_game(std::ifstream& ifs, const std::string& filepath, const size
 
     game.start = hcpe3.hcp;
     game.result = hcpe3.result;
-    game.opponent = hcpe3.opponent;
+    game.gameInfo = hcpe3.gameInfo;
     game.positions.clear();
     game.moves.clear();
     game.positions.reserve(hcpe3.moveNum);
@@ -1475,7 +1477,7 @@ void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out
             hcpe3.hcp = game.start;
             hcpe3.moveNum = static_cast<u16>(game.moves.size());
             hcpe3.result = game.result;
-            hcpe3.opponent = game.opponent;
+            hcpe3.gameInfo = game.gameInfo;
             ofs.write(reinterpret_cast<const char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
 
             for (const auto& move : game.moves) {

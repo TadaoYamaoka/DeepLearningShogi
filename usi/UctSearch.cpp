@@ -287,9 +287,7 @@ public:
 	}
 	void Run();
 	void Join();
-#ifdef THREAD_POOL
 	void Term();
-#endif
 
 	// GPUID
 	int gpu_id;
@@ -316,22 +314,24 @@ public:
 		thread_id(thread_id),
 		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
 		handle(nullptr),
-#ifdef THREAD_POOL
 		ready_th(true),
 		term_th(false),
+		policy_value_batch_maxsize(policy_value_batch_maxsize),
+		features1(nullptr),
+		features2(nullptr),
+		y1(nullptr),
+		y2(nullptr),
+		policy_value_batch(nullptr),
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		policy_value_book_key(nullptr),
 #endif
-		policy_value_batch_maxsize(policy_value_batch_maxsize) {
+		current_policy_value_batch_index(0) {
 		// キューを動的に確保する
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
 		features2 = new features2_t[policy_value_batch_maxsize];
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
-#else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
@@ -343,7 +343,30 @@ public:
 	UCTSearcher(UCTSearcher&& o) :
 		grp(o.grp),
 		thread_id(o.thread_id),
-		mt(move(o.mt)) {}
+		mt(move(o.mt)),
+		handle(o.handle),
+		ready_th(o.ready_th),
+		term_th(o.term_th),
+		policy_value_batch_maxsize(o.policy_value_batch_maxsize),
+		features1(o.features1),
+		features2(o.features2),
+		y1(o.y1),
+		y2(o.y2),
+		policy_value_batch(o.policy_value_batch),
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		policy_value_book_key(o.policy_value_book_key),
+#endif
+		current_policy_value_batch_index(o.current_policy_value_batch_index) {
+		o.handle = nullptr;
+		o.features1 = nullptr;
+		o.features2 = nullptr;
+		o.y1 = nullptr;
+		o.y2 = nullptr;
+		o.policy_value_batch = nullptr;
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		o.policy_value_book_key = nullptr;
+#endif
+	}
 	~UCTSearcher() {
 #ifdef ONNXRUNTIME
 		delete[] features1;
@@ -351,23 +374,23 @@ public:
 		delete[] y1;
 		delete[] y2;
 #else
-		checkCudaErrors(cudaFreeHost(features1));
-		checkCudaErrors(cudaFreeHost(features2));
-		checkCudaErrors(cudaFreeHost(y1));
-		checkCudaErrors(cudaFreeHost(y2));
+		FreeCudaHostBuffers();
 #endif
 		delete[] policy_value_batch;
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		delete[] policy_value_book_key;
+#endif
 	}
 
 	void Run() {
-#ifdef THREAD_POOL
 		if (handle == nullptr) {
 			handle = new thread([this]() {
 #ifndef ONNXRUNTIME
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
+				AllocateCudaHostBuffers();
 #endif
-			grp->InitGPU();
+				grp->InitGPU();
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -387,32 +410,17 @@ public:
 			ready_th = true;
 			cond_th.notify_all();
 		}
-#else
-		handle = new thread([this]() {
-#ifndef ONNXRUNTIME
-			// スレッドにGPUIDを関連付けてから初期化する
-			cudaSetDevice(grp->gpu_id);
-#endif
-			grp->InitGPU();
-
-			this->ParallelUctSearch();
-		});
-#endif
 	}
 	// スレッド終了待機
 	void Join() {
-#ifdef THREAD_POOL
 		std::unique_lock<std::mutex> lk(mtx_th);
 		if (ready_th && !term_th)
 			cond_th.wait(lk, [this] { return !ready_th || term_th; });
-#else
-		handle->join();
-		delete handle;
-#endif
 	}
-#ifdef THREAD_POOL
 	// スレッドを終了
 	void Term() {
+		if (handle == nullptr)
+			return;
 		{
 			std::unique_lock<std::mutex> lk(mtx_th);
 			term_th = true;
@@ -421,8 +429,8 @@ public:
 		}
 		handle->join();
 		delete handle;
+		handle = nullptr;
 	}
-#endif
 
 private:
 	// UCT探索
@@ -436,6 +444,28 @@ private:
 	// ノードを評価
 	void EvalNode();
 
+#ifndef ONNXRUNTIME
+	void AllocateCudaHostBuffers() {
+		if (features1 != nullptr)
+			return;
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	}
+
+	void FreeCudaHostBuffers() {
+		if (features1 != nullptr)
+			checkCudaErrors(cudaFreeHost(features1));
+		if (features2 != nullptr)
+			checkCudaErrors(cudaFreeHost(features2));
+		if (y1 != nullptr)
+			checkCudaErrors(cudaFreeHost(y1));
+		if (y2 != nullptr)
+			checkCudaErrors(cudaFreeHost(y2));
+	}
+#endif
+
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
 	int thread_id;
@@ -443,13 +473,11 @@ private:
 	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
-#ifdef THREAD_POOL
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
 	bool ready_th;
 	bool term_th;
-#endif
 
 	int policy_value_batch_maxsize;
 	Features1* features1;
@@ -574,7 +602,6 @@ UCTSearcherGroup::Join()
 	}
 }
 
-#ifdef THREAD_POOL
 // スレッド終了
 void
 UCTSearcherGroup::Term()
@@ -586,7 +613,6 @@ UCTSearcherGroup::Term()
 		}
 	}
 }
-#endif
 
 
 //////////////////////////
@@ -658,7 +684,6 @@ InitializeUctSearch(const unsigned int node_limit)
 //  UCT探索の終了処理
 void TerminateUctSearch()
 {
-#ifdef THREAD_POOL
 #ifdef PV_MATE_SEARCH
 	for (auto& searcher : pv_mate_searchers)
 		searcher.Term();
@@ -668,7 +693,6 @@ void TerminateUctSearch()
 		for (int i = 0; i < max_gpu; i++)
 			search_groups[i].Term();
 	}
-#endif
 }
 
 // position抜きで探索の条件を指定する

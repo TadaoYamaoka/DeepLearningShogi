@@ -3,14 +3,13 @@ from cshogi import CSA
 import numpy as np
 import os
 import glob
-import math
 import argparse
 
 HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+    ('gameInfo', np.uint8), # bit0-1:対戦相手, bit2-3:最大手数（0:不明、1:256、2:320、3:512）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
@@ -21,6 +20,27 @@ MoveVisits = np.dtype([
     ('move16', dtypeMove16), # 候補手
     ('visitNum', np.uint16), # 訪問回数
     ])
+
+HCPE3_MAX_MOVE_CODES = {
+    256: 1,
+    320: 2,
+    512: 3,
+}
+
+def max_move_code_from_comment(comment):
+    prefix = 'Max_Moves:'
+    for line in comment.splitlines():
+        line = line.strip().lstrip("'").strip()
+        if not line.startswith(prefix):
+            continue
+        max_move = int(line[len(prefix):])
+        if max_move not in HCPE3_MAX_MOVE_CODES:
+            raise ValueError(f'unsupported Max_Moves:{max_move}')
+        return HCPE3_MAX_MOVE_CODES[max_move]
+    return 0
+
+def make_hcpe3_game_info(opponent=0, max_move_code=0):
+    return opponent | (max_move_code << 2)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
@@ -77,7 +97,14 @@ for filepath in csa_file_list:
                 continue
             duplicates.add(dup_key)
 
+        try:
+            max_move_code = max_move_code_from_comment(getattr(kif, 'comment', ''))
+        except ValueError as e:
+            print(f'skip {filepath}:{e}')
+            continue
+
         hcpe['result'] = kif.win
+        hcpe['gameInfo'] = make_hcpe3_game_info(max_move_code=max_move_code)
         if endgame == '%SENNICHITE':
             hcpe['result'] += 4
         elif endgame == '%KACHI':
@@ -86,7 +113,7 @@ for filepath in csa_file_list:
             if not args.out_maxmove:
                 continue
             hcpe['result'] += 16
-            
+
         try:
             if args.out_brinkmate:
                 brinkmate_i = -1

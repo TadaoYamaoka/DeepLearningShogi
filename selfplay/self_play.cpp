@@ -588,6 +588,7 @@ UCTSearcherGroup::Initialize()
 		dfpn.init();
 		dfpn.set_max_search_node(MATE_SEARCH_MAX_NODE);
 		dfpn.set_maxdepth(ROOT_MATE_SEARCH_DEPTH);
+		DfPn::set_draw_ply(MAX_MOVE);
 		mate_search_slot = new MateSearchEntry[policy_value_batch_maxsize];
 	}
 }
@@ -735,16 +736,22 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		// 千日手チェック
 		int isDraw = 0;
-		switch (pos->isDraw(16)) {
-		case NotRepetition: break;
-		case RepetitionDraw: isDraw = 2; break; // Draw
-		case RepetitionWin: isDraw = 1; break;
-		case RepetitionLose: isDraw = -1; break;
-		case RepetitionSuperior: isDraw = 1; break;
-		case RepetitionInferior: isDraw = -1; break;
-		default: UNREACHABLE;
+		// 最大手数を超えていたら千日手扱いとする
+		if (pos->gamePly() > MAX_MOVE) {
+			isDraw = 2; // Draw
+		}
+		else {
+			// 千日手チェック
+			switch (pos->isDraw(16)) {
+			case NotRepetition: break;
+			case RepetitionDraw: isDraw = 2; break; // Draw
+			case RepetitionWin: isDraw = 1; break;
+			case RepetitionLose: isDraw = -1; break;
+			case RepetitionSuperior: isDraw = 1; break;
+			case RepetitionInferior: isDraw = -1; break;
+			default: UNREACHABLE;
+			}
 		}
 
 		// 千日手の場合、ValueNetの値を使用しない
@@ -1540,7 +1547,7 @@ void UCTSearcher::NextGame()
 			hcp,
 			static_cast<u16>(records.size()),
 			static_cast<u8>(gameResult | reason),
-			opponent
+			make_hcpe3_game_info(opponent, hcpe3_max_move_to_code(MAX_MOVE))
 		};
 		WriteRecords((!SPLIT_OPPONENT || opponent == 0) ? ofs : ofs_opponent, hcpe3);
 		++games;
@@ -1722,7 +1729,7 @@ int main(int argc, char* argv[]) {
 			("train_random", "train random move", cxxopts::value<bool>(TRAIN_RANDOM)->default_value("false"))
 			("random2", "random2", cxxopts::value<float>(RANDOM2)->default_value("0"))
 			("min_move", "minimum move number", cxxopts::value<int>(MIN_MOVE)->default_value("10"), "num")
-			("max_move", "maximum move number", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
+			("max_move", "maximum move number (256, 320, or 512)", cxxopts::value<int>(MAX_MOVE)->default_value("320"), "num")
 			("out_max_move", "output the max move game", cxxopts::value<bool>(OUT_MAX_MOVE)->default_value("false"))
 			("root_noise", "add noise to the policy prior at the root", cxxopts::value<int>(ROOT_NOISE)->default_value("3"), "per mille")
 			("threshold", "winrate threshold", cxxopts::value<float>(WINRATE_THRESHOLD)->default_value("0.99"), "rate")
@@ -1801,8 +1808,8 @@ int main(int argc, char* argv[]) {
 		cerr << "too few max_move" << endl;
 		return 0;
 	}
-	if (MAX_MOVE >= 1000) {
-		cerr << "too large max_move" << endl;
+	if (hcpe3_max_move_to_code(MAX_MOVE) == HCPE3_MAX_MOVE_UNKNOWN) {
+		cerr << "invalid max_move, must be 256, 320, or 512" << endl;
 		return 0;
 	}
 	if (ROOT_NOISE < 0) {

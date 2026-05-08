@@ -80,9 +80,65 @@ struct HuffmanCodedPosAndEval3 {
 	HuffmanCodedPos hcp; // 開始局面
 	u16 moveNum; // 手数
 	u8 result; // xxxxxx11 : 勝敗、xxxxx1xx : 千日手、xxxx1xxx : 入玉宣言、xxx1xxxx : 最大手数
-	u8 opponent; // 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+	u8 gameInfo; // xxxxMMOO : OO=対戦相手（0:自己対局、1:先手usi、2:後手usi）, MM=最大手数（0:不明、1:256、2:320、3:512）
 };
 static_assert(sizeof(HuffmanCodedPosAndEval3) == 36, "");
+
+constexpr u8 HCPE3_GAME_INFO_OPPONENT_MASK = 0x03;
+constexpr u8 HCPE3_GAME_INFO_MAX_MOVE_SHIFT = 2;
+constexpr u8 HCPE3_GAME_INFO_MAX_MOVE_MASK = 0x0c;
+
+enum Hcpe3MaxMove : u8 {
+	HCPE3_MAX_MOVE_UNKNOWN = 0,
+	HCPE3_MAX_MOVE_256 = 1,
+	HCPE3_MAX_MOVE_320 = 2,
+	HCPE3_MAX_MOVE_512 = 3,
+};
+
+inline u8 hcpe3_max_move_to_code(const int maxMove) {
+	switch (maxMove) {
+	case 256: return HCPE3_MAX_MOVE_256;
+	case 320: return HCPE3_MAX_MOVE_320;
+	case 512: return HCPE3_MAX_MOVE_512;
+	default: return HCPE3_MAX_MOVE_UNKNOWN;
+	}
+}
+
+inline int hcpe3_max_move_from_code(const u8 maxMoveCode) {
+	switch (maxMoveCode) {
+	case HCPE3_MAX_MOVE_256: return 256;
+	case HCPE3_MAX_MOVE_320: return 320;
+	case HCPE3_MAX_MOVE_512: return 512;
+	default: return 0;
+	}
+}
+
+inline u8 make_hcpe3_game_info(const u8 opponent, const u8 maxMoveCode = HCPE3_MAX_MOVE_UNKNOWN) {
+	assert(opponent <= 2);
+	assert(maxMoveCode <= 3);
+	return static_cast<u8>((opponent & HCPE3_GAME_INFO_OPPONENT_MASK) |
+		((maxMoveCode << HCPE3_GAME_INFO_MAX_MOVE_SHIFT) & HCPE3_GAME_INFO_MAX_MOVE_MASK));
+}
+
+inline u8 hcpe3_opponent(const u8 gameInfo) {
+	return gameInfo & HCPE3_GAME_INFO_OPPONENT_MASK;
+}
+
+inline u8 hcpe3_opponent(const HuffmanCodedPosAndEval3& hcpe3) {
+	return hcpe3_opponent(hcpe3.gameInfo);
+}
+
+inline u8 hcpe3_max_move_code(const u8 gameInfo) {
+	return static_cast<u8>((gameInfo & HCPE3_GAME_INFO_MAX_MOVE_MASK) >> HCPE3_GAME_INFO_MAX_MOVE_SHIFT);
+}
+
+inline u8 hcpe3_max_move_code(const HuffmanCodedPosAndEval3& hcpe3) {
+	return hcpe3_max_move_code(hcpe3.gameInfo);
+}
+
+inline int hcpe3_max_move(const HuffmanCodedPosAndEval3& hcpe3) {
+	return hcpe3_max_move_from_code(hcpe3_max_move_code(hcpe3));
+}
 
 struct MoveInfo {
 	u16 selectedMove16; // 指し手

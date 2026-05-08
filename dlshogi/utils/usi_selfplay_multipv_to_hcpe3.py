@@ -31,7 +31,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ("hcp", dtypeHcp),          # start position
     ("moveNum", np.uint16),     # number of moves stored after hcp
     ("result", np.uint8),       # low 2 bits: winner/draw; flags: repetition, nyugyoku, max moves
-    ("opponent", np.uint8),     # 0: self-play, 1: black usi, 2: white usi
+    ("gameInfo", np.uint8),     # bit0-1: opponent, bit2-3: max moves (0: unknown, 1: 256, 2: 320, 3: 512)
 ])
 MoveInfo = np.dtype([
     ("selectedMove16", dtypeMove16),
@@ -48,6 +48,16 @@ RESULT_DRAW = 2
 RESULT_REPETITION = 4
 RESULT_NYUGYOKU = 8
 RESULT_MAX_MOVES = 16
+
+def hcpe3_max_move_to_code(max_moves: int) -> int:
+    return {256: 1, 320: 2, 512: 3}.get(max_moves, 0)
+
+def make_hcpe3_game_info(opponent_code: int = 0, max_move_code: int = 0) -> int:
+    if not 0 <= opponent_code <= 2:
+        raise ValueError("opponent_code must be 0, 1, or 2")
+    if not 0 <= max_move_code <= 3:
+        raise ValueError("max_move_code must be 0..3")
+    return opponent_code | (max_move_code << 2)
 
 INFO_RE = re.compile(r"^info\b")
 
@@ -250,12 +260,13 @@ def write_game_hcpe3(
     f,
     start_hcp: np.ndarray,
     result: int,
+    max_move_code: int,
     records: Sequence[Tuple[int, int, List[Tuple[int, int]]]],
 ) -> int:
     """Write one game and return number of stored positions."""
     hcpe = np.zeros(1, HuffmanCodedPosAndEval3)
     hcpe["result"] = result
-    hcpe["opponent"] = 0
+    hcpe["gameInfo"] = make_hcpe3_game_info(max_move_code=max_move_code)
     hcpe["hcp"] = start_hcp
     hcpe["moveNum"] = len(records)
     hcpe.tofile(f)
@@ -450,6 +461,7 @@ def play_one_game(
         out_file,
         start_hcp,
         result_code(win, repetition=is_repetition, nyugyoku=is_nyugyoku, max_moves=is_max_moves),
+        hcpe3_max_move_to_code(args.draw),
         records,
     )
     return win, len(records), stored

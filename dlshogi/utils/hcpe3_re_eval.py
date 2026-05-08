@@ -9,7 +9,7 @@ HuffmanCodedPosAndEval3 = np.dtype([
     ('hcp', dtypeHcp), # 開始局面
     ('moveNum', np.uint16), # 手数
     ('result', np.uint8), # 結果（xxxxxx11:勝敗、xxxxx1xx:千日手、xxxx1xxx:入玉宣言、xxx1xxxx:最大手数）
-    ('opponent', np.uint8), # 対戦相手（0:自己対局、1:先手usi、2:後手usi）
+    ('gameInfo', np.uint8), # bit0-1:対戦相手, bit2-3:最大手数（0:不明、1:256、2:320、3:512）
     ])
 MoveInfo = np.dtype([
     ('selectedMove16', dtypeMove16), # 指し手
