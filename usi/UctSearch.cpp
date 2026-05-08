@@ -323,18 +323,22 @@ public:
 		handle(nullptr),
 		ready_th(true),
 		term_th(false),
-		policy_value_batch_maxsize(policy_value_batch_maxsize) {
+		policy_value_batch_maxsize(policy_value_batch_maxsize),
+		features1(nullptr),
+		features2(nullptr),
+		y1(nullptr),
+		y2(nullptr),
+		policy_value_batch(nullptr),
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		policy_value_book_key(nullptr),
+#endif
+		current_policy_value_batch_index(0) {
 		// キューを動的に確保する
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
 		features2 = new features2_t[policy_value_batch_maxsize];
 		y1 = new DType[MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize];
 		y2 = new DType[policy_value_batch_maxsize];
-#else
-		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
-		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
 #endif
 		policy_value_batch = new batch_element_t[policy_value_batch_maxsize];
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
@@ -346,7 +350,30 @@ public:
 	UCTSearcher(UCTSearcher&& o) :
 		grp(o.grp),
 		thread_id(o.thread_id),
-		mt(move(o.mt)) {}
+		mt(move(o.mt)),
+		handle(o.handle),
+		ready_th(o.ready_th),
+		term_th(o.term_th),
+		policy_value_batch_maxsize(o.policy_value_batch_maxsize),
+		features1(o.features1),
+		features2(o.features2),
+		y1(o.y1),
+		y2(o.y2),
+		policy_value_batch(o.policy_value_batch),
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		policy_value_book_key(o.policy_value_book_key),
+#endif
+		current_policy_value_batch_index(o.current_policy_value_batch_index) {
+		o.handle = nullptr;
+		o.features1 = nullptr;
+		o.features2 = nullptr;
+		o.y1 = nullptr;
+		o.y2 = nullptr;
+		o.policy_value_batch = nullptr;
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		o.policy_value_book_key = nullptr;
+#endif
+	}
 	~UCTSearcher() {
 #ifdef ONNXRUNTIME
 		delete[] features1;
@@ -354,12 +381,12 @@ public:
 		delete[] y1;
 		delete[] y2;
 #else
-		checkCudaErrors(cudaFreeHost(features1));
-		checkCudaErrors(cudaFreeHost(features2));
-		checkCudaErrors(cudaFreeHost(y1));
-		checkCudaErrors(cudaFreeHost(y2));
+		FreeCudaHostBuffers();
 #endif
 		delete[] policy_value_batch;
+#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
+		delete[] policy_value_book_key;
+#endif
 	}
 
 	void Run() {
@@ -368,8 +395,9 @@ public:
 #ifndef ONNXRUNTIME
 				// スレッドにGPUIDを関連付けてから初期化する
 				cudaSetDevice(grp->gpu_id);
+				AllocateCudaHostBuffers();
 #endif
-			grp->InitGPU();
+				grp->InitGPU();
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -422,6 +450,28 @@ private:
 	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
 	// ノードを評価
 	void EvalNode();
+
+#ifndef ONNXRUNTIME
+	void AllocateCudaHostBuffers() {
+		if (features1 != nullptr)
+			return;
+		checkCudaErrors(cudaHostAlloc((void**)&features1, sizeof(packed_features1_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&features2, sizeof(packed_features2_t) * policy_value_batch_maxsize, cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y1, MAX_MOVE_LABEL_NUM * (size_t)SquareNum * policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+		checkCudaErrors(cudaHostAlloc((void**)&y2, policy_value_batch_maxsize * sizeof(DType), cudaHostAllocPortable));
+	}
+
+	void FreeCudaHostBuffers() {
+		if (features1 != nullptr)
+			checkCudaErrors(cudaFreeHost(features1));
+		if (features2 != nullptr)
+			checkCudaErrors(cudaFreeHost(features2));
+		if (y1 != nullptr)
+			checkCudaErrors(cudaFreeHost(y1));
+		if (y2 != nullptr)
+			checkCudaErrors(cudaFreeHost(y2));
+	}
+#endif
 
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
