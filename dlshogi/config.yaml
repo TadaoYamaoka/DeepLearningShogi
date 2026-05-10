@@ -31,6 +31,9 @@ data:
     - F:\hcpe3\floodgate.hcpe
   batch_size: 1024
   val_batch_size: 1024
+  num_workers: null
+  prefetch_factor: null
+  persistent_workers: null
   use_average: true
   use_evalfix: true
   temperature: 1.0

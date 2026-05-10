@@ -63,6 +63,7 @@ class Hcpe3Dataset(Dataset):
         self.temperature = temperature
         self.patch = patch
         self.cache = cache
+        self.loaded_pid = None
         self.load()
 
     def load(self):
@@ -77,9 +78,15 @@ class Hcpe3Dataset(Dataset):
             self.cache,
             logger,
         )
+        self.loaded_pid = os.getpid()
         if self.use_average:
             logger.info("position num before preprocessing = {}".format(actual_len))
         logger.info("position num = {}".format(self.len))
+
+    def ensure_loaded(self):
+        if self.cache and self.loaded_pid != os.getpid():
+            cppshogi.hcpe3_load_cache(self.cache)
+            self.loaded_pid = os.getpid()
 
     def __len__(self):
         return self.len
@@ -87,6 +94,7 @@ class Hcpe3Dataset(Dataset):
     def __getitems__(self, indexes):
         batch_size = len(indexes)
         indexes = np.array(indexes, dtype=np.uint64)
+        self.ensure_loaded()
 
         features1 = torch.empty(
             (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
@@ -130,9 +138,27 @@ class DataModule(pl.LightningDataModule):
         temperature=1.0,
         patch=None,
         cache=None,
+        num_workers=None,
+        prefetch_factor=None,
+        persistent_workers=None,
     ):
         super().__init__()
         self.save_hyperparameters()
+        if num_workers is not None and num_workers > 0:
+            if not cache:
+                raise ValueError("cache is required when num_workers > 0")
+            if not os.path.isfile(cache):
+                raise ValueError("cache file is required when num_workers > 0")
+        elif prefetch_factor is not None or persistent_workers is not None:
+            raise ValueError(
+                "prefetch_factor and persistent_workers require num_workers > 0"
+            )
+
+        if num_workers is not None and num_workers <= 0:
+            if prefetch_factor is not None:
+                raise ValueError("prefetch_factor requires num_workers > 0")
+            if persistent_workers:
+                raise ValueError("persistent_workers requires num_workers > 0")
 
     def setup(self, stage: str):
         # Assign train/val datasets for use in dataloaders
@@ -152,11 +178,20 @@ class DataModule(pl.LightningDataModule):
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
     def train_dataloader(self):
+        kwargs = {}
+        if self.hparams.num_workers is not None:
+            kwargs["num_workers"] = self.hparams.num_workers
+        if self.hparams.prefetch_factor is not None:
+            kwargs["prefetch_factor"] = self.hparams.prefetch_factor
+        if self.hparams.persistent_workers is not None:
+            kwargs["persistent_workers"] = self.hparams.persistent_workers
+
         return DataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
             collate_fn=collate,
+            **kwargs,
         )
 
     def val_dataloader(self):

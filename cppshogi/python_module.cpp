@@ -155,9 +155,14 @@ void __hcpe3_create_cache(const std::string& filepath) {
 }
 
 // hcpe3キャッシュ
-std::ifstream* cache;
+std::ifstream* cache = nullptr;
 std::vector<size_t> cache_pos;
 size_t __hcpe3_load_cache(const std::string& filepath) {
+    if (cache) {
+        delete cache;
+        cache = nullptr;
+    }
+    cache_pos.clear();
     cache = new std::ifstream(filepath, std::ios::binary);
     size_t num;
     cache->read((char*)&num, sizeof(num));
