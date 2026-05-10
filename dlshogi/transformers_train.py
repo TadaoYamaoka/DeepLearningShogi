@@ -119,6 +119,36 @@ def _resume_value(value):
     return value
 
 
+class SchedulerIntervalWrapper:
+    def __init__(self, scheduler, interval):
+        if interval not in ("epoch", "step"):
+            raise ValueError("lr_scheduler_interval must be 'epoch' or 'step'.")
+        self.scheduler = scheduler
+        self.interval = interval
+
+    def step(self, *args, **kwargs):
+        if self.interval == "step":
+            return self.scheduler.step(*args, **kwargs)
+        return None
+
+    def step_epoch(self):
+        if self.interval == "epoch":
+            return self.scheduler.step()
+        return None
+
+    def state_dict(self):
+        return self.scheduler.state_dict()
+
+    def load_state_dict(self, state_dict):
+        return self.scheduler.load_state_dict(state_dict)
+
+    def get_last_lr(self):
+        return self.scheduler.get_last_lr()
+
+    def __getattr__(self, name):
+        return getattr(self.scheduler, name)
+
+
 class HcpeDataset(Dataset):
     def __init__(self, files):
         logger.info("Loading HcpeDataset")
@@ -340,9 +370,17 @@ class PolicyValueForTrainer(nn.Module):
 
 
 class DlshogiTrainer(Trainer):
-    def __init__(self, *args, optimizer_config=None, scheduler_config=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        optimizer_config=None,
+        scheduler_config=None,
+        lr_scheduler_interval="epoch",
+        **kwargs,
+    ):
         self.optimizer_config = optimizer_config
         self.scheduler_config = scheduler_config
+        self.lr_scheduler_interval = lr_scheduler_interval
         super().__init__(*args, **kwargs)
 
     def create_optimizer(self):
@@ -361,9 +399,17 @@ class DlshogiTrainer(Trainer):
         if self.scheduler_config:
             scheduler_cls = _import_object(self.scheduler_config["class_path"])
             init_args = dict(self.scheduler_config.get("init_args", {}))
-            self.lr_scheduler = scheduler_cls(optimizer or self.optimizer, **init_args)
+            scheduler = scheduler_cls(optimizer or self.optimizer, **init_args)
+            self.lr_scheduler = SchedulerIntervalWrapper(
+                scheduler, self.lr_scheduler_interval
+            )
             return self.lr_scheduler
-        return super().create_scheduler(num_training_steps, optimizer)
+        super().create_scheduler(num_training_steps, optimizer)
+        if self.lr_scheduler is not None:
+            self.lr_scheduler = SchedulerIntervalWrapper(
+                self.lr_scheduler, self.lr_scheduler_interval
+            )
+        return self.lr_scheduler
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         outputs = model(**inputs)
@@ -384,6 +430,10 @@ class EpochCallback(TrainerCallback):
     def on_epoch_begin(self, args, state, control, model=None, **kwargs):
         if model is not None and state.epoch is not None:
             _unwrap_model(model).set_epoch(state.epoch)
+
+    def on_epoch_end(self, args, state, control, lr_scheduler=None, **kwargs):
+        if lr_scheduler is not None and hasattr(lr_scheduler, "step_epoch"):
+            lr_scheduler.step_epoch()
 
 
 class SaveNpzCallback(TrainerCallback):
@@ -515,6 +565,7 @@ def main():
     training_args = build_training_arguments(config, train_dataset)
     model_config: Dict[str, Any] = dict(config.get("model", {}))
     model_filename = model_config.pop("model_filename", None)
+    lr_scheduler_interval = model_config.get("lr_scheduler_interval", "epoch")
     model = PolicyValueForTrainer(**model_config)
 
     callbacks = [EpochCallback()]
@@ -529,6 +580,7 @@ def main():
         data_collator=_collator,
         optimizer_config=config.get("optimizer"),
         scheduler_config=config.get("lr_scheduler"),
+        lr_scheduler_interval=lr_scheduler_interval,
         callbacks=callbacks,
     )
 
