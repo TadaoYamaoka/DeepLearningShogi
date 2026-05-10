@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgres
 from lightning.pytorch.cli import LightningCLI
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, get_worker_info
 
 from dlshogi import cppshogi, serializers
 from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
@@ -64,6 +64,7 @@ class Hcpe3Dataset(Dataset):
         self.patch = patch
         self.cache = cache
         self.loaded_pid = None
+        self.loaded_worker_id = None
         self.load()
 
     def load(self):
@@ -79,14 +80,22 @@ class Hcpe3Dataset(Dataset):
             logger,
         )
         self.loaded_pid = os.getpid()
+        self.loaded_worker_id = None
         if self.use_average:
             logger.info("position num before preprocessing = {}".format(actual_len))
         logger.info("position num = {}".format(self.len))
 
     def ensure_loaded(self):
-        if self.cache and self.loaded_pid != os.getpid():
+        if not self.cache:
+            return
+
+        worker_info = get_worker_info()
+        worker_id = worker_info.id if worker_info else None
+        pid = os.getpid()
+        if self.loaded_pid != pid or self.loaded_worker_id != worker_id:
             cppshogi.hcpe3_load_cache(self.cache)
-            self.loaded_pid = os.getpid()
+            self.loaded_pid = pid
+            self.loaded_worker_id = worker_id
 
     def __len__(self):
         return self.len
