@@ -32,16 +32,25 @@ class HcpeDataset(Dataset):
     def __getitems__(self, indexes):
         batch_size = len(indexes)
         hcpevec = self.hcpe[indexes]
+        pin_memory = get_worker_info() is None
 
         features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES1_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES2_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
-        move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
-        result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        move = torch.empty((batch_size), dtype=torch.int64, pin_memory=pin_memory)
+        result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
+        value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
 
         cppshogi.hcpe_decode_with_value(
             hcpevec,
@@ -104,20 +113,29 @@ class Hcpe3Dataset(Dataset):
         batch_size = len(indexes)
         indexes = np.array(indexes, dtype=np.uint64)
         self.ensure_loaded()
+        pin_memory = get_worker_info() is None
 
         features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES1_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES2_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         probability = torch.empty(
             (batch_size, 9 * 9 * MAX_MOVE_LABEL_NUM),
             dtype=torch.float32,
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
-        result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
+        value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
 
         cppshogi.hcpe3_decode_with_value(
             indexes,

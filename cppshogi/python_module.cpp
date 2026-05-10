@@ -7,6 +7,7 @@
 #include <limits>
 #include <numeric>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 #include <omp.h>
@@ -157,19 +158,48 @@ void __hcpe3_create_cache(const std::string& filepath) {
 // hcpe3キャッシュ
 std::ifstream* cache = nullptr;
 std::vector<size_t> cache_pos;
-size_t __hcpe3_load_cache(const std::string& filepath) {
+
+void close_hcpe3_cache() {
     if (cache) {
         delete cache;
         cache = nullptr;
     }
     cache_pos.clear();
+}
+
+void read_hcpe3_cache(std::ifstream& ifs, char* buffer, const std::streamsize size, const std::string& message) {
+    if (!ifs.read(buffer, size)) {
+        close_hcpe3_cache();
+        throw std::runtime_error(message);
+    }
+}
+
+size_t __hcpe3_load_cache(const std::string& filepath) {
+    close_hcpe3_cache();
     cache = new std::ifstream(filepath, std::ios::binary);
-    size_t num;
-    cache->read((char*)&num, sizeof(num));
+
+    if (!*cache) {
+        close_hcpe3_cache();
+        throw std::runtime_error("failed to open hcpe3 cache: " + filepath);
+    }
+
+    size_t num = 0;
+    read_hcpe3_cache(*cache, (char*)&num, sizeof(num), "failed to read hcpe3 cache header: " + filepath);
     cache_pos.resize(num + 1);
-    cache->read((char*)cache_pos.data(), sizeof(size_t) * num);
+    read_hcpe3_cache(*cache, (char*)cache_pos.data(), sizeof(size_t) * num, "failed to read hcpe3 cache index: " + filepath);
     cache->seekg(0, std::ios_base::end);
-    cache_pos[num] = cache->tellg();
+    const auto endPos = cache->tellg();
+    if (endPos < 0) {
+        close_hcpe3_cache();
+        throw std::runtime_error("failed to get hcpe3 cache size: " + filepath);
+    }
+    cache_pos[num] = static_cast<size_t>(endPos);
+    for (size_t i = 0; i < num; i++) {
+        if (cache_pos[i] > cache_pos[i + 1]) {
+            close_hcpe3_cache();
+            throw std::runtime_error("invalid hcpe3 cache index order: " + filepath);
+        }
+    }
     return num;
 }
 
@@ -178,20 +208,42 @@ size_t __hcpe3_get_cache_num() {
 }
 
 TrainingData get_cache(const size_t i) {
+    if (!cache || i + 1 >= cache_pos.size()) {
+        throw std::runtime_error("hcpe3 cache index out of range");
+    }
     const size_t pos = cache_pos[i];
-    const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    const size_t size = cache_pos[i + 1] - pos;
+    if (size < sizeof(Hcpe3CacheBody) || (size - sizeof(Hcpe3CacheBody)) % sizeof(Hcpe3CacheCandidate) != 0) {
+        throw std::runtime_error("invalid hcpe3 cache record size");
+    }
+    const size_t candidateNum = (size - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    if (candidateNum > MaxLegalMoves) {
+        throw std::runtime_error("hcpe3 cache candidate num is too large");
+    }
     struct Hcpe3CacheBuf {
         Hcpe3CacheBody body;
         Hcpe3CacheCandidate candidates[MaxLegalMoves];
     } buf;
     cache->seekg(pos, std::ios_base::beg);
-    cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
+    if (!cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum)) {
+        throw std::runtime_error("failed to read hcpe3 cache body");
+    }
     return TrainingData(buf.body, buf.candidates, candidateNum);
 }
 
 TrainingData get_cache_with_lock(const size_t i) {
+    if (!cache || i + 1 >= cache_pos.size()) {
+        throw std::runtime_error("hcpe3 cache index out of range");
+    }
     const size_t pos = cache_pos[i];
-    const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    const size_t size = cache_pos[i + 1] - pos;
+    if (size < sizeof(Hcpe3CacheBody) || (size - sizeof(Hcpe3CacheBody)) % sizeof(Hcpe3CacheCandidate) != 0) {
+        throw std::runtime_error("invalid hcpe3 cache record size");
+    }
+    const size_t candidateNum = (size - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    if (candidateNum > MaxLegalMoves) {
+        throw std::runtime_error("hcpe3 cache candidate num is too large");
+    }
     struct Hcpe3CacheBuf {
         Hcpe3CacheBody body;
         Hcpe3CacheCandidate candidates[MaxLegalMoves];
@@ -199,7 +251,9 @@ TrainingData get_cache_with_lock(const size_t i) {
 #pragma omp critical
     {
         cache->seekg(pos, std::ios_base::beg);
-        cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum);
+        if (!cache->read((char*)&buf, sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * candidateNum)) {
+            throw std::runtime_error("failed to read hcpe3 cache body");
+        }
     }
     return TrainingData(buf.body, buf.candidates, candidateNum);
 }
@@ -446,12 +500,19 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
     float* result = reinterpret_cast<float*>(ndresult);
     float* value = reinterpret_cast<float*>(ndvalue);
 
+    const size_t dataSize = cache ? __hcpe3_get_cache_num() : trainingData.size();
+    for (size_t i = 0; i < len; i++) {
+        if (index[i] >= dataSize) {
+            throw std::runtime_error("hcpe3 decode index out of range");
+        }
+    }
+
     // set all zero
     std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
     std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
     std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
-#pragma omp parallel for num_threads(2) if (len > 1)
+#pragma omp parallel for num_threads(2) if (!cache && len > 1)
     for (int64_t i = 0; i < len; i++) {
         const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
 
