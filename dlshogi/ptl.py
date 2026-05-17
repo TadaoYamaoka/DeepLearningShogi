@@ -208,6 +208,8 @@ class DataModule(pl.LightningDataModule):
         kwargs = {}
         if self.hparams.num_workers is not None:
             kwargs["num_workers"] = self.hparams.num_workers
+            if self.hparams.num_workers > 0:
+                kwargs["pin_memory"] = True
         if self.hparams.prefetch_factor is not None:
             kwargs["prefetch_factor"] = self.hparams.prefetch_factor
         if self.hparams.persistent_workers is not None:
