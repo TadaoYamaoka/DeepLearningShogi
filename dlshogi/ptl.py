@@ -161,6 +161,8 @@ class Hcpe3Dataset(Dataset):
 
 
 def collate(data):
+    # DataLoader calls Dataset.__getitems__(indices), which already returns
+    # a fully batched tuple of tensors. Do not apply default_collate here.
     return data
 
 
