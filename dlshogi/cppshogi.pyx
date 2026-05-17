@@ -19,12 +19,12 @@ cdef extern from "python_module.h" nogil:
     size_t __hcpe3_patch_with_hcpe(const string& filepath, size_t& add_len)
     void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) except +
     size_t __load_evalfix(const string& filepath)
-    void __hcpe3_get_hcpe(const size_t index, char* ndhcpe)
+    void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) except +
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
     void __hcpe3_merge_cache(const string& file1, const string& file2, const string& out)
-    void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates, const float temperature)
+    void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates, const float temperature) except +
     void __hcpe3_reserve_train_data(unsigned int size)
-    void __hcpe3_stat_cache()
+    void __hcpe3_stat_cache() except +
     pair[int, int] __hcpe3_to_hcpe(const string& file1, const string& file2) except +
     pair[int, int] __hcpe3_clean(const string& file1, const string& file2) except +
     void __hcpe3_merge(const vector[string]& files, const string& out, const bool outMaxmove, const bool outMate, const bool outBrinkmate) except +
