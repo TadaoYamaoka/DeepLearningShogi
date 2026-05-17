@@ -492,7 +492,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, int decode_threads) {
     size_t* index = reinterpret_cast<size_t*>(ndindex);
     features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
     features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
@@ -512,7 +512,9 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
     std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
     std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
-#pragma omp parallel for num_threads(2) if (!cache && len > 1)
+    decode_threads = std::max(1, decode_threads);
+
+#pragma omp parallel for num_threads(decode_threads) if (decode_threads > 1 && len > 1)
     for (int64_t i = 0; i < len; i++) {
         const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
 

@@ -65,13 +65,23 @@ class HcpeDataset(Dataset):
 
 
 class Hcpe3Dataset(Dataset):
-    def __init__(self, files, use_average, use_evalfix, temperature, patch, cache):
+    def __init__(
+        self,
+        files,
+        use_average,
+        use_evalfix,
+        temperature,
+        patch,
+        cache,
+        decode_threads=2,
+    ):
         self.files = files
         self.use_average = use_average
         self.use_evalfix = use_evalfix
         self.temperature = temperature
         self.patch = patch
         self.cache = cache
+        self.decode_threads = decode_threads
         self.loaded_pid = None
         self.loaded_worker_id = None
         self.load()
@@ -144,6 +154,7 @@ class Hcpe3Dataset(Dataset):
             probability.numpy(),
             result.numpy(),
             value.numpy(),
+            self.decode_threads,
         )
 
         return features1, features2, probability, result, value
@@ -197,6 +208,9 @@ class DataModule(pl.LightningDataModule):
                 self.hparams.temperature,
                 self.hparams.get("patch"),
                 self.hparams.get("cache"),
+                1
+                if self.hparams.num_workers is not None and self.hparams.num_workers > 0
+                else 2,
             )
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
