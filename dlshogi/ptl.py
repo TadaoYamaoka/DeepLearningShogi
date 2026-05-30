@@ -189,7 +189,7 @@ class DataModule(pl.LightningDataModule):
                 raise ValueError("cache is required when num_workers > 0")
             if not os.path.isfile(cache):
                 raise ValueError("cache file is required when num_workers > 0")
-        elif prefetch_factor is not None or persistent_workers is not None:
+        elif prefetch_factor is not None or persistent_workers:
             raise ValueError(
                 "prefetch_factor and persistent_workers require num_workers > 0"
             )
