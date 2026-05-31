@@ -211,7 +211,8 @@ class DataModule(pl.LightningDataModule):
                 self.hparams.get("patch"),
                 self.hparams.get("cache"),
                 1
-                if self.hparams.num_workers is not None and self.hparams.num_workers > 0
+                if self.hparams.get("num_workers") is not None
+                and self.hparams.num_workers > 0
                 else 2,
             )
             self.val_dataset = HcpeDataset(self.hparams.val_files)
@@ -222,13 +223,13 @@ class DataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         kwargs = {}
-        if self.hparams.num_workers is not None:
+        if self.hparams.get("num_workers") is not None:
             kwargs["num_workers"] = self.hparams.num_workers
             if self.hparams.num_workers > 0:
                 kwargs["pin_memory"] = True
-        if self.hparams.prefetch_factor is not None:
+        if self.hparams.get("prefetch_factor") is not None:
             kwargs["prefetch_factor"] = self.hparams.prefetch_factor
-        if self.hparams.persistent_workers is not None:
+        if self.hparams.get("persistent_workers") is not None:
             kwargs["persistent_workers"] = self.hparams.persistent_workers
 
         return DataLoader(
