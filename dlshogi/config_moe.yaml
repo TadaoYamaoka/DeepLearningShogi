@@ -1,0 +1,52 @@
+﻿# lightning.pytorch==2.2.0.post0
+seed_everything: 0
+trainer:
+  max_epochs: 4
+  sync_batchnorm: false
+  val_check_interval: 0.5
+  precision: bf16-mixed
+  gradient_clip_val: 10.0
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        save_top_k: -1
+        save_on_train_epoch_end: true
+        monitor: val/loss
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+model:
+  network: exp_moe20x256_relu
+  val_lambda: 0.333
+  val_lambda_decay_epoch: 8
+  use_ema: false
+  update_bn: false
+  ema_start_epoch: 8
+  ema_freq: 250
+  ema_decay: 0.9
+  lr_scheduler_interval: step
+  model_filename: model-moe_20x256-{epoch:03}
+  use_compile: true
+  moe_aux_loss_coef: 0.001
+data:
+  train_files:
+    - /work/floodgate_2019-2026_0318_r3800_brinkmate.hcpe3
+  val_files:
+    - /work/floodgate.hcpe
+  batch_size: 1024
+  val_batch_size: 1024
+  use_average: true
+  use_evalfix: true
+  temperature: 1.0
+optimizer:
+  class_path: torch.optim.SGD
+  init_args:
+    lr: 0.04
+    momentum: 0.9
+    weight_decay: 0.0001
+    nesterov: true
+lr_scheduler:
+  class_path: dlshogi.lr_scheduler.WarmupStepLR
+  init_args:
+    step_size: 14300
+    gamma: 0.5
+    warmup_t: 1000
+    warmup_lr_init: 1.0e-07

@@ -172,6 +172,7 @@ class DataModule(pl.LightningDataModule):
         train_files,
         val_files,
         batch_size=1024,
+        drop_last=True,
         val_batch_size=1024,
         use_average=False,
         use_evalfix=False,
@@ -236,6 +237,7 @@ class DataModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
+            drop_last=self.hparams.drop_last,
             collate_fn=collate,
             **kwargs,
         )
@@ -293,6 +295,8 @@ class Model(pl.LightningModule):
         compile_mode=None,
         compile_fullgraph=False,
         compile_dynamic=False,
+        moe_aux_loss_coef=0.01,
+        moe_z_loss_coef=1e-4,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -300,6 +304,8 @@ class Model(pl.LightningModule):
         if resume_model:
             checkpoint = torch.load(resume_model, map_location="cpu")
             self.model.load_state_dict(checkpoint["model"])
+        # if hasattr(self.model, "configure_moe_expert_dtype"):
+        #     self.model.configure_moe_expert_dtype(torch.bfloat16)
         if use_ema:
             self.ema_model = AveragedModel(
                 self.model, multi_avg_fn=get_ema_multi_avg_fn(ema_decay)
@@ -362,6 +368,14 @@ class Model(pl.LightningModule):
             + (1 - self.hparams.val_lambda) * loss2
             + self.hparams.val_lambda * loss3
         )
+        moe_loss = self.model.moe_loss() if hasattr(self.model, "moe_loss") else None
+        moe_z_loss = self.model.moe_z_loss() if hasattr(self.model, "moe_z_loss") else None
+        if moe_loss is not None:
+            loss = loss + self.hparams.moe_aux_loss_coef * moe_loss
+            self.log("train/moe_aux_loss", moe_loss)
+        if moe_z_loss is not None:
+            loss = loss + self.hparams.moe_z_loss_coef * moe_z_loss
+            self.log("train/moe_z_loss", moe_z_loss)
         self.log("train/loss", loss)
         self.log("train/policy_loss", loss1)
         self.log("train/result_loss", loss2)
