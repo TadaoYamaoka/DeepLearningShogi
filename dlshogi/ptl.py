@@ -172,6 +172,7 @@ class DataModule(pl.LightningDataModule):
         train_files,
         val_files,
         batch_size=1024,
+        drop_last=True,
         val_batch_size=1024,
         use_average=False,
         use_evalfix=False,
@@ -236,6 +237,7 @@ class DataModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
+            drop_last=self.hparams.drop_last,
             collate_fn=collate,
             **kwargs,
         )
