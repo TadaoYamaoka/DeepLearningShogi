@@ -4294,7 +4294,14 @@ void book_pv(Position& pos, const std::string& posCmd, const std::string& blackF
 	std::cout << "last turn: " << (pos_copy.turn() == Black ? "white" : "black") << " black score: " << blackScore << " white score: " << whiteScore << std::endl;
 }
 
-void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ostream &ofs, std::string pv, const Move &prevMove, std::unordered_set<Key> &visited) {
+void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector<BookEntry> > &blackMap, const std::unordered_map<Key, std::vector<BookEntry> > &whiteMap, std::ostream &ofs, std::string pv, const Move &prevMove, std::unordered_set<Key> &visited, const int maxGamePly = INT_MAX) {
+	if (pos.gamePly() > maxGamePly) {
+		if (prevMove != Move::moveNone())
+			pv += " " + prevMove.toUSI();
+		ofs << pv << "\n";
+		return;
+	}
+
 	const Key key = Book::bookKey(pos);
 
 	if (!visited.emplace(key).second) {
@@ -4346,7 +4353,7 @@ void book_pv_sfen_inner(Position& pos, const std::unordered_map<Key, std::vector
 		Move move = move16toMove(Move(entry.fromToPro), pos);
 		StateInfo state;
 		pos.doMove(move, state);
-		book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, next_pv, move, visited);
+		book_pv_sfen_inner(pos, blackMap, whiteMap, ofs, next_pv, move, visited, maxGamePly);
 		pos.undoMove(move);
 	}
 }
@@ -4438,7 +4445,7 @@ void book_pv_from_sfen(const std::string& sfenFileName, const std::string& black
 			pv += " moves";
 
 		std::stringstream ssInner;
-		book_pv_sfen_inner(pos, blackMap, whiteMap, ssInner, pv, Move::moveNone(), visited);
+		book_pv_sfen_inner(pos, blackMap, whiteMap, ssInner, pv, Move::moveNone(), visited, 512);
 
 		// キャプチャした内容を行ごとにバッファへ追加
 		std::string tempLine;
