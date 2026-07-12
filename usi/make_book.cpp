@@ -3327,63 +3327,68 @@ void make_policy_book_inner(Position& pos,
 	const std::unordered_map<Key, std::vector<BookEntry> >& minmaxBookMap,
 	std::unordered_map<Key, std::vector<BookEntry> > &outBookMap,
 	std::unordered_set<Key>& exists, const double beta) {
-	const Key key = Book::bookKey(pos);
-	const auto itr = bookMap.find(key);
-	if (itr == bookMap.end())
+	const Key rootKey = Book::bookKey(pos);
+	if (bookMap.find(rootKey) == bookMap.end() || minmaxBookMap.find(rootKey) == minmaxBookMap.end())
 		return;
 
-	const auto minmaxItr = minmaxBookMap.find(key);
-	if (minmaxItr == minmaxBookMap.end())
+	std::deque<HuffmanCodedPos> queue;
+	queue.emplace_back(pos.toHuffmanCodedPos());
+	if (!exists.emplace(rootKey).second)
 		return;
 
-	if (!exists.emplace(key).second)
-		return;
+	while (!queue.empty()) {
+		Position current;
+		current.set(queue.front());
+		queue.pop_front();
 
-	const auto& minmaxEntry = minmaxItr->second[0];
+		const Key key = Book::bookKey(current);
+		const auto itr = bookMap.find(key);
+		const auto minmaxItr = minmaxBookMap.find(key);
+		assert(itr != bookMap.end() && minmaxItr != minmaxBookMap.end());
+		const auto& minmaxEntry = minmaxItr->second[0];
 
-	auto& outEntries = outBookMap[key];
-	outEntries.emplace_back(minmaxEntry);
-	Score trustedScore = minmaxEntry.score;
+		auto& outEntries = outBookMap[key];
+		outEntries.emplace_back(minmaxEntry);
+		Score trustedScore = minmaxEntry.score;
 
-	// Stack overflowを避けるためヒープに確保する
-	for (auto ml = std::make_unique<MoveList<LegalAll>>(pos); !ml->end(); ++(*ml)) {
-		const Move move = ml->move();
-		auto state = std::make_unique<StateInfo>();
-		pos.doMove(move, *state);
-		make_policy_book_inner(pos, bookMap, minmaxBookMap, outBookMap, exists, beta);
+		for (MoveList<LegalAll> ml(current); !ml.end(); ++ml) {
+			const Move move = ml.move();
+			StateInfo state;
+			current.doMove(move, state);
 
-		if (minmaxEntry.fromToPro != (u16)move.value()) {
-			Key keyAfter = Book::bookKey(pos);
-			const auto itrAfter = minmaxBookMap.find(keyAfter);
-			if (itrAfter != minmaxBookMap.end()) {
-				const auto& entryAfter = itrAfter->second[0];
-				auto& outEntry = outEntries.emplace_back();
-				outEntry.key = key;
-				outEntry.fromToPro = (u16)move.value();
-				outEntry.count = 0;
-				outEntry.score = std::min(-entryAfter.score, trustedScore);
+			const Key keyAfter = Book::bookKey(current);
+			if (bookMap.find(keyAfter) != bookMap.end() && minmaxBookMap.find(keyAfter) != minmaxBookMap.end() && exists.emplace(keyAfter).second)
+				queue.emplace_back(current.toHuffmanCodedPos());
+
+			if (minmaxEntry.fromToPro != (u16)move.value()) {
+				const auto itrAfter = minmaxBookMap.find(keyAfter);
+				if (itrAfter != minmaxBookMap.end()) {
+					const auto& entryAfter = itrAfter->second[0];
+					auto& outEntry = outEntries.emplace_back();
+					outEntry.key = key;
+					outEntry.fromToPro = (u16)move.value();
+					outEntry.count = 0;
+					outEntry.score = std::min(-entryAfter.score, trustedScore);
+				}
 			}
+
+			current.undoMove(move);
 		}
 
-		pos.undoMove(move);
-	}
-
-	for (const auto& entry : itr->second) {
-		const auto exist = std::find_if(outEntries.cbegin(), outEntries.cend(), [&entry](const BookEntry& outEntry) { return outEntry.fromToPro == entry.fromToPro; });
-		if (exist != outEntries.cend()) {
-			trustedScore = exist->score;
-			continue;
+		for (const auto& entry : itr->second) {
+			const auto exist = std::find_if(outEntries.cbegin(), outEntries.cend(), [&entry](const BookEntry& outEntry) { return outEntry.fromToPro == entry.fromToPro; });
+			if (exist != outEntries.cend()) {
+				trustedScore = exist->score;
+				continue;
+			}
+			if (entry.score < trustedScore) {
+				trustedScore = entry.score;
+			}
+			auto outEntry = entry;
+			outEntry.score = trustedScore;
+			outEntries.emplace_back(outEntry);
 		}
-		if (entry.score < trustedScore) {
-			trustedScore = entry.score;
-		}
-		auto outEntry = entry;
-		outEntry.score = trustedScore;
-		outEntries.emplace_back(outEntry);
-	}
 
-	// score to prob
-	if (outEntries.size() > 0) {
 		const Score max_score = itr->second[0].score;
 		std::vector<double> prob;
 
