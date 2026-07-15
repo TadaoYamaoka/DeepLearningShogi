@@ -23,6 +23,30 @@ MoveVisits = np.dtype([
     ('visitNum', np.uint16), # 訪問回数
     ])
 
+
+def eval_from_value(value):
+    if value == 1.0:
+        return 30000
+    if value == 0.0:
+        return -30000
+    return int(-math.log(1.0 / value - 1.0) * 756.0864962951762)
+
+
+def parse_aoba_comment(comment):
+    if not comment:
+        return 0, []
+
+    comments = comment.split(',')
+    if not comments[0].startswith('v='):
+        return 0, comments
+
+    candidates = comments[1:]
+    # AobaZero's newer records include r= after v=; ignore it.
+    if candidates and candidates[0].startswith('r='):
+        candidates = candidates[1:]
+    return eval_from_value(float(comments[0].split('=', 1)[1])), candidates
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('csa_dir')
 parser.add_argument('out_dir')
@@ -57,12 +81,8 @@ for filepath in csa_file_list:
         # 30手までで最善手以外が指された手番を見つける
         start = -1
         for i, (move, comment) in enumerate(zip(kif.moves, kif.comments)):
-            comments = comment.split(',')
-            if comments[0].startswith('v='):
-                candidates = comments[1:]
-            else:
-                candidates = comments
-            if board.move_from_csa(candidates[1]) != move:
+            _, candidates = parse_aoba_comment(comment)
+            if len(candidates) < 3 or board.move_from_csa(candidates[1]) != move:
                 start = i
             if i >= 29:
                 break
@@ -100,27 +120,15 @@ for filepath in csa_file_list:
                 move_visits_list.append(None)
                 move_num = i + 1
                 break
-            comments = comment.split(',')
-            if comments[0].startswith('v='):
-
-                # AobaZeroの新しい棋譜には、v=xxx, のあとに r=xxx が書いてある。
-                # これは無いものとして扱う。
-                if comments[1].startswith('r='):
-                    candidates = comments[2:]
-                else:
-                    candidates = comments[1:]
-
-                v = float(comments[0].split('=')[1])
-                if v == 1.0:
-                    move_info['eval'] = 30000
-                elif v == 0.0:
-                    move_info['eval'] = -30000
-                else:
-                    move_info['eval'] = int(-math.log(1.0 / v - 1.0) * 756.0864962951762)
-            else:
-                candidates = comments
-                move_info['eval'] = 0
+            eval, candidates = parse_aoba_comment(comment)
+            move_info['eval'] = eval
             move_info['selectedMove16'] = move16(move)
+            if len(candidates) < 3:
+                move_info['candidateNum'] = 0
+                move_visits_list.append(None)
+                board.push(move)
+                assert board.is_ok()
+                continue
             assert(len(candidates) % 2 == 1)
             candidate_num = (len(candidates) - 1) // 2
             move_info['candidateNum'] = candidate_num
