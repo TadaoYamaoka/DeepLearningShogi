@@ -4450,7 +4450,7 @@ void book_pv_from_sfen(const std::string& sfenFileName, const std::string& black
 			pv += " moves";
 
 		std::stringstream ssInner;
-		book_pv_sfen_inner(pos, blackMap, whiteMap, ssInner, pv, Move::moveNone(), visited, 512);
+		book_pv_sfen_inner(pos, blackMap, whiteMap, ssInner, pv, Move::moveNone(), visited, 256);
 
 		// キャプチャした内容を行ごとにバッファへ追加
 		std::string tempLine;
