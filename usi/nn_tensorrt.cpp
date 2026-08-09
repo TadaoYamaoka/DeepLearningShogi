@@ -25,33 +25,10 @@ class Logger : public nvinfer1::ILogger
 	}
 } gLogger;
 
-#ifdef TENSORRT_WORKSPACE_SIZE
-constexpr std::size_t TENSORRT_WORKSPACE_SIZE_BYTES = TENSORRT_WORKSPACE_SIZE;
-#else
-constexpr std::size_t TENSORRT_WORKSPACE_SIZE_BYTES = 64ULL << 20;
-#endif
-
-#ifdef TENSORRT_WORKSPACE_SIZE
-static std::string workspace_size_tag(const std::size_t bytes)
+constexpr long long int operator"" _MiB(long long unsigned int val)
 {
-	constexpr std::size_t KiB = 1ULL << 10;
-	constexpr std::size_t MiB = 1ULL << 20;
-	constexpr std::size_t GiB = 1ULL << 30;
-	if (bytes % GiB == 0)
-	{
-		return std::to_string(bytes / GiB) + "g";
-	}
-	if (bytes % MiB == 0)
-	{
-		return std::to_string(bytes / MiB) + "m";
-	}
-	if (bytes % KiB == 0)
-	{
-		return std::to_string(bytes / KiB) + "k";
-	}
-	return std::to_string(bytes) + "b";
+	return val * (1 << 20);
 }
-#endif
 
 struct NNTensorRT::InferenceSlot {
 	packed_features1_t* p1_dev = nullptr;
@@ -127,10 +104,7 @@ void NNTensorRT::build(const std::string& onnx_filename)
 	}
 
 	builder->setMaxBatchSize(max_batch_size);
-#ifdef TENSORRT_BUILDER_OPTIMIZATION_LEVEL
-	config->setBuilderOptimizationLevel(TENSORRT_BUILDER_OPTIMIZATION_LEVEL);
-#endif
-	config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, TENSORRT_WORKSPACE_SIZE_BYTES);
+	config->setMaxWorkspaceSize(64_MiB);
 
 	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
 	if (builder->platformHasFastInt8())
@@ -218,12 +192,6 @@ void NNTensorRT::load_model(const char* filename)
 		+ ".profiles" + std::to_string(profile_count)
 #ifdef FP16
 		+ ".fp16"
-#endif
-#ifdef TENSORRT_BUILDER_OPTIMIZATION_LEVEL
-		+ ".opt" + std::to_string(TENSORRT_BUILDER_OPTIMIZATION_LEVEL)
-#endif
-#ifdef TENSORRT_WORKSPACE_SIZE
-		+ ".ws" + workspace_size_tag(TENSORRT_WORKSPACE_SIZE_BYTES)
 #endif
 		+ ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
