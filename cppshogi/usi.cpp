@@ -116,6 +116,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size6"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
+    (*this)["DNN_Cache_Size"]              = USIOption(100000, 0, 10000000);
     (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
     (*this)["Mate_Root_Search"]            = USIOption(33, 0, 37);
 #ifdef PV_MATE_SEARCH

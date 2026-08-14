@@ -116,6 +116,9 @@
     <ClInclude Include="unpack.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="PolicyValueCache.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Makefile" />

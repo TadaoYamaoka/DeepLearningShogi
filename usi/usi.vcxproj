@@ -308,6 +308,7 @@
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
     <ClInclude Include="Node.h" />
+    <ClInclude Include="PolicyValueCache.h" />
     <ClInclude Include="PvMateSearch.h" />
     <ClInclude Include="UctSearch.h" />
     <ClInclude Include="unpack.h" />

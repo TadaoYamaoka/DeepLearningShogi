@@ -8,8 +8,71 @@
 #include "python_module.h"
 #include "usi.hpp"
 #include "dfpn.h"
+#include "PolicyValueCache.h"
 
 using namespace std;
+
+TEST(PolicyValueCacheTest, DisabledAndLruEviction) {
+	PolicyValueCache cache;
+	PolicyValueCache::ResultPtr result;
+
+	cache.Store(1, 0.1f, { 0.2f });
+	EXPECT_FALSE(cache.Lookup(1, 1, result));
+
+	// 256シャードの同一シャードに入るキーで、容量2のLRUを確認する。
+	cache.SetCapacity(512);
+	cache.Store(1, 0.1f, { 0.2f });
+	cache.Store(257, 0.3f, { 0.4f });
+	ASSERT_TRUE(cache.Lookup(1, 1, result));
+	EXPECT_FLOAT_EQ(0.1f, result->value);
+	cache.Store(513, 0.5f, { 0.6f });
+	EXPECT_TRUE(cache.Lookup(1, 1, result));
+	EXPECT_FALSE(cache.Lookup(257, 1, result));
+	EXPECT_TRUE(cache.Lookup(513, 1, result));
+
+	// 後発の同一局面の結果では上書きしない。
+	cache.Store(513, 0.7f, { 0.8f });
+	ASSERT_TRUE(cache.Lookup(513, 1, result));
+	EXPECT_FLOAT_EQ(0.5f, result->value);
+	EXPECT_FLOAT_EQ(0.6f, result->policy[0]);
+
+	cache.SetCapacity(0);
+	EXPECT_FALSE(cache.Lookup(513, 1, result));
+}
+
+TEST(PolicyValueCacheTest, RejectsDifferentPolicySize) {
+	PolicyValueCache cache;
+	cache.SetCapacity(1);
+	cache.Store(1, 0.1f, { 0.2f, 0.3f });
+	PolicyValueCache::ResultPtr result;
+	EXPECT_FALSE(cache.Lookup(1, 1, result));
+	cache.Store(1, 0.4f, { 0.5f });
+	ASSERT_TRUE(cache.Lookup(1, 1, result));
+	EXPECT_FLOAT_EQ(0.4f, result->value);
+}
+
+TEST(PolicyValueCacheTest, ConcurrentAccess) {
+	PolicyValueCache cache;
+	cache.SetCapacity(512);
+	cache.Store(42, 0.42f, { 0.25f, 0.75f });
+	std::vector<std::thread> threads;
+	for (int thread_id = 0; thread_id < 8; ++thread_id) {
+		threads.emplace_back([&cache, thread_id]() {
+			for (int i = 0; i < 1000; ++i) {
+				PolicyValueCache::ResultPtr shared_result;
+				ASSERT_TRUE(cache.Lookup(42, 2, shared_result));
+				EXPECT_FLOAT_EQ(0.42f, shared_result->value);
+
+				const Key key = static_cast<Key>((thread_id * 1000 + i) % 512);
+				cache.Store(key, 0.5f, { 0.25f, 0.75f });
+				PolicyValueCache::ResultPtr result;
+				cache.Lookup(key, 2, result);
+			}
+		});
+	}
+	for (auto& thread : threads)
+		thread.join();
+}
 
 TEST(Position, moveIsDraw) {
     initTable();

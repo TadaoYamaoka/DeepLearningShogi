@@ -15,11 +15,13 @@
 #include <thread>
 #include <random>
 #include <queue>
+#include <vector>
 
 #include "fastmath.h"
 #include "Message.h"
 #include "UctSearch.h"
 #include "Node.h"
+#include "PolicyValueCache.h"
 #include "mate.h"
 #ifdef PV_MATE_SEARCH
 #include "PvMateSearch.h"
@@ -257,6 +259,7 @@ struct batch_element_t {
 	uct_node_t* node;
 	Color color;
 	float* value_win;
+	Key key;
 };
 
 class UCTSearcher;
@@ -313,6 +316,7 @@ private:
 	mutex mutex_gpu;
 };
 UCTSearcherGroup* search_groups;
+static PolicyValueCache policy_value_cache;
 
 class UCTSearcher {
 public:
@@ -447,7 +451,7 @@ private:
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
-	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
+	bool QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
 	// ノードを評価
 	void EvalNode();
 
@@ -520,6 +524,11 @@ void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_m
 			search_groups[i].Initialize(new_thread[i], i, policy_value_batch_maxsize);
 		}
 	}
+}
+
+void SetDnnCacheSize(const size_t capacity)
+{
+	policy_value_cache.SetCapacity(capacity);
 }
 
 void NewGame()
@@ -1162,7 +1171,7 @@ ExpandRoot(const Position *pos)
 //////////////////////////////////////
 //  ノードをキューに追加            //
 //////////////////////////////////////
-void
+bool
 UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
@@ -1171,6 +1180,20 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	/* if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
 		std::cout << "error" << std::endl;
 	}*/
+	Key key = 0;
+	if (policy_value_cache.IsEnabled()) {
+		key = pos->getKey();
+		PolicyValueCache::ResultPtr cached;
+		if (policy_value_cache.Lookup(key, node->child_num, cached)) {
+			child_node_t* uct_child = node->child.get();
+			for (int i = 0; i < node->child_num; ++i)
+				uct_child[i].nnrate = cached->policy[i];
+			*value_win = cached->value;
+			node->SetEvaled();
+			return true;
+		}
+	}
+
 	// set all zero
 #ifdef ONNXRUNTIME
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
@@ -1181,12 +1204,13 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 #endif
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
+	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win, key };
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
 	current_policy_value_batch_index++;
+	return false;
 }
 
 // 探索回数が最も多い手と次に多い手を求める
@@ -1540,8 +1564,10 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 				else
 				{
 					// ノードをキューに追加
-					QueuingNode(pos, child_node, &visitor.value_win);
-					return QUEUING;
+					if (QueuingNode(pos, child_node, &visitor.value_win))
+						result = 1.0f - visitor.value_win;
+					else
+						return QUEUING;
 				}
 			}
 		}
@@ -1749,6 +1775,12 @@ void UCTSearcher::EvalNode() {
 			}
 		}
 #endif
+		if (policy_value_cache.IsEnabled()) {
+			std::vector<float> policy(child_num);
+			for (int j = 0; j < child_num; ++j)
+				policy[j] = uct_child[j].nnrate;
+			policy_value_cache.Store(policy_value_batch[i].key, *policy_value_batch[i].value_win, std::move(policy));
+		}
 		node->SetEvaled();
 	}
 }

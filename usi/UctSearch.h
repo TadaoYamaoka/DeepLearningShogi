@@ -65,6 +65,9 @@ void SetPonderingMode(bool flag);
 constexpr int max_gpu = 8;
 void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_maxsize[max_gpu]);
 
+// NN推論結果キャッシュの容量指定（全GPUで共有する総局面数）
+void SetDnnCacheSize(size_t capacity);
+
 
 // 投了の閾値設定（1000分率）
 void SetResignThreshold(const int resign_threshold);
