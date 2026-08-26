@@ -760,6 +760,93 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
     std::cout << "out position num = " << num_out << std::endl;
 }
 
+// hcpe3キャッシュを指定数に分割する
+void __hcpe3_split_cache(const std::string& file, const std::string& out, const size_t num_split) {
+    if (num_split == 0) {
+        throw std::invalid_argument("num_split must be greater than zero");
+    }
+
+    std::ifstream cache(file, std::ios::binary);
+    if (!cache) {
+        throw std::runtime_error("failed to open hcpe3 cache: " + file);
+    }
+
+    cache.seekg(0, std::ios_base::end);
+    const auto end_pos = cache.tellg();
+    if (end_pos < 0) {
+        throw std::runtime_error("failed to get hcpe3 cache size: " + file);
+    }
+    const size_t file_size = static_cast<size_t>(end_pos);
+    cache.seekg(0, std::ios_base::beg);
+
+    size_t num = 0;
+    if (!cache.read((char*)&num, sizeof(num))) {
+        throw std::runtime_error("failed to read hcpe3 cache header: " + file);
+    }
+    if (num > (file_size - std::min(file_size, sizeof(num))) / sizeof(size_t)) {
+        throw std::runtime_error("invalid hcpe3 cache index size: " + file);
+    }
+
+    std::vector<size_t> cache_pos(num + 1);
+    if (!cache.read((char*)cache_pos.data(), sizeof(size_t) * num)) {
+        throw std::runtime_error("failed to read hcpe3 cache index: " + file);
+    }
+    cache_pos[num] = file_size;
+
+    const size_t data_begin = sizeof(num) + sizeof(size_t) * num;
+    for (size_t i = 0; i < num; ++i) {
+        if (cache_pos[i] < data_begin || cache_pos[i] > cache_pos[i + 1] || cache_pos[i + 1] > file_size) {
+            throw std::runtime_error("invalid hcpe3 cache index order: " + file);
+        }
+    }
+
+    const auto extension_pos = out.find_last_of('.');
+    const auto separator_pos = out.find_last_of("/\\\\");
+    const bool has_extension = extension_pos != std::string::npos
+        && (separator_pos == std::string::npos || extension_pos > separator_pos);
+    const std::string base = has_extension ? out.substr(0, extension_pos) : out;
+    const std::string extension = has_extension ? out.substr(extension_pos) : "";
+
+    for (size_t split = 0; split < num_split; ++split) {
+        const size_t begin = num * split / num_split;
+        const size_t end = num * (split + 1) / num_split;
+        const size_t split_num = end - begin;
+
+        std::ostringstream path;
+        path << base << '-' << std::setfill('0') << std::setw(3) << split + 1 << extension;
+        std::ofstream ofs(path.str(), std::ios::binary);
+        if (!ofs) {
+            throw std::runtime_error("failed to open output hcpe3 cache: " + path.str());
+        }
+
+        ofs.seekp(sizeof(split_num) + sizeof(size_t) * split_num, std::ios_base::beg);
+        std::vector<size_t> out_pos;
+        out_pos.reserve(split_num);
+        std::vector<char> buffer;
+        for (size_t i = begin; i < end; ++i) {
+            const size_t size = cache_pos[i + 1] - cache_pos[i];
+            buffer.resize(size);
+            cache.seekg(cache_pos[i], std::ios_base::beg);
+            if (!cache.read(buffer.data(), size)) {
+                throw std::runtime_error("failed to read hcpe3 cache body: " + file);
+            }
+            out_pos.emplace_back(static_cast<size_t>(ofs.tellp()));
+            ofs.write(buffer.data(), size);
+            if (!ofs) {
+                throw std::runtime_error("failed to write hcpe3 cache body: " + path.str());
+            }
+        }
+
+        ofs.seekp(0, std::ios_base::beg);
+        ofs.write((const char*)&split_num, sizeof(split_num));
+        ofs.write((const char*)out_pos.data(), sizeof(size_t) * split_num);
+        if (!ofs) {
+            throw std::runtime_error("failed to write hcpe3 cache index: " + path.str());
+        }
+        std::cout << path.str() << " position num = " << split_num << std::endl;
+    }
+}
+
 // キャッシュの方策と価値をモデルで再評価して加重平均を求める
 // モデルの推論結果を受け取る
 // 事前にキャッシュがロードされていること
