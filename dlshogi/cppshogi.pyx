@@ -23,6 +23,9 @@ cdef extern from "python_module.h" nogil:
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
     void __hcpe3_merge_cache(const string& file1, const string& file2, const string& out)
     void __hcpe3_split_cache(const string& file, const string& out, const size_t num_split) except +
+    void __hcpe3_cache_write_start(const string& filepath, const size_t num) except +
+    void __hcpe3_cache_write() except +
+    void __hcpe3_cache_write_end() except +
     void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char* ndvalue, const float alpha_p, const float alpha_v, const float alpha_r, const float dropoff, const int limit_candidates, const float temperature) except +
     void __hcpe3_reserve_train_data(unsigned int size)
     void __hcpe3_stat_cache() except +
@@ -76,6 +79,15 @@ def hcpe3_merge_cache(str file1, str file2, str out):
 
 def hcpe3_split_cache(str file, str out, size_t num_split):
     __hcpe3_split_cache(file.encode(locale.getpreferredencoding()), out.encode(locale.getpreferredencoding()), num_split)
+
+def hcpe3_cache_write_start(str filepath, size_t num):
+    __hcpe3_cache_write_start(filepath.encode(locale.getpreferredencoding()), num)
+
+def hcpe3_cache_write():
+    __hcpe3_cache_write()
+
+def hcpe3_cache_write_end():
+    __hcpe3_cache_write_end()
 
 def hcpe3_cache_re_eval(np.ndarray ndindex, np.ndarray ndlogits, np.ndarray ndvalue, float alpha_p, float alpha_v, float alpha_r, float dropoff, int limit_candidates, float temperature=1.0):
     __hcpe3_cache_re_eval(len(ndindex), ndindex.data, ndlogits.data, ndvalue.data, alpha_p, alpha_v, alpha_r, dropoff, limit_candidates, temperature)

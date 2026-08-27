@@ -6,7 +6,13 @@ import numpy as np
 from dlshogi import serializers
 from dlshogi.network.policy_value_network import policy_value_network
 from dlshogi.data_loader import Hcpe3DataLoader
-from dlshogi.cppshogi import hcpe3_cache_re_eval, hcpe3_create_cache, hcpe3_reserve_train_data
+from dlshogi.cppshogi import (
+    hcpe3_cache_re_eval,
+    hcpe3_cache_write,
+    hcpe3_cache_write_end,
+    hcpe3_cache_write_start,
+    hcpe3_reserve_train_data,
+)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('model')
@@ -74,7 +80,8 @@ data_len, actual_len = Hcpe3DataLoader.load_files([], cache=args.cache)
 indexes = np.arange(data_len, dtype=np.uint64)
 dataloader = Hcpe3DataLoader(indexes, batch_size, device)
 
-hcpe3_reserve_train_data(data_len)
+hcpe3_reserve_train_data(batch_size)
+hcpe3_cache_write_start(args.out_cache, data_len)
 
 for i in tqdm(range(0, len(indexes), batch_size)):
     chunk = indexes[i:i + batch_size]
@@ -95,5 +102,6 @@ for i in tqdm(range(0, len(indexes), batch_size)):
         hcpe3_cache_re_eval(chunk_tmp, y1[:chunk_size], y2[:chunk_size], alpha_p, alpha_v, alpha_r, dropoff, limit_candidates, temperature)
     else:
         hcpe3_cache_re_eval(chunk, y1, y2, alpha_p, alpha_v, alpha_r, dropoff, limit_candidates, temperature)
+    hcpe3_cache_write()
 
-hcpe3_create_cache(args.out_cache)
+hcpe3_cache_write_end()

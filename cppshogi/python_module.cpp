@@ -113,6 +113,11 @@ std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
 std::unordered_map<HuffmanCodedPos, unsigned int> duplicates;
 
+std::ofstream hcpe3_cache_writer;
+std::vector<size_t> hcpe3_cache_writer_pos;
+size_t hcpe3_cache_writer_num = 0;
+std::string hcpe3_cache_writer_path;
+
 void __hcpe3_create_cache(const std::string& filepath) {
     std::ofstream ofs(filepath, std::ios::binary);
 
@@ -138,10 +143,9 @@ void __hcpe3_create_cache(const std::string& filepath) {
         ofs.write((const char*)&body, sizeof(body));
 
         for (const auto kv : hcpe3.candidates) {
-            Hcpe3CacheCandidate candidate{
-                kv.first,
-                kv.second
-            };
+            Hcpe3CacheCandidate candidate{};
+            candidate.move16 = kv.first;
+            candidate.prob = kv.second;
             ofs.write((const char*)&candidate, sizeof(candidate));
         }
     }
@@ -153,6 +157,98 @@ void __hcpe3_create_cache(const std::string& filepath) {
     trainingData.shrink_to_fit();
     duplicates.clear();
     std::unordered_map<HuffmanCodedPos, unsigned int>(duplicates).swap(duplicates);
+}
+
+// hcpe3キャッシュのストリーミング書き込みを開始する
+void __hcpe3_cache_write_start(const std::string& filepath, const size_t num) {
+    if (hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is already open");
+    }
+    if (!trainingData.empty()) {
+        throw std::runtime_error("training data must be empty before starting hcpe3 cache writer");
+    }
+
+    hcpe3_cache_writer.open(filepath, std::ios::binary);
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to open output hcpe3 cache: " + filepath);
+    }
+    hcpe3_cache_writer_num = num;
+    hcpe3_cache_writer_path = filepath;
+    hcpe3_cache_writer_pos.clear();
+    hcpe3_cache_writer_pos.reserve(num);
+
+    hcpe3_cache_writer.write((const char*)&num, sizeof(num));
+    hcpe3_cache_writer.seekp(sizeof(num) + sizeof(size_t) * num, std::ios_base::beg);
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to initialize output hcpe3 cache: " + filepath);
+    }
+}
+
+// trainingDataをキャッシュへ追記し、次のバッチのために解放する
+void __hcpe3_cache_write() {
+    if (!hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is not open");
+    }
+    if (trainingData.size() > hcpe3_cache_writer_num - hcpe3_cache_writer_pos.size()) {
+        throw std::runtime_error("too many positions for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    for (const auto& hcpe3 : trainingData) {
+        const auto pos = hcpe3_cache_writer.tellp();
+        if (pos < 0) {
+            throw std::runtime_error("failed to get output hcpe3 cache position: " + hcpe3_cache_writer_path);
+        }
+        hcpe3_cache_writer_pos.emplace_back(static_cast<size_t>(pos));
+
+        Hcpe3CacheBody body{
+            hcpe3.hcp,
+            hcpe3.value,
+            hcpe3.result,
+            hcpe3.count
+        };
+        hcpe3_cache_writer.write((const char*)&body, sizeof(body));
+        for (const auto kv : hcpe3.candidates) {
+            Hcpe3CacheCandidate candidate{};
+            candidate.move16 = kv.first;
+            candidate.prob = kv.second;
+            hcpe3_cache_writer.write((const char*)&candidate, sizeof(candidate));
+        }
+    }
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to write output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    // vectorの領域は次のバッチで再利用し、各局面の候補手だけを解放する
+    trainingData.clear();
+}
+
+// インデックスを書き込み、hcpe3キャッシュを完成させる
+void __hcpe3_cache_write_end() {
+    if (!hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is not open");
+    }
+    if (!trainingData.empty()) {
+        throw std::runtime_error("unwritten training data remains for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+    if (hcpe3_cache_writer_pos.size() != hcpe3_cache_writer_num) {
+        throw std::runtime_error("unexpected position count for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    hcpe3_cache_writer.seekp(sizeof(hcpe3_cache_writer_num), std::ios_base::beg);
+    hcpe3_cache_writer.write(
+        (const char*)hcpe3_cache_writer_pos.data(),
+        sizeof(size_t) * hcpe3_cache_writer_pos.size()
+    );
+    hcpe3_cache_writer.close();
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to finalize output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    hcpe3_cache_writer_pos.clear();
+    hcpe3_cache_writer_pos.shrink_to_fit();
+    hcpe3_cache_writer_num = 0;
+    hcpe3_cache_writer_path.clear();
+    trainingData.shrink_to_fit();
 }
 
 // hcpe3キャッシュ
