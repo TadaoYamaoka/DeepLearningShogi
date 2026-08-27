@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <climits>
+#include <cstdint>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -83,9 +84,11 @@ void WaitPrepareMultiPonder()
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex mutexes[MUTEX_NUM];
-inline std::mutex& GetPositionMutex(const Position* pos)
+inline std::mutex& GetNodeMutex(const uct_node_t* node)
 {
-	return mutexes[pos->getKey() & (MUTEX_NUM - 1)];
+	// アラインメントで常に0になる下位ビットを除いてstripeを選択する。
+	const auto address = reinterpret_cast<std::uintptr_t>(node);
+	return mutexes[(address / alignof(uct_node_t)) & (MUTEX_NUM - 1)];
 }
 
 
@@ -211,9 +214,10 @@ static bool ExtendTime(void);
 static bool InterruptionCheck(void);
 
 template <typename T>
-inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
-	T expected = obj->load();
-	while (!atomic_compare_exchange_weak(obj, &expected, expected + arg))
+inline void atomic_fetch_add_relaxed(std::atomic<T>* obj, T arg) {
+	T expected = obj->load(std::memory_order_relaxed);
+	while (!obj->compare_exchange_weak(expected, expected + arg,
+		std::memory_order_relaxed, std::memory_order_relaxed))
 		;
 }
 
@@ -221,26 +225,26 @@ inline void atomic_fetch_add(std::atomic<T>* obj, T arg) {
 inline void
 AddVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count += VIRTUAL_LOSS;
-	child->move_count += VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->move_count, VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->move_count, VIRTUAL_LOSS);
 }
 
 // Virtual Lossを減算
 inline void
 SubVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count -= VIRTUAL_LOSS;
-	child->move_count -= VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->move_count, -VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->move_count, -VIRTUAL_LOSS);
 }
 
 // 探索結果の更新
 inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
-	atomic_fetch_add(&current->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
-	atomic_fetch_add(&child->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->win, (WinType)result);
+	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&current->move_count, 1 - VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->win, (WinType)result);
+	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&child->move_count, 1 - VIRTUAL_LOSS);
 }
 
 typedef pair<uct_node_t*, unsigned int> trajectory_t;
@@ -1337,7 +1341,7 @@ UCTSearcher::ParallelUctSearch()
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
-				atomic_fetch_add(&po_info.count, 1);
+				po_info.count.fetch_add(1);
 			}
 			else {
 				// 破棄した探索経路を保存
@@ -1455,26 +1459,29 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	auto& trajectories = visitor.trajectories;
 
 	// 現在見ているノードをロック
-	auto& mutex = GetPositionMutex(pos);
-	mutex.lock();
+	std::unique_lock<std::mutex> lock(GetNodeMutex(current));
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
 	if (!current->child_nodes) current->InitChildNodes();
 	// UCB値最大の手を求める
 	const unsigned int next_index = SelectMaxUcbChild(parent, current);
-	// 選んだ手を着手
-	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
-
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
-	// ノードの展開の確認
-	if (!current->child_nodes[next_index]) {
-		// ノードの作成
-		uct_node_t* child_node = current->CreateChildNode(next_index);
-		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
+	// ノードの展開確認と作成は同じロック区間で行う
+	const bool created_child = !current->child_nodes[next_index];
+	uct_node_t* child_node = created_child
+		? current->CreateChildNode(next_index)
+		: current->child_nodes[next_index].get();
+	const Move selected_move = uct_child[next_index].move;
+	lock.unlock();
 
-		// 現在見ているノードのロックを解除
-		mutex.unlock();
+	// Positionはスレッドローカルなので、着手はノードのロック外で行う
+	StateInfo st;
+	pos->doMove(selected_move, st);
+
+	// ノードの展開の確認
+	if (created_child) {
+		// ノードの作成
+		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -1574,13 +1581,10 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		child_node->SetEvaled();
 	}
 	else {
-		// 現在見ているノードのロックを解除
-		mutex.unlock();
-
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		uct_node_t* next_node = current->child_nodes[next_index].get();
+		uct_node_t* next_node = child_node;
 
 		// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
 		if (!next_node->IsEvaled())
@@ -1698,7 +1702,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	}
 	else {
 		// for FPU reduction
-		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
+		atomic_fetch_add_relaxed(&current->visited_nnrate, uct_child[max_child].nnrate);
 	}
 
 	return max_child;
