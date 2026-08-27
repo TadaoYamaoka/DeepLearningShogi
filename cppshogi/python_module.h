@@ -16,6 +16,7 @@ size_t __load_evalfix(const std::string& filepath);
 void __hcpe3_get_hcpe(const size_t index, char* ndhcpe);
 void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult);
 void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, const std::string& out);
+void __hcpe3_concat_cache(const std::vector<std::string>& files, const std::string& out);
 void __hcpe3_split_cache(const std::string& file, const std::string& out, const size_t num_split);
 void __hcpe3_cache_write_start(const std::string& filepath, const size_t num);
 void __hcpe3_cache_write();

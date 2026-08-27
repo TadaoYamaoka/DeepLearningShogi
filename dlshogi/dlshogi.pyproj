@@ -99,6 +99,7 @@
     <Compile Include="utils\hcpe3_to_hcpe.py" />
     <Compile Include="utils\hcpe_to_psv.py" />
     <Compile Include="utils\make_hcpe3_cache.py" />
+    <Compile Include="utils\concat_hcpe3_cache.py" />
     <Compile Include="utils\merge_hcpe3_cache.py" />
     <Compile Include="utils\print_hcp.py" />
     <Compile Include="utils\uniq_hcp.py" />

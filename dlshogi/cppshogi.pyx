@@ -22,6 +22,7 @@ cdef extern from "python_module.h" nogil:
     void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) except +
     void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult)
     void __hcpe3_merge_cache(const string& file1, const string& file2, const string& out)
+    void __hcpe3_concat_cache(const vector[string]& files, const string& out) except +
     void __hcpe3_split_cache(const string& file, const string& out, const size_t num_split) except +
     void __hcpe3_cache_write_start(const string& filepath, const size_t num) except +
     void __hcpe3_cache_write() except +
@@ -76,6 +77,12 @@ def hcpe3_prepare_evalfix(str filepath):
 
 def hcpe3_merge_cache(str file1, str file2, str out):
     __hcpe3_merge_cache(file1.encode(locale.getpreferredencoding()), file2.encode(locale.getpreferredencoding()), out.encode(locale.getpreferredencoding()))
+
+def hcpe3_concat_cache(files, str out):
+    cdef vector[string] cpp_files
+    for filepath in files:
+        cpp_files.push_back(str(filepath).encode(locale.getpreferredencoding()))
+    __hcpe3_concat_cache(cpp_files, out.encode(locale.getpreferredencoding()))
 
 def hcpe3_split_cache(str file, str out, size_t num_split):
     __hcpe3_split_cache(file.encode(locale.getpreferredencoding()), out.encode(locale.getpreferredencoding()), num_split)
