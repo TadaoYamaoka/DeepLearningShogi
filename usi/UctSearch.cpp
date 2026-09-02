@@ -1187,12 +1187,9 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	Key key = 0;
 	if (policy_value_cache.IsEnabled()) {
 		key = pos->getKey();
-		PolicyValueCache::ResultPtr cached;
-		if (policy_value_cache.Lookup(key, node->child_num, cached)) {
-			child_node_t* uct_child = node->child.get();
-			for (int i = 0; i < node->child_num; ++i)
-				uct_child[i].nnrate = cached->policy[i];
-			*value_win = cached->value;
+		child_node_t* uct_child = node->child.get();
+		if (policy_value_cache.Lookup(key, node->child_num, *value_win,
+			[uct_child](const size_t i, const float policy) { uct_child[i].nnrate = policy; })) {
 			node->SetEvaled();
 			return true;
 		}
@@ -1780,10 +1777,8 @@ void UCTSearcher::EvalNode() {
 		}
 #endif
 		if (policy_value_cache.IsEnabled()) {
-			std::vector<float> policy(child_num);
-			for (int j = 0; j < child_num; ++j)
-				policy[j] = uct_child[j].nnrate;
-			policy_value_cache.Store(policy_value_batch[i].key, *policy_value_batch[i].value_win, std::move(policy));
+			policy_value_cache.Store(policy_value_batch[i].key, *policy_value_batch[i].value_win, child_num,
+				[uct_child](const size_t j) { return uct_child[j].nnrate; });
 		}
 		node->SetEvaled();
 	}

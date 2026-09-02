@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <list>
-#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
@@ -16,14 +16,9 @@
 class PolicyValueCache {
 public:
 	struct Result {
-		Result(const float value, std::vector<float>&& policy)
-			: value(value), policy(std::move(policy)) {}
-
-		float value;
+		float value = 0.0f;
 		std::vector<float> policy;
 	};
-
-	using ResultPtr = std::shared_ptr<const Result>;
 
 	void SetCapacity(const size_t capacity)
 	{
@@ -43,19 +38,27 @@ public:
 
 	bool IsEnabled() const { return capacity_ != 0; }
 
-	bool Lookup(const Key key, const size_t policy_size, ResultPtr& result)
+	template <typename PolicySetter>
+	bool Lookup(const Key key, const size_t policy_size, float& value, PolicySetter&& set_policy)
 	{
 		if (!IsEnabled())
 			return false;
 
 		auto& shard = GetShard(key);
-		ResultPtr cached;
+		uint64_t generation;
 		{
 			std::shared_lock<std::shared_mutex> lock(shard.mutex);
 			auto it = shard.entries.find(key);
-			if (it == shard.entries.end() || it->second.result->policy.size() != policy_size)
+			if (it == shard.entries.end() || it->second.result.policy.size() != policy_size)
 				return false;
-			cached = it->second.result;
+
+			generation = it->second.generation;
+			const Result& result = it->second.result;
+			value = result.value;
+			// set_policyはロック中に呼ばれるため、出力先への単純コピーのみを
+			// 行い、このキャッシュへ再入してはならない。
+			for (size_t i = 0; i < policy_size; ++i)
+				set_policy(i, result.policy[i]);
 		}
 
 		// ヒット処理を待たせないため、LRU順の更新は排他ロックを
@@ -63,15 +66,15 @@ public:
 		std::unique_lock<std::shared_mutex> lock(shard.mutex, std::try_to_lock);
 		if (lock.owns_lock()) {
 			auto it = shard.entries.find(key);
-			if (it != shard.entries.end() && it->second.result == cached)
+			if (it != shard.entries.end() && it->second.generation == generation)
 				shard.lru.splice(shard.lru.begin(), shard.lru, it->second.lru_position);
 		}
 
-		result = std::move(cached);
 		return true;
 	}
 
-	void Store(const Key key, const float value, std::vector<float>&& policy)
+	template <typename PolicyGetter>
+	void Store(const Key key, const float value, const size_t policy_size, PolicyGetter&& get_policy)
 	{
 		if (!IsEnabled())
 			return;
@@ -82,28 +85,44 @@ public:
 		if (it != shard.entries.end()) {
 			// 同じ局面を複数GPUが推論した場合は先着結果を維持する。
 			// policy長が異なる場合だけ不整合エントリとして置換する。
-			if (it->second.result->policy.size() != policy.size())
-				it->second.result = std::make_shared<const Result>(value, std::move(policy));
+			if (it->second.result.policy.size() != policy_size) {
+				SetResult(it->second.result, value, policy_size, get_policy);
+				it->second.generation = NextGeneration(shard);
+			}
 			shard.lru.splice(shard.lru.begin(), shard.lru, it->second.lru_position);
 			return;
 		}
 
-		auto result = std::make_shared<const Result>(value, std::move(policy));
-		shard.lru.push_front(key);
-		shard.entries.emplace(key, Entry{ std::move(result), shard.lru.begin() });
-		if (shard.entries.size() > shard.capacity) {
+		if (shard.entries.size() >= shard.capacity) {
+			// mapノードとpolicyの確保済み領域を再利用し、定常状態での
+			// Storeごとのヒープ確保・解放を避ける。
 			const Key oldest = shard.lru.back();
-			shard.entries.erase(oldest);
-			shard.lru.pop_back();
+			auto node = shard.entries.extract(oldest);
+			auto& entry = node.mapped();
+			*entry.lru_position = key;
+			shard.lru.splice(shard.lru.begin(), shard.lru, entry.lru_position);
+			node.key() = key;
+			SetResult(entry.result, value, policy_size, get_policy);
+			entry.generation = NextGeneration(shard);
+			shard.entries.insert(std::move(node));
+			return;
 		}
+
+		shard.lru.push_front(key);
+		Entry entry;
+		entry.lru_position = shard.lru.begin();
+		SetResult(entry.result, value, policy_size, get_policy);
+		entry.generation = NextGeneration(shard);
+		shard.entries.emplace(key, std::move(entry));
 	}
 
 private:
 	static constexpr size_t kShardCount = 256;
 
 	struct Entry {
-		ResultPtr result;
+		Result result;
 		std::list<Key>::iterator lru_position;
+		uint64_t generation = 0;
 	};
 
 	struct Shard {
@@ -111,6 +130,7 @@ private:
 		std::shared_mutex mutex;
 		std::list<Key> lru;
 		std::unordered_map<Key, Entry> entries;
+		uint64_t next_generation = 0;
 	};
 
 	Shard& GetShard(const Key key)
@@ -120,6 +140,24 @@ private:
 			? hash & (kShardCount - 1)
 			: hash % shard_count_;
 		return shards_[index];
+	}
+
+	template <typename PolicyGetter>
+	static void SetResult(Result& result, const float value, const size_t policy_size, PolicyGetter& get_policy)
+	{
+		result.value = value;
+		result.policy.resize(policy_size);
+		for (size_t i = 0; i < policy_size; ++i)
+			result.policy[i] = get_policy(i);
+	}
+
+	static uint64_t NextGeneration(Shard& shard)
+	{
+		// 0は未初期化Entry用に予約する。実運用での周回は事実上起こらないが、
+		// 周回時も0を飛ばして世代比較の意味を維持する。
+		if (++shard.next_generation == 0)
+			++shard.next_generation;
+		return shard.next_generation;
 	}
 
 	size_t capacity_ = 0;
