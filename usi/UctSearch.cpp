@@ -1190,7 +1190,6 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 		child_node_t* uct_child = node->child.get();
 		if (policy_value_cache.Lookup(key, node->child_num, *value_win,
 			[uct_child](const size_t i, const float policy) { uct_child[i].nnrate = policy; })) {
-			node->SetEvaled();
 			return true;
 		}
 	}
@@ -1301,8 +1300,10 @@ UCTSearcher::ParallelUctSearch()
 	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
 		float value_win;
-		QueuingNode(pos_root, current_root, &value_win);
-		EvalNode();
+		if (QueuingNode(pos_root, current_root, &value_win))
+			current_root->SetEvaled();
+		else
+			EvalNode();
 	}
 	UNLOCK_EXPAND;
 
