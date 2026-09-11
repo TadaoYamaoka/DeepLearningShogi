@@ -302,6 +302,9 @@ public:
 	void Run();
 	void Join();
 	void Term();
+	std::unique_lock<std::mutex> AcquireGatherLock() {
+		return std::unique_lock<std::mutex>(mutex_gather);
+	}
 
 	// GPUID
 	int gpu_id;
@@ -318,6 +321,9 @@ private:
 
 	// mutex for gpu
 	mutex mutex_gpu;
+
+	// 同一GPUの探索スレッドが同時にバッチを構築しないためのmutex
+	mutex mutex_gather;
 };
 UCTSearcherGroup* search_groups;
 static PolicyValueCache policy_value_cache;
@@ -1328,29 +1334,34 @@ UCTSearcher::ParallelUctSearch()
 		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
 
-		// バッチサイズ分探索を繰り返す
-		for (int i = 0; i < policy_value_batch_maxsize; i++) {
-			// 盤面のコピー
-			Position pos(*pos_root);
+		{
+			// 同一GPUのスレッド間ではGatherを直列化し、探索幅の過剰な拡大を抑える
+			auto gather_lock = grp->AcquireGatherLock();
 
-			// 1回プレイアウトする
-			visitor_pool[i].trajectories.clear();
-			const float result = UctSearch(&pos, nullptr, current_root, visitor_pool[i]);
+			// バッチサイズ分探索を繰り返す
+			for (int i = 0; i < policy_value_batch_maxsize; i++) {
+				// 盤面のコピー
+				Position pos(*pos_root);
 
-			if (result != DISCARDED) {
-				// 探索回数を1回増やす
-				po_info.count.fetch_add(1);
-			}
-			else {
-				// 破棄した探索経路を保存
-				trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
-			}
+				// 1回プレイアウトする
+				visitor_pool[i].trajectories.clear();
+				const float result = UctSearch(&pos, nullptr, current_root, visitor_pool[i]);
 
-			if (result == DISCARDED || result != QUEUING) {
-				// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
-			}
-			else {
-				visitor_batch.emplace_back(&visitor_pool[i]);
+				if (result != DISCARDED) {
+					// 探索回数を1回増やす
+					po_info.count.fetch_add(1);
+				}
+				else {
+					// 破棄した探索経路を保存
+					trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
+				}
+
+				if (result == DISCARDED || result != QUEUING) {
+					// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
+				}
+				else {
+					visitor_batch.emplace_back(&visitor_pool[i]);
+				}
 			}
 		}
 
