@@ -44,6 +44,8 @@ enum RepetitionType {
 
 struct CheckInfo {
     explicit CheckInfo(const Position&);
+    // knownPinned must have been computed for this same position.
+    CheckInfo(const Position&, const Bitboard& knownPinned);
     Bitboard dcBB; // discoverd check candidates bitboard
     Bitboard pinned;
     Bitboard checkBB[PieceTypeNum];

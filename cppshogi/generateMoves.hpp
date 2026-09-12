@@ -50,6 +50,10 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos);
 template <MoveType MT>
 ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to);
 
+// CheckAll using pinned/dcBB already computed for this same position.
+struct CheckInfo;
+ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci);
+
 template <MoveType MT>
 class MoveList {
 public:

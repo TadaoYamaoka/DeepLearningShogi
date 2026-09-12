@@ -8,9 +8,51 @@
 #include "python_module.h"
 #include "usi.hpp"
 #include "dfpn.h"
+#include "mate.h"
+#include "mate.h"
 #include "PolicyValueCache.h"
 
 using namespace std;
+
+TEST(Mate, AllMate5Positions) {
+	constexpr const char* Mate5Path = R"(E:\game\shogi\mate3_5_7_9_11\mate5_filtered.sfen)";
+	constexpr size_t ExpectedPositionCount = 990246;
+
+	std::ifstream input(Mate5Path);
+	ASSERT_TRUE(input) << Mate5Path;
+
+	initTable();
+	Position::initZobrist();
+
+	Position pos;
+	std::string sfen;
+	size_t positionCount = 0;
+	size_t failureCount = 0;
+	std::string firstFailure;
+	std::chrono::steady_clock::duration totalMateSearchTime{};
+
+	while (std::getline(input, sfen)) {
+		if (sfen.empty())
+			continue;
+
+		++positionCount;
+		pos.set(sfen);
+		const auto start = std::chrono::steady_clock::now();
+		const bool isMate = mateMoveInOddPly<5>(pos);
+		totalMateSearchTime += std::chrono::steady_clock::now() - start;
+		if (!isMate) {
+			++failureCount;
+			if (firstFailure.empty())
+				firstFailure = sfen;
+		}
+	}
+
+	std::cout << "mateMoveInOddPly<5> total: "
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(totalMateSearchTime).count()
+		<< " ms" << std::endl;
+	EXPECT_EQ(ExpectedPositionCount, positionCount);
+	EXPECT_EQ(0u, failureCount) << "first failed position: " << firstFailure;
+}
 
 TEST(PolicyValueCacheTest, DisabledAndLruEviction) {
 	PolicyValueCache cache;

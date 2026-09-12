@@ -632,6 +632,13 @@ namespace {
 	// 王手をかける手を生成する。
 	template <Color US, bool ALL> struct GenerateMoves<Check, US, ALL> {
 		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos) {
+			const Bitboard dcBB = pos.discoveredCheckBB();
+			const Bitboard pinned = pos.pinnedBB();
+			return (*this)(moveList, pos, pinned, dcBB);
+		}
+
+		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos,
+			const Bitboard& pinned, const Bitboard& dcBB) {
 			ExtMove* curr = moveList;
 
 			// やねうら王の実装を参考にした
@@ -672,7 +679,7 @@ namespace {
 			// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
 			// 指し手生成の段階では除外しなくても良いと思う。
 
-			const Bitboard y = pos.discoveredCheckBB();
+			const Bitboard y = dcBB;
 			const Bitboard target = ~pos.bbOf(US); // 自駒がない場所が移動対象升
 
 			// yのみ。ただしxかつyである可能性もある。
@@ -1003,7 +1010,6 @@ namespace {
 				}
 			}
 
-			const Bitboard pinned = pos.pinnedBB();
 
 			// pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
@@ -1123,6 +1129,13 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos) {
 	return (pos.turn() == Black ?
 			GenerateMoves<MT, Black>()(moveList, pos) : GenerateMoves<MT, White>()(moveList, pos));
 }
+
+ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci) {
+	return (pos.turn() == Black ?
+		GenerateMoves<Check, Black, true>()(moveList, pos, ci.pinned, ci.dcBB) :
+		GenerateMoves<Check, White, true>()(moveList, pos, ci.pinned, ci.dcBB));
+}
+
 template <MoveType MT>
 ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to) {
 	return generateRecaptureMoves(moveList, pos, to, pos.turn());
