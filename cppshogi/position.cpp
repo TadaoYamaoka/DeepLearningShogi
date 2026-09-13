@@ -205,6 +205,39 @@ bool Position::pseudoLegalMoveIsEvasion(const Move move, const Bitboard& pinned)
     return target.isSet(to) && pseudoLegalMoveIsLegal<false, true>(move, pinned);
 }
 
+// 自玉が王手の場合、王手の指し手が逃げる手か判定を行う
+bool Position::checkMoveIsEvasion(const Move move) const {
+    const Color us = turn();
+    const Color them = oppositeColor(us);
+    const Square to = move.to();
+
+    const Square from = move.from();
+    const PieceType ptFrom = move.pieceTypeFrom();
+
+    if (ptFrom == King) {
+        Bitboard occ = occupiedBB();
+        occ.clearBit(from);
+        if (attackersToIsAny(them, to, occ))
+            // 王手から逃げていない。
+            return false;
+    }
+    else {
+        // 玉以外の駒を移動させたとき。
+        Bitboard target = checkersBB();
+        const Square checksq = target.firstOneFromSQ11();
+
+        if (target)
+            // 両王手なので、玉が逃げない手は駄目
+            return false;
+
+        target = betweenBB(checksq, kingSquare(us)) | checkersBB();
+        if (!target.isSet(to))
+            // 玉と、王手した駒との間に移動するか、王手した駒を取る以外は駄目。
+            return false;
+    }
+    return true;
+}
+
 // Searching: true なら探索時に内部で生成した手の合法手判定を行う。
 //            ttMove で hash 値が衝突した時などで、大駒の不成など明らかに価値の低い手が生成される事がある。
 //            これは非合法手として省いて良い。

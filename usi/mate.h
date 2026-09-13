@@ -23,7 +23,7 @@ namespace ns_mate {
 				// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 				ExtMove* curr = moveList_;
 				while (curr != last_) {
-					if (!pos.moveIsPseudoLegal<false>(curr->move))
+					if (!pos.checkMoveIsEvasion(curr->move))
 						curr->move = (--last_)->move;
 					else
 						++curr;
