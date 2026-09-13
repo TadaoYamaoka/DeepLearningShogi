@@ -77,6 +77,48 @@ namespace ns_mate {
 		ExtMove* curr_;
 		ExtMove* last_;
 	};
+
+	enum class MateRepetitionAction {
+		Continue,
+		Success,
+		Failure
+	};
+
+	// 攻め側の王手後。現在の手番は受け側。
+	FORCE_INLINE MateRepetitionAction repetitionAfterCheck(const Position& pos) {
+		switch (pos.isDraw(16)) {
+		case NotRepetition:
+		case RepetitionInferior:
+			return MateRepetitionAction::Continue;
+		case RepetitionLose:
+			return MateRepetitionAction::Success;
+		case RepetitionDraw:
+		case RepetitionWin:
+		case RepetitionSuperior:
+			return MateRepetitionAction::Failure;
+		default:
+			UNREACHABLE;
+			return MateRepetitionAction::Failure;
+		}
+	}
+
+	// 受け側の着手後。現在の手番は攻め側。
+	FORCE_INLINE MateRepetitionAction repetitionAfterEvasion(const Position& pos) {
+		switch (pos.isDraw(16)) {
+		case NotRepetition:
+		case RepetitionSuperior:
+			return MateRepetitionAction::Continue;
+		case RepetitionWin:
+			return MateRepetitionAction::Success;
+		case RepetitionDraw:
+		case RepetitionLose:
+		case RepetitionInferior:
+			return MateRepetitionAction::Failure;
+		default:
+			UNREACHABLE;
+			return MateRepetitionAction::Failure;
+		}
+	}
 }
 
 // 3手詰めチェック
@@ -99,11 +141,23 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 
 		pos.doMove(m, si, ci, true);
 
-		// 千日手のチェック
-		if (pos.isDraw(16) == RepetitionWin) {
-			// 受け側の反則勝ち
-			pos.undoMove(m);
-			continue;
+		// RepetitionLoseだけは、盤面上の詰みを調べる前でも攻め側の成功になる。
+		// 受け側のcontinuousCheckが4未満ならRepetitionLoseは起こらないため、
+		// 反復判定を「盤面上で詰みが見つかった時」まで遅延する。
+		bool defer_check_repetition = false;
+		if (si.continuousCheck[pos.turn()] >= 4) {
+			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterCheck(pos);
+			if (repetition == ns_mate::MateRepetitionAction::Success) {
+				pos.undoMove(m);
+				return true;
+			}
+			if (repetition == ns_mate::MateRepetitionAction::Failure) {
+				pos.undoMove(m);
+				continue;
+			}
+		}
+		else {
+			defer_check_repetition = true;
 		}
 
 		// 最初の合法な受けだけを取得する。残りの合法性判定は遅延する。
@@ -112,7 +166,12 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		Move m2 = move_picker2.nextLegal(pos, pinned2);
 
 		if (!m2) {
-			// 1手で詰んだ
+			// 盤面上は1手で詰んでいる。遅延していた反復判定があれば、ここでだけ実行する。
+			if (defer_check_repetition &&
+				ns_mate::repetitionAfterCheck(pos) == ns_mate::MateRepetitionAction::Failure) {
+				pos.undoMove(m);
+				continue;
+			}
 			pos.undoMove(m);
 			return true;
 		}
@@ -136,6 +195,15 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 
 			if (!pos.mateMoveIn1Ply()) {
 				// 詰んでないので、m2で詰みを逃れている。
+				// m2は非王手なので、反復判定でこの失敗が成功へ反転することはない。
+				pos.undoMove(m2);
+				goto NEXT_CHECK;
+			}
+
+			// 盤面上の1手詰めが見つかった場合だけ反復履歴を走査する。
+			// m2は非王手なのでRepetitionWinは発生しないが、分類は一般の偶数手探索と揃える。
+			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterEvasion(pos);
+			if (repetition == ns_mate::MateRepetitionAction::Failure) {
 				pos.undoMove(m2);
 				goto NEXT_CHECK;
 			}
@@ -143,7 +211,14 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 			pos.undoMove(m2);
 		} while ((m2 = move_picker2.nextLegal(pos, ci2.pinned)));
 
-		// すべて詰んだ
+		// 盤面上ではすべての受けに対して詰んだ。
+		// m後の反復判定を遅延していた場合だけ、成功を確定する直前に走査する。
+		if (defer_check_repetition &&
+			ns_mate::repetitionAfterCheck(pos) == ns_mate::MateRepetitionAction::Failure) {
+			pos.undoMove(m);
+			continue;
+		}
+
 		pos.undoMove(m);
 		return true;
 
