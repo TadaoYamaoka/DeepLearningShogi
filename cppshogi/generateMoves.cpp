@@ -1010,7 +1010,6 @@ namespace {
 				}
 			}
 
-
 			// pinされている駒の移動による自殺手を削除
 			while (curr != moveList) {
 				if (!pos.pseudoLegalMoveIsLegal<true, false>(curr->move, pinned))
@@ -1129,16 +1128,14 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos) {
 	return (pos.turn() == Black ?
 			GenerateMoves<MT, Black>()(moveList, pos) : GenerateMoves<MT, White>()(moveList, pos));
 }
-
-ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci) {
-	return (pos.turn() == Black ?
-		GenerateMoves<Check, Black, true>()(moveList, pos, ci.pinned, ci.dcBB) :
-		GenerateMoves<Check, White, true>()(moveList, pos, ci.pinned, ci.dcBB));
-}
-
 template <MoveType MT>
 ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to) {
 	return generateRecaptureMoves(moveList, pos, to, pos.turn());
+}
+ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci) {
+    return (pos.turn() == Black ?
+        GenerateMoves<Check, Black, true>()(moveList, pos, ci.pinned, ci.dcBB) :
+        GenerateMoves<Check, White, true>()(moveList, pos, ci.pinned, ci.dcBB));
 }
 
 // 明示的なインスタンス化

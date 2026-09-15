@@ -9,7 +9,6 @@
 #include "usi.hpp"
 #include "dfpn.h"
 #include "mate.h"
-#include "mate.h"
 #include "PolicyValueCache.h"
 
 using namespace std;
