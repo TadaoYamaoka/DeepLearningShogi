@@ -2801,10 +2801,12 @@ void make_policy_book_bfs_ra(Position& pos, std::map<Key, std::vector<BookEntry>
 					score = (pos_copy.turn() == Black) ? draw_score_black : draw_score_white;
 				}
 				else if (rep == RepetitionWin) {
-					score = ScoreMaxEvaluate;
+					// 着手後の手番側（相手）の勝ちなので、着手側から見れば負け
+					score = -ScoreMaxEvaluate;
 				}
 				else {
-					score = -ScoreMaxEvaluate;
+					// 着手後の手番側（相手）の負けなので、着手側から見れば勝ち
+					score = ScoreMaxEvaluate;
 				}
 				node->edges.emplace_back(new BfsEdge{ move, nullptr, score });
 				continue;
