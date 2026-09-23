@@ -7,6 +7,8 @@ parser = argparse.ArgumentParser(description='Make duplicate hcpe data unique')
 parser.add_argument('hcpe', help='the input hcpe')
 parser.add_argument('hcpe_uniq', help='the output hcpe')
 parser.add_argument('--average', action='store_true', help='aggregate data with the same position and move, make the evaluation value the average value, and make the result the mode')
+parser.add_argument('--keep-order', action='store_true', help='keep the order of first appearances')
+parser.add_argument('--shuffle', action='store_true', help='shuffle after removing duplicates')
 args = parser.parse_args()
 
 hcpes = np.fromfile(args.hcpe, HuffmanCodedPosAndEval)
@@ -16,7 +18,7 @@ if args.average:
     df = pd.concat([pd.DataFrame(hcpes['hcp']), pd.DataFrame(hcpes[['eval', 'bestMove16', 'gameResult', 'dummy']])], axis=1)
 
     # hcpとbestMove16でグループ化して平均を算出
-    df2 = df.groupby(list(range(32)) + ['bestMove16'], as_index=False).mean()
+    df2 = df.groupby(list(range(32)) + ['bestMove16'], as_index=False, sort=not args.keep_order).mean()
 
     # gameResultは最頻値に変換
     df2.loc[df2['gameResult'] >= 1.5, 'gameResult'] = 2
@@ -28,7 +30,14 @@ if args.average:
     hcpes2['bestMove16'] = df2['bestMove16']
     hcpes2['gameResult'] = df2['gameResult']
 else:
-    hcpes2 = np.unique(hcpes, axis=0)
+    if args.keep_order:
+        _, first_indices = np.unique(hcpes, axis=0, return_index=True)
+        hcpes2 = hcpes[np.sort(first_indices)]
+    else:
+        hcpes2 = np.unique(hcpes, axis=0)
+
+if args.shuffle:
+    np.random.shuffle(hcpes2)
 
 hcpes2.tofile(args.hcpe_uniq)
 print(len(hcpes2))
