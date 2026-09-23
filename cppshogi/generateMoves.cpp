@@ -632,6 +632,18 @@ namespace {
 	// 王手をかける手を生成する。
 	template <Color US, bool ALL> struct GenerateMoves<Check, US, ALL> {
 		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos) {
+			const Bitboard dcBB = pos.discoveredCheckBB();
+			return generateImpl<false>(moveList, pos, nullptr, dcBB, nullptr);
+		}
+
+		FORCE_INLINE ExtMove* operator () (ExtMove* moveList, const Position& pos, const CheckInfo& ci) {
+			return generateImpl<true>(moveList, pos, &ci.pinned, ci.dcBB, ci.checkBB);
+		}
+
+	private:
+		template <bool USE_CHECK_INFO>
+		FORCE_INLINE ExtMove* generateImpl(ExtMove* moveList, const Position& pos,
+			const Bitboard* knownPinned, const Bitboard& dcBB, const Bitboard* checkBB) {
 			ExtMove* curr = moveList;
 
 			// やねうら王の実装を参考にした
@@ -659,21 +671,23 @@ namespace {
 			// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
 			const Bitboard x =
 				(
-				(pos.bbOf(Pawn)   & pawnCheckTable(US, ksq)) |
-					(pos.bbOf(Lance)  & lanceCheckTable(US, ksq)) |
+					(pos.bbOf(Pawn) & pawnCheckTable(US, ksq)) |
+					(pos.bbOf(Lance) & lanceCheckTable(US, ksq)) |
 					(pos.bbOf(Knight) & knightCheckTable(US, ksq)) |
 					(pos.bbOf(Silver) & silverCheckTable(US, ksq)) |
 					(pos.goldsBB() & goldCheckTable(US, ksq)) |
 					(pos.bbOf(Bishop) & bishopCheckTable(US, ksq)) |
 					(pos.bbOf(Rook, Dragon)) | // ROOK,DRAGONは無条件全域
-					(pos.bbOf(Horse)  & horseCheckTable(US, ksq))
+					(pos.bbOf(Horse) & horseCheckTable(US, ksq))
 					) & pos.bbOf(US);
 
 			// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
 			// 指し手生成の段階では除外しなくても良いと思う。
 
-			const Bitboard y = pos.discoveredCheckBB();
+			const Bitboard y = dcBB;
 			const Bitboard target = ~pos.bbOf(US); // 自駒がない場所が移動対象升
+			constexpr Rank TRank4 = (US == Black ? Rank4 : Rank6);
+			const Bitboard promotionZone = inFrontMask<US, TRank4>();
 
 			// yのみ。ただしxかつyである可能性もある。
 			auto src = y;
@@ -693,32 +707,31 @@ namespace {
 					}
 					// 直接王手にもなるのでx & fromの場合、直線上の升への指し手を生成。
 					else if (x.isSet(from)) {
-						const PieceType pt = pieceToPieceType(pos.piece(from));
 						switch (pt) {
 						case Pawn: // 歩
 						{
-							if (pawnAttack(US, from).isSet(to)) {
-								// 成って王手
-								if (canPromote(US, makeRank(to))) {
-									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
-									// 成らない手を後に生成
-									if (ALL) {
-										(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-									}
-								}
-								else
+							// 成って王手
+							if (canPromote(US, makeRank(to))) {
+								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+								// 成らない手を後に生成
+								if (ALL) {
 									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
+								}
 							}
+							else
+								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							break;
 						}
 						case Silver: // 銀
 						{
-							if ((silverAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
+							const Bitboard silverBB = USE_CHECK_INFO ? checkBB[Silver] : silverAttack(opp, ksq);
+							if (silverBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
 							// 成って王手
-							if ((goldAttack(opp, ksq) & silverAttack(US, from)).isSet(to)) {
-								if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+							const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+							if (goldBB.isSet(to)) {
+								if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 									(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 								}
 							}
@@ -730,7 +743,8 @@ namespace {
 						case ProKnight: // 成桂
 						case ProSilver: // 成銀
 						{
-							if ((goldAttack(opp, ksq) & goldAttack(US, from)).isSet(to)) {
+							const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+							if (goldBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
 							break;
@@ -739,7 +753,7 @@ namespace {
 						{
 							// 玉が対角上にない場合
 							assert(abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from)));
-							if ((horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB())).isSet(to)) {
+							if (kingAttack(ksq).isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
 							break;
@@ -748,7 +762,7 @@ namespace {
 						{
 							// 玉が直線上にない場合
 							assert(makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from));
-							if ((dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB())).isSet(to)) {
+							if (kingAttack(ksq).isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
 							break;
@@ -768,7 +782,7 @@ namespace {
 			}
 
 			// yに被覆しないx
-			src = (x | y) ^ y;
+			src = y.notThisAnd(x);
 			while (src)
 			{
 				const Square from = src.firstOneFromSQ11();
@@ -778,42 +792,47 @@ namespace {
 				switch (pt) {
 				case Pawn: // 歩
 				{
+					constexpr SquareDelta Forward = (US == Black ? DeltaN : DeltaS);
+					const Square to = from + Forward;
+					assert(isInSquare(to));
+					assert(makeFile(from) == makeFile(to));
+
 					// 成って王手
-					Bitboard toBB = pawnAttack(US, from) & target;
-					FOREACH_BB(toBB, const Square to, {
+					if (target.isSet(to)) {
 						if (canPromote(US, makeRank(to))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 							// 成らない手を後に生成
 							if (ALL) {
-								if (pawnAttack(opp, ksq).isSet(to))
+								// PawnCheckTable由来なので、同じ筋なら不成でも直接王手になる。
+								if (makeFile(from) == makeFile(ksq))
 									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
 						}
 						else
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					});
+					}
 					break;
 				}
 				case Lance: // 香車
 				{
 					// 玉と筋が異なる場合
 					if (makeFile(ksq) != makeFile(from)) {
-						Bitboard toBB = goldAttack(opp, ksq) & lanceAttack(US, from, pos.occupiedBB()) & target;
+						const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+						Bitboard toBB = (goldBB & promotionZone) & lanceAttack(US, from, pos.occupiedBB()) & target;
 						FOREACH_BB(toBB, const Square to, {
-							// 成る
-							if (canPromote(US, makeRank(to))) {
-								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
-							}
-						});
+							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
+							});
 					}
 					// 筋が同じ場合
 					else {
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
-						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
-							const Square to = dstBB.firstOneFromSQ11();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit<false>() && dstBB.andIsAny(pos.bbOf(opp))) {
+							const Square to = dstBB.constFirstOneFromSQ11();
+							constexpr int BehindKingDelta = (US == Black ? 1 : -1);
 							// 成れる場合
-							if (pawnAttack(opp, ksq).isSet(to) && canPromote(US, makeRank(to))) {
+							if (static_cast<int>(to) - static_cast<int>(ksq) == BehindKingDelta
+								&& canPromote(US, makeRank(to))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 								// 成らない手を後に生成
 								if (ALL) {
@@ -831,32 +850,38 @@ namespace {
 				}
 				case Knight: // 桂馬
 				{
-					Bitboard toBB = knightAttack(opp, ksq) & knightAttack(US, from) & target;
+					const Bitboard destinations = knightAttack(US, from) & target;
+					const Bitboard knightBB = USE_CHECK_INFO ? checkBB[Knight] : knightAttack(opp, ksq);
+					Bitboard toBB = knightBB & destinations;
 					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					});
+						});
 					// 成って王手
-					toBB = goldAttack(opp, ksq) & knightAttack(US, from) & target;
+					const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+					toBB = goldBB & destinations;
 					FOREACH_BB(toBB, const Square to, {
 						if (canPromote(US, makeRank(to))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 						}
-					});
+						});
 					break;
 				}
 				case Silver: // 銀
 				{
-					Bitboard toBB = silverAttack(opp, ksq) & silverAttack(US, from) & target;
+					const Bitboard destinations = silverAttack(US, from) & target;
+					const Bitboard silverBB = USE_CHECK_INFO ? checkBB[Silver] : silverAttack(opp, ksq);
+					Bitboard toBB = silverBB & destinations;
 					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					});
+						});
 					// 成って王手
-					toBB = goldAttack(opp, ksq) & silverAttack(US, from) & target;
+					const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+					toBB = goldBB & destinations;
 					FOREACH_BB(toBB, const Square to, {
-						if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+						if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 							(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 						}
-					});
+						});
 					break;
 				}
 				case Gold: // 金
@@ -865,42 +890,42 @@ namespace {
 				case ProKnight: // 成桂
 				case ProSilver: // 成銀
 				{
-					Bitboard toBB = goldAttack(opp, ksq) & goldAttack(US, from) & target;
+					const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+					Bitboard toBB = goldBB & goldAttack(US, from) & target;
 					FOREACH_BB(toBB, const Square to, {
 						(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-					});
+						});
 					break;
 				}
 				case Bishop: // 角
 				{
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
-						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & bishopAttack(from, pos.occupiedBB()) & target;
-						const Bitboard bishopBB = bishopAttack(ksq, pos.occupiedBB());
+						const Bitboard occupied = pos.occupiedBB();
+						const Bitboard bishopBB = USE_CHECK_INFO ? checkBB[Bishop] : bishopAttack(ksq, occupied);
+						const Bitboard horseBB = USE_CHECK_INFO ? checkBB[Horse] : bishopBB | kingAttack(ksq);
+						const bool fromCanPromote = canPromote(US, makeRank(from));
+						Bitboard toBB = horseBB & bishopAttack(from, occupied) & target;
 						FOREACH_BB(toBB, const Square to, {
-							// 成る
-							if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+							if (canPromote(US, makeRank(to)) | fromCanPromote) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
-								if (ALL) {
-									if (bishopBB.isSet(to)) {
-										(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-									}
-
+								if (ALL && bishopBB.isSet(to)) {
+									(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 								}
 							}
 							else if (bishopBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
-						});
+							});
 					}
 					// 対角上にある場合
 					else {
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
-						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
-							const Square to = dstBB.firstOneFromSQ11();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit<false>() && dstBB.andIsAny(pos.bbOf(opp))) {
+							const Square to = dstBB.constFirstOneFromSQ11();
 							// 成って王手
-							if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 								// 成らない手を後に生成
 								if (ALL) {
@@ -918,11 +943,14 @@ namespace {
 				{
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
-						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & rookAttack(from, pos.occupiedBB()) & target;
-						const Bitboard rookBB = rookAttack(ksq, pos.occupiedBB());
+						const Bitboard occupied = pos.occupiedBB();
+						const Bitboard rookBB = USE_CHECK_INFO ? checkBB[Rook] : rookAttack(ksq, occupied);
+						const bool fromCanPromote = canPromote(US, makeRank(from));
+						const Bitboard dragonBB = USE_CHECK_INFO ? checkBB[Dragon] : rookBB | kingAttack(ksq);
+						Bitboard toBB = dragonBB & rookAttack(from, occupied) & target;
 						FOREACH_BB(toBB, const Square to, {
 							// 成る
-							if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+							if (canPromote(US, makeRank(to)) | fromCanPromote) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 								if (ALL) {
 									if (rookBB.isSet(to)) {
@@ -933,16 +961,16 @@ namespace {
 							else if (rookBB.isSet(to)) {
 								(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 							}
-						});
+							});
 					}
 					// 直線上にある場合
 					else {
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
-						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
-							const Square to = dstBB.firstOneFromSQ11();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit<false>() && dstBB.andIsAny(pos.bbOf(opp))) {
+							const Square to = dstBB.constFirstOneFromSQ11();
 							// 成って王手
-							if (canPromote(US, makeRank(to)) || canPromote(US, makeRank(from))) {
+							if (canPromote(US, makeRank(to)) | canPromote(US, makeRank(from))) {
 								(*moveList++).move = makePromoteMove<Capture>(pt, from, to, pos);
 								// 成らない手を後に生成
 								if (ALL) {
@@ -960,17 +988,18 @@ namespace {
 				{
 					// 玉が対角上にない場合
 					if (abs(makeFile(ksq) - makeFile(from)) != abs(makeRank(ksq) - makeRank(from))) {
-						Bitboard toBB = horseAttack(ksq, pos.occupiedBB()) & horseAttack(from, pos.occupiedBB()) & target;
+						const Bitboard horseBB = USE_CHECK_INFO ? checkBB[Horse] : horseAttack(ksq, pos.occupiedBB());
+						Bitboard toBB = horseBB & horseAttack(from, pos.occupiedBB()) & target;
 						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						});
+							});
 					}
 					// 対角上にある場合
 					else {
 						// 間にある駒が一つで、敵駒の場合
-						Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
-						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
-							const Square to = dstBB.firstOneFromSQ11();
+						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
+						if (dstBB.isOneBit<false>() && dstBB.andIsAny(pos.bbOf(opp))) {
+							const Square to = dstBB.constFirstOneFromSQ11();
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
 						}
 					}
@@ -980,22 +1009,23 @@ namespace {
 				{
 					// 玉が直線上にない場合
 					if (makeFile(ksq) != makeFile(from) && makeRank(ksq) != makeRank(from)) {
-						Bitboard toBB = dragonAttack(ksq, pos.occupiedBB()) & dragonAttack(from, pos.occupiedBB()) & target;
+						const Bitboard dragonBB = USE_CHECK_INFO ? checkBB[Dragon] : dragonAttack(ksq, pos.occupiedBB());
+						Bitboard toBB = dragonBB & dragonAttack(from, pos.occupiedBB()) & target;
 						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						});
+							});
 					}
 					// 直線上にある場合
 					else {
 						Bitboard toBB = kingAttack(ksq) & kingAttack(from) & target;
 						// 間にある駒が一つで、敵駒の場合
 						const Bitboard dstBB = betweenBB(from, ksq) & pos.occupiedBB();
-						if (dstBB.isOneBit() && dstBB & pos.bbOf(opp)) {
+						if (dstBB.isOneBit<false>() && dstBB.andIsAny(pos.bbOf(opp))) {
 							toBB |= dstBB;
 						}
 						FOREACH_BB(toBB, const Square to, {
 							(*moveList++).move = makeNonPromoteMove<Capture>(pt, from, to, pos);
-						});
+							});
 					}
 					break;
 				}
@@ -1003,14 +1033,65 @@ namespace {
 				}
 			}
 
-			const Bitboard pinned = pos.pinnedBB();
+			// 駒の移動による王手を1手以上生成した場合だけ、合法性フィルタを行う。
+			// 駒打ちはこの時点ではまだ生成していないため、ここにあるのはすべて盤上の駒の移動。
+			if (curr != moveList) {
+				// 自玉に対して pin されている駒の集合。
+				Bitboard computedPinned;
+				if (!USE_CHECK_INFO) {
+					computedPinned = pos.pinnedBB();
+					knownPinned = &computedPinned;
+				}
 
-			// pinされている駒の移動による自殺手を削除
-			while (curr != moveList) {
-				if (!pos.pseudoLegalMoveIsLegal<true, false>(curr->move, pinned))
-					curr->move = (--moveList)->move;
-				else
-					++curr;
+				// pinされている駒の移動による自殺手を削除
+				// x : 直接王手になり得る移動元の駒
+				// y : 開き王手(discovered check)になり得る移動元の駒
+				//
+				// 合法性の再確認が必要なのは、
+				//   1. 移動元が自玉に pin されている駒
+				//   2. 移動元が自玉自身
+				// のどちらかだけ。
+				//
+				// 生成候補 (x | y) にそのどちらも含まれなければ、
+				// 以下の指し手はすべて自玉に関する合法性判定を通るので、
+				// 個々の指し手に対するチェックを丸ごと省略できる。
+				if ((x | y).andIsAny(*knownPinned | pos.bbOf(King, US))) {
+					// x には自玉は含まれないため、自玉の移動が生成される可能性があるのは y 側だけ。
+					//
+					// 自玉自身を動かす開き王手候補がある場合は、
+					// pin 判定だけでは不十分で、移動先が相手駒に攻撃されていないことも確認する必要がある。
+					// そのため pseudoLegalMoveIsLegal<true, false>() で全候補を判定する。
+					//
+					// 第1テンプレート引数 true:
+					//   ここには駒打ちがないことが確定している。
+					// 第2テンプレート引数 false:
+					//   玉の移動が含まれる可能性があるため、玉かどうかの判定を省略できない。
+					if (y.andIsAny(pos.bbOf(King, US))) {
+						while (curr != moveList) {
+							if (!pos.pseudoLegalMoveIsLegal<true, false>(curr->move, *knownPinned))
+								curr->move = (--moveList)->move;
+							else
+								++curr;
+						}
+					}
+					else {
+						// 自玉の移動が含まれないことが確定している。
+						// この場合、各指し手について必要なのは
+						// 「pin されている駒が pin の直線から外れて自玉を王手にさらさないか」
+						// という判定だけ。
+						//
+						// 自玉位置はループ中に変化しないため、一度だけ取得して共有する。
+						const Square ourKing = pos.kingSquare(US);
+						while (curr != moveList) {
+							const Move move = curr->move;
+							assert(!move.isDrop());
+							if (pos.isPinnedIllegal(move.from(), move.to(), ourKing, *knownPinned))
+								curr->move = (--moveList)->move;
+							else
+								++curr;
+						}
+					}
+				}
 			}
 
 			// --- 駒打ちによる王手
@@ -1019,90 +1100,76 @@ namespace {
 			const Hand ourHand = pos.hand(US);
 
 			// 歩打ち
-			if (ourHand.exists<HPawn>()) {
-				Bitboard toBB = dropTarget & pawnAttack(opp, ksq);
-				// 二歩の回避
-				Bitboard pawnsBB = pos.bbOf(Pawn, US);
-				Square pawnsSquare;
-				foreachBB(pawnsBB, pawnsSquare, [&](const int part) {
-					toBB.set(part, toBB.p(part) & ~squareFileMask(pawnsSquare).p(part));
-				});
-
-				// 打ち歩詰めの回避
-				constexpr Rank TRank9 = (US == Black ? Rank9 : Rank1);
+			constexpr Rank TRank9 = (US == Black ? Rank9 : Rank1);
+			if (ourHand.exists<HPawn>() && makeRank(ksq) != TRank9) {
 				constexpr SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
-
-				// 相手玉が九段目なら、歩で王手出来ないので、打ち歩詰めを調べる必要はない。
-				if (makeRank(ksq) != TRank9) {
-					const Square pawnDropCheckSquare = ksq + TDeltaS;
-					assert(isInSquare(pawnDropCheckSquare));
-					if (toBB.isSet(pawnDropCheckSquare) && pos.piece(pawnDropCheckSquare) == Empty) {
-						if (!pos.isPawnDropCheckMate(US, pawnDropCheckSquare))
-							// ここで clearBit だけして MakeMove しないことも出来る。
-							// 指し手が生成される順番が変わり、王手が先に生成されるが、後で問題にならないか?
-							(*moveList++).move = makeDropMove(Pawn, pawnDropCheckSquare);
-						toBB.xorBit(pawnDropCheckSquare);
-					}
-				}
-
-				Square to;
-				FOREACH_BB(toBB, to, {
+				const Square to = ksq + TDeltaS;
+				assert(isInSquare(to));
+				if (pos.piece(to) == Empty
+					&& !pos.bbOf(Pawn, US).andIsAny(squareFileMask(to))
+					&& !pos.isPawnDropCheckMate(US, to)) {
 					(*moveList++).move = makeDropMove(Pawn, to);
-				});
+				}
 			}
 
 			// 香車打ち
 			if (ourHand.exists<HLance>()) {
-				Bitboard toBB = dropTarget & lanceAttack(opp, ksq, pos.occupiedBB());
+				const Bitboard lanceBB = USE_CHECK_INFO ? checkBB[Lance] : lanceAttack(opp, ksq, pos.occupiedBB());
+				Bitboard toBB = dropTarget & lanceBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Lance, to);
-				});
+					});
 			}
 
 			// 桂馬打ち
 			if (ourHand.exists<HKnight>()) {
-				Bitboard toBB = dropTarget & knightAttack(opp, ksq);
+				const Bitboard knightBB = USE_CHECK_INFO ? checkBB[Knight] : knightAttack(opp, ksq);
+				Bitboard toBB = dropTarget & knightBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Knight, to);
-				});
+					});
 			}
 
 			// 銀打ち
 			if (ourHand.exists<HSilver>()) {
-				Bitboard toBB = dropTarget & silverAttack(opp, ksq);
+				const Bitboard silverBB = USE_CHECK_INFO ? checkBB[Silver] : silverAttack(opp, ksq);
+				Bitboard toBB = dropTarget & silverBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Silver, to);
-				});
+					});
 			}
 
 			// 金打ち
 			if (ourHand.exists<HGold>()) {
-				Bitboard toBB = dropTarget & goldAttack(opp, ksq);
+				const Bitboard goldBB = USE_CHECK_INFO ? checkBB[Gold] : goldAttack(opp, ksq);
+				Bitboard toBB = dropTarget & goldBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Gold, to);
-				});
+					});
 			}
 
 			// 角打ち
 			if (ourHand.exists<HBishop>()) {
-				Bitboard toBB = dropTarget & bishopAttack(ksq, pos.occupiedBB());
+				const Bitboard bishopBB = USE_CHECK_INFO ? checkBB[Bishop] : bishopAttack(ksq, pos.occupiedBB());
+				Bitboard toBB = dropTarget & bishopBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Bishop, to);
-				});
+					});
 			}
 
 			// 飛車打ち
 			if (ourHand.exists<HRook>()) {
-				Bitboard toBB = dropTarget & rookAttack(ksq, pos.occupiedBB());
+				const Bitboard rookBB = USE_CHECK_INFO ? checkBB[Rook] : rookAttack(ksq, pos.occupiedBB());
+				Bitboard toBB = dropTarget & rookBB;
 				Square to;
 				FOREACH_BB(toBB, to, {
 					(*moveList++).move = makeDropMove(Rook, to);
-				});
+					});
 			}
 
 			return moveList;
@@ -1126,6 +1193,11 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos) {
 template <MoveType MT>
 ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to) {
 	return generateRecaptureMoves(moveList, pos, to, pos.turn());
+}
+ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci) {
+	return (pos.turn() == Black ?
+		GenerateMoves<Check, Black, true>()(moveList, pos, ci) :
+		GenerateMoves<Check, White, true>()(moveList, pos, ci));
 }
 
 // 明示的なインスタンス化

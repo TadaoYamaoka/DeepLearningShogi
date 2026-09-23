@@ -96,11 +96,17 @@ namespace {
     }
 }
 
-CheckInfo::CheckInfo(const Position& pos) {
+CheckInfo::CheckInfo(const Position& pos)
+    : CheckInfo(pos, pos.pinnedBB()) {}
+
+CheckInfo::CheckInfo(const Position& pos, const Bitboard& knownPinned) {
+    // knownPinned must belong to this exact position. Recompute only in debug builds.
+    assert(knownPinned == pos.pinnedBB());
+
     const Color them = oppositeColor(pos.turn());
     const Square ksq = pos.kingSquare(them);
 
-    pinned = pos.pinnedBB();
+    pinned = knownPinned;
     dcBB = pos.discoveredCheckBB();
 
     checkBB[Pawn     ] = pos.attacksFrom<Pawn  >(them, ksq);
@@ -197,6 +203,39 @@ bool Position::pseudoLegalMoveIsEvasion(const Move move, const Bitboard& pinned)
     // 移動、又は打った駒が、王手をさえぎるか、王手している駒を取る必要がある。
     target = betweenBB(checkSq, kingSquare(us)) | checkersBB();
     return target.isSet(to) && pseudoLegalMoveIsLegal<false, true>(move, pinned);
+}
+
+// 自玉が王手の場合、王手の指し手が逃げる手か判定を行う
+bool Position::checkMoveIsEvasion(const Move move) const {
+    const Color us = turn();
+    const Color them = oppositeColor(us);
+    const Square to = move.to();
+
+    const Square from = move.from();
+    const PieceType ptFrom = move.pieceTypeFrom();
+
+    if (ptFrom == King) {
+        Bitboard occ = occupiedBB();
+        occ.clearBit(from);
+        if (attackersToIsAny(them, to, occ))
+            // 王手から逃げていない。
+            return false;
+    }
+    else {
+        // 玉以外の駒を移動させたとき。
+        Bitboard target = checkersBB();
+        const Square checksq = target.firstOneFromSQ11();
+
+        if (target)
+            // 両王手なので、玉が逃げない手は駄目
+            return false;
+
+        target = betweenBB(checksq, kingSquare(us)) | checkersBB();
+        if (!target.isSet(to))
+            // 玉と、王手した駒との間に移動するか、王手した駒を取る以外は駄目。
+            return false;
+    }
+    return true;
 }
 
 // Searching: true なら探索時に内部で生成した手の合法手判定を行う。
