@@ -233,6 +233,8 @@ struct HuffmanCodedPosAndEval {
 };
 static_assert(sizeof(HuffmanCodedPosAndEval) == 38, "");
 
+void initMate1Ply();
+
 class Move;
 struct Thread;
 struct Searcher;
@@ -258,6 +260,9 @@ public:
     Bitboard bbOf(const PieceType pt1, const PieceType pt2) const                      { return bbOf(pt1) | bbOf(pt2); }
     Bitboard bbOf(const PieceType pt1, const PieceType pt2, const Color c) const       { return bbOf(pt1, pt2) & bbOf(c); }
     Bitboard bbOf(const PieceType pt1, const PieceType pt2, const PieceType pt3) const { return bbOf(pt1, pt2) | bbOf(pt3); }
+    Bitboard bbOf(const PieceType pt1, const PieceType pt2, const PieceType pt3, const Color c) const {
+        return bbOf(pt1, pt2, pt3) & bbOf(c);
+    }
     Bitboard bbOf(const PieceType pt1, const PieceType pt2, const PieceType pt3, const PieceType pt4) const {
         return bbOf(pt1, pt2, pt3) | bbOf(pt4);
     }
@@ -326,6 +331,7 @@ public:
     Bitboard attackersTo(const Color c, const Square sq) const { return attackersTo(c, sq, occupiedBB()); }
     Bitboard attackersTo(const Color c, const Square sq, const Bitboard& occupied) const;
     Bitboard attackersToExceptKing(const Color c, const Square sq) const;
+    Bitboard attackersToExceptKing(const Color c, const Square sq, const Bitboard& occupied) const;
     // todo: 利きをデータとして持ったとき、attackersToIsAny() を高速化すること。
     bool attackersToIsAny(const Color c, const Square sq) const { return attackersTo(c, sq).isAny(); }
     bool attackersToIsAny(const Color c, const Square sq, const Bitboard& occupied) const {
@@ -355,6 +361,31 @@ public:
     }
     Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq) const { return attacksFrom(pt, c, sq, occupiedBB()); }
     static Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied);
+    template <Color US> Bitboard attacksAroundKingNonSlider() const;
+    template <Color US> Bitboard attacksAroundKingSlider() const;
+    template <Color US> Bitboard attacksAroundKingSlider(const Bitboard& occ) const;
+    template <Color US> Bitboard attacksAroundKingNonSliderInAvoiding(Square avoid_from) const;
+    template <Color US> Bitboard attacksAroundKingSliderInAvoiding(Square avoid_from, const Bitboard& occ) const;
+    // avoidの駒の利きだけは無視して玉周辺の敵の利きを考えるバージョン。
+    // この関数ではわからないため、toの地点から発生する利きはこの関数では感知しない。
+    // 王手がかかっている局面において逃げ場所を見るときに裏側からのpinnerによる攻撃を考慮して、玉はいないものとして
+    // 考える必要があることに注意せよ。(slide = pos.slide() ^ from ^ king | to) みたいなコードが必要
+    // avoidの駒の利きだけは無視して玉周辺の利きを考えるバージョン。
+    template <Color US> Bitboard attacksAroundKingInAvoiding(const Square from, const Bitboard& occ) const
+    {
+        return attacksAroundKingNonSliderInAvoiding<US>(from)
+            | attacksAroundKingSliderInAvoiding<US>(from, occ);
+    }
+    // 歩が打てるかの判定用。
+    // 歩を持っているかの判定も含む。
+    template<Color US> bool canPawnDrop(const Square sq) const {
+        // 歩を持っていて、行き所があり、二歩ではない。
+        constexpr Rank LastRank = (US == Black ? Rank1 : Rank9);
+        return hand(US).exists<HPawn>() > 0
+            && makeRank(sq) != LastRank
+            && !(bbOf(Pawn, US) & fileMask(makeFile(sq)));
+    }
+    Bitboard pinnedPieces(const Color us, const Square from, const Square to) const;
 
     // 次の手番
     Color turn() const { return turn_; }
@@ -378,8 +409,8 @@ public:
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
     void undoMove(const Move move);
 
-    template <Color US> Move mateMoveIn1Ply();
-    Move mateMoveIn1Ply();
+    template <Color US, bool Additional> Move mateMoveIn1Ply();
+    template <bool Additional = true> Move mateMoveIn1Ply();
 
     Ply gamePly() const         { return gamePly_; }
 

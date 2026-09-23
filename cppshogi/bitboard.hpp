@@ -567,6 +567,9 @@ template <Color C, Rank R> inline Bitboard inFrontMask() {
                : R == Rank8 ? InFrontOfRank8White
                : /*R == Rank9 ?*/ InFrontOfRank9White));
 }
+// 敵陣を表現するBitboard。
+const Bitboard EnemyField[ColorNum] = { rankMask<Rank1>() | rankMask<Rank2>() | rankMask<Rank3>() , rankMask<Rank7>() | rankMask<Rank8>() | rankMask<Rank9>() };
+inline const Bitboard enemyField(Color c) { return EnemyField[c]; }
 
 // メモリ節約をせず、無駄なメモリを持っている。
 extern Bitboard LanceAttack[ColorNum][SquareNum][128];
@@ -684,6 +687,7 @@ inline Bitboard pawnAttack(const Color c, const Square sq) { return PawnAttack[c
 // ただし、from に歩以外の駒の Bitboard を入れると、別の筋のビットが立ってしまうことがあるので、
 // 別の筋のビットが立たないか、立っても問題ないかを確認して使用すること。
 template <Color US> inline Bitboard pawnAttack(const Bitboard& from) { return (US == Black ? (from >> 1) : (from << 1)); }
+inline Bitboard pawnAttack(Color c, const Bitboard& from) { return (c == Black ? (from >> 1) : (from << 1)); }
 inline Bitboard kingAttack(const Square sq) { return KingAttack[sq]; }
 inline Bitboard dragonAttack(const Square sq, const Bitboard& occupied) { return rookAttack(sq, occupied) | kingAttack(sq); }
 inline Bitboard horseAttack(const Square sq, const Bitboard& occupied) { return bishopAttack(sq, occupied) | kingAttack(sq); }
