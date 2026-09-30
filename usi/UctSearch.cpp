@@ -953,9 +953,9 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 	std::string pv;
 	int cp;
 	int depth;
-	Move move;
+	Move move = Move::moveNone();
 	float best_wp;
-	Move ponderMove;
+	Move ponderMove = Move::moveNone();
 
 	if (multi_pv == 1) {
 		// 最大の子ノードを取得
@@ -1647,7 +1647,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrtf(static_cast<const float>(sum));
+	const float sqrt_sum = sqrtf(static_cast<float>(sum));
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;

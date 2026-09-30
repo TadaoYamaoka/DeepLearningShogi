@@ -457,7 +457,7 @@ void setPosition(Position& pos, std::istringstream& ssCmd) {
     while (ssCmd >> token) {
         const Move move = usiToMove(pos, token);
         if (!move) break;
-        pos.searcher()->states->push_back(StateInfo());
+        pos.searcher()->states->emplace_back();
         pos.doMove(move, pos.searcher()->states->back());
     }
 }
