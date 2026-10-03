@@ -25,7 +25,8 @@
 #include "overloadEnumOperators.hpp"
 
 enum Color {
-    Black, White, ColorNum
+    Black, White, ColorNum,
+    PieceBox = 2, ExColorNum = 4,
 };
 OverloadEnumOperators(Color);
 
