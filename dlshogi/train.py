@@ -53,6 +53,11 @@ def main(*argv):
     parser.add_argument('--swa_n_avr', type=int, default=10)
     parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
     parser.add_argument('--amp_dtype', type=str, default='float16', choices=['float16', 'bfloat16'], help='Data type for automatic mixed precision')
+    parser.add_argument('--use_compile', action='store_true', help='Use torch.compile')
+    parser.add_argument('--compile_backend', type=str, help='Backend for torch.compile')
+    parser.add_argument('--compile_mode', type=str, help='Mode for torch.compile')
+    parser.add_argument('--compile_fullgraph', action='store_true', help='Use fullgraph=True for torch.compile')
+    parser.add_argument('--compile_dynamic', action='store_true', help='Use dynamic=True for torch.compile')
     parser.add_argument('--use_average', action='store_true')
     parser.add_argument('--use_evalfix', action='store_true')
     parser.add_argument('--temperature', type=float, default=1.0)
@@ -178,6 +183,27 @@ def main(*argv):
         epoch = 0
         t = 0
 
+    compiled_model = model
+    if args.use_compile:
+        if not hasattr(torch, 'compile'):
+            raise RuntimeError('torch.compile is not available. Please use PyTorch 2.0 or later.')
+
+        compile_kwargs = {}
+        compile_backend = args.compile_backend
+        if compile_backend is None and os.name == 'nt':
+            compile_backend = 'aot_eager'
+        if compile_backend:
+            compile_kwargs['backend'] = compile_backend
+        if args.compile_mode:
+            compile_kwargs['mode'] = args.compile_mode
+        if args.compile_fullgraph:
+            compile_kwargs['fullgraph'] = True
+        if args.compile_dynamic:
+            compile_kwargs['dynamic'] = True
+
+        logging.info('use torch.compile({})'.format(', '.join(f'{key}={value}' for key, value in compile_kwargs.items())))
+        compiled_model = torch.compile(model, **compile_kwargs)
+
     logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 
     logging.info('Reading training data')
@@ -207,7 +233,7 @@ def main(*argv):
         truth = t >= 0.5
         return pred.eq(truth).sum().item() / len(t)
 
-    def test(model):
+    def test(eval_model):
         steps = 0
         sum_test_loss1 = 0
         sum_test_loss2 = 0
@@ -217,10 +243,10 @@ def main(*argv):
         sum_test_accuracy2 = 0
         sum_test_entropy1 = 0
         sum_test_entropy2 = 0
-        model.eval()
+        eval_model.eval()
         with torch.no_grad():
             for x1, x2, t1, t2, value in test_dataloader:
-                y1, y2 = model(x1, x2)
+                y1, y2 = eval_model(x1, x2)
 
                 steps += 1
                 loss1 = cross_entropy_loss(y1, t1).mean()
@@ -295,9 +321,9 @@ def main(*argv):
             t += 1
             steps += 1
             with torch.cuda.amp.autocast(enabled=args.use_amp, dtype=amp_dtype):
-                model.train()
+                compiled_model.train()
 
-                y1, y2 = model(x1, x2)
+                y1, y2 = compiled_model(x1, x2)
 
                 model.zero_grad()
                 loss1 = cross_entropy_loss_with_soft_target(y1, t1)
@@ -329,11 +355,11 @@ def main(*argv):
 
             # print train loss
             if t % eval_interval == 0:
-                model.eval()
+                compiled_model.eval()
 
                 x1, x2, t1, t2, value = test_dataloader.sample()
                 with torch.no_grad():
-                    y1, y2 = model(x1, x2)
+                    y1, y2 = compiled_model(x1, x2)
 
                     loss1 = cross_entropy_loss(y1, t1).mean()
                     loss2 = bce_with_logits_loss(y2, t2)
@@ -368,7 +394,7 @@ def main(*argv):
         sum_loss_epoch += sum_loss
 
         # print train loss and test loss for each epoch
-        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(model)
+        test_loss1, test_loss2, test_loss3, test_loss, test_accuracy1, test_accuracy2, test_entropy1, test_entropy2 = test(compiled_model)
 
         logging.info('epoch = {}, steps = {}, train loss avr = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test loss = {:.07f}, {:.07f}, {:.07f}, {:.07f}, test accuracy = {:.07f}, {:.07f}, test entropy = {:.07f}, {:.07f}'.format(
             epoch, t,

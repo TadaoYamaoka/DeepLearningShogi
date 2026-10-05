@@ -135,7 +135,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		// 敵陣三段目以内の駒(10枚までの残り枚数)
 		const int ownPiecesCount = (position.bbOf(c) & opponentsField).popCount() - kingCount;
 		const int restOppFieldNum = 10 - ownPiecesCount;
-		if (restOppFieldNum < MAX_NYUGYOKU_OPP_FIELD) {
+		if (restOppFieldNum < static_cast<int>(MAX_NYUGYOKU_OPP_FIELD)) {
 			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + std::max(0, restOppFieldNum));
 		}
 
@@ -147,7 +147,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 			+ numHSilver + numHGold
 			+ (ownBigPiecesCount + numHBishop + numHRook) * 5;
 		const int restPoint = (c == Black ? 28 : 27) - val;
-		if (restPoint < MAX_NYUGYOKU_SCORE) {
+		if (restPoint < static_cast<int>(MAX_NYUGYOKU_SCORE)) {
 			set_features2(features2, MAX_FEATURES2_HAND_NUM + 1 + (int)c2 * MAX_FEATURES2_NYUGYOKU_NUM + 1 + MAX_NYUGYOKU_OPP_FIELD + std::max(0, restPoint));
 		}
 #endif

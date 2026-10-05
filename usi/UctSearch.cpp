@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <climits>
+#include <cstdint>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -15,11 +16,13 @@
 #include <thread>
 #include <random>
 #include <queue>
+#include <vector>
 
 #include "fastmath.h"
 #include "Message.h"
 #include "UctSearch.h"
 #include "Node.h"
+#include "PolicyValueCache.h"
 #include "mate.h"
 #ifdef PV_MATE_SEARCH
 #include "PvMateSearch.h"
@@ -81,9 +84,11 @@ void WaitPrepareMultiPonder()
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex mutexes[MUTEX_NUM];
-inline std::mutex& GetPositionMutex(const Position* pos)
+inline std::mutex& GetNodeMutex(const uct_node_t* node)
 {
-	return mutexes[pos->getKey() & (MUTEX_NUM - 1)];
+	// アラインメントで常に0になる下位ビットを除いてstripeを選択する。
+	const auto address = reinterpret_cast<std::uintptr_t>(node);
+	return mutexes[(address / alignof(uct_node_t)) & (MUTEX_NUM - 1)];
 }
 
 
@@ -208,30 +213,38 @@ static bool ExtendTime(void);
 // 探索打ち切りの確認
 static bool InterruptionCheck(void);
 
+template <typename T>
+inline void atomic_fetch_add_relaxed(std::atomic<T>* obj, T arg) {
+	T expected = obj->load(std::memory_order_relaxed);
+	while (!obj->compare_exchange_weak(expected, expected + arg,
+		std::memory_order_relaxed, std::memory_order_relaxed))
+		;
+}
+
 // Virtual Lossの加算
 inline void
 AddVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count += VIRTUAL_LOSS;
-	child->move_count += VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->move_count, VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->move_count, VIRTUAL_LOSS);
 }
 
 // Virtual Lossを減算
 inline void
 SubVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	current->move_count -= VIRTUAL_LOSS;
-	child->move_count -= VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->move_count, -VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->move_count, -VIRTUAL_LOSS);
 }
 
 // 探索結果の更新
 inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
-	atomic_fetch_add(&current->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
-	atomic_fetch_add(&child->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) child->move_count += 1 - VIRTUAL_LOSS;
+	atomic_fetch_add_relaxed(&current->win, (WinType)result);
+	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&current->move_count, 1 - VIRTUAL_LOSS);
+	atomic_fetch_add_relaxed(&child->win, (WinType)result);
+	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&child->move_count, 1 - VIRTUAL_LOSS);
 }
 
 typedef pair<uct_node_t*, unsigned int> trajectory_t;
@@ -250,6 +263,7 @@ struct batch_element_t {
 	uct_node_t* node;
 	Color color;
 	float* value_win;
+	Key key;
 };
 
 class UCTSearcher;
@@ -306,6 +320,7 @@ private:
 	mutex mutex_gpu;
 };
 UCTSearcherGroup* search_groups;
+static PolicyValueCache policy_value_cache;
 
 class UCTSearcher {
 public:
@@ -440,7 +455,7 @@ private:
 	// UCB値が最大の子ノードを返す
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
-	void QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
+	bool QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
 	// ノードを評価
 	void EvalNode();
 
@@ -513,6 +528,11 @@ void SetThread(const int new_thread[max_gpu], const int new_policy_value_batch_m
 			search_groups[i].Initialize(new_thread[i], i, policy_value_batch_maxsize);
 		}
 	}
+}
+
+void SetDnnCacheSize(const size_t capacity)
+{
+	policy_value_cache.SetCapacity(capacity);
 }
 
 void NewGame()
@@ -933,9 +953,9 @@ std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
 	std::string pv;
 	int cp;
 	int depth;
-	Move move;
+	Move move = Move::moveNone();
 	float best_wp;
-	Move ponderMove;
+	Move ponderMove = Move::moveNone();
 
 	if (multi_pv == 1) {
 		// 最大の子ノードを取得
@@ -1155,7 +1175,7 @@ ExpandRoot(const Position *pos)
 //////////////////////////////////////
 //  ノードをキューに追加            //
 //////////////////////////////////////
-void
+bool
 UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
 {
 	//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
@@ -1164,6 +1184,16 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 	/* if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
 		std::cout << "error" << std::endl;
 	}*/
+	Key key = 0;
+	if (policy_value_cache.IsEnabled()) {
+		key = pos->getKey();
+		child_node_t* uct_child = node->child.get();
+		if (policy_value_cache.Lookup(key, node->child_num, *value_win,
+			[uct_child](const size_t i, const float policy) { uct_child[i].nnrate = policy; })) {
+			return true;
+		}
+	}
+
 	// set all zero
 #ifdef ONNXRUNTIME
 	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
@@ -1174,12 +1204,13 @@ UCTSearcher::QueuingNode(const Position *pos, uct_node_t* node, float* value_win
 #endif
 
 	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win };
+	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win, key };
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
 #endif
 	current_policy_value_batch_index++;
+	return false;
 }
 
 // 探索回数が最も多い手と次に多い手を求める
@@ -1269,8 +1300,10 @@ UCTSearcher::ParallelUctSearch()
 	if (!current_root->IsEvaled()) {
 		current_policy_value_batch_index = 0;
 		float value_win;
-		QueuingNode(pos_root, current_root, &value_win);
-		EvalNode();
+		if (QueuingNode(pos_root, current_root, &value_win))
+			current_root->SetEvaled();
+		else
+			EvalNode();
 	}
 	UNLOCK_EXPAND;
 
@@ -1306,7 +1339,7 @@ UCTSearcher::ParallelUctSearch()
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
-				atomic_fetch_add(&po_info.count, 1);
+				po_info.count.fetch_add(1);
 			}
 			else {
 				// 破棄した探索経路を保存
@@ -1424,26 +1457,29 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	auto& trajectories = visitor.trajectories;
 
 	// 現在見ているノードをロック
-	auto& mutex = GetPositionMutex(pos);
-	mutex.lock();
+	std::unique_lock<std::mutex> lock(GetNodeMutex(current));
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
 	if (!current->child_nodes) current->InitChildNodes();
 	// UCB値最大の手を求める
 	const unsigned int next_index = SelectMaxUcbChild(parent, current);
-	// 選んだ手を着手
-	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
-
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
-	// ノードの展開の確認
-	if (!current->child_nodes[next_index]) {
-		// ノードの作成
-		uct_node_t* child_node = current->CreateChildNode(next_index);
-		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
+	// ノードの展開確認と作成は同じロック区間で行う
+	const bool created_child = !current->child_nodes[next_index];
+	uct_node_t* child_node = created_child
+		? current->CreateChildNode(next_index)
+		: current->child_nodes[next_index].get();
+	const Move selected_move = uct_child[next_index].move;
+	lock.unlock();
 
-		// 現在見ているノードのロックを解除
-		mutex.unlock();
+	// Positionはスレッドローカルなので、着手はノードのロック外で行う
+	StateInfo st;
+	pos->doMove(selected_move, st);
+
+	// ノードの展開の確認
+	if (created_child) {
+		// ノードの作成
+		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -1533,21 +1569,20 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 				else
 				{
 					// ノードをキューに追加
-					QueuingNode(pos, child_node, &visitor.value_win);
-					return QUEUING;
+					if (QueuingNode(pos, child_node, &visitor.value_win))
+						result = 1.0f - visitor.value_win;
+					else
+						return QUEUING;
 				}
 			}
 		}
 		child_node->SetEvaled();
 	}
 	else {
-		// 現在見ているノードのロックを解除
-		mutex.unlock();
-
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		uct_node_t* next_node = current->child_nodes[next_index].get();
+		uct_node_t* next_node = child_node;
 
 		// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
 		if (!next_node->IsEvaled())
@@ -1612,7 +1647,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	max_value = -FLT_MAX;
 
-	const float sqrt_sum = sqrtf(static_cast<const float>(sum));
+	const float sqrt_sum = sqrtf(static_cast<float>(sum));
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
@@ -1665,7 +1700,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	}
 	else {
 		// for FPU reduction
-		atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
+		atomic_fetch_add_relaxed(&current->visited_nnrate, uct_child[max_child].nnrate);
 	}
 
 	return max_child;
@@ -1742,6 +1777,10 @@ void UCTSearcher::EvalNode() {
 			}
 		}
 #endif
+		if (policy_value_cache.IsEnabled()) {
+			policy_value_cache.Store(policy_value_batch[i].key, *policy_value_batch[i].value_win, child_num,
+				[uct_child](const size_t j) { return uct_child[j].nnrate; });
+		}
 		node->SetEvaled();
 	}
 }

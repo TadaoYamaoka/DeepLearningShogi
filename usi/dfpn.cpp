@@ -588,9 +588,9 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 	while (searchedNode < maxSearchNode && !stop) {
 		++entry.num_searched;
 
-		Move best_move;
-		int thpn_child;
-		int thdn_child;
+		Move best_move = Move::moveNone();
+		int thpn_child = 0;
+		int thdn_child = 0;
 
 		// expand and compute pn(n) and dn(n);
 		if (or_node) {

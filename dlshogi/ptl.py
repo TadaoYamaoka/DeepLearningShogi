@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgres
 from lightning.pytorch.cli import LightningCLI
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, get_worker_info
 
 from dlshogi import cppshogi, serializers
 from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
@@ -32,16 +32,25 @@ class HcpeDataset(Dataset):
     def __getitems__(self, indexes):
         batch_size = len(indexes)
         hcpevec = self.hcpe[indexes]
+        pin_memory = get_worker_info() is None
 
         features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES1_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES2_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
-        move = torch.empty((batch_size), dtype=torch.int64, pin_memory=True)
-        result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        move = torch.empty((batch_size), dtype=torch.int64, pin_memory=pin_memory)
+        result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
+        value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
 
         cppshogi.hcpe_decode_with_value(
             hcpevec,
@@ -56,13 +65,25 @@ class HcpeDataset(Dataset):
 
 
 class Hcpe3Dataset(Dataset):
-    def __init__(self, files, use_average, use_evalfix, temperature, patch, cache):
+    def __init__(
+        self,
+        files,
+        use_average,
+        use_evalfix,
+        temperature,
+        patch,
+        cache,
+        decode_threads=2,
+    ):
         self.files = files
         self.use_average = use_average
         self.use_evalfix = use_evalfix
         self.temperature = temperature
         self.patch = patch
         self.cache = cache
+        self.decode_threads = decode_threads
+        self.loaded_pid = None
+        self.loaded_worker_id = None
         self.load()
 
     def load(self):
@@ -77,9 +98,23 @@ class Hcpe3Dataset(Dataset):
             self.cache,
             logger,
         )
+        self.loaded_pid = os.getpid()
+        self.loaded_worker_id = None
         if self.use_average:
             logger.info("position num before preprocessing = {}".format(actual_len))
         logger.info("position num = {}".format(self.len))
+
+    def ensure_loaded(self):
+        if not self.cache:
+            return
+
+        worker_info = get_worker_info()
+        worker_id = worker_info.id if worker_info else None
+        pid = os.getpid()
+        if self.loaded_pid != pid or self.loaded_worker_id != worker_id:
+            cppshogi.hcpe3_load_cache(self.cache)
+            self.loaded_pid = pid
+            self.loaded_worker_id = worker_id
 
     def __len__(self):
         return self.len
@@ -87,20 +122,30 @@ class Hcpe3Dataset(Dataset):
     def __getitems__(self, indexes):
         batch_size = len(indexes)
         indexes = np.array(indexes, dtype=np.uint64)
+        self.ensure_loaded()
+        pin_memory = get_worker_info() is None
 
         features1 = torch.empty(
-            (batch_size, FEATURES1_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES1_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         features2 = torch.empty(
-            (batch_size, FEATURES2_NUM, 9, 9), dtype=torch.float32, pin_memory=True
+            (batch_size, FEATURES2_NUM, 9, 9),
+            dtype=torch.float32,
+            pin_memory=pin_memory,
         )
         probability = torch.empty(
             (batch_size, 9 * 9 * MAX_MOVE_LABEL_NUM),
             dtype=torch.float32,
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
-        result = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
-        value = torch.empty((batch_size, 1), dtype=torch.float32, pin_memory=True)
+        result = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
+        value = torch.empty(
+            (batch_size, 1), dtype=torch.float32, pin_memory=pin_memory
+        )
 
         cppshogi.hcpe3_decode_with_value(
             indexes,
@@ -109,12 +154,15 @@ class Hcpe3Dataset(Dataset):
             probability.numpy(),
             result.numpy(),
             value.numpy(),
+            self.decode_threads,
         )
 
         return features1, features2, probability, result, value
 
 
 def collate(data):
+    # DataLoader calls Dataset.__getitems__(indices), which already returns
+    # a fully batched tuple of tensors. Do not apply default_collate here.
     return data
 
 
@@ -124,15 +172,34 @@ class DataModule(pl.LightningDataModule):
         train_files,
         val_files,
         batch_size=1024,
+        drop_last=True,
         val_batch_size=1024,
         use_average=False,
         use_evalfix=False,
         temperature=1.0,
         patch=None,
         cache=None,
+        num_workers=None,
+        prefetch_factor=None,
+        persistent_workers=None,
     ):
         super().__init__()
         self.save_hyperparameters()
+        if num_workers is not None and num_workers > 0:
+            if not cache:
+                raise ValueError("cache is required when num_workers > 0")
+            if not os.path.isfile(cache):
+                raise ValueError("cache file is required when num_workers > 0")
+        elif prefetch_factor is not None or persistent_workers:
+            raise ValueError(
+                "prefetch_factor and persistent_workers require num_workers > 0"
+            )
+
+        if num_workers is not None and num_workers <= 0:
+            if prefetch_factor is not None:
+                raise ValueError("prefetch_factor requires num_workers > 0")
+            if persistent_workers:
+                raise ValueError("persistent_workers requires num_workers > 0")
 
     def setup(self, stage: str):
         # Assign train/val datasets for use in dataloaders
@@ -142,8 +209,12 @@ class DataModule(pl.LightningDataModule):
                 self.hparams.use_average,
                 self.hparams.use_evalfix,
                 self.hparams.temperature,
-                self.hparams.patch,
-                self.hparams.cache,
+                self.hparams.get("patch"),
+                self.hparams.get("cache"),
+                1
+                if self.hparams.get("num_workers") is not None
+                and self.hparams.num_workers > 0
+                else 2,
             )
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
@@ -152,11 +223,23 @@ class DataModule(pl.LightningDataModule):
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
     def train_dataloader(self):
+        kwargs = {}
+        if self.hparams.get("num_workers") is not None:
+            kwargs["num_workers"] = self.hparams.num_workers
+            if self.hparams.num_workers > 0:
+                kwargs["pin_memory"] = True
+        if self.hparams.get("prefetch_factor") is not None:
+            kwargs["prefetch_factor"] = self.hparams.prefetch_factor
+        if self.hparams.get("persistent_workers") is not None:
+            kwargs["persistent_workers"] = self.hparams.persistent_workers
+
         return DataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
+            drop_last=self.hparams.drop_last,
             collate_fn=collate,
+            **kwargs,
         )
 
     def val_dataloader(self):
@@ -207,6 +290,11 @@ class Model(pl.LightningModule):
         lr_scheduler_interval="epoch",
         model_filename=None,
         resume_model=None,
+        use_compile=False,
+        compile_backend=None,
+        compile_mode=None,
+        compile_fullgraph=False,
+        compile_dynamic=False,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -219,8 +307,42 @@ class Model(pl.LightningModule):
                 self.model, multi_avg_fn=get_ema_multi_avg_fn(ema_decay)
             )
             self.ema_model.requires_grad_(False)
+        self._set_forward_model(self.model)
         self.validation_step_outputs = defaultdict(list)
         self.val_lambda = val_lambda
+
+    def _compile_model(self, model):
+        if not self.hparams.use_compile:
+            return model
+        if not hasattr(torch, "compile"):
+            raise RuntimeError("torch.compile is not available. Please use PyTorch 2.0 or later.")
+
+        compile_kwargs = {}
+        compile_backend = self.hparams.get("compile_backend")
+        if compile_backend is None and os.name == "nt":
+            compile_backend = "aot_eager"
+        if compile_backend:
+            compile_kwargs["backend"] = compile_backend
+        compile_mode = self.hparams.get("compile_mode")
+        if compile_mode:
+            compile_kwargs["mode"] = compile_mode
+        if self.hparams.compile_fullgraph:
+            compile_kwargs["fullgraph"] = True
+        if self.hparams.compile_dynamic:
+            compile_kwargs["dynamic"] = True
+
+        logging.getLogger("lightning.pytorch.core").info(
+            "use torch.compile({})".format(
+                ", ".join(f"{key}={value}" for key, value in compile_kwargs.items())
+            )
+        )
+        return torch.compile(model, **compile_kwargs)
+
+    def _set_forward_model(self, model):
+        object.__setattr__(self, "_forward_model", self._compile_model(model))
+
+    def forward(self, features1, features2):
+        return self._forward_model(features1, features2)
 
     def on_train_epoch_start(self):
         # update val_lambda
@@ -233,7 +355,7 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         features1, features2, probability, result, value = batch
-        y1, y2 = self.model(features1, features2)
+        y1, y2 = self(features1, features2)
         loss1 = cross_entropy_loss_with_soft_target(y1, probability).mean()
         loss2 = bce_with_logits_loss(y2, result)
         loss3 = bce_with_logits_loss(y2, value)
@@ -295,7 +417,7 @@ class Model(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         features1, features2, move, result, value = batch
-        y1, y2 = self.model(features1, features2)
+        y1, y2 = self(features1, features2)
         loss1 = cross_entropy_loss(y1, move).mean()
         loss2 = bce_with_logits_loss(y2, result)
         loss3 = bce_with_logits_loss(y2, value)
@@ -332,6 +454,7 @@ class Model(pl.LightningModule):
         if self.hparams.use_ema:
             self.tmp_model = self.model
             self.model = self.ema_model
+            self._set_forward_model(self.model)
         return super().on_test_start()
 
     def test_step(self, batch, batch_idx):
@@ -347,6 +470,7 @@ class Model(pl.LightningModule):
         super().on_test_end()
         if self.hparams.use_ema:
             self.model = self.tmp_model
+            self._set_forward_model(self.model)
             del self.tmp_model
 
 

@@ -65,7 +65,7 @@ INFO_RE = re.compile(r"^info\b")
 @dataclass
 class PVInfo:
     multipv: int
-    score: int          # side-to-move centipawns; mate is mapped to +/- mate_score
+    score: int          # side-to-move centipawns; mate is mapped near +/- mate_score
     pv: List[str]
 
 
@@ -133,8 +133,12 @@ def parse_usi_info(line: str, mate_score: int) -> Optional[PVInfo]:
                 except ValueError:
                     return None
             elif score_kind == "mate":
-                # mate +N / N means winning mate for side to move; -N losing mate.
-                score = -mate_score if score_value.startswith('-') else mate_score
+                if score_value in {"+", "-"}:
+                    score = -mate_score if score_value == "-" else mate_score
+                else:
+                    mate_moves = int(score_value)
+                    score_abs = max(0, mate_score - abs(mate_moves))
+                    score = -score_abs if mate_moves < 0 else score_abs
             i += 3
             continue
         if tok == "pv":
@@ -480,7 +484,7 @@ def main() -> None:
     parser.add_argument("--inc", type=int, default=0, help="increment per move in milliseconds")
     parser.add_argument("--draw", type=int, default=512, help="max move_number before max-move draw flag")
     parser.add_argument("--resign", type=int, help="resign when selected eval <= -resign")
-    parser.add_argument("--mate-score", type=int, default=30000, help="cp value used for mate scores")
+    parser.add_argument("--mate-score", type=int, default=32000, help="base cp value used for mate scores")
     parser.add_argument("--visits-sum", type=int, default=65535, help="sum of visitNum over candidates at each position")
     parser.add_argument("--temperature", type=float, default=100.0, help="softmax temperature in centipawns; 0 => all visits to best")
     parser.add_argument("--eval-drop-threshold", type=int, default=500,

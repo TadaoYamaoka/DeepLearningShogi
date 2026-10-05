@@ -7,6 +7,7 @@
 #include <limits>
 #include <numeric>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 #include <omp.h>
@@ -112,6 +113,11 @@ std::vector<TrainingData> trainingData;
 // 重複チェック用 局面に対応するtrainingDataのインデックスを保持
 std::unordered_map<HuffmanCodedPos, unsigned int> duplicates;
 
+std::ofstream hcpe3_cache_writer;
+std::vector<size_t> hcpe3_cache_writer_pos;
+size_t hcpe3_cache_writer_num = 0;
+std::string hcpe3_cache_writer_path;
+
 void __hcpe3_create_cache(const std::string& filepath) {
     std::ofstream ofs(filepath, std::ios::binary);
 
@@ -137,10 +143,9 @@ void __hcpe3_create_cache(const std::string& filepath) {
         ofs.write((const char*)&body, sizeof(body));
 
         for (const auto kv : hcpe3.candidates) {
-            Hcpe3CacheCandidate candidate{
-                kv.first,
-                kv.second
-            };
+            Hcpe3CacheCandidate candidate{};
+            candidate.move16 = kv.first;
+            candidate.prob = kv.second;
             ofs.write((const char*)&candidate, sizeof(candidate));
         }
     }
@@ -154,17 +159,143 @@ void __hcpe3_create_cache(const std::string& filepath) {
     std::unordered_map<HuffmanCodedPos, unsigned int>(duplicates).swap(duplicates);
 }
 
+// hcpe3キャッシュのストリーミング書き込みを開始する
+void __hcpe3_cache_write_start(const std::string& filepath, const size_t num) {
+    if (hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is already open");
+    }
+    if (!trainingData.empty()) {
+        throw std::runtime_error("training data must be empty before starting hcpe3 cache writer");
+    }
+
+    hcpe3_cache_writer.open(filepath, std::ios::binary);
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to open output hcpe3 cache: " + filepath);
+    }
+    hcpe3_cache_writer_num = num;
+    hcpe3_cache_writer_path = filepath;
+    hcpe3_cache_writer_pos.clear();
+    hcpe3_cache_writer_pos.reserve(num);
+
+    hcpe3_cache_writer.write((const char*)&num, sizeof(num));
+    hcpe3_cache_writer.seekp(sizeof(num) + sizeof(size_t) * num, std::ios_base::beg);
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to initialize output hcpe3 cache: " + filepath);
+    }
+}
+
+// trainingDataをキャッシュへ追記し、次のバッチのために解放する
+void __hcpe3_cache_write() {
+    if (!hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is not open");
+    }
+    if (trainingData.size() > hcpe3_cache_writer_num - hcpe3_cache_writer_pos.size()) {
+        throw std::runtime_error("too many positions for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    for (const auto& hcpe3 : trainingData) {
+        const auto pos = hcpe3_cache_writer.tellp();
+        if (pos < 0) {
+            throw std::runtime_error("failed to get output hcpe3 cache position: " + hcpe3_cache_writer_path);
+        }
+        hcpe3_cache_writer_pos.emplace_back(static_cast<size_t>(pos));
+
+        Hcpe3CacheBody body{
+            hcpe3.hcp,
+            hcpe3.value,
+            hcpe3.result,
+            hcpe3.count
+        };
+        hcpe3_cache_writer.write((const char*)&body, sizeof(body));
+        for (const auto kv : hcpe3.candidates) {
+            Hcpe3CacheCandidate candidate{};
+            candidate.move16 = kv.first;
+            candidate.prob = kv.second;
+            hcpe3_cache_writer.write((const char*)&candidate, sizeof(candidate));
+        }
+    }
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to write output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    // vectorの領域は次のバッチで再利用し、各局面の候補手だけを解放する
+    trainingData.clear();
+}
+
+// インデックスを書き込み、hcpe3キャッシュを完成させる
+void __hcpe3_cache_write_end() {
+    if (!hcpe3_cache_writer.is_open()) {
+        throw std::runtime_error("hcpe3 cache writer is not open");
+    }
+    if (!trainingData.empty()) {
+        throw std::runtime_error("unwritten training data remains for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+    if (hcpe3_cache_writer_pos.size() != hcpe3_cache_writer_num) {
+        throw std::runtime_error("unexpected position count for output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    hcpe3_cache_writer.seekp(sizeof(hcpe3_cache_writer_num), std::ios_base::beg);
+    hcpe3_cache_writer.write(
+        (const char*)hcpe3_cache_writer_pos.data(),
+        sizeof(size_t) * hcpe3_cache_writer_pos.size()
+    );
+    hcpe3_cache_writer.close();
+    if (!hcpe3_cache_writer) {
+        throw std::runtime_error("failed to finalize output hcpe3 cache: " + hcpe3_cache_writer_path);
+    }
+
+    hcpe3_cache_writer_pos.clear();
+    hcpe3_cache_writer_pos.shrink_to_fit();
+    hcpe3_cache_writer_num = 0;
+    hcpe3_cache_writer_path.clear();
+    trainingData.shrink_to_fit();
+}
+
 // hcpe3キャッシュ
-std::ifstream* cache;
+std::ifstream* cache = nullptr;
 std::vector<size_t> cache_pos;
+
+void close_hcpe3_cache() {
+    if (cache) {
+        delete cache;
+        cache = nullptr;
+    }
+    cache_pos.clear();
+}
+
+void read_hcpe3_cache(std::ifstream& ifs, char* buffer, const std::streamsize size, const std::string& message) {
+    if (!ifs.read(buffer, size)) {
+        close_hcpe3_cache();
+        throw std::runtime_error(message);
+    }
+}
+
 size_t __hcpe3_load_cache(const std::string& filepath) {
+    close_hcpe3_cache();
     cache = new std::ifstream(filepath, std::ios::binary);
-    size_t num;
-    cache->read((char*)&num, sizeof(num));
+
+    if (!*cache) {
+        close_hcpe3_cache();
+        throw std::runtime_error("failed to open hcpe3 cache: " + filepath);
+    }
+
+    size_t num = 0;
+    read_hcpe3_cache(*cache, (char*)&num, sizeof(num), "failed to read hcpe3 cache header: " + filepath);
     cache_pos.resize(num + 1);
-    cache->read((char*)cache_pos.data(), sizeof(size_t) * num);
+    read_hcpe3_cache(*cache, (char*)cache_pos.data(), sizeof(size_t) * num, "failed to read hcpe3 cache index: " + filepath);
     cache->seekg(0, std::ios_base::end);
-    cache_pos[num] = cache->tellg();
+    const auto endPos = cache->tellg();
+    if (endPos < 0) {
+        close_hcpe3_cache();
+        throw std::runtime_error("failed to get hcpe3 cache size: " + filepath);
+    }
+    cache_pos[num] = static_cast<size_t>(endPos);
+    for (size_t i = 0; i < num; i++) {
+        if (cache_pos[i] > cache_pos[i + 1]) {
+            close_hcpe3_cache();
+            throw std::runtime_error("invalid hcpe3 cache index order: " + filepath);
+        }
+    }
     return num;
 }
 
@@ -174,7 +305,8 @@ size_t __hcpe3_get_cache_num() {
 
 TrainingData get_cache(const size_t i) {
     const size_t pos = cache_pos[i];
-    const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    const size_t size = cache_pos[i + 1] - pos;
+    const size_t candidateNum = (size - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
     struct Hcpe3CacheBuf {
         Hcpe3CacheBody body;
         Hcpe3CacheCandidate candidates[MaxLegalMoves];
@@ -186,7 +318,8 @@ TrainingData get_cache(const size_t i) {
 
 TrainingData get_cache_with_lock(const size_t i) {
     const size_t pos = cache_pos[i];
-    const size_t candidateNum = ((cache_pos[i + 1] - pos) - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
+    const size_t size = cache_pos[i + 1] - pos;
+    const size_t candidateNum = (size - sizeof(Hcpe3CacheBody)) / sizeof(Hcpe3CacheCandidate);
     struct Hcpe3CacheBuf {
         Hcpe3CacheBody body;
         Hcpe3CacheCandidate candidates[MaxLegalMoves];
@@ -433,7 +566,7 @@ size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
 // 重複データは平均化する
-void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue) {
+void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures1, char* ndfeatures2, char* ndprobability, char* ndresult, char* ndvalue, int decode_threads) {
     size_t* index = reinterpret_cast<size_t*>(ndindex);
     features1_t* features1 = reinterpret_cast<features1_t*>(ndfeatures1);
     features2_t* features2 = reinterpret_cast<features2_t*>(ndfeatures2);
@@ -441,14 +574,23 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
     float* result = reinterpret_cast<float*>(ndresult);
     float* value = reinterpret_cast<float*>(ndvalue);
 
+    const size_t dataSize = cache ? __hcpe3_get_cache_num() : trainingData.size();
+    for (size_t i = 0; i < len; i++) {
+        if (index[i] >= dataSize) {
+            throw std::runtime_error("hcpe3 decode index out of range");
+        }
+    }
+
     // set all zero
     std::fill_n((float*)features1, sizeof(features1_t) / sizeof(float) * len, 0.0f);
     std::fill_n((float*)features2, sizeof(features2_t) / sizeof(float) * len, 0.0f);
     std::fill_n((float*)probability, 9 * 9 * MAX_MOVE_LABEL_NUM * len, 0.0f);
 
-#pragma omp parallel for num_threads(2) if (len > 1)
+    decode_threads = std::max(1, decode_threads);
+
+#pragma omp parallel for num_threads(decode_threads) if (decode_threads > 1 && len > 1)
     for (int64_t i = 0; i < len; i++) {
-        const auto& hcpe3 = cache ? (len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
+        const auto& hcpe3 = cache ? (decode_threads > 1 && len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
 
         Position position;
         position.set(hcpe3.hcp);
@@ -578,6 +720,133 @@ size_t __load_evalfix(const std::string& filepath) {
 void __hcpe3_prepare_evalfix(char* ndeval, char* ndresult) {
     std::copy(eval.begin(), eval.end(), reinterpret_cast<int*>(ndeval));
     std::copy(result.begin(), result.end(), reinterpret_cast<float*>(ndresult));
+}
+
+// hcpe3キャッシュを局面の重複を処理せずに連結する
+void __hcpe3_concat_cache(const std::vector<std::string>& files, const std::string& out) {
+    if (files.empty()) {
+        throw std::invalid_argument("no input hcpe3 cache files");
+    }
+
+    size_t num_out = 0;
+    for (const auto& filepath : files) {
+        std::ifstream ifs(filepath, std::ios::binary);
+        if (!ifs) {
+            throw std::runtime_error("failed to open hcpe3 cache: " + filepath);
+        }
+
+        size_t num = 0;
+        if (!ifs.read((char*)&num, sizeof(num))) {
+            throw std::runtime_error("failed to read hcpe3 cache header: " + filepath);
+        }
+        if (num > std::numeric_limits<size_t>::max() - num_out) {
+            throw std::runtime_error("too many positions in hcpe3 caches");
+        }
+        num_out += num;
+    }
+    if (num_out > (std::numeric_limits<size_t>::max() - sizeof(num_out)) / sizeof(size_t)) {
+        throw std::runtime_error("hcpe3 cache index is too large");
+    }
+
+    std::ofstream ofs(out, std::ios::binary);
+    if (!ofs) {
+        throw std::runtime_error("failed to open output hcpe3 cache: " + out);
+    }
+    const size_t body_begin = sizeof(num_out) + sizeof(size_t) * num_out;
+    ofs.write((const char*)&num_out, sizeof(num_out));
+    ofs.seekp(body_begin, std::ios_base::beg);
+    if (!ofs) {
+        throw std::runtime_error("failed to initialize output hcpe3 cache: " + out);
+    }
+
+    size_t out_index_pos = sizeof(num_out);
+    std::vector<char> buffer(1024 * 1024);
+    for (const auto& filepath : files) {
+        std::ifstream ifs(filepath, std::ios::binary);
+        if (!ifs) {
+            throw std::runtime_error("failed to open hcpe3 cache: " + filepath);
+        }
+        ifs.seekg(0, std::ios_base::end);
+        const auto end_pos = ifs.tellg();
+        if (end_pos < 0) {
+            throw std::runtime_error("failed to get hcpe3 cache size: " + filepath);
+        }
+        const size_t file_size = static_cast<size_t>(end_pos);
+        ifs.seekg(0, std::ios_base::beg);
+
+        size_t num = 0;
+        if (!ifs.read((char*)&num, sizeof(num))) {
+            throw std::runtime_error("failed to read hcpe3 cache header: " + filepath);
+        }
+        if (file_size < sizeof(num) || num > (file_size - sizeof(num)) / sizeof(size_t)) {
+            throw std::runtime_error("invalid hcpe3 cache index size: " + filepath);
+        }
+
+        const size_t data_begin = sizeof(num) + sizeof(size_t) * num;
+        std::vector<size_t> cache_pos(num + 1);
+        if (!ifs.read((char*)cache_pos.data(), sizeof(size_t) * num)) {
+            throw std::runtime_error("failed to read hcpe3 cache index: " + filepath);
+        }
+        cache_pos[num] = file_size;
+        if (num == 0) {
+            if (file_size != data_begin) {
+                throw std::runtime_error("invalid empty hcpe3 cache: " + filepath);
+            }
+            continue;
+        }
+        for (size_t i = 0; i < num; ++i) {
+            if (cache_pos[i] < data_begin || cache_pos[i] > cache_pos[i + 1]
+                || cache_pos[i + 1] > file_size) {
+                throw std::runtime_error("invalid hcpe3 cache index: " + filepath);
+            }
+            const size_t record_size = cache_pos[i + 1] - cache_pos[i];
+            if (record_size < sizeof(Hcpe3CacheBody)
+                || (record_size - sizeof(Hcpe3CacheBody)) % sizeof(Hcpe3CacheCandidate) != 0) {
+                throw std::runtime_error("invalid hcpe3 cache record size: " + filepath);
+            }
+        }
+
+        const size_t input_body_begin = cache_pos[0];
+        const auto out_body_pos_raw = ofs.tellp();
+        if (out_body_pos_raw < 0) {
+            throw std::runtime_error("failed to get output hcpe3 cache position: " + out);
+        }
+        const size_t out_body_pos = static_cast<size_t>(out_body_pos_raw);
+        for (size_t i = 0; i < num; ++i) {
+            const size_t relative_pos = cache_pos[i] - input_body_begin;
+            if (relative_pos > std::numeric_limits<size_t>::max() - out_body_pos) {
+                throw std::runtime_error("output hcpe3 cache is too large: " + out);
+            }
+            cache_pos[i] = out_body_pos + relative_pos;
+        }
+
+        ofs.seekp(out_index_pos, std::ios_base::beg);
+        ofs.write((const char*)cache_pos.data(), sizeof(size_t) * num);
+        out_index_pos += sizeof(size_t) * num;
+        ofs.seekp(out_body_pos, std::ios_base::beg);
+
+        ifs.seekg(input_body_begin, std::ios_base::beg);
+        size_t remaining = file_size - input_body_begin;
+        while (remaining > 0) {
+            const size_t size = std::min(remaining, buffer.size());
+            if (!ifs.read(buffer.data(), size)) {
+                throw std::runtime_error("failed to read hcpe3 cache body: " + filepath);
+            }
+            ofs.write(buffer.data(), size);
+            if (!ofs) {
+                throw std::runtime_error("failed to write output hcpe3 cache: " + out);
+            }
+            remaining -= size;
+        }
+    }
+
+    if (out_index_pos != body_begin) {
+        throw std::runtime_error("unexpected output hcpe3 cache index size: " + out);
+    }
+    ofs.close();
+    if (!ofs) {
+        throw std::runtime_error("failed to finalize output hcpe3 cache: " + out);
+    }
 }
 
 // 2つのhcpe3キャッシュをマージする
@@ -712,6 +981,93 @@ void __hcpe3_merge_cache(const std::string& file1, const std::string& file2, con
     assert(ofs.tellp() == out_pos[0]);
 
     std::cout << "out position num = " << num_out << std::endl;
+}
+
+// hcpe3キャッシュを指定数に分割する
+void __hcpe3_split_cache(const std::string& file, const std::string& out, const size_t num_split) {
+    if (num_split == 0) {
+        throw std::invalid_argument("num_split must be greater than zero");
+    }
+
+    std::ifstream cache(file, std::ios::binary);
+    if (!cache) {
+        throw std::runtime_error("failed to open hcpe3 cache: " + file);
+    }
+
+    cache.seekg(0, std::ios_base::end);
+    const auto end_pos = cache.tellg();
+    if (end_pos < 0) {
+        throw std::runtime_error("failed to get hcpe3 cache size: " + file);
+    }
+    const size_t file_size = static_cast<size_t>(end_pos);
+    cache.seekg(0, std::ios_base::beg);
+
+    size_t num = 0;
+    if (!cache.read((char*)&num, sizeof(num))) {
+        throw std::runtime_error("failed to read hcpe3 cache header: " + file);
+    }
+    if (num > (file_size - std::min(file_size, sizeof(num))) / sizeof(size_t)) {
+        throw std::runtime_error("invalid hcpe3 cache index size: " + file);
+    }
+
+    std::vector<size_t> cache_pos(num + 1);
+    if (!cache.read((char*)cache_pos.data(), sizeof(size_t) * num)) {
+        throw std::runtime_error("failed to read hcpe3 cache index: " + file);
+    }
+    cache_pos[num] = file_size;
+
+    const size_t data_begin = sizeof(num) + sizeof(size_t) * num;
+    for (size_t i = 0; i < num; ++i) {
+        if (cache_pos[i] < data_begin || cache_pos[i] > cache_pos[i + 1] || cache_pos[i + 1] > file_size) {
+            throw std::runtime_error("invalid hcpe3 cache index order: " + file);
+        }
+    }
+
+    const auto extension_pos = out.find_last_of('.');
+    const auto separator_pos = out.find_last_of("/\\\\");
+    const bool has_extension = extension_pos != std::string::npos
+        && (separator_pos == std::string::npos || extension_pos > separator_pos);
+    const std::string base = has_extension ? out.substr(0, extension_pos) : out;
+    const std::string extension = has_extension ? out.substr(extension_pos) : "";
+
+    for (size_t split = 0; split < num_split; ++split) {
+        const size_t begin = num * split / num_split;
+        const size_t end = num * (split + 1) / num_split;
+        const size_t split_num = end - begin;
+
+        std::ostringstream path;
+        path << base << '-' << std::setfill('0') << std::setw(3) << split + 1 << extension;
+        std::ofstream ofs(path.str(), std::ios::binary);
+        if (!ofs) {
+            throw std::runtime_error("failed to open output hcpe3 cache: " + path.str());
+        }
+
+        ofs.seekp(sizeof(split_num) + sizeof(size_t) * split_num, std::ios_base::beg);
+        std::vector<size_t> out_pos;
+        out_pos.reserve(split_num);
+        std::vector<char> buffer;
+        for (size_t i = begin; i < end; ++i) {
+            const size_t size = cache_pos[i + 1] - cache_pos[i];
+            buffer.resize(size);
+            cache.seekg(cache_pos[i], std::ios_base::beg);
+            if (!cache.read(buffer.data(), size)) {
+                throw std::runtime_error("failed to read hcpe3 cache body: " + file);
+            }
+            out_pos.emplace_back(static_cast<size_t>(ofs.tellp()));
+            ofs.write(buffer.data(), size);
+            if (!ofs) {
+                throw std::runtime_error("failed to write hcpe3 cache body: " + path.str());
+            }
+        }
+
+        ofs.seekp(0, std::ios_base::beg);
+        ofs.write((const char*)&split_num, sizeof(split_num));
+        ofs.write((const char*)out_pos.data(), sizeof(size_t) * split_num);
+        if (!ofs) {
+            throw std::runtime_error("failed to write hcpe3 cache index: " + path.str());
+        }
+        std::cout << path.str() << " position num = " << split_num << std::endl;
+    }
 }
 
 // キャッシュの方策と価値をモデルで再評価して加重平均を求める
@@ -973,6 +1329,7 @@ namespace {
 
 constexpr u16 HCPE3_MAX_MOVE_NUM = 513;
 constexpr u16 HCPE3_MAX_CANDIDATE_NUM = MaxLegalMoves - 1;
+constexpr int HCPE3_MATE_SCORE = 30000;
 
 enum class Hcpe3ReadResult {
     Ok,
@@ -990,7 +1347,14 @@ struct Hcpe3ParsedGame {
     u8 result;
     u8 gameInfo;
     std::vector<HuffmanCodedPos> positions;
+    std::vector<bool> inChecks;
     std::vector<Hcpe3ParsedMove> moves;
+};
+
+struct Hcpe3MergeOptions {
+    bool outMaxmove;
+    bool outMate;
+    bool outBrinkmate;
 };
 
 struct Hcpe3MergedMove {
@@ -1042,6 +1406,9 @@ struct Hcpe3MergeStats {
     size_t corruptedFileNum = 0;
     size_t rawGameNum = 0;
     size_t zeroMoveSkippedNum = 0;
+    size_t maxMoveSkippedNum = 0;
+    size_t filteredToZeroMoveNum = 0;
+    size_t truncatedGameNum = 0;
 };
 
 Hcpe3ReadResult read_hcpe3_exact(std::ifstream& ifs, char* dst, const std::streamsize size) {
@@ -1262,6 +1629,63 @@ void hcpe3_add_game(
     hcpe3_add_suffixes(suffixIndex, games, newIndex);
 }
 
+bool hcpe3_is_normal_win(const Hcpe3ParsedGame& game) {
+    const auto result = static_cast<GameResult>(game.result & 0x3);
+    return (result == BlackWin || result == WhiteWin) &&
+        !(game.result & (GAMERESULT_SENNICHITE | GAMERESULT_NYUGYOKU | GAMERESULT_MAXMOVE));
+}
+
+size_t hcpe3_brinkmate_move_num(const Hcpe3ParsedGame& game) {
+    size_t positionIndex = game.moves.size();
+    while (positionIndex >= 2 && positionIndex < game.inChecks.size() && game.inChecks[positionIndex]) {
+        positionIndex -= 2;
+    }
+    if (positionIndex >= game.moves.size()) {
+        return game.moves.size();
+    }
+    return std::min(game.moves.size(), positionIndex + 2);
+}
+
+size_t hcpe3_non_mate_move_num(const Hcpe3ParsedGame& game) {
+    for (size_t moveNum = game.moves.size(); moveNum > 0; --moveNum) {
+        if (std::abs(static_cast<int>(game.moves[moveNum - 1].moveInfo.eval)) < HCPE3_MATE_SCORE) {
+            return moveNum;
+        }
+    }
+    return 0;
+}
+
+bool hcpe3_apply_merge_options(Hcpe3ParsedGame& game, const Hcpe3MergeOptions& options, Hcpe3MergeStats& stats) {
+    if ((game.result & GAMERESULT_MAXMOVE) && !options.outMaxmove) {
+        stats.maxMoveSkippedNum++;
+        return false;
+    }
+
+    size_t moveNum = game.moves.size();
+    if (hcpe3_is_normal_win(game)) {
+        if (options.outBrinkmate) {
+            moveNum = std::min(moveNum, hcpe3_brinkmate_move_num(game));
+        }
+        else if (!options.outMate) {
+            moveNum = std::min(moveNum, hcpe3_non_mate_move_num(game));
+        }
+    }
+
+    if (moveNum < game.moves.size()) {
+        stats.truncatedGameNum++;
+        game.moves.resize(moveNum);
+        game.positions.resize(moveNum);
+        if (game.inChecks.size() > moveNum + 1) {
+            game.inChecks.resize(moveNum + 1);
+        }
+    }
+    if (game.moves.empty()) {
+        stats.filteredToZeroMoveNum++;
+        return false;
+    }
+    return !game.moves.empty();
+}
+
 bool hcpe3_read_game(std::ifstream& ifs, const std::string& filepath, const size_t gameIndex, Hcpe3ParsedGame& game, bool& cleanEof) {
     cleanEof = false;
 
@@ -1287,8 +1711,10 @@ bool hcpe3_read_game(std::ifstream& ifs, const std::string& filepath, const size
     game.result = hcpe3.result;
     game.gameInfo = hcpe3.gameInfo;
     game.positions.clear();
+    game.inChecks.clear();
     game.moves.clear();
     game.positions.reserve(hcpe3.moveNum);
+    game.inChecks.reserve(static_cast<size_t>(hcpe3.moveNum) + 1);
     game.moves.reserve(hcpe3.moveNum);
 
     for (int i = 0; i < hcpe3.moveNum; ++i) {
@@ -1312,10 +1738,12 @@ bool hcpe3_read_game(std::ifstream& ifs, const std::string& filepath, const size
             return false;
         }
 
+        game.inChecks.emplace_back(pos.inCheck());
         game.positions.emplace_back(pos.toHuffmanCodedPos());
         game.moves.emplace_back(std::move(parsedMove));
         pos.doMove(move, states->emplace_back(StateInfo()));
     }
+    game.inChecks.emplace_back(pos.inCheck());
 
     return true;
 }
@@ -1405,6 +1833,9 @@ void hcpe3_print_merge_stats(const Hcpe3MergeStats& stats, const std::vector<Hcp
     std::cout << "Files with truncated tail: " << stats.corruptedFileNum << std::endl;
     std::cout << "Raw games before averaging: " << stats.rawGameNum << std::endl;
     std::cout << "Skipped zero-move games: " << stats.zeroMoveSkippedNum << std::endl;
+    std::cout << "Skipped max-move games: " << stats.maxMoveSkippedNum << std::endl;
+    std::cout << "Skipped games filtered to zero moves: " << stats.filteredToZeroMoveNum << std::endl;
+    std::cout << "Games truncated by output options: " << stats.truncatedGameNum << std::endl;
     std::cout << "Games after averaging: " << mergedGameNum << std::endl;
     std::cout << "Minimum moves: " << minMoves << std::endl;
     std::cout << "Maximum moves: " << maxMoves << std::endl;
@@ -1419,7 +1850,8 @@ void hcpe3_print_merge_stats(const Hcpe3MergeStats& stats, const std::vector<Hcp
 
 } // namespace
 
-void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out) {
+void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out, const bool outMaxmove, const bool outMate, const bool outBrinkmate) {
+    const Hcpe3MergeOptions options{ outMaxmove, outMate, outBrinkmate };
     Hcpe3MergeStats stats;
     stats.fileNum = files.size();
 
@@ -1449,6 +1881,9 @@ void __hcpe3_merge(const std::vector<std::string>& files, const std::string& out
             stats.rawGameNum++;
             if (parsed.moves.empty()) {
                 stats.zeroMoveSkippedNum++;
+                continue;
+            }
+            if (!hcpe3_apply_merge_options(parsed, options, stats)) {
                 continue;
             }
             hcpe3_add_game(parsed, games, suffixIndex);

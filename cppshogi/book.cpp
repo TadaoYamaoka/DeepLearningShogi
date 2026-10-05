@@ -177,7 +177,7 @@ std::tuple<Move, Score> Book::probe(const Position& pos, const std::string& fNam
             }
             score = entry.score;
         }
-        if (tellg() == size_ * sizeof(BookEntry))
+        if (static_cast<size_t>(static_cast<std::streamoff>(tellg())) == size_ * sizeof(BookEntry))
             break;
     }
 
@@ -250,7 +250,7 @@ std::tuple<Move, Score> Book::probeConsideringDraw(const Position& pos, const st
             }
             score = entry.score;
         }
-        if (tellg() == size_ * sizeof(BookEntry))
+        if (static_cast<size_t>(static_cast<std::streamoff>(tellg())) == size_ * sizeof(BookEntry))
             break;
     }
 
@@ -268,7 +268,7 @@ Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth
         BookEntry entry;
         while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
             entries.emplace_back(entry);
-            if (tellg() == size_ * sizeof(BookEntry))
+            if (static_cast<size_t>(static_cast<std::streamoff>(tellg())) == size_ * sizeof(BookEntry))
                 break;
         }
     }
@@ -316,7 +316,7 @@ Score Book::getMinMaxBookScore(Position& pos, Score alpha, Score beta, int depth
             return alpha;
         }
 
-        if (tellg() == size_ * sizeof(BookEntry))
+        if (static_cast<size_t>(static_cast<std::streamoff>(tellg())) == size_ * sizeof(BookEntry))
             break;
     }
     return alpha;
@@ -350,7 +350,7 @@ std::tuple<Move, Score> Book::probeConsideringDrawDepth(Position& pos, const std
         BookEntry entry;
         while (read(reinterpret_cast<char*>(&entry), sizeof(entry)), entry.key == key && good()) {
             entries.emplace_back(entry);
-            if (tellg() == size_ * sizeof(BookEntry))
+            if (static_cast<size_t>(static_cast<std::streamoff>(tellg())) == size_ * sizeof(BookEntry))
                 break;
         }
     }
@@ -478,7 +478,7 @@ void makeBook(Position& pos, std::istringstream& ssCmd) {
                 }
                 if (isFind == false) {
 #if defined MAKE_SEARCHED_BOOK
-                    states->push_back(StateInfo());
+                    states->emplace_back();
                     pos.doMove(move, states->back());
 
                     std::istringstream ssCmd("byoyomi 1000");
@@ -501,7 +501,7 @@ void makeBook(Position& pos, std::istringstream& ssCmd) {
                     bookMap[key].push_back(be);
                 }
             }
-            states->push_back(StateInfo());
+            states->emplace_back();
             pos.doMove(move, states->back());
         }
     }

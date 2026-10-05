@@ -74,96 +74,100 @@ kif_num = 0
 position_num = 0
 duplicates = set()
 for filepath in csa_file_list:
-    for kif in CSA.Parser.parse_file(filepath):
-        endgame = kif.endgame
-        if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
-            continue
-        if filter_rating > 0:
-            if kif.win == DRAW:
-                if kif.ratings[0] < filter_rating or kif.ratings[1] < filter_rating:
+    try:
+        for kif in CSA.Parser.parse_file(filepath):
+            endgame = kif.endgame
+            if endgame not in ('%TORYO', '%SENNICHITE', '%KACHI', '%JISHOGI') or len(kif.moves) < filter_moves:
+                continue
+            if filter_rating > 0:
+                if kif.win == DRAW:
+                    if kif.ratings[0] < filter_rating or kif.ratings[1] < filter_rating:
+                        continue
+                elif kif.ratings[2 - kif.win] < filter_rating:
                     continue
-            elif kif.ratings[2 - kif.win] < filter_rating:
+            if filter_win_name and (kif.win == DRAW or kif.names[kif.win - 1] != filter_win_name):
                 continue
-        if filter_win_name and (kif.win == DRAW or kif.names[kif.win - 1] != filter_win_name):
-            continue
-        # 評価値がない棋譜を除外
-        if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
-            continue
-        # 重複削除
-        if args.uniq:
-            dup_key = ''.join([move_to_usi(move) for move in kif.moves])
-            if dup_key in duplicates:
-                print(f'duplicate {filepath}')
+            # 評価値がない棋譜を除外
+            if all(comment == '' for comment in kif.comments[0::2]) or all(comment == '' for comment in kif.comments[1::2]):
                 continue
-            duplicates.add(dup_key)
+            # 重複削除
+            if args.uniq:
+                dup_key = ''.join([move_to_usi(move) for move in kif.moves])
+                if dup_key in duplicates:
+                    print(f'duplicate {filepath}')
+                    continue
+                duplicates.add(dup_key)
 
-        try:
-            max_move_code = max_move_code_from_comment(getattr(kif, 'comment', ''))
-        except ValueError as e:
-            print(f'skip {filepath}:{e}')
-            continue
-
-        hcpe['result'] = kif.win
-        hcpe['gameInfo'] = make_hcpe3_game_info(max_move_code=max_move_code)
-        if endgame == '%SENNICHITE':
-            hcpe['result'] += 4
-        elif endgame == '%KACHI':
-            hcpe['result'] += 8
-        elif endgame == '%JISHOGI':
-            if not args.out_maxmove:
+            try:
+                max_move_code = max_move_code_from_comment(getattr(kif, 'comment', ''))
+            except ValueError as e:
+                print(f'skip {filepath}:{e}')
                 continue
-            hcpe['result'] += 16
 
-        try:
-            if args.out_brinkmate:
-                brinkmate_i = -1
-                if endgame == '%TORYO':
-                    board.set_sfen(kif.sfen)
-                    for move in kif.moves:
-                        assert board.is_legal(move)
-                        board.push(move)
-                    while board.is_check():
-                        board.pop()
-                        board.pop()
-                    brinkmate_i = board.move_number
+            hcpe['result'] = kif.win
+            hcpe['gameInfo'] = make_hcpe3_game_info(max_move_code=max_move_code)
+            if endgame == '%SENNICHITE':
+                hcpe['result'] += 4
+            elif endgame == '%KACHI':
+                hcpe['result'] += 8
+            elif endgame == '%JISHOGI':
+                if not args.out_maxmove:
+                    continue
+                hcpe['result'] += 16
 
-            move_info_vec['candidateNum'] = 1
-
-            board.set_sfen(kif.sfen)
-            board.to_hcp(hcpe['hcp'])
-            for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
-                assert board.is_legal(move)
-                move_info = move_info_vec[i]
-                move_visits = move_visits_vec[i]
-
-                assert abs(score) <= 1000000
-                eval = min(32767, max(score, -32767))
-                move_info['eval'] = eval if board.turn == BLACK else -eval
-                move_info['selectedMove16'] = move16(move)
-                if comment == '' and args.skip_opening:
-                    move_info['candidateNum'] = 0
-                else:
-                    move_visits['move16'] = move16(move)
+            try:
                 if args.out_brinkmate:
-                    if i == brinkmate_i:
+                    brinkmate_i = -1
+                    if endgame == '%TORYO':
+                        board.set_sfen(kif.sfen)
+                        for move in kif.moves:
+                            assert board.is_legal(move)
+                            board.push(move)
+                        while board.is_check():
+                            board.pop()
+                            board.pop()
+                        brinkmate_i = board.move_number
+
+                move_info_vec['candidateNum'] = 1
+
+                board.set_sfen(kif.sfen)
+                board.to_hcp(hcpe['hcp'])
+                for i, (move, score, comment) in enumerate(zip(kif.moves, kif.scores, kif.comments)):
+                    assert board.is_legal(move)
+                    move_info = move_info_vec[i]
+                    move_visits = move_visits_vec[i]
+
+                    assert abs(score) <= 1000000
+                    eval = min(32767, max(score, -32767))
+                    move_info['eval'] = eval if board.turn == BLACK else -eval
+                    move_info['selectedMove16'] = move16(move)
+                    if comment == '' and args.skip_opening:
+                        move_info['candidateNum'] = 0
+                    else:
+                        move_visits['move16'] = move16(move)
+                    if args.out_brinkmate:
+                        if i == brinkmate_i:
+                            break
+                    elif not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
                         break
-                elif not args.out_mate and endgame != '%KACHI' and abs(score) >= 100000:
-                    break
-                board.push(move)
-        except:
-            print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
-            continue
+                    board.push(move)
+            except:
+                print(f'skip {filepath}:{i}:{move_to_usi(move)}:{score}')
+                continue
 
-        move_num = i + 1
-        hcpe['moveNum'] = move_num
+            move_num = i + 1
+            hcpe['moveNum'] = move_num
 
-        hcpe.tofile(f)
-        for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
-            move_info.tofile(f)
-            if move_info['candidateNum'] > 0:
-                move_visits.tofile(f)
-                position_num += 1
-        kif_num += 1
+            hcpe.tofile(f)
+            for move_info, move_visits in zip(move_info_vec[:move_num], move_visits_vec[:move_num]):
+                move_info.tofile(f)
+                if move_info['candidateNum'] > 0:
+                    move_visits.tofile(f)
+                    position_num += 1
+            kif_num += 1
+    except Exception as e:
+        print(f'skip {filepath}:{e}')
+        continue
 
 print('kif_num', kif_num)
 print('position_num', position_num)
