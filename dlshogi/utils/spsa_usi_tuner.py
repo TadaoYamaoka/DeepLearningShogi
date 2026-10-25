@@ -497,7 +497,7 @@ class SpsaTuner:
 
         if self.use_dev_vs_dev_in_update:
             # Use (+) vs (-) as extra information (scaled to keep variance reasonable)
-            # score_diff = S_plus - S_minus + 0.5 * 2*(W_plus_minus - L_plus_minus)
+            # score_diff = S_plus - S_minus + (Wpm - Lpm)
             Wpm, Lpm, Dpm = plus_vs_minus
             S_pm_diff = 2.0 * (float(Wpm) - float(Lpm))
             S_plus_minus_diff = S_plus - S_minus + 0.5 * S_pm_diff
