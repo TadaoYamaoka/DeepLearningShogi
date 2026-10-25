@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{20FBEF0D-A1B0-4CB5-A5FA-EF1945CE21D7}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)..\usi\x64\$(Configuration)\classic_tests\</OutDir>
+    <IntDir>$(ProjectDir)..\usi\x64\$(Configuration)\classic_tests_obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;$(ProjectDir)..\usi;$(ProjectDir)..\cppshogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'!='Debug'">NDEBUG;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization>MaxSpeed</Optimization>
+      <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="classic_tests.cpp" />
+    <ClCompile Include="..\cppshogi\bitboard.cpp" />
+    <ClCompile Include="..\cppshogi\book.cpp" />
+    <ClCompile Include="..\cppshogi\common.cpp" />
+    <ClCompile Include="..\cppshogi\cppshogi.cpp" />
+    <ClCompile Include="..\cppshogi\dtype.cpp" />
+    <ClCompile Include="..\cppshogi\generateMoves.cpp" />
+    <ClCompile Include="..\cppshogi\hand.cpp" />
+    <ClCompile Include="..\cppshogi\init.cpp" />
+    <ClCompile Include="..\cppshogi\move.cpp" />
+    <ClCompile Include="..\cppshogi\mt64bit.cpp" />
+    <ClCompile Include="..\cppshogi\position.cpp" />
+    <ClCompile Include="..\cppshogi\search.cpp" />
+    <ClCompile Include="..\cppshogi\square.cpp" />
+    <ClCompile Include="..\cppshogi\usi.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\lc0_shogi\lc0_shogi.vcxproj">
+      <Project>{4E2F779E-22A4-4518-BA8A-278CC95D4490}</Project>
+      <GlobalPropertiesToRemove>OutDir;IntDir</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

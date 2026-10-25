@@ -1730,7 +1730,7 @@ HuffmanCodedPos Position::toHuffmanCodedPos() const {
 
 #if !defined NDEBUG
 bool Position::isOK() const {
-    static Key prevKey;
+    static thread_local Key prevKey;
     const bool debugAll = true;
 
     const bool debugBitboards    = debugAll || false;

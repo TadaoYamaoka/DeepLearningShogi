@@ -1,0 +1,309 @@
+{
+  "complete": true,
+  "verified_at_utc": "2026-10-25T04:36:54.766352+00:00",
+  "gpu_and_driver": "NVIDIA GeForce RTX 4090, 617.14",
+  "legacy_revision": "0cc16854474ab3c7c4f7be66c624f9f9001f7543",
+  "legacy_instrumentation": "EvalNode completed-forward counters only; no root probe output",
+  "backend": "TensorRT 8.6.1.6",
+  "pinned_allocation": "cudaHostAllocPortable",
+  "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+  "threads": 2,
+  "nodes": 20000,
+  "batch": 128,
+  "positions": 30,
+  "repeats": 3,
+  "root_dfpn": 0,
+  "primary_speed_metric": "inference.aggregate_nps_ratio",
+  "primary_speed_definition": "(sum(new actual nodes)/sum(new search seconds))/(sum(old actual nodes)/sum(old search seconds)); greater than one is faster",
+  "completion_time_definition": "completion.time_ratio_new_over_old compares summed wall time at the same nominal node budgets; greater than one is slower",
+  "median_metrics_role": "Supplementary distribution diagnostics, not the primary speed conclusion",
+  "verification": {
+    "ny": {
+      "engine_sha256": "5f9e181823f0a47cf0adc9ee65fb22e6305a630243878a6999e40b92969e2826",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "counter_checks": {
+        "old": [
+          "batch=1 evaluations equal batches across two searches"
+        ],
+        "new": [
+          "batch=1 evaluations equal batches across two searches",
+          "uncached single probe increments both counters by one",
+          "cached probe does not increment counters"
+        ]
+      }
+    },
+    "no_ny": {
+      "engine_sha256": "71d2a27005f0dca21171b1190f89d18248f3fc1b95c95f3f12e9738b2c95db10",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "counter_checks": {
+        "old": [
+          "batch=1 evaluations equal batches across two searches"
+        ],
+        "new": [
+          "batch=1 evaluations equal batches across two searches",
+          "uncached single probe increments both counters by one",
+          "cached probe does not increment counters"
+        ]
+      }
+    }
+  },
+  "additional_counter_checks": {
+    "onnx_ny": {
+      "complete": true,
+      "checks": [
+        "batch=1 evaluations equal batches across two searches",
+        "uncached single probe increments both counters by one",
+        "cached probe does not increment counters"
+      ],
+      "nodes_per_search": 16,
+      "engine_sha256": "d547687ffe9454193df72f8e5bb1ceddeaa9af57254b4c4bc370304a6019fc99",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    },
+    "onnx_no_ny": {
+      "complete": true,
+      "checks": [
+        "batch=1 evaluations equal batches across two searches",
+        "uncached single probe increments both counters by one",
+        "cached probe does not increment counters"
+      ],
+      "nodes_per_search": 16,
+      "engine_sha256": "2086d9c109b1bee72cac9aa445642f71b322e9a25d803a66b12d3154fe4fec01",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c"
+    }
+  },
+  "measurements": [
+    {
+      "model": "ny",
+      "pv_threads": 0,
+      "old_sha256": "80c26c426ea883d186156a2b778b9625b89bebcfa413c3d1df6c96630d1cc856",
+      "new_sha256": "5f9e181823f0a47cf0adc9ee65fb22e6305a630243878a6999e40b92969e2826",
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 10212.253822384497,
+      "median_new_nps": 11605.63560162803,
+      "median_paired_nps_ratio": 1.1629972291995283,
+      "completion": {
+        "old_seconds": 167.97876620013267,
+        "new_seconds": 150.97853279975243,
+        "time_ratio_new_over_old": 0.8987953430963657,
+        "old_actual_nodes": 1809503,
+        "new_actual_nodes": 1809297,
+        "old_nn_evaluations_per_node": 0.6185748241367933,
+        "new_nn_evaluations_per_node": 0.6514275986750655,
+        "nn_evaluations_per_node_ratio_new_over_old": 1.0531104294199451
+      },
+      "inference": {
+        "old": {
+          "evaluations": 1119313,
+          "batches": 14067,
+          "seconds": 167.97876620013267,
+          "nodes": 1809503,
+          "evaluations_per_second": 6663.419581653743,
+          "aggregate_wall_nps": 10772.212708385585,
+          "mean_batch_size": 79.57012866993674,
+          "nodes_per_evaluation": 1.6166193013035675
+        },
+        "new": {
+          "evaluations": 1178626,
+          "batches": 11527,
+          "seconds": 150.97853279975243,
+          "nodes": 1809297,
+          "evaluations_per_second": 7806.5800358733695,
+          "aggregate_wall_nps": 11983.803037745289,
+          "mean_batch_size": 102.24915415979874,
+          "nodes_per_evaluation": 1.5350900115897663
+        },
+        "paired_positive_samples": 90,
+        "median_paired_rate_ratio": 1.1896703359820031,
+        "aggregate_rate_ratio": 1.171557627463092,
+        "visit_count_factor": 0.9495680339532878,
+        "aggregate_nps_ratio": 1.1124736729731066,
+        "per_repeat_rate_ratio": [
+          1.1566594324045973,
+          1.181670940729565,
+          1.1762254158312235
+        ]
+      },
+      "report": "artifacts\\inference_review\\ny_pv0.json"
+    },
+    {
+      "model": "ny",
+      "pv_threads": 2,
+      "old_sha256": "80c26c426ea883d186156a2b778b9625b89bebcfa413c3d1df6c96630d1cc856",
+      "new_sha256": "5f9e181823f0a47cf0adc9ee65fb22e6305a630243878a6999e40b92969e2826",
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 10641.747791850443,
+      "median_new_nps": 11585.974889902205,
+      "median_paired_nps_ratio": 1.1205005596196211,
+      "completion": {
+        "old_seconds": 160.29022350010928,
+        "new_seconds": 151.81601349986158,
+        "time_ratio_new_over_old": 0.9471320844453005,
+        "old_actual_nodes": 1808564,
+        "new_actual_nodes": 1807950,
+        "old_nn_evaluations_per_node": 0.6119330032003291,
+        "new_nn_evaluations_per_node": 0.6490350949970961,
+        "nn_evaluations_per_node_ratio_new_over_old": 1.0606309703884707
+      },
+      "inference": {
+        "old": {
+          "evaluations": 1106720,
+          "batches": 13892,
+          "seconds": 160.29022350010928,
+          "nodes": 1808564,
+          "evaluations_per_second": 6904.475992568851,
+          "aggregate_wall_nps": 11283.058695084837,
+          "mean_batch_size": 79.66599481716095,
+          "nodes_per_evaluation": 1.6341658233338152
+        },
+        "new": {
+          "evaluations": 1173423,
+          "batches": 11518,
+          "seconds": 151.81601349986158,
+          "nodes": 1807950,
+          "evaluations_per_second": 7729.243924594752,
+          "aggregate_wall_nps": 11908.822780421964,
+          "mean_batch_size": 101.87732245181455,
+          "nodes_per_evaluation": 1.540748732554245
+        },
+        "paired_positive_samples": 90,
+        "median_paired_rate_ratio": 1.1493745525842551,
+        "aggregate_rate_ratio": 1.1194540951280851,
+        "visit_count_factor": 0.9428349990890199,
+        "aggregate_nps_ratio": 1.055460500760288,
+        "per_repeat_rate_ratio": [
+          1.1033504170157347,
+          1.1347858286646388,
+          1.1199935475822134
+        ]
+      },
+      "report": "artifacts\\inference_review\\ny_pv2.json"
+    },
+    {
+      "model": "no_ny",
+      "pv_threads": 0,
+      "old_sha256": "58db4a932a3cbd596a8a9fc0225b15589fbcbabcac6044f592a2c47bff1e68f2",
+      "new_sha256": "71d2a27005f0dca21171b1190f89d18248f3fc1b95c95f3f12e9738b2c95db10",
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 16243.073238703735,
+      "median_new_nps": 17855.07996933155,
+      "median_paired_nps_ratio": 1.1146695996077427,
+      "completion": {
+        "old_seconds": 104.47346419992391,
+        "new_seconds": 103.09639170055743,
+        "time_ratio_new_over_old": 0.9868189256486101,
+        "old_actual_nodes": 1808817,
+        "new_actual_nodes": 1807896,
+        "old_nn_evaluations_per_node": 0.646026104354393,
+        "new_nn_evaluations_per_node": 0.6957485386327532,
+        "nn_evaluations_per_node_ratio_new_over_old": 1.0769666023450406
+      },
+      "inference": {
+        "old": {
+          "evaluations": 1168543,
+          "batches": 14053,
+          "seconds": 104.47346419992391,
+          "nodes": 1808817,
+          "evaluations_per_second": 11185.069902189107,
+          "aggregate_wall_nps": 17313.650062743083,
+          "mean_batch_size": 83.15256528855049,
+          "nodes_per_evaluation": 1.5479250656586878
+        },
+        "new": {
+          "evaluations": 1257841,
+          "batches": 12203,
+          "seconds": 103.09639170055743,
+          "nodes": 1807896,
+          "evaluations_per_second": 12200.630684082409,
+          "aggregate_wall_nps": 17535.977449637794,
+          "mean_batch_size": 103.07637466196837,
+          "nodes_per_evaluation": 1.4373008989212468
+        },
+        "paired_positive_samples": 90,
+        "median_paired_rate_ratio": 1.1594954177604504,
+        "aggregate_rate_ratio": 1.090796105055592,
+        "visit_count_factor": 0.9285339005151602,
+        "aggregate_nps_ratio": 1.0128411620940134,
+        "per_repeat_rate_ratio": [
+          1.0898720123946533,
+          1.0868230499191507,
+          1.0955425134658994
+        ]
+      },
+      "report": "artifacts\\inference_review\\no_ny_pv0.json"
+    },
+    {
+      "model": "no_ny",
+      "pv_threads": 2,
+      "old_sha256": "58db4a932a3cbd596a8a9fc0225b15589fbcbabcac6044f592a2c47bff1e68f2",
+      "new_sha256": "71d2a27005f0dca21171b1190f89d18248f3fc1b95c95f3f12e9738b2c95db10",
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 17982.500520515652,
+      "median_new_nps": 18115.838311677562,
+      "median_paired_nps_ratio": 0.979879168274695,
+      "completion": {
+        "old_seconds": 94.84384420036804,
+        "new_seconds": 104.9314367993502,
+        "time_ratio_new_over_old": 1.1063600140212686,
+        "old_actual_nodes": 1807217,
+        "new_actual_nodes": 1808477,
+        "old_nn_evaluations_per_node": 0.6237408125310906,
+        "new_nn_evaluations_per_node": 0.6897643707937674,
+        "nn_evaluations_per_node_ratio_new_over_old": 1.105850951126251
+      },
+      "inference": {
+        "old": {
+          "evaluations": 1127235,
+          "batches": 13603,
+          "seconds": 94.84384420036804,
+          "nodes": 1807217,
+          "evaluations_per_second": 11885.167767120365,
+          "aggregate_wall_nps": 19054.657845606253,
+          "mean_batch_size": 82.86664706314784,
+          "nodes_per_evaluation": 1.603230027456564
+        },
+        "new": {
+          "evaluations": 1247423,
+          "batches": 12179,
+          "seconds": 104.9314367993502,
+          "nodes": 1808477,
+          "evaluations_per_second": 11887.981695946099,
+          "aggregate_wall_nps": 17234.844534323573,
+          "mean_batch_size": 102.42409064783644,
+          "nodes_per_evaluation": 1.4497704467530261
+        },
+        "paired_positive_samples": 90,
+        "median_paired_rate_ratio": 1.0283332857081655,
+        "aggregate_rate_ratio": 1.000236759705952,
+        "visit_count_factor": 0.9042809964412948,
+        "aggregate_nps_ratio": 0.9044950937441102,
+        "per_repeat_rate_ratio": [
+          1.0151122385628486,
+          0.9910378258101679,
+          0.9951855124040765
+        ]
+      },
+      "report": "artifacts\\inference_review\\no_ny_pv2.json"
+    }
+  ],
+  "notes": [
+    "Completed backend evaluations include prefetch; cache hits and terminal revisits are excluded.",
+    "Statistics are sampled after workers join; query time and initialization/warmup are excluded.",
+    "NN evaluations/second = sum(evaluations)/sum(search wall seconds); mean batch = sum(evaluations)/sum(forward calls).",
+    "Each condition retains both engine processes and NN caches across all repeats; subtree reuse is disabled.",
+    "Runs are sequential with alternating execution order; no concurrent builds or other engine tests.",
+    "NPS counts differ between search implementations, especially with PV dfpn; NPS ratios alone do not measure inference throughput.",
+    "Completion time is reported separately; comparable NN evaluations/second does not imply identical time to complete nominal node budgets.",
+    "Budget overshoot is retained in actual node totals, so the NPS ratio is not exactly the reciprocal of the completion-time ratio.",
+    "Cache-hit and prefetch contributions have not been isolated; a no-destination prefetch request does not prove that its cached result is never used later.",
+    "The collector reaggregates existing raw reports; its verification timestamp is not the benchmark execution time.",
+    "Prefetch and different leaf selection also affect NN throughput; these numbers do not measure Elo or useful search work."
+  ]
+}

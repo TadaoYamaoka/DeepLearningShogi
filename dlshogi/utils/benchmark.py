@@ -4,13 +4,23 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('engine')
 parser.add_argument('model')
-parser.add_argument('--gpus', type=int, default=1)
-parser.add_argument('--threads', type=int, default=2)
+parser.add_argument('--gpus', type=int, default=1, choices=range(1, 9))
+parser.add_argument('--threads', type=int, default=0, help='Global search workers; 0 = lc0 auto')
+parser.add_argument('--slots', type=int, default=2, help='Inference slots per enabled GPU')
+parser.add_argument('--task-workers', type=int, default=None)
+parser.add_argument('--minibatch-size', type=int, default=0)
+parser.add_argument('--legacy-uct', action='store_true', help='Archived engine: --threads means GPU-bound UCT threads')
 parser.add_argument('--nodelimit', type=int, default=10000000)
 parser.add_argument('--batch', type=int, default=128)
 parser.add_argument('--byoyomi', type=int, default=1000)
 parser.add_argument('--options')
 args = parser.parse_args()
+if args.task_workers is not None and not -1 <= args.task_workers <= 128:
+    parser.error('invalid task worker count')
+if args.legacy_uct and args.threads < 1:
+    parser.error('--legacy-uct requires --threads >= 1')
+if not 1 <= args.slots <= 256 or not 0 <= args.threads <= (2048 if args.legacy_uct else 128) or not 0 <= args.minibatch_size <= 1024:
+    parser.error('invalid slots, threads, or minibatch size')
 
 engine = Engine(args.engine, debug=True)
 engine.setoption('USI_Ponder', 'false')
@@ -21,9 +31,19 @@ engine.setoption('Byoyomi_Margin', '0')
 engine.setoption('UCT_NodeLimit', str(args.nodelimit))
 engine.setoption('DNN_Batch_Size', str(args.batch))
 engine.setoption('ReuseSubtree', 'false')
-engine.setoption('UCT_Threads', str(args.threads))
-for i in range(2, args.gpus + 1):
-    engine.setoption('UCT_Threads' + str(i), str(args.threads))
+if args.legacy_uct:
+    for i in range(1, args.gpus + 1):
+        engine.setoption('UCT_Threads' + (str(i) if i > 1 else ''), str(args.threads))
+else:
+    engine.setoption('Threads', str(args.threads))
+    engine.setoption('MinibatchSize', str(args.minibatch_size))
+    if args.task_workers is not None:
+        engine.setoption('TaskWorkers', str(args.task_workers))
+    for i in range(1, 9):
+        suffix = str(i) if i > 1 else ''
+        engine.setoption('DNN_Slots' + suffix, str(args.slots if i <= args.gpus else 0))
+        if i <= args.gpus:
+            engine.setoption('DNN_Batch_Size' + suffix, str(args.batch))
 if args.options:
     for option in args.options.split(','):
         name, value = option.split(':')

@@ -24,6 +24,7 @@
 
 #include "common.hpp"
 #include "move.hpp"
+#include <functional>
 
 const std::string DefaultStartPositionSFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
@@ -36,6 +37,9 @@ public:
     USIOption(const char* v, Fn* = nullptr, Searcher* s = nullptr);
     USIOption(const bool v, Fn* = nullptr, Searcher* s = nullptr);
     USIOption(const int v, const int min, const int max, Fn* = nullptr, Searcher* s = nullptr);
+    // Declaration and validation supplied by an external option registry.
+    USIOption(const std::string& declaration, const std::string& initial,
+              std::function<bool(const std::string&)> validate);
 
     USIOption& operator = (const std::string& v);
 
@@ -45,7 +49,7 @@ public:
     }
 
     operator std::string() const {
-        assert(type_ == "string");
+        assert(type_ == "string" || type_ == "external");
         return currentValue_;
     }
 
@@ -55,12 +59,17 @@ public:
 
 private:
     friend std::ostream& operator << (std::ostream&, const OptionsMap&);
+    friend std::ostream& operator << (std::ostream& os, const USIOption& option) {
+        return os << option.currentValue_;
+    }
 
     std::string defaultValue_;
     std::string currentValue_;
     std::string type_;
     int min_;
     int max_;
+    std::string declaration_;
+    std::function<bool(const std::string&)> validate_;
     Fn* onChange_;
     Searcher* searcher_;
 };

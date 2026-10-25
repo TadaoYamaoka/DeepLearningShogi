@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include <future>
+#include <atomic>
 #include <boost/process.hpp>
 
 struct USIPonderResult
@@ -53,14 +54,17 @@ private:
 	int binc;
 	int winc;
 	int byoyomi;
-	bool living = true;
+	std::atomic<bool> living = true;
 
 	void Init(const std::vector<std::pair<std::string, std::string>>& options);
 	USIPonderResult GoPonder();
+	void WaitStarted();
 
 	// スレッドプール用
 	std::mutex mtx_th;
 	std::condition_variable cond_th;
 	bool ready_th;
-	bool term_th;
+	std::atomic<bool> term_th;
+	bool started = false;
+	bool job_pending = false;
 };

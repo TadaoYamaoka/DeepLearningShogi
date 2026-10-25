@@ -1,0 +1,4214 @@
+{
+  "complete": true,
+  "verified_at": "2026-10-25T09:22:59.541834+00:00",
+  "physical_gpu_count": 1,
+  "builds": {
+    "ny": {
+      "exe_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "pdb_sha256": "72b5e6b94039f217e46dce25017889487ebe527832db70f29a178c4d3570acf1"
+    },
+    "no_ny": {
+      "exe_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "pdb_sha256": "aad08533cae7ca30e9c58476c7c2e3da6bab047bc88077db3d1af5b620f9a61c"
+    },
+    "onnx_ny": {
+      "exe_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+      "pdb_sha256": "488ba960af4eb2de3fd646ef71fc96790542838936265dc37f0acd28672dcf3f"
+    },
+    "onnx_no_ny": {
+      "exe_sha256": "add483e73bc9cd4ffaf50dfba79dec93c00c290c7e96bf51a3729cd0ff495c39",
+      "pdb_sha256": "c9c3e026bca16849e24b669280f20b34335ca48a673d35d130d1d7f7ee8ef1df"
+    },
+    "makebook_ny": {
+      "exe_sha256": "683da9c5a554725b9b35d123771933217e55b4c08048f60a0af25fc1c13ee6c1",
+      "pdb_sha256": "1a0ed9114174758974567f5852a443992b4989b78d11aaba235d0d120a1606bc"
+    },
+    "makebook_no_ny": {
+      "exe_sha256": "fdc79d59d59d8266bc2d774597e0c4b795662d68ea9fbf9f5360cbaa4cc26551",
+      "pdb_sha256": "afd12800d888bd5ed33bc423522c1c3477a3bb0109e251c575eb169c3c4ed695"
+    },
+    "multiponder_ny": {
+      "exe_sha256": "62f97159befb500988a20db4885aa7f9d028768fb3ed2cc8e2df553eb430fec8",
+      "pdb_sha256": "46ac2d8e2a0e080de1b112229d6f1f4dc1e43bb2e89688f1a142f8871fc6cc66"
+    },
+    "multiponder_no_ny": {
+      "exe_sha256": "88d503dca0f680daae8666ec3a5c2392b00da1f6cad684dd15e30e7b8c4f5511",
+      "pdb_sha256": "bc600914148d1c55d004bc7e0a5a02539a6dd26bcbf99080f5b7834e8b1bf37b"
+    },
+    "tensorrt_double": {
+      "exe_sha256": "5c8f041b688dfa7cc946513666c78bbfab000449439c353efd86fbe11e67aa71",
+      "pdb_sha256": "cad464bc0cd48bc58f62da6868ba66f5366fb02f10d8e43b698a9a293e296cdf"
+    },
+    "tensorrt_debug": {
+      "exe_sha256": "dc9ad216c100edfcad86ef44c2705d6cec6aa8623f8535aa0144c41c55682563",
+      "pdb_sha256": "aa8269ec5b89538bf4d015db396d4a4fb9bf8030ded59611b6c28c65715e6753"
+    }
+  },
+  "unit_configurations": [
+    "Release",
+    "Debug"
+  ],
+  "options": {
+    "ny": {
+      "complete": true,
+      "engine_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_File type string default book.bin",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi NYUGYOKU_FEATURES",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 500 min 0 max 2147483647",
+        "option name PV_Mate_Search_Depth type spin default 33 min 0 max 37",
+        "option name PV_Mate_Search_Nodes type spin default 500000 min 0 max 10000000",
+        "option name PV_Mate_Search_Threads type spin default 0 min 0 max 256",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name Use_Book_Policy type check default false",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "no_ny": {
+      "complete": true,
+      "engine_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_File type string default book.bin",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 500 min 0 max 2147483647",
+        "option name PV_Mate_Search_Depth type spin default 33 min 0 max 37",
+        "option name PV_Mate_Search_Nodes type spin default 500000 min 0 max 10000000",
+        "option name PV_Mate_Search_Threads type spin default 0 min 0 max 256",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name Use_Book_Policy type check default false",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "onnx_ny": {
+      "complete": true,
+      "engine_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_File type string default book.bin",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi NYUGYOKU_FEATURES",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 500 min 0 max 2147483647",
+        "option name PV_Mate_Search_Depth type spin default 33 min 0 max 37",
+        "option name PV_Mate_Search_Nodes type spin default 500000 min 0 max 10000000",
+        "option name PV_Mate_Search_Threads type spin default 0 min 0 max 256",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "onnx_no_ny": {
+      "complete": true,
+      "engine_sha256": "add483e73bc9cd4ffaf50dfba79dec93c00c290c7e96bf51a3729cd0ff495c39",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_File type string default book.bin",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 500 min 0 max 2147483647",
+        "option name PV_Mate_Search_Depth type spin default 33 min 0 max 37",
+        "option name PV_Mate_Search_Nodes type spin default 500000 min 0 max 10000000",
+        "option name PV_Mate_Search_Threads type spin default 0 min 0 max 256",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "makebook_ny": {
+      "complete": true,
+      "engine_sha256": "683da9c5a554725b9b35d123771933217e55b4c08048f60a0af25fc1c13ee6c1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_Cutoff type spin default 15 min 0 max 1000",
+        "option name Book_Eval_Threshold type spin default 2147483647 min 1 max 2147483647",
+        "option name Book_File type string default book.bin",
+        "option name Book_Merge_File type string default ",
+        "option name Book_Temperature type spin default 1000 min 0 max 100000",
+        "option name Book_Visit_Threshold type spin default 5 min 0 max 1000",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi NYUGYOKU_FEATURES",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Make_Book_Color type string default both",
+        "option name Make_Book_Sleep type spin default 0 min 0 max 2147483647",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 0 min 0 max 2147483647",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Save_Book_Interval type spin default 100 min 0 max 2147483647",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name Use_Book_Policy type check default false",
+        "option name Use_Interruption type check default true",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "makebook_no_ny": {
+      "complete": true,
+      "engine_sha256": "fdc79d59d59d8266bc2d774597e0c4b795662d68ea9fbf9f5360cbaa4cc26551",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_Cutoff type spin default 15 min 0 max 1000",
+        "option name Book_Eval_Threshold type spin default 2147483647 min 1 max 2147483647",
+        "option name Book_File type string default book.bin",
+        "option name Book_Merge_File type string default ",
+        "option name Book_Temperature type spin default 1000 min 0 max 100000",
+        "option name Book_Visit_Threshold type spin default 5 min 0 max 1000",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Make_Book_Color type string default both",
+        "option name Make_Book_Sleep type spin default 0 min 0 max 2147483647",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 0 min 0 max 2147483647",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Save_Book_Interval type spin default 100 min 0 max 2147483647",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name Use_Book_Policy type check default false",
+        "option name Use_Interruption type check default true",
+        "option name USI_Ponder type check default false"
+      ]
+    },
+    "tensorrt_debug": {
+      "complete": true,
+      "engine_sha256": "dc9ad216c100edfcad86ef44c2705d6cec6aa8623f8535aa0144c41c55682563",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "checks": [
+        "new global/slot options advertised; UCT_Threads absent",
+        "disabled GPU model ignored even when its batch is smaller",
+        "minibatch-only changes and unchanged isready preserve backend counters and cached evaluation",
+        "cache capacity change invalidates cached evaluation without reloading the backend",
+        "automatic and explicit global workers independent of slots, repeated isready",
+        "minibatches 0/64/384 including larger than GPU inference maximum",
+        "retired model-ini setting safely ignored; known setting parsed; zero slots rejected",
+        "missing active model reports fatal reason on USI stdout and stderr before exit"
+      ],
+      "default_options": {
+        "Threads": 0,
+        "TaskWorkers": -1,
+        "DNN_Slots": 2,
+        "MinibatchSize": 0,
+        "MaxConcurrentSearchers": 1
+      },
+      "advertised_options": [
+        "option name Best_Book_Move type check default true",
+        "option name Book_Consider_Draw type check default false",
+        "option name Book_Consider_Draw_Depth type spin default 0 min 0 max 256",
+        "option name Book_File type string default book.bin",
+        "option name Byoyomi_Margin type spin default 0 min 0 max 2147483647",
+        "option name Const_Playout type spin default 0 min 0 max 2147483647",
+        "option name CPuct type spin default 2880 min 0 max 100000",
+        "option name CPuctAtRoot type spin default 2320 min 0 max 100000",
+        "option name CPuctBase type spin default 28288 min 1 max 1000000000",
+        "option name CPuctBaseAtRoot type spin default 25617 min 1 max 1000000000",
+        "option name CPuctFactor type spin default 2000 min 0 max 1000000",
+        "option name CPuctFactorAtRoot type spin default 2000 min 0 max 1000000",
+        "option name DebugMessage type check default false",
+        "option name DfPn_Hash type spin default 2048 min 64 max 4096",
+        "option name DfPn_Min_Search_Millisecs type spin default 300 min 0 max 2147483647",
+        "option name DNN_Batch_Size type spin default 128 min 1 max 256",
+        "option name DNN_Batch_Size2 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size3 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size4 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size5 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size6 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size7 type spin default 0 min 0 max 256",
+        "option name DNN_Batch_Size8 type spin default 0 min 0 max 256",
+        "option name DNN_Cache_Size type spin default 100000 min 0 max 10000000",
+        "option name DNN_Model type string default model.onnx",
+        "option name DNN_Model2 type string default ",
+        "option name DNN_Model3 type string default ",
+        "option name DNN_Model4 type string default ",
+        "option name DNN_Model5 type string default ",
+        "option name DNN_Model6 type string default ",
+        "option name DNN_Model7 type string default ",
+        "option name DNN_Model8 type string default ",
+        "option name DNN_Slots type spin default 2 min 0 max 256",
+        "option name DNN_Slots2 type spin default 0 min 0 max 256",
+        "option name DNN_Slots3 type spin default 0 min 0 max 256",
+        "option name DNN_Slots4 type spin default 0 min 0 max 256",
+        "option name DNN_Slots5 type spin default 0 min 0 max 256",
+        "option name DNN_Slots6 type spin default 0 min 0 max 256",
+        "option name DNN_Slots7 type spin default 0 min 0 max 256",
+        "option name DNN_Slots8 type spin default 0 min 0 max 256",
+        "option name Draw_Ply type spin default 0 min 0 max 2147483647",
+        "option name Draw_Value_Black type spin default 500 min 0 max 1000",
+        "option name Draw_Value_White type spin default 500 min 0 max 1000",
+        "option name Engine_Name type string default dlshogi Debug Build NYUGYOKU_FEATURES",
+        "option name Eval_Coef type spin default 756 min 1 max 10000",
+        "option name FpuStrategy type combo default reduction var reduction var absolute",
+        "option name FpuStrategyAtRoot type combo default reduction var reduction var absolute var same",
+        "option name FpuValue type spin default 540 min -100000 max 100000",
+        "option name FpuValueAtRoot type spin default 0 min -100000 max 100000",
+        "option name Mate_Root_Search type spin default 33 min 0 max 37",
+        "option name MaxConcurrentSearchers type spin default 1 min 0 max 128",
+        "option name Min_Book_Score type spin default -3000 min -32601 max 32601",
+        "option name MinibatchSize type spin default 0 min 0 max 1024",
+        "option name MultiPV type spin default 1 min 1 max 593",
+        "option name OwnBook type check default false",
+        "option name PolicyTemperature type spin default 1740 min 100 max 10000",
+        "option name PV_Interval type spin default 500 min 0 max 2147483647",
+        "option name PV_Mate_Search_Depth type spin default 33 min 0 max 37",
+        "option name PV_Mate_Search_Nodes type spin default 500000 min 0 max 10000000",
+        "option name PV_Mate_Search_Threads type spin default 0 min 0 max 256",
+        "option name Random2_Cutoff type spin default 30 min 0 max 1000",
+        "option name Random2_Ply type spin default 0 min 0 max 1000",
+        "option name Random2_Probability type spin default 40 min 0 max 1000",
+        "option name Random2_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random2_Value_Limit type spin default 750 min 0 max 1000",
+        "option name Random_Cutoff type spin default 15 min 0 max 1000",
+        "option name Random_Cutoff_Drop type spin default 0 min 0 max 1000",
+        "option name Random_Ply type spin default 0 min 0 max 1000",
+        "option name Random_Temperature type spin default 10000 min 0 max 100000",
+        "option name Random_Temperature_Drop type spin default 1000 min 0 max 100000",
+        "option name Resign_Threshold type spin default 10 min 0 max 1000",
+        "option name ReuseSubtree type check default true",
+        "option name RootHasOwnCpuctParams type check default true",
+        "option name Stochastic_Ponder type check default true",
+        "option name TaskWorkers type spin default -1 min -1 max 128",
+        "option name Threads type spin default 0 min 0 max 128",
+        "option name Time_Margin type spin default 1000 min 0 max 2147483647",
+        "option name UCT_NodeLimit type spin default 10000000 min 100000 max 1000000000",
+        "option name Use_Book_Policy type check default false",
+        "option name USI_Ponder type check default false"
+      ]
+    }
+  },
+  "nn": {
+    "ny": {
+      "new_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "old_sha256": "923c42a233f88840385741109e6cef6e2bf32f723aff46518324cb6d1c5edaae",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "no_ny": {
+      "new_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "old_sha256": "a1125c1a10379db55e294d727d9a711708afc716c3985fbe70975f996e6d1667",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    },
+    "onnx_ny": {
+      "new_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+      "old_sha256": "11770421b4c78abe39a701cc4a6b6c76b9dd209982a49d37613d5e6a9b2cca7f",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "onnx_no_ny": {
+      "new_sha256": "add483e73bc9cd4ffaf50dfba79dec93c00c290c7e96bf51a3729cd0ff495c39",
+      "old_sha256": "31b436db75fca5c2b41374e6db43eecac1dca7dd1d23e0596ef36bf118a68c54",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    },
+    "makebook_ny": {
+      "new_sha256": "683da9c5a554725b9b35d123771933217e55b4c08048f60a0af25fc1c13ee6c1",
+      "old_sha256": "923c42a233f88840385741109e6cef6e2bf32f723aff46518324cb6d1c5edaae",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "makebook_no_ny": {
+      "new_sha256": "fdc79d59d59d8266bc2d774597e0c4b795662d68ea9fbf9f5360cbaa4cc26551",
+      "old_sha256": "a1125c1a10379db55e294d727d9a711708afc716c3985fbe70975f996e6d1667",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    }
+  },
+  "protocol": {
+    "ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\ny\\dlshogi_tensorrt.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\ny.onnx",
+      "engine_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "threads": 0,
+      "slots": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    },
+    "onnx_ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\onnx_ny\\dlshogi_onnxruntime.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\ny.onnx",
+      "engine_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "threads": 0,
+      "slots": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    }
+  },
+  "books": {
+    "ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\book_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "683da9c5a554725b9b35d123771933217e55b4c08048f60a0af25fc1c13ee6c1",
+      "unchanged_book_cache_preserved": true,
+      "policy_toggle_invalidates_cache": true,
+      "same_path_book_edit_invalidates_cache": true,
+      "reader_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "book_sha256": "31fe8b32bf07c2bf33470873e7ae6f01a6d79ceb407686e2778842e6b8bf02c8"
+    },
+    "no_ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\book_no_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "fdc79d59d59d8266bc2d774597e0c4b795662d68ea9fbf9f5360cbaa4cc26551",
+      "unchanged_book_cache_preserved": true,
+      "policy_toggle_invalidates_cache": true,
+      "same_path_book_edit_invalidates_cache": true,
+      "reader_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "book_sha256": "3ae734205b5f82ca482866498ecf252162e6937283c597726d70a1e923d868e7"
+    }
+  },
+  "fpu": {
+    "ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    },
+    "no_ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c"
+    },
+    "onnx_ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    },
+    "onnx_no_ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "add483e73bc9cd4ffaf50dfba79dec93c00c290c7e96bf51a3729cd0ff495c39",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c"
+    },
+    "makebook_ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "683da9c5a554725b9b35d123771933217e55b4c08048f60a0af25fc1c13ee6c1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    },
+    "makebook_no_ny": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "fdc79d59d59d8266bc2d774597e0c4b795662d68ea9fbf9f5360cbaa4cc26551",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c"
+    },
+    "tensorrt_debug": {
+      "complete": true,
+      "checks": [
+        "lc0 FPU names/types advertised, retired names absent, integer scaled PUCT/FPU/temperature names advertised",
+        "reduction 0.54/0.9, absolute -1 and root same/absolute search legally",
+        "FPU-only isready preserves backend, cached scalar NN value and policy",
+        "invalid choices/nonfinite/out-of-range settings do not corrupt search",
+        "model ini warns/skips legacy search keys and reads integer/combo/bool keys"
+      ],
+      "searches": [
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "reduction",
+            "FpuValueAtRoot": 0
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 900,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "absolute",
+            "FpuValue": -1000,
+            "FpuStrategyAtRoot": "same",
+            "FpuValueAtRoot": 99000
+          },
+          "bestmove": "5f5e"
+        },
+        {
+          "config": {
+            "FpuStrategy": "reduction",
+            "FpuValue": 540,
+            "FpuStrategyAtRoot": "absolute",
+            "FpuValueAtRoot": -1000
+          },
+          "bestmove": "5f5e"
+        }
+      ],
+      "engine_sha256": "dc9ad216c100edfcad86ef44c2705d6cec6aa8623f8535aa0144c41c55682563",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    }
+  },
+  "equivalence": {
+    "ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "40a0b976caf7d8e4efd181ad75e0de8f828289ba80a8dc21894076ca0a58ba1d",
+      "new_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 0,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true,
+      "records": [
+        {
+          "index": 0,
+          "old": {
+            "bestmove": "5f5e",
+            "pv": [
+              "5f5e",
+              "6e6f",
+              "7h6h",
+              "P*9f",
+              "9g8e",
+              "3e3f",
+              "3g3f",
+              "3b3f"
+            ],
+            "nodes": 4049,
+            "nn_evaluations": 3195,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "5f5e",
+            "pv": [
+              "5f5e",
+              "6e6f",
+              "7h6h",
+              "P*9f",
+              "9g8e",
+              "3e3f",
+              "3g3f",
+              "3b3f"
+            ],
+            "nodes": 4049,
+            "nn_evaluations": 3195,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 3,
+          "old": {
+            "bestmove": "6f6e",
+            "pv": [
+              "6f6e",
+              "3a2b",
+              "8h5e",
+              "2h5e+",
+              "5h5e",
+              "B*4d",
+              "B*4f",
+              "4d5e",
+              "4f5e"
+            ],
+            "nodes": 4178,
+            "nn_evaluations": 3195,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "6f6e",
+            "pv": [
+              "6f6e",
+              "3a2b",
+              "8h5e",
+              "2h5e+",
+              "5h5e",
+              "B*4d",
+              "B*4f",
+              "4d5e",
+              "4f5e"
+            ],
+            "nodes": 4178,
+            "nn_evaluations": 3195,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 6,
+          "old": {
+            "bestmove": "2b4d",
+            "pv": [
+              "2b4d",
+              "9g8h",
+              "4d2f",
+              "7g7f",
+              "2a3c",
+              "5h4h",
+              "7a6b",
+              "5g5f",
+              "6b5c",
+              "6h5h",
+              "5c6d",
+              "7i6h",
+              "9b8b"
+            ],
+            "nodes": 4017,
+            "nn_evaluations": 2405,
+            "nn_batches": 26
+          },
+          "new": {
+            "bestmove": "2b4d",
+            "pv": [
+              "2b4d",
+              "9g8h",
+              "4d2f",
+              "7g7f",
+              "2a3c",
+              "5h4h",
+              "7a6b",
+              "5g5f",
+              "6b5c",
+              "6h5h",
+              "5c6d",
+              "7i6h",
+              "9b8b"
+            ],
+            "nodes": 4017,
+            "nn_evaluations": 2405,
+            "nn_batches": 26
+          }
+        },
+        {
+          "index": 10,
+          "old": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "3a3b",
+              "2f2e",
+              "2d2e",
+              "1h2h",
+              "9c9d",
+              "2i3g",
+              "9d9e",
+              "3g4e",
+              "5a5b",
+              "9g8e",
+              "9b9d",
+              "7g7f",
+              "8c8d",
+              "6f6e"
+            ],
+            "nodes": 4194,
+            "nn_evaluations": 1680,
+            "nn_batches": 22
+          },
+          "new": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "3a3b",
+              "2f2e",
+              "2d2e",
+              "1h2h",
+              "9c9d",
+              "2i3g",
+              "9d9e",
+              "3g4e",
+              "5a5b",
+              "9g8e",
+              "9b9d",
+              "7g7f",
+              "8c8d",
+              "6f6e"
+            ],
+            "nodes": 4194,
+            "nn_evaluations": 1680,
+            "nn_batches": 22
+          }
+        },
+        {
+          "index": 13,
+          "old": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2f2e",
+              "2d2e",
+              "6f6e",
+              "4b5a",
+              "7f7e",
+              "7b7c",
+              "P*2c",
+              "2b3a",
+              "4g4f",
+              "5c5d",
+              "4f4e",
+              "3a7e",
+              "3g4f",
+              "7c7d",
+              "2h3g",
+              "7d6e",
+              "7h6g",
+              "7e6d",
+              "4f3e",
+              "2e2f",
+              "1h2h",
+              "4c3d",
+              "3e3d",
+              "3c3d"
+            ],
+            "nodes": 4180,
+            "nn_evaluations": 2740,
+            "nn_batches": 38
+          },
+          "new": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2f2e",
+              "2d2e",
+              "6f6e",
+              "4b5a",
+              "7f7e",
+              "7b7c",
+              "P*2c",
+              "2b3a",
+              "4g4f",
+              "5c5d",
+              "4f4e",
+              "3a7e",
+              "3g4f",
+              "7c7d",
+              "2h3g",
+              "7d6e",
+              "7h6g",
+              "7e6d",
+              "4f3e",
+              "2e2f",
+              "1h2h",
+              "4c3d",
+              "3e3d",
+              "3c3d"
+            ],
+            "nodes": 4180,
+            "nn_evaluations": 2740,
+            "nn_batches": 38
+          }
+        },
+        {
+          "index": 16,
+          "old": {
+            "bestmove": "4d4e",
+            "pv": [
+              "4d4e",
+              "4f4e",
+              "4c3d",
+              "5g5f",
+              "6b5c",
+              "4i4h",
+              "5c5d"
+            ],
+            "nodes": 4212,
+            "nn_evaluations": 2543,
+            "nn_batches": 24
+          },
+          "new": {
+            "bestmove": "4d4e",
+            "pv": [
+              "4d4e",
+              "4f4e",
+              "4c3d",
+              "5g5f",
+              "6b5c",
+              "4i4h",
+              "5c5d"
+            ],
+            "nodes": 4212,
+            "nn_evaluations": 2543,
+            "nn_batches": 24
+          }
+        },
+        {
+          "index": 20,
+          "old": {
+            "bestmove": "2d2e",
+            "pv": [
+              "2d2e",
+              "2h2e",
+              "P*2d",
+              "2e2f",
+              "5a4a",
+              "7g7f",
+              "4a3b",
+              "7i8h",
+              "7b6b",
+              "8h6f",
+              "8c8d",
+              "2f3f",
+              "2b3c",
+              "P*2b",
+              "3b2b",
+              "3f3d",
+              "4c4d",
+              "3d4d",
+              "3c4d",
+              "6f4d",
+              "P*3c"
+            ],
+            "nodes": 4097,
+            "nn_evaluations": 2693,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "2d2e",
+            "pv": [
+              "2d2e",
+              "2h2e",
+              "P*2d",
+              "2e2f",
+              "5a4a",
+              "7g7f",
+              "4a3b",
+              "7i8h",
+              "7b6b",
+              "8h6f",
+              "8c8d",
+              "2f3f",
+              "2b3c",
+              "P*2b",
+              "3b2b",
+              "3f3d",
+              "4c4d",
+              "3d4d",
+              "3c4d",
+              "6f4d",
+              "P*3c"
+            ],
+            "nodes": 4097,
+            "nn_evaluations": 2693,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 23,
+          "old": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "8c8d",
+              "7g7f",
+              "8d8e",
+              "3g3f",
+              "4b3b",
+              "7f7e",
+              "7d7e",
+              "2f2e",
+              "2d2e",
+              "3f3e",
+              "3d2c",
+              "2h2e",
+              "P*2d"
+            ],
+            "nodes": 4139,
+            "nn_evaluations": 1407,
+            "nn_batches": 23
+          },
+          "new": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "8c8d",
+              "7g7f",
+              "8d8e",
+              "3g3f",
+              "4b3b",
+              "7f7e",
+              "7d7e",
+              "2f2e",
+              "2d2e",
+              "3f3e",
+              "3d2c",
+              "2h2e",
+              "P*2d"
+            ],
+            "nodes": 4139,
+            "nn_evaluations": 1407,
+            "nn_batches": 23
+          }
+        },
+        {
+          "index": 26,
+          "old": {
+            "bestmove": "7b6c",
+            "pv": [
+              "7b6c",
+              "9i4d",
+              "1f1g",
+              "2e1d",
+              "1g1h",
+              "L*5f",
+              "7a6b",
+              "7e6d",
+              "6c5d",
+              "5f5d",
+              "5c5d",
+              "5h4g",
+              "L*5a",
+              "G*2b",
+              "P*4c",
+              "2b3a"
+            ],
+            "nodes": 4120,
+            "nn_evaluations": 3105,
+            "nn_batches": 34
+          },
+          "new": {
+            "bestmove": "7b6c",
+            "pv": [
+              "7b6c",
+              "9i4d",
+              "1f1g",
+              "2e1d",
+              "1g1h",
+              "L*5f",
+              "7a6b",
+              "7e6d",
+              "6c5d",
+              "5f5d",
+              "5c5d",
+              "5h4g",
+              "L*5a",
+              "G*2b",
+              "P*4c",
+              "2b3a"
+            ],
+            "nodes": 4120,
+            "nn_evaluations": 3105,
+            "nn_batches": 34
+          }
+        },
+        {
+          "index": 30,
+          "old": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2g2f",
+              "5d5e",
+              "3g2g",
+              "5b5d",
+              "3h3e",
+              "P*3d",
+              "3e3i",
+              "4a3b",
+              "6f6e",
+              "2d2e",
+              "2f2e",
+              "6b5c",
+              "6e6d"
+            ],
+            "nodes": 4171,
+            "nn_evaluations": 2837,
+            "nn_batches": 29
+          },
+          "new": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2g2f",
+              "5d5e",
+              "3g2g",
+              "5b5d",
+              "3h3e",
+              "P*3d",
+              "3e3i",
+              "4a3b",
+              "6f6e",
+              "2d2e",
+              "2f2e",
+              "6b5c",
+              "6e6d"
+            ],
+            "nodes": 4171,
+            "nn_evaluations": 2837,
+            "nn_batches": 29
+          }
+        },
+        {
+          "index": 33,
+          "old": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "3c4e",
+              "3g4f",
+              "2b6f",
+              "3i4h",
+              "P*4d",
+              "P*6g",
+              "6f7e",
+              "4c4d",
+              "4e5g+",
+              "4h5g",
+              "7c6c"
+            ],
+            "nodes": 4029,
+            "nn_evaluations": 3213,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "3c4e",
+              "3g4f",
+              "2b6f",
+              "3i4h",
+              "P*4d",
+              "P*6g",
+              "6f7e",
+              "4c4d",
+              "4e5g+",
+              "4h5g",
+              "7c6c"
+            ],
+            "nodes": 4029,
+            "nn_evaluations": 3213,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 36,
+          "old": {
+            "bestmove": "7d7e",
+            "pv": [
+              "7d7e",
+              "7g6e",
+              "P*6f",
+              "9i6f",
+              "6c5d",
+              "B*4c",
+              "8b7d",
+              "6f9i",
+              "P*6f",
+              "4c2a+"
+            ],
+            "nodes": 4143,
+            "nn_evaluations": 3359,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "7d7e",
+            "pv": [
+              "7d7e",
+              "7g6e",
+              "P*6f",
+              "9i6f",
+              "6c5d",
+              "B*4c",
+              "8b7d",
+              "6f9i",
+              "P*6f",
+              "4c2a+"
+            ],
+            "nodes": 4143,
+            "nn_evaluations": 3359,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 40,
+          "old": {
+            "bestmove": "3c4b",
+            "pv": [
+              "3c4b",
+              "5a4b",
+              "4f4e",
+              "8a7c",
+              "R*7a",
+              "N*5a",
+              "7a7c+",
+              "5f5g+",
+              "4g5g",
+              "3e3f"
+            ],
+            "nodes": 4111,
+            "nn_evaluations": 3630,
+            "nn_batches": 37
+          },
+          "new": {
+            "bestmove": "3c4b",
+            "pv": [
+              "3c4b",
+              "5a4b",
+              "4f4e",
+              "8a7c",
+              "R*7a",
+              "N*5a",
+              "7a7c+",
+              "5f5g+",
+              "4g5g",
+              "3e3f"
+            ],
+            "nodes": 4111,
+            "nn_evaluations": 3630,
+            "nn_batches": 37
+          }
+        },
+        {
+          "index": 43,
+          "old": {
+            "bestmove": "1f1e",
+            "pv": [
+              "1f1e",
+              "7c7d",
+              "9f8g",
+              "2c2b",
+              "B*8a",
+              "7d7e",
+              "7f7g",
+              "9c8e",
+              "8f8e"
+            ],
+            "nodes": 4114,
+            "nn_evaluations": 3243,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "1f1e",
+            "pv": [
+              "1f1e",
+              "7c7d",
+              "9f8g",
+              "2c2b",
+              "B*8a",
+              "7d7e",
+              "7f7g",
+              "9c8e",
+              "8f8e"
+            ],
+            "nodes": 4114,
+            "nn_evaluations": 3243,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 46,
+          "old": {
+            "bestmove": "1c2e",
+            "pv": [
+              "1c2e",
+              "4e4d",
+              "4c3d",
+              "2h3h",
+              "1f1g+",
+              "2g2f",
+              "1g2g",
+              "3h3i",
+              "2e3g+",
+              "1i1d",
+              "N*4g",
+              "1d1b+",
+              "4g3i+",
+              "P*3e",
+              "P*4h",
+              "3e3d",
+              "4h4i+",
+              "4d4c+",
+              "5b6a",
+              "P*4b",
+              "5a4b",
+              "4c4b"
+            ],
+            "nodes": 4125,
+            "nn_evaluations": 3728,
+            "nn_batches": 57
+          },
+          "new": {
+            "bestmove": "1c2e",
+            "pv": [
+              "1c2e",
+              "4e4d",
+              "4c3d",
+              "2h3h",
+              "1f1g+",
+              "2g2f",
+              "1g2g",
+              "3h3i",
+              "2e3g+",
+              "1i1d",
+              "N*4g",
+              "1d1b+",
+              "4g3i+",
+              "P*3e",
+              "P*4h",
+              "3e3d",
+              "4h4i+",
+              "4d4c+",
+              "5b6a",
+              "P*4b",
+              "5a4b",
+              "4c4b"
+            ],
+            "nodes": 4125,
+            "nn_evaluations": 3728,
+            "nn_batches": 57
+          }
+        },
+        {
+          "index": 50,
+          "old": {
+            "bestmove": "5d5e",
+            "pv": [
+              "5d5e",
+              "1f1e",
+              "3e3f",
+              "1d3f",
+              "7d3d",
+              "P*3e",
+              "3d3e",
+              "3h4g",
+              "9d9e"
+            ],
+            "nodes": 4114,
+            "nn_evaluations": 3491,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "5d5e",
+            "pv": [
+              "5d5e",
+              "1f1e",
+              "3e3f",
+              "1d3f",
+              "7d3d",
+              "P*3e",
+              "3d3e",
+              "3h4g",
+              "9d9e"
+            ],
+            "nodes": 4114,
+            "nn_evaluations": 3491,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 53,
+          "old": {
+            "bestmove": "3f5h",
+            "pv": [
+              "3f5h",
+              "6e6d",
+              "6c6d",
+              "7e7d",
+              "7c7d",
+              "N*8f",
+              "7d7c",
+              "P*7d",
+              "7c6c",
+              "8e8d",
+              "8c8d"
+            ],
+            "nodes": 4088,
+            "nn_evaluations": 3505,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "3f5h",
+            "pv": [
+              "3f5h",
+              "6e6d",
+              "6c6d",
+              "7e7d",
+              "7c7d",
+              "N*8f",
+              "7d7c",
+              "P*7d",
+              "7c6c",
+              "8e8d",
+              "8c8d"
+            ],
+            "nodes": 4088,
+            "nn_evaluations": 3505,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 56,
+          "old": {
+            "bestmove": "7b7e",
+            "pv": [
+              "7b7e",
+              "7g8h",
+              "7h7i+",
+              "8i7g",
+              "B*6g",
+              "9g9f",
+              "9d9e",
+              "4f4g"
+            ],
+            "nodes": 4161,
+            "nn_evaluations": 3492,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "7b7e",
+            "pv": [
+              "7b7e",
+              "7g8h",
+              "7h7i+",
+              "8i7g",
+              "B*6g",
+              "9g9f",
+              "9d9e",
+              "4f4g"
+            ],
+            "nodes": 4161,
+            "nn_evaluations": 3492,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 60,
+          "old": {
+            "bestmove": "P*7f",
+            "pv": [
+              "P*7f",
+              "7e8e",
+              "9f9g",
+              "9e9f",
+              "9g7g",
+              "2c2d",
+              "2e2d",
+              "8e8f",
+              "6i6h",
+              "7b6c",
+              "5c4d+",
+              "N*8e",
+              "7g6g",
+              "1b3d"
+            ],
+            "nodes": 4143,
+            "nn_evaluations": 3640,
+            "nn_batches": 37
+          },
+          "new": {
+            "bestmove": "P*7f",
+            "pv": [
+              "P*7f",
+              "7e8e",
+              "9f9g",
+              "9e9f",
+              "9g7g",
+              "2c2d",
+              "2e2d",
+              "8e8f",
+              "6i6h",
+              "7b6c",
+              "5c4d+",
+              "N*8e",
+              "7g6g",
+              "1b3d"
+            ],
+            "nodes": 4143,
+            "nn_evaluations": 3640,
+            "nn_batches": 37
+          }
+        },
+        {
+          "index": 63,
+          "old": {
+            "bestmove": "7e7d",
+            "pv": [
+              "7e7d",
+              "3b2c",
+              "8e8d",
+              "5e5f",
+              "5g5h",
+              "P*8b",
+              "8d8c+",
+              "8b8c",
+              "7d8c+"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 3371,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "7e7d",
+            "pv": [
+              "7e7d",
+              "3b2c",
+              "8e8d",
+              "5e5f",
+              "5g5h",
+              "P*8b",
+              "8d8c+",
+              "8b8c",
+              "7d8c+"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 3371,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 66,
+          "old": {
+            "bestmove": "6e7c+",
+            "pv": [
+              "6e7c+",
+              "6h6g",
+              "5g6g",
+              "4f4g+",
+              "4h4g",
+              "4d4g+",
+              "P*7b",
+              "9b8b",
+              "7b7a+",
+              "8a9b",
+              "7c8b",
+              "9c8b",
+              "R*9d",
+              "9b8c"
+            ],
+            "nodes": 4169,
+            "nn_evaluations": 3454,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "6e7c+",
+            "pv": [
+              "6e7c+",
+              "6h6g",
+              "5g6g",
+              "4f4g+",
+              "4h4g",
+              "4d4g+",
+              "P*7b",
+              "9b8b",
+              "7b7a+",
+              "8a9b",
+              "7c8b",
+              "9c8b",
+              "R*9d",
+              "9b8c"
+            ],
+            "nodes": 4169,
+            "nn_evaluations": 3454,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 70,
+          "old": {
+            "bestmove": "3f2g",
+            "pv": [
+              "3f2g",
+              "1h2h",
+              "9d9c+",
+              "8c9c",
+              "3i4i",
+              "2h2g",
+              "1d1c+",
+              "3e3f",
+              "3g3f",
+              "3c2d",
+              "L*3e",
+              "2d1c",
+              "5g6h",
+              "P*9f",
+              "4e4d",
+              "2g3h"
+            ],
+            "nodes": 4131,
+            "nn_evaluations": 2719,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "3f2g",
+            "pv": [
+              "3f2g",
+              "1h2h",
+              "9d9c+",
+              "8c9c",
+              "3i4i",
+              "2h2g",
+              "1d1c+",
+              "3e3f",
+              "3g3f",
+              "3c2d",
+              "L*3e",
+              "2d1c",
+              "5g6h",
+              "P*9f",
+              "4e4d",
+              "2g3h"
+            ],
+            "nodes": 4131,
+            "nn_evaluations": 2719,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 73,
+          "old": {
+            "bestmove": "2e3f",
+            "pv": [
+              "2e3f",
+              "3d4b+",
+              "5b4b",
+              "S*6h",
+              "3f1h+",
+              "1i1h",
+              "N*3f",
+              "2h3g"
+            ],
+            "nodes": 4052,
+            "nn_evaluations": 3568,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "2e3f",
+            "pv": [
+              "2e3f",
+              "3d4b+",
+              "5b4b",
+              "S*6h",
+              "3f1h+",
+              "1i1h",
+              "N*3f",
+              "2h3g"
+            ],
+            "nodes": 4052,
+            "nn_evaluations": 3568,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 76,
+          "old": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "5b4c",
+              "3g3f",
+              "2b8h+",
+              "7e7d",
+              "2c2d",
+              "G*5c",
+              "4c3b",
+              "5c5d",
+              "3b2a",
+              "2e2d",
+              "8h8i",
+              "6g6f",
+              "8b7c",
+              "7d7c+",
+              "8c7c",
+              "P*7d",
+              "7c7d",
+              "S*2b",
+              "2a2b",
+              "3e4d"
+            ],
+            "nodes": 4025,
+            "nn_evaluations": 3416,
+            "nn_batches": 40
+          },
+          "new": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "5b4c",
+              "3g3f",
+              "2b8h+",
+              "7e7d",
+              "2c2d",
+              "G*5c",
+              "4c3b",
+              "5c5d",
+              "3b2a",
+              "2e2d",
+              "8h8i",
+              "6g6f",
+              "8b7c",
+              "7d7c+",
+              "8c7c",
+              "P*7d",
+              "7c7d",
+              "S*2b",
+              "2a2b",
+              "3e4d"
+            ],
+            "nodes": 4025,
+            "nn_evaluations": 3416,
+            "nn_batches": 40
+          }
+        },
+        {
+          "index": 80,
+          "old": {
+            "bestmove": "4i4g+",
+            "pv": [
+              "4i4g+",
+              "5h6i",
+              "2g3h",
+              "P*2d",
+              "2c2d",
+              "S*3c",
+              "2d3c",
+              "4d4c+",
+              "3c2d",
+              "3i3h"
+            ],
+            "nodes": 4001,
+            "nn_evaluations": 3197,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "4i4g+",
+            "pv": [
+              "4i4g+",
+              "5h6i",
+              "2g3h",
+              "P*2d",
+              "2c2d",
+              "S*3c",
+              "2d3c",
+              "4d4c+",
+              "3c2d",
+              "3i3h"
+            ],
+            "nodes": 4001,
+            "nn_evaluations": 3197,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 83,
+          "old": {
+            "bestmove": "5g5f",
+            "pv": [
+              "5g5f",
+              "P*5g",
+              "3f3e",
+              "5g5h+",
+              "6i5h",
+              "R*1i",
+              "4i3i",
+              "1e1f",
+              "7f7e",
+              "1f1g+",
+              "B*7d",
+              "L*8c",
+              "7d8c+",
+              "9b8c",
+              "8e8d",
+              "8c9b",
+              "G*8c",
+              "9b8a",
+              "L*8b"
+            ],
+            "nodes": 4000,
+            "nn_evaluations": 3244,
+            "nn_batches": 34
+          },
+          "new": {
+            "bestmove": "5g5f",
+            "pv": [
+              "5g5f",
+              "P*5g",
+              "3f3e",
+              "5g5h+",
+              "6i5h",
+              "R*1i",
+              "4i3i",
+              "1e1f",
+              "7f7e",
+              "1f1g+",
+              "B*7d",
+              "L*8c",
+              "7d8c+",
+              "9b8c",
+              "8e8d",
+              "8c9b",
+              "G*8c",
+              "9b8a",
+              "L*8b"
+            ],
+            "nodes": 4000,
+            "nn_evaluations": 3244,
+            "nn_batches": 34
+          }
+        },
+        {
+          "index": 86,
+          "old": {
+            "bestmove": "2d3c+",
+            "pv": [
+              "2d3c+",
+              "3a3b",
+              "3c3b",
+              "9c8e",
+              "6i5h",
+              "3g2i+",
+              "S*7i",
+              "G*6g",
+              "5h4g",
+              "R*4i",
+              "R*4h",
+              "4i7i+",
+              "4g3f",
+              "6g5g"
+            ],
+            "nodes": 4034,
+            "nn_evaluations": 3452,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "2d3c+",
+            "pv": [
+              "2d3c+",
+              "3a3b",
+              "3c3b",
+              "9c8e",
+              "6i5h",
+              "3g2i+",
+              "S*7i",
+              "G*6g",
+              "5h4g",
+              "R*4i",
+              "R*4h",
+              "4i7i+",
+              "4g3f",
+              "6g5g"
+            ],
+            "nodes": 4034,
+            "nn_evaluations": 3452,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 90,
+          "old": {
+            "bestmove": "6a6e",
+            "pv": [
+              "6a6e",
+              "9g9f",
+              "8f8g+",
+              "P*8d",
+              "R*7h",
+              "7i6i",
+              "9e9f",
+              "S*6h",
+              "8g7g",
+              "8d8c+",
+              "P*5g",
+              "1e2d",
+              "2c2d",
+              "4f3e",
+              "2d1c",
+              "R*4c",
+              "1c2b",
+              "1a2a",
+              "2b3b",
+              "2a2b",
+              "3b4c",
+              "6g5e"
+            ],
+            "nodes": 4034,
+            "nn_evaluations": 3662,
+            "nn_batches": 56
+          },
+          "new": {
+            "bestmove": "6a6e",
+            "pv": [
+              "6a6e",
+              "9g9f",
+              "8f8g+",
+              "P*8d",
+              "R*7h",
+              "7i6i",
+              "9e9f",
+              "S*6h",
+              "8g7g",
+              "8d8c+",
+              "P*5g",
+              "1e2d",
+              "2c2d",
+              "4f3e",
+              "2d1c",
+              "R*4c",
+              "1c2b",
+              "1a2a",
+              "2b3b",
+              "2a2b",
+              "3b4c",
+              "6g5e"
+            ],
+            "nodes": 4034,
+            "nn_evaluations": 3662,
+            "nn_batches": 56
+          }
+        },
+        {
+          "index": 93,
+          "old": {
+            "bestmove": "G*7a",
+            "pv": [
+              "G*7a",
+              "8a9a",
+              "8c8b",
+              "9a8b"
+            ],
+            "nodes": 4202,
+            "nn_evaluations": 2439,
+            "nn_batches": 26
+          },
+          "new": {
+            "bestmove": "G*7a",
+            "pv": [
+              "G*7a",
+              "8a9a",
+              "8c8b",
+              "9a8b"
+            ],
+            "nodes": 4202,
+            "nn_evaluations": 2439,
+            "nn_batches": 26
+          }
+        },
+        {
+          "index": 96,
+          "old": {
+            "bestmove": "4g5h",
+            "pv": [
+              "4g5h",
+              "9i9h",
+              "6i6h",
+              "9h8g",
+              "9g8e",
+              "7c8c",
+              "7f7g",
+              "8g8i",
+              "4a5a",
+              "6b5a"
+            ],
+            "nodes": 4062,
+            "nn_evaluations": 3264,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "4g5h",
+            "pv": [
+              "4g5h",
+              "9i9h",
+              "6i6h",
+              "9h8g",
+              "9g8e",
+              "7c8c",
+              "7f7g",
+              "8g8i",
+              "4a5a",
+              "6b5a"
+            ],
+            "nodes": 4062,
+            "nn_evaluations": 3264,
+            "nn_batches": 32
+          }
+        }
+      ]
+    },
+    "no_ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "64990f4f7066009a59d5f7f7670e1c7b936a7c68bd9963b7f9ab5262453074a7",
+      "new_sha256": "4a3c3f2a45d800f25d1a86aef2226908edb03460e023c00071f5410c2ceb3af7",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 3,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true,
+      "records": [
+        {
+          "index": 0,
+          "old": {
+            "bestmove": "5f5e",
+            "pv": [
+              "5f5e",
+              "3e3f",
+              "3g3f",
+              "3b3f",
+              "6f6e",
+              "P*9f",
+              "9g8e",
+              "3f7f",
+              "5e5d"
+            ],
+            "nodes": 4019,
+            "nn_evaluations": 3547,
+            "nn_batches": 34
+          },
+          "new": {
+            "bestmove": "5f5e",
+            "pv": [
+              "5f5e",
+              "3e3f",
+              "3g3f",
+              "3b3f",
+              "6f6e",
+              "P*9f",
+              "9g8e",
+              "3f7f",
+              "5e5d"
+            ],
+            "nodes": 4019,
+            "nn_evaluations": 3547,
+            "nn_batches": 34
+          }
+        },
+        {
+          "index": 3,
+          "old": {
+            "bestmove": "6f6e",
+            "pv": [
+              "6f6e",
+              "3a2b",
+              "8h5e",
+              "2h5e+",
+              "5h5e",
+              "B*6f",
+              "B*7g",
+              "6f5e",
+              "7g5e"
+            ],
+            "nodes": 4069,
+            "nn_evaluations": 3199,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "6f6e",
+            "pv": [
+              "6f6e",
+              "3a2b",
+              "8h5e",
+              "2h5e+",
+              "5h5e",
+              "B*6f",
+              "B*7g",
+              "6f5e",
+              "7g5e"
+            ],
+            "nodes": 4069,
+            "nn_evaluations": 3199,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 6,
+          "old": {
+            "bestmove": "2b4d",
+            "pv": [
+              "2b4d",
+              "9g8h",
+              "4d2f",
+              "7g7f",
+              "2a3c",
+              "5h4h",
+              "7a6b",
+              "5g5f",
+              "6c6d",
+              "3g3f",
+              "6b6c",
+              "2h3g",
+              "2f5c"
+            ],
+            "nodes": 4050,
+            "nn_evaluations": 2460,
+            "nn_batches": 25
+          },
+          "new": {
+            "bestmove": "2b4d",
+            "pv": [
+              "2b4d",
+              "9g8h",
+              "4d2f",
+              "7g7f",
+              "2a3c",
+              "5h4h",
+              "7a6b",
+              "5g5f",
+              "6c6d",
+              "3g3f",
+              "6b6c",
+              "2h3g",
+              "2f5c"
+            ],
+            "nodes": 4050,
+            "nn_evaluations": 2460,
+            "nn_batches": 25
+          }
+        },
+        {
+          "index": 10,
+          "old": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "3a3b",
+              "2f2e",
+              "2d2e",
+              "1h2h",
+              "9c9d",
+              "2h2e",
+              "P*2c",
+              "9g8e",
+              "8c8d",
+              "9e9d",
+              "8d8e",
+              "8f8e",
+              "8b8c",
+              "2i3g"
+            ],
+            "nodes": 4140,
+            "nn_evaluations": 2077,
+            "nn_batches": 24
+          },
+          "new": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "3a3b",
+              "2f2e",
+              "2d2e",
+              "1h2h",
+              "9c9d",
+              "2h2e",
+              "P*2c",
+              "9g8e",
+              "8c8d",
+              "9e9d",
+              "8d8e",
+              "8f8e",
+              "8b8c",
+              "2i3g"
+            ],
+            "nodes": 4140,
+            "nn_evaluations": 2077,
+            "nn_batches": 24
+          }
+        },
+        {
+          "index": 13,
+          "old": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2f2e",
+              "2d2e",
+              "6f6e",
+              "4b3b",
+              "4g4f",
+              "7b7c",
+              "7f7e",
+              "8b4b",
+              "4f4e",
+              "3c3d",
+              "8h2b+",
+              "3b2b",
+              "2h2g",
+              "B*8h",
+              "B*7g"
+            ],
+            "nodes": 4003,
+            "nn_evaluations": 2768,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2f2e",
+              "2d2e",
+              "6f6e",
+              "4b3b",
+              "4g4f",
+              "7b7c",
+              "7f7e",
+              "8b4b",
+              "4f4e",
+              "3c3d",
+              "8h2b+",
+              "3b2b",
+              "2h2g",
+              "B*8h",
+              "B*7g"
+            ],
+            "nodes": 4120,
+            "nn_evaluations": 2768,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 16,
+          "old": {
+            "bestmove": "4d4e",
+            "pv": [
+              "4d4e",
+              "4f4e",
+              "6b5c",
+              "5g5f",
+              "5c5d",
+              "6h5g",
+              "4c3d",
+              "4i4h"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 2695,
+            "nn_batches": 25
+          },
+          "new": {
+            "bestmove": "4d4e",
+            "pv": [
+              "4d4e",
+              "4f4e",
+              "6b5c",
+              "5g5f",
+              "5c5d",
+              "6h5g",
+              "4c3d",
+              "4i4h"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 2695,
+            "nn_batches": 25
+          }
+        },
+        {
+          "index": 20,
+          "old": {
+            "bestmove": "2d2e",
+            "pv": [
+              "2d2e",
+              "2h2e",
+              "P*2d",
+              "2e2f",
+              "5a4a",
+              "7g7f",
+              "4a3b",
+              "7i8h",
+              "7b6b",
+              "2f3f",
+              "2b3c",
+              "P*2b",
+              "3b2b",
+              "3f3d",
+              "4c4d",
+              "3d4d",
+              "3c4d",
+              "8h4d",
+              "P*3c",
+              "4d6f",
+              "8c8d",
+              "9f9e",
+              "9d9e"
+            ],
+            "nodes": 4116,
+            "nn_evaluations": 3114,
+            "nn_batches": 34
+          },
+          "new": {
+            "bestmove": "2d2e",
+            "pv": [
+              "2d2e",
+              "2h2e",
+              "P*2d",
+              "2e2f",
+              "5a4a",
+              "7g7f",
+              "4a3b",
+              "7i8h",
+              "7b6b",
+              "2f3f",
+              "2b3c",
+              "P*2b",
+              "3b2b",
+              "3f3d",
+              "4c4d",
+              "3d4d",
+              "3c4d",
+              "8h4d",
+              "P*3c",
+              "4d6f",
+              "8c8d",
+              "9f9e",
+              "9d9e"
+            ],
+            "nodes": 4116,
+            "nn_evaluations": 3114,
+            "nn_batches": 34
+          }
+        },
+        {
+          "index": 23,
+          "old": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "8c8d",
+              "7g7f",
+              "8d8e",
+              "3g3f",
+              "4b3b",
+              "7f7e",
+              "7d7e",
+              "3f3e",
+              "3d2c",
+              "2f2e",
+              "2d2e",
+              "2h2e",
+              "P*2d"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 1745,
+            "nn_batches": 22
+          },
+          "new": {
+            "bestmove": "2g2f",
+            "pv": [
+              "2g2f",
+              "8c8d",
+              "7g7f",
+              "8d8e",
+              "3g3f",
+              "4b3b",
+              "7f7e",
+              "7d7e",
+              "3f3e",
+              "3d2c",
+              "2f2e",
+              "2d2e",
+              "2h2e",
+              "P*2d"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 1745,
+            "nn_batches": 22
+          }
+        },
+        {
+          "index": 26,
+          "old": {
+            "bestmove": "7b6c",
+            "pv": [
+              "7b6c",
+              "9i4d",
+              "1f1g",
+              "2e1d",
+              "1g1h",
+              "L*8d",
+              "8b9b",
+              "8d8a+",
+              "6c5d",
+              "4d1a+",
+              "5d4e",
+              "8a7a",
+              "L*5d",
+              "5g6h",
+              "9g8g"
+            ],
+            "nodes": 4080,
+            "nn_evaluations": 2852,
+            "nn_batches": 34
+          },
+          "new": {
+            "bestmove": "7b6c",
+            "pv": [
+              "7b6c",
+              "9i4d",
+              "1f1g",
+              "2e1d",
+              "1g1h",
+              "L*8d",
+              "8b9b",
+              "8d8a+",
+              "6c5d",
+              "4d1a+",
+              "5d4e",
+              "8a7a",
+              "L*5d",
+              "5g6h",
+              "9g8g"
+            ],
+            "nodes": 4080,
+            "nn_evaluations": 2852,
+            "nn_batches": 34
+          }
+        },
+        {
+          "index": 30,
+          "old": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2g2f",
+              "5d5e",
+              "3g2g",
+              "5b5d",
+              "3h3e",
+              "P*3d",
+              "3e3i",
+              "4a3b",
+              "9e9d",
+              "6b5c",
+              "2g1h",
+              "2d2e"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 2715,
+            "nn_batches": 27
+          },
+          "new": {
+            "bestmove": "3d3e",
+            "pv": [
+              "3d3e",
+              "2g2f",
+              "5d5e",
+              "3g2g",
+              "5b5d",
+              "3h3e",
+              "P*3d",
+              "3e3i",
+              "4a3b",
+              "9e9d",
+              "6b5c",
+              "2g1h",
+              "2d2e"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 2715,
+            "nn_batches": 27
+          }
+        },
+        {
+          "index": 33,
+          "old": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "3c4e",
+              "3g4g",
+              "2b6f",
+              "3i4h",
+              "8c8d",
+              "4g4f",
+              "8d8e",
+              "4f4e"
+            ],
+            "nodes": 4020,
+            "nn_evaluations": 3352,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "3c4e",
+              "3g4g",
+              "2b6f",
+              "3i4h",
+              "8c8d",
+              "4g4f",
+              "8d8e",
+              "4f4e"
+            ],
+            "nodes": 4020,
+            "nn_evaluations": 3352,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 36,
+          "old": {
+            "bestmove": "7d7e",
+            "pv": [
+              "7d7e",
+              "7g6e",
+              "P*6f",
+              "9i6f",
+              "6c5d",
+              "B*4c",
+              "8b7d",
+              "6f9i",
+              "P*6f"
+            ],
+            "nodes": 4142,
+            "nn_evaluations": 3436,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "7d7e",
+            "pv": [
+              "7d7e",
+              "7g6e",
+              "P*6f",
+              "9i6f",
+              "6c5d",
+              "B*4c",
+              "8b7d",
+              "6f9i",
+              "P*6f"
+            ],
+            "nodes": 4142,
+            "nn_evaluations": 3436,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 40,
+          "old": {
+            "bestmove": "3c4b",
+            "pv": [
+              "3c4b",
+              "5a4b",
+              "4f4e",
+              "8a7c",
+              "R*9a",
+              "3a3b",
+              "S*2a",
+              "3b4c",
+              "2a1b+"
+            ],
+            "nodes": 4058,
+            "nn_evaluations": 3746,
+            "nn_batches": 36
+          },
+          "new": {
+            "bestmove": "3c4b",
+            "pv": [
+              "3c4b",
+              "5a4b",
+              "4f4e",
+              "8a7c",
+              "R*9a",
+              "3a3b",
+              "S*2a",
+              "3b4c",
+              "2a1b+"
+            ],
+            "nodes": 4058,
+            "nn_evaluations": 3746,
+            "nn_batches": 36
+          }
+        },
+        {
+          "index": 43,
+          "old": {
+            "bestmove": "1f1e",
+            "pv": [
+              "1f1e",
+              "7c7d",
+              "9f8g",
+              "2c2b",
+              "B*8a",
+              "7d7e",
+              "7f7g",
+              "6c6d"
+            ],
+            "nodes": 4052,
+            "nn_evaluations": 3365,
+            "nn_batches": 31
+          },
+          "new": {
+            "bestmove": "1f1e",
+            "pv": [
+              "1f1e",
+              "7c7d",
+              "9f8g",
+              "2c2b",
+              "B*8a",
+              "7d7e",
+              "7f7g",
+              "6c6d"
+            ],
+            "nodes": 4052,
+            "nn_evaluations": 3365,
+            "nn_batches": 31
+          }
+        },
+        {
+          "index": 46,
+          "old": {
+            "bestmove": "1c2e",
+            "pv": [
+              "1c2e",
+              "4e4d",
+              "4c3d",
+              "2h3h",
+              "1f1g+",
+              "2g2f",
+              "1g2h",
+              "3h2h",
+              "2e3g+",
+              "2h2i",
+              "3g3h",
+              "2i2g",
+              "N*3e",
+              "9i6f",
+              "3e2g+",
+              "1i1d",
+              "P*4h",
+              "8e8d",
+              "8c8d"
+            ],
+            "nodes": 4092,
+            "nn_evaluations": 3584,
+            "nn_batches": 44
+          },
+          "new": {
+            "bestmove": "1c2e",
+            "pv": [
+              "1c2e",
+              "4e4d",
+              "4c3d",
+              "2h3h",
+              "1f1g+",
+              "2g2f",
+              "1g2h",
+              "3h2h",
+              "2e3g+",
+              "2h2i",
+              "3g3h",
+              "2i2g",
+              "N*3e",
+              "9i6f",
+              "3e2g+",
+              "1i1d",
+              "P*4h",
+              "8e8d",
+              "8c8d"
+            ],
+            "nodes": 4092,
+            "nn_evaluations": 3584,
+            "nn_batches": 44
+          }
+        },
+        {
+          "index": 50,
+          "old": {
+            "bestmove": "5d5e",
+            "pv": [
+              "5d5e",
+              "1f1e",
+              "3e3f",
+              "1d3f",
+              "7d3d",
+              "P*3e",
+              "3d3e",
+              "4h4g"
+            ],
+            "nodes": 4064,
+            "nn_evaluations": 3469,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "5d5e",
+            "pv": [
+              "5d5e",
+              "1f1e",
+              "3e3f",
+              "1d3f",
+              "7d3d",
+              "P*3e",
+              "3d3e",
+              "4h4g"
+            ],
+            "nodes": 4064,
+            "nn_evaluations": 3469,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 53,
+          "old": {
+            "bestmove": "3f5h",
+            "pv": [
+              "3f5h",
+              "6e6d",
+              "6c6d",
+              "7e7d",
+              "7c7d",
+              "6i6d",
+              "7d6d",
+              "4i7i",
+              "L*2f",
+              "N*2g",
+              "5h5g",
+              "7i4i"
+            ],
+            "nodes": 4033,
+            "nn_evaluations": 3539,
+            "nn_batches": 36
+          },
+          "new": {
+            "bestmove": "3f5h",
+            "pv": [
+              "3f5h",
+              "6e6d",
+              "6c6d",
+              "7e7d",
+              "7c7d",
+              "6i6d",
+              "7d6d",
+              "4i7i",
+              "L*2f",
+              "N*2g",
+              "5h5g",
+              "7i4i"
+            ],
+            "nodes": 4033,
+            "nn_evaluations": 3539,
+            "nn_batches": 36
+          }
+        },
+        {
+          "index": 56,
+          "old": {
+            "bestmove": "7b7e",
+            "pv": [
+              "7b7e",
+              "7g8h",
+              "7h7i+",
+              "8i7g",
+              "B*6g",
+              "9g9f",
+              "9d9e",
+              "8h9i",
+              "7e7g+",
+              "8f8e"
+            ],
+            "nodes": 4073,
+            "nn_evaluations": 3550,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "7b7e",
+            "pv": [
+              "7b7e",
+              "7g8h",
+              "7h7i+",
+              "8i7g",
+              "B*6g",
+              "9g9f",
+              "9d9e",
+              "8h9i",
+              "7e7g+",
+              "8f8e"
+            ],
+            "nodes": 4073,
+            "nn_evaluations": 3550,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 60,
+          "old": {
+            "bestmove": "P*7f",
+            "pv": [
+              "P*7f",
+              "7e8e",
+              "9f9g",
+              "9e9f",
+              "9g7g",
+              "2c2d",
+              "2e2d",
+              "8e8f",
+              "6i6h",
+              "7b6c",
+              "5c4d+",
+              "N*8e",
+              "7g6g"
+            ],
+            "nodes": 4131,
+            "nn_evaluations": 3696,
+            "nn_batches": 36
+          },
+          "new": {
+            "bestmove": "P*7f",
+            "pv": [
+              "P*7f",
+              "7e8e",
+              "9f9g",
+              "9e9f",
+              "9g7g",
+              "2c2d",
+              "2e2d",
+              "8e8f",
+              "6i6h",
+              "7b6c",
+              "5c4d+",
+              "N*8e",
+              "7g6g"
+            ],
+            "nodes": 4131,
+            "nn_evaluations": 3696,
+            "nn_batches": 36
+          }
+        },
+        {
+          "index": 63,
+          "old": {
+            "bestmove": "7e7d",
+            "pv": [
+              "7e7d",
+              "5e5f",
+              "5g5h",
+              "3b2c",
+              "8e8d",
+              "P*8b",
+              "8f8g",
+              "9c9e",
+              "8d8c+"
+            ],
+            "nodes": 4058,
+            "nn_evaluations": 3489,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "7e7d",
+            "pv": [
+              "7e7d",
+              "5e5f",
+              "5g5h",
+              "3b2c",
+              "8e8d",
+              "P*8b",
+              "8f8g",
+              "9c9e",
+              "8d8c+"
+            ],
+            "nodes": 4058,
+            "nn_evaluations": 3489,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 66,
+          "old": {
+            "bestmove": "6e7c+",
+            "pv": [
+              "6e7c+",
+              "9c8d",
+              "6b6c",
+              "6h6g",
+              "5g6g",
+              "4f4g+",
+              "4h4g",
+              "4d4g+",
+              "P*8b",
+              "9b8b",
+              "7c8b"
+            ],
+            "nodes": 4051,
+            "nn_evaluations": 3343,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "6e7c+",
+            "pv": [
+              "6e7c+",
+              "9c8d",
+              "6b6c",
+              "6h6g",
+              "5g6g",
+              "4f4g+",
+              "4h4g",
+              "4d4g+",
+              "P*8b",
+              "9b8b",
+              "7c8b"
+            ],
+            "nodes": 4051,
+            "nn_evaluations": 3343,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 70,
+          "old": {
+            "bestmove": "3f2g",
+            "pv": [
+              "3f2g",
+              "1h2h",
+              "9d9c+",
+              "8c9c",
+              "3i4i",
+              "2h2g",
+              "1d1c+",
+              "3e3f",
+              "1c2c",
+              "3d2c",
+              "3g3f",
+              "P*9f",
+              "5g6h",
+              "3c2d",
+              "L*3e",
+              "2g2f"
+            ],
+            "nodes": 4176,
+            "nn_evaluations": 2752,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "3f2g",
+            "pv": [
+              "3f2g",
+              "1h2h",
+              "9d9c+",
+              "8c9c",
+              "3i4i",
+              "2h2g",
+              "1d1c+",
+              "3e3f",
+              "1c2c",
+              "3d2c",
+              "3g3f",
+              "P*9f",
+              "5g6h",
+              "3c2d",
+              "L*3e",
+              "2g2f"
+            ],
+            "nodes": 4176,
+            "nn_evaluations": 2752,
+            "nn_batches": 30
+          }
+        },
+        {
+          "index": 73,
+          "old": {
+            "bestmove": "2e3f",
+            "pv": [
+              "2e3f",
+              "4h5h",
+              "3f1h+",
+              "1i1h",
+              "6i9i+",
+              "3d4b+",
+              "5b4b",
+              "1e1d"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 3516,
+            "nn_batches": 32
+          },
+          "new": {
+            "bestmove": "2e3f",
+            "pv": [
+              "2e3f",
+              "4h5h",
+              "3f1h+",
+              "1i1h",
+              "6i9i+",
+              "3d4b+",
+              "5b4b",
+              "1e1d"
+            ],
+            "nodes": 4105,
+            "nn_evaluations": 3516,
+            "nn_batches": 32
+          }
+        },
+        {
+          "index": 76,
+          "old": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "5b4c",
+              "3g3f",
+              "2b8h+",
+              "P*4d",
+              "4c3b",
+              "7e7d",
+              "2c2d",
+              "2e2d",
+              "8b7c",
+              "2d2c+",
+              "3b2c",
+              "4d4c+",
+              "5d4c",
+              "3i2i",
+              "P*2h"
+            ],
+            "nodes": 4151,
+            "nn_evaluations": 3541,
+            "nn_batches": 38
+          },
+          "new": {
+            "bestmove": "4d4c+",
+            "pv": [
+              "4d4c+",
+              "5b4c",
+              "3g3f",
+              "2b8h+",
+              "P*4d",
+              "4c3b",
+              "7e7d",
+              "2c2d",
+              "2e2d",
+              "8b7c",
+              "2d2c+",
+              "3b2c",
+              "4d4c+",
+              "5d4c",
+              "3i2i",
+              "P*2h"
+            ],
+            "nodes": 4151,
+            "nn_evaluations": 3541,
+            "nn_batches": 38
+          }
+        },
+        {
+          "index": 80,
+          "old": {
+            "bestmove": "4i4g+",
+            "pv": [
+              "4i4g+",
+              "5h6i",
+              "2g3h",
+              "P*2d",
+              "2c2d",
+              "S*3c",
+              "2d3d",
+              "3c2d+"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 3336,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "4i4g+",
+            "pv": [
+              "4i4g+",
+              "5h6i",
+              "2g3h",
+              "P*2d",
+              "2c2d",
+              "S*3c",
+              "2d3d",
+              "3c2d+"
+            ],
+            "nodes": 4055,
+            "nn_evaluations": 3336,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 83,
+          "old": {
+            "bestmove": "5g5f",
+            "pv": [
+              "5g5f",
+              "P*5g",
+              "3f3e",
+              "5g5h+",
+              "6i5h",
+              "R*1i",
+              "4i3i",
+              "1e1f",
+              "7f7e",
+              "1f1g+",
+              "B*7d",
+              "L*8c",
+              "7d8c+",
+              "9b8c",
+              "5a8d+",
+              "8c9b",
+              "G*8c"
+            ],
+            "nodes": 4075,
+            "nn_evaluations": 3280,
+            "nn_batches": 33
+          },
+          "new": {
+            "bestmove": "5g5f",
+            "pv": [
+              "5g5f",
+              "P*5g",
+              "3f3e",
+              "5g5h+",
+              "6i5h",
+              "R*1i",
+              "4i3i",
+              "1e1f",
+              "7f7e",
+              "1f1g+",
+              "B*7d",
+              "L*8c",
+              "7d8c+",
+              "9b8c",
+              "5a8d+",
+              "8c9b",
+              "G*8c"
+            ],
+            "nodes": 4075,
+            "nn_evaluations": 3280,
+            "nn_batches": 33
+          }
+        },
+        {
+          "index": 86,
+          "old": {
+            "bestmove": "2d3c+",
+            "pv": [
+              "2d3c+",
+              "3a3b",
+              "3c3b",
+              "9c8e",
+              "6i5h",
+              "1g2g",
+              "S*7i",
+              "S*6g",
+              "5h4g",
+              "R*4i",
+              "4g3f",
+              "4i4f+",
+              "3f2g",
+              "3g2i+"
+            ],
+            "nodes": 4133,
+            "nn_evaluations": 3547,
+            "nn_batches": 35
+          },
+          "new": {
+            "bestmove": "2d3c+",
+            "pv": [
+              "2d3c+",
+              "3a3b",
+              "3c3b",
+              "9c8e",
+              "6i5h",
+              "1g2g",
+              "S*7i",
+              "S*6g",
+              "5h4g",
+              "R*4i",
+              "4g3f",
+              "4i4f+",
+              "3f2g",
+              "3g2i+"
+            ],
+            "nodes": 4005,
+            "nn_evaluations": 3547,
+            "nn_batches": 35
+          }
+        },
+        {
+          "index": 90,
+          "old": {
+            "bestmove": "6a6e",
+            "pv": [
+              "6a6e",
+              "9g9f",
+              "8f8g+",
+              "P*8d",
+              "R*7h",
+              "7i6i",
+              "9e9f",
+              "S*6h",
+              "8g7g",
+              "8d8c+",
+              "P*5g",
+              "1e2d",
+              "2c2d",
+              "1f2e",
+              "2d1c",
+              "R*4c",
+              "N*2c",
+              "2e2d",
+              "1c2d",
+              "4f3e"
+            ],
+            "nodes": 4031,
+            "nn_evaluations": 3669,
+            "nn_batches": 59
+          },
+          "new": {
+            "bestmove": "6a6e",
+            "pv": [
+              "6a6e",
+              "9g9f",
+              "8f8g+",
+              "P*8d",
+              "R*7h",
+              "7i6i",
+              "9e9f",
+              "S*6h",
+              "8g7g",
+              "8d8c+",
+              "P*5g",
+              "1e2d",
+              "2c2d",
+              "1f2e",
+              "2d1c",
+              "R*4c",
+              "N*2c",
+              "2e2d",
+              "1c2d",
+              "4f3e"
+            ],
+            "nodes": 4031,
+            "nn_evaluations": 3669,
+            "nn_batches": 59
+          }
+        },
+        {
+          "index": 93,
+          "old": {
+            "bestmove": "G*7a",
+            "pv": [
+              "G*7a",
+              "8a9a",
+              "8c8b",
+              "9a8b"
+            ],
+            "nodes": 4048,
+            "nn_evaluations": 2798,
+            "nn_batches": 27
+          },
+          "new": {
+            "bestmove": "G*7a",
+            "pv": [
+              "G*7a",
+              "8a9a",
+              "8c8b",
+              "9a8b"
+            ],
+            "nodes": 4048,
+            "nn_evaluations": 2798,
+            "nn_batches": 27
+          }
+        },
+        {
+          "index": 96,
+          "old": {
+            "bestmove": "9g8e",
+            "pv": [
+              "9g8e",
+              "9i6i",
+              "8e7c",
+              "8a7c",
+              "4a5a",
+              "6b5a",
+              "R*8a",
+              "N*7a",
+              "P*9i"
+            ],
+            "nodes": 4046,
+            "nn_evaluations": 3246,
+            "nn_batches": 30
+          },
+          "new": {
+            "bestmove": "9g8e",
+            "pv": [
+              "9g8e",
+              "9i6i",
+              "8e7c",
+              "8a7c",
+              "4a5a",
+              "6b5a",
+              "R*8a",
+              "N*7a",
+              "P*9i"
+            ],
+            "nodes": 4174,
+            "nn_evaluations": 3246,
+            "nn_batches": 30
+          }
+        }
+      ]
+    }
+  },
+  "optimizer_mocked_test": true,
+  "ini_compatibility": {
+    "complete": true,
+    "records": [
+      {
+        "ini_sha256": "adf5302b3cac59ace6952ea00e1ccd162a6009ac303ec4e307f4a4ff10c965ae",
+        "path": "H:\\model\\model-pre68_40x512-009.onnx.ini",
+        "temperature": 1.6,
+        "max_policy_error": 9.300000001870312e-10,
+        "value_error": 0.0,
+        "legacy_ready": true,
+        "current_ready": true
+      },
+      {
+        "ini_sha256": "309eb7b3d0031faff2b3094928c76e8f7a3ab9313507333e32550569e9c4d721",
+        "path": "H:\\model\\model-pre44_resnet30x384_relu_b4096lr004-013.onnx.ini",
+        "temperature": 1.4,
+        "max_policy_error": 4.070000000000115e-10,
+        "value_error": 0.0,
+        "legacy_ready": true,
+        "current_ready": true
+      }
+    ],
+    "fixture_network_used_for_nn_compatibility": true,
+    "old_sha256": "11770421b4c78abe39a701cc4a6b6c76b9dd209982a49d37613d5e6a9b2cca7f",
+    "new_sha256": "f49c4f0125d4bc02dd2417b8aa0c2d6b7339dc88ac6590a842e1adbbb860fb22",
+    "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+  },
+  "external_ini_updates": [
+    {
+      "path": "H:\\model\\model-pre68_40x512-009.onnx.ini",
+      "before_sha256": "14d83e1b284f81530934808c480266638a9e7a5d663eb9bbb91f710925060295",
+      "after_sha256": "adf5302b3cac59ace6952ea00e1ccd162a6009ac303ec4e307f4a4ff10c965ae",
+      "staged": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\ini\\model-pre68_40x512-009.onnx.ini",
+      "applied": true,
+      "legacy_six_keys_bytes_preserved": true,
+      "backup": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\ini\\model-pre68_40x512-009.onnx.ini.before"
+    },
+    {
+      "path": "H:\\model\\model-pre44_resnet30x384_relu_b4096lr004-013.onnx.ini",
+      "before_sha256": "a0f11aa821b27452abaee6c196d71ccda2be82fe4dd0ba286f684085bb66497a",
+      "after_sha256": "309eb7b3d0031faff2b3094928c76e8f7a3ab9313507333e32550569e9c4d721",
+      "staged": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\ini\\model-pre44_resnet30x384_relu_b4096lr004-013.onnx.ini",
+      "applied": true,
+      "legacy_six_keys_bytes_preserved": true,
+      "backup": "D:\\src\\DeepLearningShogiLc0\\artifacts\\integer_options\\ini\\model-pre44_resnet30x384_relu_b4096lr004-013.onnx.ini.before"
+    }
+  ],
+  "strength_tuning_performed": false,
+  "multiponder": {
+    "hits": 10,
+    "misses": 10,
+    "quit_during_ponder": true,
+    "children_exited": true,
+    "engine_sha256": "62f97159befb500988a20db4885aa7f9d028768fb3ed2cc8e2df553eb430fec8",
+    "auxiliary_sha256": "9c8666124f0d7330c520d31d5a392777cb0abd9e57b2969fed6973a5a8111e94",
+    "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+    "records": [
+      {
+        "iteration": 0,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 1,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 2,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 3,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 4,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 5,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 6,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 7,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 8,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 9,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 10,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 11,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 12,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 13,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 14,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 15,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 16,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 17,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 18,
+        "hit": true,
+        "own": "2g2f",
+        "reply": "8c8d",
+        "best": "2f2e"
+      },
+      {
+        "iteration": 19,
+        "hit": false,
+        "own": "2g2f",
+        "reply": "1c1d",
+        "best": "2f2e"
+      }
+    ]
+  },
+  "smoke": [
+    "double",
+    "multiponder_no_ny"
+  ],
+  "default_executables_and_symbols_updated": true,
+  "lc0_upstream_modified_files": [
+    "src/neural/backend.h",
+    "src/search/classic/node.cc",
+    "src/search/classic/node.h",
+    "src/search/classic/search.cc",
+    "src/search/classic/search.h",
+    "src/search/classic/stoppers/timemgr.h"
+  ],
+  "performance_remeasured": false,
+  "usi_fractional_parameter_scale": 1000,
+  "usi_cpuct_base_scale": 1,
+  "source_sha256": {
+    "test/check_scaled_option_ranges.py": "84587dce0da0bbf69af6dd6c4aca231d2574e43cd00e031c88217aca59b0b834",
+    "usi/lc0_shogi/classic_options.cpp": "0bfc1e24106257e636ac499384d6b373f69b21c479750f795240da1496e0fda9",
+    "usi/lc0_shogi/classic_options.h": "eee3a5891f073c3d45419c582a1fdd36396cd773256a9ee37254b2c78a06f355",
+    "usi/lc0_shogi/backend_support.cpp": "e9a3b45dfad146f2fa8de46d4b3c10faec4e83e7ae539fd0638e9a64baea3e2f",
+    "dlshogi/utils/migrate_classic_ini.py": "e7cd86bd40181d3b961733915008c3434158dfe196f41955189898baf5920405",
+    "test/check_classic_ini.py": "77dbc8cabda3119ebaf4b874836ce1fa0c0f5b24fc4a4164afacd925b57d5317",
+    "cppshogi/usi.hpp": "e84f7bb56146cbacdae38a37c8e125338dcd673fb3e1b5aa16362de936079d10",
+    "test/check_fpu_options.py": "da812ca7f0391903b7d30042f8f6890bed11b67103b977eb8418e3a2b8fa9870",
+    "test/check_fpu_optimizer.py": "edbc9ccd1a03d3c0aee55de7fc0ac6ce3c163ad6f57af2e11267e52aa0027be2",
+    "test/classic_tests.cpp": "f27f2f3524c6643fb6631128f82b891c8967f27a96f589a060bc205943c3068b",
+    "dlshogi/utils/usi_params_optimizer.py": "d60aa998758d5178e993b12f77dc64125d4c28050feaefe1bd1a2295f3f6c52d",
+    "usi/main.cpp": "5cbd3bf9969ad82dcdc65706497d076e841962868956e24f9bcb2e9c116c53d4",
+    "usi/lc0_shogi/backend.cpp": "03df8d229e89e536709d6873627d8e6913d46938d71e8beb3892161e397fdd8c",
+    "usi/lc0_shogi/backend.h": "1836bc777aa949b2f7d115d29040a6b4a806823f29f11d314e4eb5e75070a805",
+    "usi/lc0_shogi/search_session.cpp": "4890164716b63f9a7deae081beddba4a075fb11fc4eb5e5500c743323ce9a995",
+    "usi/lc0_shogi/search_session.h": "74f24b8ec295417ea4d61ae24c65535412e2c527dba2864978c9672340795412",
+    "cppshogi/usi.cpp": "1453c6e0a48f39dfed017a7c91c831b54801393cae2421b71fda3ab8c156db8a",
+    "dlshogi/utils/benchmark.py": "8a98b1cf91ffad766dd8bab29eee823a6c9dff445a12007a8d48fe2e5242d911",
+    "test/check_search_options.py": "b50042cc37c25bc5c7b7547cb991ea7391fc8901decef198af838682706a8fdf",
+    "test/check_makebook.py": "fcb2df65a60aa0a9c09a14e7cd0086090f6de45ea77c7212daa6d9cd99de1f83",
+    "test/backend_concurrency.cpp": "d6c058d404110fc189f3d2029d7b49e359825b71ebc1dbbde83ef1d4e3ddc03b"
+  }
+}

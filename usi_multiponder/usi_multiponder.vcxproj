@@ -69,6 +69,10 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <PropertyGroup>
+    <NyugyokuFeatures Condition="'$(NyugyokuFeatures)'==''">false</NyugyokuFeatures>
+  </PropertyGroup>
+  <Import Project="..\lc0_shogi\features.props" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -90,8 +94,10 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;$(ProjectDir)..\usi;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -104,8 +110,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;$(ProjectDir)..\usi;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -119,10 +127,12 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>MULTI_PONDER;PV_MATE_SEARCH;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)MULTI_PONDER;PV_MATE_SEARCH;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;$(ProjectDir)..\usi;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -137,13 +147,15 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>MULTI_PONDER;PV_MATE_SEARCH;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)MULTI_PONDER;PV_MATE_SEARCH;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;$(ProjectDir)..\usi;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -170,27 +182,35 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\main.cpp" />
-    <ClCompile Include="..\usi\Message.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
-    <ClCompile Include="..\usi\Node.cpp" />
-    <ClCompile Include="..\usi\PvMateSearch.cpp" />
-    <ClCompile Include="..\usi\UctSearch.cpp" />
     <ClCompile Include="USIPonderEngine.cpp" />
+    <ClCompile Include="..\lc0_shogi\backend.cpp" />
+    <ClCompile Include="..\lc0_shogi\search_session.cpp" />
+    <ClCompile Include="..\lc0_shogi\mate_coordinator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\usi\UctSearch.h" />
     <ClInclude Include="USIPonderEngine.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\usi\unpack.cu">
       <FileType>Document</FileType>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG $(ShogiCudaFeatureDefine) -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MTd" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG $(ShogiCudaFeatureDefine) -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc142.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\lc0_shogi\lc0_shogi.vcxproj">
+      <Project>{4E2F779E-22A4-4518-BA8A-278CC95D4490}</Project>
+      <SetConfiguration Condition="'$(Configuration)'!='Debug'">Configuration=Release</SetConfiguration>
+      <GlobalPropertiesToRemove>OutDir;IntDir</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="CheckClassicSources" BeforeTargets="ClCompile">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\test\check_classic_sources.ps1&quot; -Project &quot;$(MSBuildProjectFullPath)&quot;" />
+  </Target>
 </Project>

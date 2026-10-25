@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="MakeBook_NoOpt|x64">
@@ -273,7 +273,7 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="..\usi\dfpn.cpp" />
     <ClCompile Include="..\usi\nn_tensorrt.cpp" />
-    <ClCompile Include="..\usi\Node.cpp" />
+    <ClCompile Include="Node.cpp" />
     <ClCompile Include="self_play.cpp" />
     <ClCompile Include="USIEngine.cpp" />
   </ItemGroup>
@@ -282,7 +282,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\usi\fastmath.h" />
-    <ClInclude Include="..\usi\Node.h" />
+    <ClInclude Include="Node.h" />
     <ClInclude Include="LruCache.h" />
     <ClInclude Include="USIEngine.h" />
   </ItemGroup>

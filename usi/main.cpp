@@ -1,4 +1,4 @@
-﻿#include "init.hpp"
+#include "init.hpp"
 #include "position.hpp"
 #include "usi.hpp"
 #include "move.hpp"
@@ -7,8 +7,8 @@
 #include "book.hpp"
 
 #include "cppshogi.h"
-#include "UctSearch.h"
-#include "Message.h"
+#include "search_session.h"
+
 #include "dfpn.h"
 
 #include <future>
@@ -36,11 +36,8 @@ struct MySearcher : Searcher {
 	static std::future<std::pair<Move, Move>> future;
 	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
 	static void goUct(Position& pos);
-#ifndef MULTI_PONDER
-	static void getAndPrintBestMove();
-#else
-	static std::pair<Move, Move> getAndPrintBestMove();
-#endif
+static std::pair<Move, Move> getAndPrintBestMove(
+        std::future<std::pair<Move, Move>> result, std::function<bool()> wait);
 };
 
 Key MySearcher::starting_pos_key;
@@ -80,6 +77,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 #endif
 
 int main(int argc, char* argv[]) {
+	try {
 	initTable();
 	Position::initZobrist();
 	//HuffmanCodedPos::init();
@@ -90,9 +88,18 @@ int main(int argc, char* argv[]) {
 
 	// リソースの破棄はOSに任せてすぐに終了する
 	std::quick_exit(0);
+    } catch (const std::exception& error) {
+        std::string reason(error.what());
+        std::replace(reason.begin(), reason.end(), '\n', ' ');
+        std::replace(reason.begin(), reason.end(), '\r', ' ');
+        std::cout << "info string engine error: " << reason << std::endl;
+        std::cerr << "engine error: " << error.what() << std::endl;
+        return 1;
+    }
 }
 
 void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
+    RegisterClassicSearchOptions(options);
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	std::string posCmd("startpos");
@@ -100,11 +107,21 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 	std::string cmd;
 	std::string token;
 	std::thread th;
+	std::thread response_th;
 
 #ifdef MULTI_PONDER
 	std::vector<Move> multi_ponder_moves;
 	std::vector<size_t> multi_ponder_engine_index;
 	std::vector<USIPonderEngine> usi_ponder_engines;
+	const auto stop_auxiliary = [&] {
+		for (auto index : multi_ponder_engine_index)
+			if (usi_ponder_engines[index].IsLiving()) usi_ponder_engines[index].Stop();
+		for (auto index : multi_ponder_engine_index)
+			if (usi_ponder_engines[index].IsLiving()) usi_ponder_engines[index].Join();
+		need_multi_ponder = false;
+		multi_ponder_engine_index.clear();
+		multi_ponder_moves.clear();
+	};
 #endif
 
 	for (int i = 1; i < argc; ++i)
@@ -120,33 +137,50 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 		ssCmd >> std::skipws >> token;
 
 		if (token == "quit") {
-#ifdef MULTI_PONDER
-			for (size_t i = 0; i < usi_ponder_engines.size(); i++) {
-				usi_ponder_engines[i].Quit();
-			}
-#endif
-			StopUctSearch();
-			TerminateUctSearch();
+			CancelSearchResponse();
+			StopSearch();
+			TerminateSearch();
 			if (th.joinable())
 				th.join();
-			FinalizeUctSearch();
+            if (response_th.joinable()) response_th.join();
+#ifdef MULTI_PONDER
+			for (auto& engine : usi_ponder_engines) engine.Quit();
+#endif
+			FinalizeSearch();
 		}
 		else if (token == "gameover") {
-			StopUctSearch();
+			CancelSearchResponse();
+			StopSearch();
 			if (th.joinable())
 				th.join();
+            if (response_th.joinable()) response_th.join();
 			GameOver();
+#ifdef MULTI_PONDER
+			stop_auxiliary();
+#endif
 		}
 		else if (token == "stop") {
-			StopUctSearch();
+			ReleaseSearchResponse();
+			StopSearch();
 			if (th.joinable())
 				th.join();
+            if (response_th.joinable()) response_th.join();
 			if (limits.ponder) {
-				// 無視されるがbestmoveを返す
-				std::cout << "bestmove resign" << std::endl;
+				if (future.valid()) { response_th = std::thread([result = std::move(future), wait = CaptureSearchResponseWaiter()]() mutable {
+                    getAndPrintBestMove(std::move(result), std::move(wait));
+                }); }
+				limits.ponder = false;
+                if (response_th.joinable()) response_th.join();
 			}
+#ifdef MULTI_PONDER
+			stop_auxiliary();
+#endif
 		}
 		else if (token == "go") {
+            CancelSearchResponse();
+            StopSearch();
+            if (th.joinable()) th.join();
+            if (response_th.joinable()) response_th.join();
 #ifdef MULTI_PONDER
 			USIPonderResult ponderResult;
 			size_t ponderhit_i = nohit;
@@ -175,11 +209,13 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			multi_ponder_engine_index.clear();
 #endif
 			// ponderの探索を停止
-			StopUctSearch();
+			StopSearch();
 			if (th.joinable())
 				th.join();
+            if (response_th.joinable()) response_th.join();
 			setPositionAndLimits(pos, ssCmd, posCmd);
-			InitUctSearchStop();
+			SetSearchResponseBlocked(limits.ponder || limits.infinite);
+			InitSearchStop();
 			// ponderhitで探索を継続するため、bestmoveはfutureで受け取る
 			promise = std::promise<std::pair<Move, Move>>();
 			future = promise.get_future();
@@ -203,7 +239,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						Move ponderMove;
 						moves.emplace_back(move);
 						SetPondering(true);
-						UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+						SearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 					});
 				}
 			}
@@ -220,9 +256,13 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 #endif
 			if (!limits.ponder) {
 #ifndef MULTI_PONDER
-				getAndPrintBestMove();
+                response_th = std::thread([result = std::move(future), wait = CaptureSearchResponseWaiter()]() mutable {
+                    getAndPrintBestMove(std::move(result), std::move(wait));
+                });
 #else
-				const auto bestMove = getAndPrintBestMove();
+                response_th = std::thread([&, result = std::move(future), wait = CaptureSearchResponseWaiter(), ponderhit_i, position_command = posCmd]() mutable {
+                    const auto bestMove = getAndPrintBestMove(std::move(result), std::move(wait));
+                    if (bestMove.first == Move::moveNone()) return;
 				if (need_multi_ponder) {
 					// ルートノードが展開されるのを待つ
 					WaitPrepareMultiPonder();
@@ -231,8 +271,8 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					const bool ret = GetMultiPonderMove(multi_ponder_moves, options["Multi_Ponder"]);
 
 					if (ret && multi_ponder_moves.size() > 0) {
-						std::string pos_ss(posCmd);
-						if (posCmd.find("moves") == posCmd.npos) {
+						std::string pos_ss(position_command);
+						if (position_command.find("moves") == position_command.npos) {
 							pos_ss += " moves";
 						}
 						pos_ss += " " + bestMove.first.toUSI();
@@ -262,13 +302,18 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 						need_multi_ponder = false;
 					}
 				}
+                });
 #endif
-			}
+            }
 		}
 		else if (token == "ponderhit") {
+			ReleaseSearchResponse();
 			// go ponderの探索をそのまま継続し、ponderingの状態のみ変更する
 			SetPondering(false);
-			getAndPrintBestMove();
+			if (future.valid()) { response_th = std::thread([result = std::move(future), wait = CaptureSearchResponseWaiter()]() mutable {
+                    getAndPrintBestMove(std::move(result), std::move(wait));
+                }); }
+			limits.ponder = false;
 		}
 		else if (token == "position") {
 			// 探索中にsetPositionを行うとStateInfoが壊れるため、探索を停止してから変更する必要があるため、
@@ -281,27 +326,19 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			<< "\n" << options
 			<< "\nusiok" << std::endl;
 		else if (token == "isready") { // 対局開始前の準備。
+            CancelSearchResponse();
+			StopSearch();
+			if (th.joinable()) th.join();
+            if (response_th.joinable()) response_th.join();
+#ifdef MULTI_PONDER
+			stop_auxiliary();
+#endif
 			static bool initialized = false;
 			if (!initialized) {
 				// 各種初期化
-				InitializeUctSearch(options["UCT_NodeLimit"]);
+				InitializeSearch(options["UCT_NodeLimit"]);
 				const std::string model_paths[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"], options["DNN_Model5"], options["DNN_Model6"], options["DNN_Model7"], options["DNN_Model8"] };
-				// モデルファイル存在チェック
-				{
-					bool is_err = false;
-					for (int i = 0; i < max_gpu; ++i) {
-						if (model_paths[i] != "") {
-							std::ifstream ifs(model_paths[i].c_str());
-							if (!ifs.is_open()) {
-								std::cout << model_paths[i] << " file not found" << std::endl;
-								is_err = true;
-								break;
-							}
-						}
-					}
-					if (is_err)
-						break;
-				}
+				// The backend validates only enabled GPUs, after model .ini settings.
 				SetModelPath(model_paths);
 				// モデルの.iniファイルにしたがってデフォルトパラメータ変更
 				std::ifstream is = std::ifstream(model_paths[0] + ".ini");
@@ -311,28 +348,22 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					if (line != "") {
 						const auto pos = line.find_first_of('=');
 						const auto name = line.substr(0, pos);
-						if (options[name].isDefault()) {
+						const auto option = options.find(name);
+						if (option == options.end()) {
+							std::cout << "info string Ignoring unknown model option: " << name << std::endl;
+							continue;
+						}
+						if (option->second.isDefault()) {
 							options[name] = line.substr(pos + 1);
 							std::cout << "info string " << name << "=" << options[name] << std::endl;
 						}
 					}
 				}
-				const int new_thread[max_gpu] = { options["UCT_Threads"], options["UCT_Threads2"], options["UCT_Threads3"], options["UCT_Threads4"], options["UCT_Threads5"], options["UCT_Threads6"], options["UCT_Threads7"], options["UCT_Threads8"] };
+				const int new_slots[max_gpu] = { options["DNN_Slots"], options["DNN_Slots2"], options["DNN_Slots3"], options["DNN_Slots4"], options["DNN_Slots5"], options["DNN_Slots6"], options["DNN_Slots7"], options["DNN_Slots8"] };
 				const int new_policy_value_batch_maxsize[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"], options["DNN_Batch_Size5"], options["DNN_Batch_Size6"], options["DNN_Batch_Size7"], options["DNN_Batch_Size8"] };
 				SetDnnCacheSize(options["DNN_Cache_Size"]);
-				SetThread(new_thread, new_policy_value_batch_maxsize);
+				SetInferenceSlots(new_slots, new_policy_value_batch_maxsize);
 
-				if (options["Mate_Root_Search"] > 0) {
-					DfPn::set_hashsize(options["DfPn_Hash"]);
-					dfpn.init();
-				}
-
-#ifdef PV_MATE_SEARCH
-				// PVの詰み探索の設定
-				if (options["PV_Mate_Search_Threads"] > 0) {
-					SetPvMateSearch(options["PV_Mate_Search_Threads"], options["PV_Mate_Search_Depth"], options["PV_Mate_Search_Nodes"]);
-				}
-#endif
 #ifdef MULTI_PONDER
 				// デストラクタが実行されないようにreserveする
 				usi_ponder_engines.reserve(options["Multi_Ponder"]);
@@ -359,6 +390,21 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			need_multi_ponder = false;
 #endif
 
+			// Re-read device configuration after setoption, including later isready calls.
+			const std::string ready_models[max_gpu] = { options["DNN_Model"], options["DNN_Model2"], options["DNN_Model3"], options["DNN_Model4"], options["DNN_Model5"], options["DNN_Model6"], options["DNN_Model7"], options["DNN_Model8"] };
+			const int ready_slots[max_gpu] = { options["DNN_Slots"], options["DNN_Slots2"], options["DNN_Slots3"], options["DNN_Slots4"], options["DNN_Slots5"], options["DNN_Slots6"], options["DNN_Slots7"], options["DNN_Slots8"] };
+			const int ready_batches[max_gpu] = { options["DNN_Batch_Size"], options["DNN_Batch_Size2"], options["DNN_Batch_Size3"], options["DNN_Batch_Size4"], options["DNN_Batch_Size5"], options["DNN_Batch_Size6"], options["DNN_Batch_Size7"], options["DNN_Batch_Size8"] };
+			SetModelPath(ready_models);
+			SetInferenceSlots(ready_slots, ready_batches);
+			SetSearchSettings(options["Threads"], options["MinibatchSize"]);
+			SetSearchConcurrency(options["TaskWorkers"], options["MaxConcurrentSearchers"]);
+			SetDnnCacheSize(options["DNN_Cache_Size"]);
+			DfPn::set_hashsize(options["DfPn_Hash"]);
+			DfPn::set_draw_ply(options["Draw_Ply"]);
+			if (options["Mate_Root_Search"] > 0) dfpn.init();
+#ifdef PV_MATE_SEARCH
+			SetPvMateSearch(options["PV_Mate_Search_Threads"], options["PV_Mate_Search_Depth"], options["PV_Mate_Search_Nodes"]);
+#endif
 			NewGame();
 
 			// 詰み探索用
@@ -370,18 +416,13 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			}
 
 			// オプション設定
-			set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
+			ApplyClassicSearchOptions(options);
+			SetReuseSubtree(options["ReuseSubtree"]);
 			SetResignThreshold(options["Resign_Threshold"]);
 			SetDrawPly(options["Draw_Ply"]);
 			SetDrawValue(options["Draw_Value_Black"], options["Draw_Value_White"]);
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
-			c_init = options["C_init"] / 100.0f;
-			c_base = (float)options["C_base"];
-			c_fpu_reduction = options["C_fpu_reduction"] / 100.0f;
-			c_init_root = options["C_init_root"] / 100.0f;
-			c_base_root = (float)options["C_base_root"];
-			c_fpu_reduction_root = options["C_fpu_reduction_root"] / 100.0f;
-			SetReuseSubtree(options["ReuseSubtree"]);
+
 			SetPvInterval(options["PV_Interval"]);
 			SetMultiPV(options["MultiPV"]);
 			SetEvalCoef(options["Eval_Coef"]);
@@ -390,10 +431,28 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 #ifdef BOOK_POLICY
 			// 事前確率に定跡の遷移確率も使用する
-			use_book_policy = options["Use_Book_Policy"];
+			const bool next_book_policy = options["Use_Book_Policy"];
+			if (use_book_policy != next_book_policy)
+				InvalidateNeuralCache();
+			use_book_policy = next_book_policy;
 			if (use_book_policy) {
-				// 定跡読み込み
-				read_book(options["Book_File"], bookMap);
+				// Compare contents, including edits to the same file. Repeated isready
+				// must neither append duplicate entries nor invalidate an unchanged cache.
+				std::map<Key, std::vector<BookEntry>> next_book;
+				read_book(options["Book_File"], next_book);
+				const bool same = bookMap.size() == next_book.size() &&
+					std::equal(bookMap.begin(), bookMap.end(), next_book.begin(),
+						[](const auto& a, const auto& b) {
+							return a.first == b.first && a.second.size() == b.second.size() &&
+								std::equal(a.second.begin(), a.second.end(), b.second.begin(),
+									[](const BookEntry& x, const BookEntry& y) {
+										return x.fromToPro == y.fromToPro && x.count == y.count && x.score == y.score;
+									});
+						});
+				if (!same) {
+					bookMap.swap(next_book);
+					InvalidateNeuralCache();
+				}
 			}
 #endif
 
@@ -407,8 +466,9 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			limits.nodes = 1;
 
 			SetLimits(limits);
+			InitSearchStop();
 			Move ponder;
-			UctSearchGenmove(&pos_tmp, pos_tmp.getKey(), {}, ponder);
+			SearchGenmove(&pos_tmp, pos_tmp.getKey(), {}, ponder);
 
 			// 固定プレイアウトモード
 			SetConstPlayout(options["Const_Playout"]);
@@ -418,7 +478,30 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 			std::cout << "readyok" << std::endl;
 		}
-		else if (token == "setoption") {
+		else if (token == "nnstats") {
+            CancelSearchResponse();
+            StopSearch();
+            if (th.joinable()) th.join();
+            if (response_th.joinable()) response_th.join();
+            DumpNeuralStats();
+        }
+        else if (token == "searchsettings") {
+            CancelSearchResponse();
+            StopSearch();
+            if (th.joinable()) th.join();
+            if (response_th.joinable()) response_th.join();
+            DumpSearchSettings();
+        }
+		else if (token == "nnprobe") {
+            CancelSearchResponse();
+            StopSearch();
+            if (th.joinable()) th.join();
+            if (response_th.joinable()) response_th.join();
+            std::istringstream probe_limits("nodes 1");
+            setPositionAndLimits(pos, probe_limits, posCmd);
+            DumpNeuralEvaluation(pos);
+        }
+        else if (token == "setoption") {
 			setOption(ssCmd);
 			SetMultiPV(options["MultiPV"]);
 		}
@@ -429,6 +512,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 
 	if (th.joinable())
 		th.join();
+    if (response_th.joinable()) response_th.join();
 }
 
 void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
@@ -526,7 +610,7 @@ void MySearcher::goUct(Position& pos) {
 
 				moves.emplace_back(move);
 				SetPondering(true);
-				UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+				SearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 			}
 			return;
 		}
@@ -549,13 +633,13 @@ void MySearcher::goUct(Position& pos) {
 		t.reset(new std::thread([&pos_copy, &mate, &dfpn_done]() {
 			mate = dfpn.dfpn(pos_copy);
 			if (mate)
-				StopUctSearch();
+				StopSearch();
 			dfpn_done = true;
 		}));
 	}
 
 	// UCTによる探索
-	Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+	Move move = SearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 
 	// 詰み探索待ち
 	if (mate_depth > 0) {
@@ -593,7 +677,7 @@ void MySearcher::goUct(Position& pos) {
 		return;
 	}
 	// 確率的なPonderの場合、ponderを返さない
-	if (!IsUctSearchStoped() && options["USI_Ponder"] && options["Stochastic_Ponder"]) {
+	if (!IsSearchStopped() && options["USI_Ponder"] && options["Stochastic_Ponder"]) {
 #ifdef MULTI_PONDER
 		need_multi_ponder = true;
 		limits.time[pos.turn()] -= std::min(limits.time[pos.turn()], (limits.startTime.elapsed() + 999) / 1000 * 1000);
@@ -606,36 +690,17 @@ void MySearcher::goUct(Position& pos) {
 
 		moves.emplace_back(move);
 		SetPondering(true);
-		UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+		SearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 	}
 	else {
 		promise.set_value({ move, ponderMove });
 	}
 }
 
-#ifndef MULTI_PONDER
-void MySearcher::getAndPrintBestMove() {
-	std::thread([] {
-		const auto bestMove = future.get();
-		std::cout << "bestmove ";
-		if (bestMove.first == Move::moveResign()) {
-			std::cout << "resign";
-		}
-		else if (bestMove.first == Move::moveWin()) {
-			std::cout << "win";
-		}
-		else {
-			std::cout << bestMove.first.toUSI();
-		}
-		if (bestMove.second != Move::moveNone()) {
-			std::cout << " ponder " << bestMove.second.toUSI();
-		}
-		std::cout << std::endl;
-	}).detach();
-}
-#else
-std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
-	auto bestMove = future.get();
+std::pair<Move, Move> MySearcher::getAndPrintBestMove(
+    std::future<std::pair<Move, Move>> result, std::function<bool()> wait) {
+    const auto bestMove = result.get();
+    if (!wait()) return { Move::moveNone(), Move::moveNone() };
 	std::cout << "bestmove ";
 	if (bestMove.first == Move::moveResign()) {
 		std::cout << "resign";
@@ -653,23 +718,10 @@ std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
 
 	return bestMove;
 }
-#endif
 
 #ifdef MAKE_BOOK
-struct child_node_t_copy {
-	Move move;       // 着手する座標
-	int move_count;  // 探索回数
-	WinType win;       // 勝った回数
-
-	child_node_t_copy(const child_node_t& child) {
-		this->move = child.move;
-		this->move_count = child.move_count;
-		this->win = child.win;
-	}
-};
-
 Key book_starting_pos_key;
-extern std::unique_ptr<NodeTree> tree;
+
 int make_book_sleep = 0;
 bool use_interruption = true;
 int book_eval_threshold = INT_MAX;
@@ -677,9 +729,9 @@ double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 
-inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
+inline Move SearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
 	Move move;
-	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
+	return SearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
 bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, const std::vector<Move> &moves) {
@@ -692,36 +744,28 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	// UCT探索を使用
 	limits.startTime.restart();
 	SetLimits(limits);
-	UctSearchGenmoveNoPonder(&pos, moves);
+	SearchGenmoveNoPonder(&pos, moves);
 
-	const uct_node_t* current_root = tree->GetCurrentHead();
-	if (current_root->child_num == 0) {
-		// 詰みの局面
-		return false;
-	}
-
-	// 探索回数で降順ソート
-	std::vector<child_node_t_copy> movelist;
-	int num = 0;
-	const child_node_t *uct_child = current_root->child.get();
-	for (int i = 0; i < current_root->child_num; i++) {
-		movelist.emplace_back(uct_child[i]);
-	}
-
-	std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
+	auto movelist = GetSearchCandidates();
+    if (movelist.empty()) return false;
+    int total_visits = 0;
+    for (const auto& candidate : movelist) total_visits += candidate.move_count;
+    if (total_visits == 0) return false;
+    int num = 0;
+    std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
 		return left.move_count > right.move_count;
 	});
 
 	const auto cutoff_threshold = movelist[0].win / movelist[0].move_count - book_cutoff;
 	for (const auto& child : movelist) {
-		if (double(child.move_count) / current_root->move_count <= book_visit_threshold) // 訪問回数閾値
+		if (double(child.move_count) / total_visits <= book_visit_threshold) // 訪問回数閾値
 			break;
 		if (child.win / child.move_count < cutoff_threshold) // 勝率閾値
 			break;
 		num++;
 	}
 	if (num == 0) {
-		num = (current_root->child_num + 2) / 3;
+		num = (static_cast<int>(movelist.size()) + 2) / 3;
 	}
 
 	std::cout << "movelist.size: " << num << std::endl;
@@ -731,10 +775,11 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 		// 定跡追加
 		BookEntry be;
 		const auto wintrate = child.win / child.move_count;
-		be.score = Score(int(-log(1.0 / wintrate - 1.0) * 754.3));
+		be.score = Score(wintrate <= 0 ? -30000 : wintrate >= 1 ? 30000 :
+            int(-log(1.0 / wintrate - 1.0) * 754.3));
 		be.key = key;
 		be.fromToPro = static_cast<u16>(child.move.proFromAndTo());
-		be.count = (u16)((double)child.move_count / (double)current_root->move_count * 1000.0);
+		be.count = (u16)((double)child.move_count / (double)total_visits * 1000.0);
 		outMap[key].emplace_back(be);
 
 		count++;
@@ -938,6 +983,8 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 	// 定跡読み込み
 	read_book(bookFileName, bookMap);
+	// The warmup cache predates this book and its policy-blending setting.
+	InvalidateNeuralCache();
 
 	// 定跡マージ
 	int merged = 0;

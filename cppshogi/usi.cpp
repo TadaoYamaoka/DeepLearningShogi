@@ -92,14 +92,18 @@ void OptionsMap::init(Searcher* s) {
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves - 1);
     (*this)["Draw_Ply"]                    = USIOption(0, 0, INT_MAX);
     (*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
-    (*this)["UCT_Threads"]                 = USIOption(2, 0, 256);
-    (*this)["UCT_Threads2"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads3"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads4"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads5"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads6"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads7"]                = USIOption(0, 0, 256);
-    (*this)["UCT_Threads8"]                = USIOption(0, 0, 256);
+    (*this)["Threads"]                     = USIOption(0, 0, 128);
+    (*this)["MinibatchSize"]               = USIOption(0, 0, 1024);
+    (*this)["DNN_Slots"]                   = USIOption(2, 0, 256);
+    (*this)["DNN_Slots2"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots3"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots4"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots5"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots6"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots7"]                  = USIOption(0, 0, 256);
+    (*this)["DNN_Slots8"]                  = USIOption(0, 0, 256);
+    (*this)["TaskWorkers"]                 = USIOption(-1, -1, 128);
+    (*this)["MaxConcurrentSearchers"]        = USIOption(1, 0, 128);
     (*this)["DNN_Model"]                   = USIOption(R"(model.onnx)");
     (*this)["DNN_Model2"]                  = USIOption("");
     (*this)["DNN_Model3"]                  = USIOption("");
@@ -117,7 +121,6 @@ void OptionsMap::init(Searcher* s) {
     (*this)["DNN_Batch_Size7"]             = USIOption(0, 0, 256);
     (*this)["DNN_Batch_Size8"]             = USIOption(0, 0, 256);
     (*this)["DNN_Cache_Size"]              = USIOption(100000, 0, 10000000);
-    (*this)["Softmax_Temperature"]         = USIOption(174, 1, 500);
     (*this)["Mate_Root_Search"]            = USIOption(33, 0, 37);
 #ifdef PV_MATE_SEARCH
     (*this)["PV_Mate_Search_Threads"]      = USIOption(0, 0, 256);
@@ -127,12 +130,6 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Resign_Threshold"]            = USIOption(10, 0, 1000);
     (*this)["Draw_Value_Black"]            = USIOption(500, 0, 1000);
     (*this)["Draw_Value_White"]            = USIOption(500, 0, 1000);
-    (*this)["C_init"]                      = USIOption(144, 0, 500);
-    (*this)["C_base"]                      = USIOption(28288, 10000, 100000);
-    (*this)["C_fpu_reduction"]             = USIOption(27, 0, 100);
-    (*this)["C_init_root"]                 = USIOption(116, 0, 500);
-    (*this)["C_base_root"]                 = USIOption(25617, 10000, 100000);
-    (*this)["C_fpu_reduction_root"]        = USIOption(0, 0, 100);
     (*this)["UCT_NodeLimit"]               = USIOption(10000000, 100000, 1000000000); // UCTノードの上限
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
@@ -217,6 +214,12 @@ USIOption::USIOption(const int v, const int min, const int max, Fn* f, Searcher*
     defaultValue_ = currentValue_ = ss.str();
 }
 
+USIOption::USIOption(const std::string& declaration, const std::string& initial,
+                     std::function<bool(const std::string&)> validate)
+    : defaultValue_(initial), currentValue_(initial), type_("external"),
+      min_(0), max_(0), declaration_(declaration), validate_(std::move(validate)),
+      onChange_(nullptr), searcher_(nullptr) {}
+
 USIOption& USIOption::operator = (const std::string& v) {
     assert(!type_.empty());
 
@@ -226,6 +229,8 @@ USIOption& USIOption::operator = (const std::string& v) {
     {
         return *this;
     }
+    if (validate_ && !validate_(v))
+        return *this;
 
     if (type_ != "button")
         currentValue_ = v;
@@ -239,6 +244,10 @@ USIOption& USIOption::operator = (const std::string& v) {
 std::ostream& operator << (std::ostream& os, const OptionsMap& om) {
     for (auto& elem : om) {
         const USIOption& o = elem.second;
+        if (o.type_ == "external") {
+            os << "\noption name " << elem.first << ' ' << o.declaration_;
+            continue;
+        }
         os << "\noption name " << elem.first << " type " << o.type_;
         if (o.type_ != "button")
             os << " default " << o.defaultValue_;

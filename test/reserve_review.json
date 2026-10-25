@@ -1,0 +1,141 @@
+{
+  "complete": true,
+  "verified_at": "2026-10-25T06:14:40.907371+00:00",
+  "change": "Reserve the complete cppshogi legal-move count before vector insertion; order is unchanged.",
+  "input_patch_sha256": "0e103ee5c7c6a1b44ef6487210b31fd942d3c57dc4f1c72866faf463ada45cf0",
+  "nn": {
+    "ny": {
+      "positions": 100,
+      "engine_sha256": "7e67d902030d13134476c23fa421739e25da2f32847e4188747cddfaeebc0179",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "max_value_error": 0.0,
+      "max_policy_error": 2.379999999857496e-07
+    },
+    "no_ny": {
+      "positions": 100,
+      "engine_sha256": "572ff72b0d7bde8c47fa7329381277d2e168322e094e1d6f1e2192ac451e5219",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "max_value_error": 0.0,
+      "max_policy_error": 2.680000000254701e-07
+    },
+    "onnx_ny": {
+      "positions": 100,
+      "engine_sha256": "9cd398f76ed2b88512ed178ccda06afab6438c992657e5d69f444624e264f54d",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "max_value_error": 1.4999999992104662e-08,
+      "max_policy_error": 2.980000000096794e-07
+    },
+    "onnx_no_ny": {
+      "positions": 100,
+      "engine_sha256": "8495a12e1ff935a15a8e91523498f14588946fe7a9ee87dfac6803aeb2ca7dc3",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "max_value_error": 1.4999999992104662e-08,
+      "max_policy_error": 2.980000000096794e-07
+    },
+    "makebook_ny": {
+      "positions": 100,
+      "engine_sha256": "be9f8080ae220bd46e64fe66d3b56096bf48f8692b12a1d8747159e7fb9a143f",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "max_value_error": 0.0,
+      "max_policy_error": 2.379999999857496e-07
+    },
+    "makebook_no_ny": {
+      "positions": 100,
+      "engine_sha256": "af32ad3f1e86610113e78949f7cb8ab51b902b2f0f8e21c1f076c967125b03e4",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "max_value_error": 0.0,
+      "max_policy_error": 2.680000000254701e-07
+    }
+  },
+  "equivalence": {
+    "ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "13839d47d5566937215331e73d65d828e91035a6304fae15dda31094f7eb6b23",
+      "new_sha256": "7e67d902030d13134476c23fa421739e25da2f32847e4188747cddfaeebc0179",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 1,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    },
+    "no_ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "393ceff12afb8c64136c6c97ffb42bf39fa0dcdf5879f5f8fc43b30abb699c60",
+      "new_sha256": "572ff72b0d7bde8c47fa7329381277d2e168322e094e1d6f1e2192ac451e5219",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 0,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    }
+  },
+  "book": {
+    "ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\reserve_review\\book_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "be9f8080ae220bd46e64fe66d3b56096bf48f8692b12a1d8747159e7fb9a143f",
+      "reader_sha256": "7e67d902030d13134476c23fa421739e25da2f32847e4188747cddfaeebc0179",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "book_sha256": "31fe8b32bf07c2bf33470873e7ae6f01a6d79ceb407686e2778842e6b8bf02c8"
+    },
+    "no_ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\reserve_review\\book_no_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "af32ad3f1e86610113e78949f7cb8ab51b902b2f0f8e21c1f076c967125b03e4",
+      "reader_sha256": "572ff72b0d7bde8c47fa7329381277d2e168322e094e1d6f1e2192ac451e5219",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "book_sha256": "3ae734205b5f82ca482866498ecf252162e6937283c597726d70a1e923d868e7"
+    }
+  },
+  "builds": {
+    "ny": "7e67d902030d13134476c23fa421739e25da2f32847e4188747cddfaeebc0179",
+    "no_ny": "572ff72b0d7bde8c47fa7329381277d2e168322e094e1d6f1e2192ac451e5219",
+    "onnx_ny": "9cd398f76ed2b88512ed178ccda06afab6438c992657e5d69f444624e264f54d",
+    "onnx_no_ny": "8495a12e1ff935a15a8e91523498f14588946fe7a9ee87dfac6803aeb2ca7dc3",
+    "makebook_ny": "be9f8080ae220bd46e64fe66d3b56096bf48f8692b12a1d8747159e7fb9a143f",
+    "makebook_no_ny": "af32ad3f1e86610113e78949f7cb8ab51b902b2f0f8e21c1f076c967125b03e4",
+    "multiponder_ny": "9e9a3088d53a4773414005ff1dd84de7ad7381baf36f35b1278aba0ae1102d27",
+    "multiponder_no_ny": "b049872f63453cdb84f44ba3ea2b4c50fa0ad0434f9a547ec02d306a354550a0",
+    "tensorrt_double": "c909aeef0d653b9844b02ae7b861c19c5646306c71011513265a9e1c0b140c58",
+    "tensorrt_debug": "9c65305d32114d2edb46eed7bb74251daf0dc3cb49f66a5989654a79ed92ec2b"
+  },
+  "unit_tests": [
+    "Release",
+    "Debug"
+  ],
+  "debug_counters": {
+    "complete": true,
+    "checks": [
+      "batch=1 evaluations equal batches across two searches",
+      "uncached single probe increments both counters by one",
+      "cached probe does not increment counters"
+    ],
+    "nodes_per_search": 16,
+    "engine_sha256": "9c65305d32114d2edb46eed7bb74251daf0dc3cb49f66a5989654a79ed92ec2b",
+    "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+  },
+  "limitations": [
+    "Callgrind instruction counts and speed improvement were not remeasured on Windows.",
+    "Real-GPU watchdog scheduling may vary tail visits and prefetch counts; the complete records retain actual counts."
+  ]
+}

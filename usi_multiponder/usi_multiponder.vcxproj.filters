@@ -24,19 +24,7 @@
     <ClCompile Include="..\usi\main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\Message.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\usi\nn_tensorrt.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\Node.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\PvMateSearch.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\UctSearch.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="..\cppshogi\bitboard.cpp">
@@ -86,9 +74,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\usi\UctSearch.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="USIPonderEngine.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -97,5 +82,21 @@
     <CustomBuild Include="..\usi\unpack.cu">
       <Filter>ソース ファイル</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="ソース ファイル\lc0_shogi">
+      <UniqueIdentifier>{5EBE1872-74C0-470E-8209-04A26456FA47}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lc0_shogi\backend.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lc0_shogi\search_session.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lc0_shogi\mate_coordinator.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

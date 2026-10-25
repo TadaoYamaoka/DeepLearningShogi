@@ -232,6 +232,15 @@ void NNTensorRT::load_model(const char* filename)
 
 	inputDims1 = engine->getBindingDimensions(0);
 	inputDims2 = engine->getBindingDimensions(1);
+	if (inputDims1.nbDims != 4 || inputDims2.nbDims != 4 ||
+		inputDims1.d[1] != (int)ColorNum * MAX_FEATURES1_NUM || inputDims2.d[1] != MAX_FEATURES2_NUM ||
+		inputDims1.d[2] != 9 || inputDims1.d[3] != 9 || inputDims2.d[2] != 9 || inputDims2.d[3] != 9)
+		throw std::runtime_error("Model input shape does not match dlshogi features (NYUGYOKU_FEATURES)");
+	const auto policyDims = engine->getBindingDimensions(2);
+	const auto valueDims = engine->getBindingDimensions(3);
+	if (policyDims.nbDims != 2 || policyDims.d[1] != MAX_MOVE_LABEL_NUM * (int)SquareNum ||
+		!((valueDims.nbDims == 2 && valueDims.d[1] == 1) || valueDims.nbDims == 1))
+		throw std::runtime_error("Model must output dlshogi policy labels and one scalar value per position");
 }
 
 int NNTensorRT::slot_capacity() const

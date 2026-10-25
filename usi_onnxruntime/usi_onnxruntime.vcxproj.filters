@@ -24,15 +24,6 @@
     <ClCompile Include="..\usi\main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\Message.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\Node.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\usi\UctSearch.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\cppshogi\bitboard.cpp">
       <Filter>ソース ファイル\cppshogi</Filter>
     </ClCompile>
@@ -75,9 +66,6 @@
     <ClCompile Include="nn_onnxruntime.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\usi\PvMateSearch.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
@@ -87,5 +75,21 @@
     <ClInclude Include="nn_onnxruntime.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="ソース ファイル\lc0_shogi">
+      <UniqueIdentifier>{DAC8C8FD-90AE-4F64-AD3D-6BBF0951A78E}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lc0_shogi\backend.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lc0_shogi\search_session.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lc0_shogi\mate_coordinator.cpp">
+      <Filter>ソース ファイル\lc0_shogi</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

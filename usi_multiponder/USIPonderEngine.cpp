@@ -73,6 +73,11 @@ USIPonderResult USIPonderEngine::GoPonder()
 	if (byoyomi > 0)
 		ops << " byoyomi " << byoyomi;
 	ops << std::endl;
+	{
+		std::lock_guard<std::mutex> lock(mtx_th);
+		started = true;
+		cond_th.notify_all();
+	}
 
 	std::string line;
 	USIPonderResult result;
@@ -100,6 +105,11 @@ USIPonderResult USIPonderEngine::GoPonder()
 
 void USIPonderEngine::GoPonderAsync(const std::string& usi_position, const LimitsType& limits)
 {
+	{
+		std::lock_guard<std::mutex> lock(mtx_th);
+		started = false;
+		job_pending = true;
+	}
 	promise_ponder = std::promise<USIPonderResult>();
 	future_ponder = promise_ponder.get_future();
 	this->usi_position = std::move(usi_position);
@@ -115,6 +125,7 @@ void USIPonderEngine::GoPonderAsync(const std::string& usi_position, const Limit
 
 				std::unique_lock<std::mutex> lk(mtx_th);
 				ready_th = false;
+				job_pending = false;
 				cond_th.notify_all();
 
 				// スレッドを停止しないで待機する
@@ -132,22 +143,37 @@ void USIPonderEngine::GoPonderAsync(const std::string& usi_position, const Limit
 
 void USIPonderEngine::Join() {
 	std::unique_lock<std::mutex> lk(mtx_th);
-	if (ready_th && !term_th)
-		cond_th.wait(lk, [this] { return !ready_th || term_th; });
+	cond_th.wait(lk, [this] { return !job_pending || term_th.load(); });
 }
 
 void USIPonderEngine::Stop()
 {
+	WaitStarted();
 	ops << "stop" << std::endl;
+}
+
+void USIPonderEngine::WaitStarted() {
+	std::unique_lock<std::mutex> lock(mtx_th);
+	cond_th.wait(lock, [this] { return started || !job_pending || term_th.load(); });
 }
 
 void USIPonderEngine::Quit()
 {
-	ops << "quit" << std::endl;
+	if (th) { Stop(); Join(); }
+	if (proc.running()) ops << "quit" << std::endl;
+	{
+		std::lock_guard<std::mutex> lock(mtx_th);
+		term_th = true;
+		cond_th.notify_all();
+	}
+	if (th && th->joinable()) th->join();
+	th.reset();
+	proc.wait();
 }
 
 USIPonderResult USIPonderEngine::Ponderhit()
 {
+	WaitStarted();
 	ops << "ponderhit" << std::endl;
 	return std::move(future_ponder.get());
 }

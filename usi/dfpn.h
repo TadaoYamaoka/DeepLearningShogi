@@ -1,6 +1,10 @@
 ﻿#pragma once
 
 #include <atomic>
+#include <climits>
+#include <string>
+#include <tuple>
+#include "position.hpp"
 
 // 置換表
 namespace ns_dfpn {
@@ -64,7 +68,7 @@ public:
 	}
 	static void set_draw_ply(const int draw_ply) {
 		// WCSCのルールでは、最大手数で詰ました場合は勝ちになるため+1する
-		DfPn::draw_ply = draw_ply + 1;
+		DfPn::draw_ply = draw_ply > 0 && draw_ply < INT_MAX ? draw_ply + 1 : INT_MAX;
 	}
 	void set_maxdepth(const int depth) {
 		kMaxDepth = depth;

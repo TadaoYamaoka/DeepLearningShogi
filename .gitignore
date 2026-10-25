@@ -257,3 +257,6 @@ ModelManifest.xml
 lightning_logs/
 .vscode/
 .devcontainer/
+
+# Local classic integration test bytecode
+/test/__pycache__/

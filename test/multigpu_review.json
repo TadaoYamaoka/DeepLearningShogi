@@ -1,0 +1,722 @@
+{
+  "complete": true,
+  "verified_at": "2026-10-25T07:03:33.475921+00:00",
+  "physical_gpu_count": 1,
+  "gpu": "RTX 4090",
+  "nn": {
+    "ny": {
+      "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "no_ny": {
+      "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    },
+    "onnx_ny": {
+      "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "onnx_no_ny": {
+      "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    },
+    "makebook_ny": {
+      "engine_sha256": "6f62e7eeadede7ec347d5257686d2d1c20c7be92aa8ba9818a128e2b1d3ce1bf",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "positions": 100
+    },
+    "makebook_no_ny": {
+      "engine_sha256": "453703c1a66cdd6d4f77d89d6e26c87146f12d1d9b82192a9e9b1e8f2bc61f52",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "positions": 100
+    }
+  },
+  "equivalence": {
+    "ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "7e67d902030d13134476c23fa421739e25da2f32847e4188747cddfaeebc0179",
+      "new_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 2,
+      "nn_count_difference_samples": 1,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    },
+    "no_ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "572ff72b0d7bde8c47fa7329381277d2e168322e094e1d6f1e2192ac451e5219",
+      "new_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 0,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": false,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    }
+  },
+  "book": {
+    "ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\book_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "6f62e7eeadede7ec347d5257686d2d1c20c7be92aa8ba9818a128e2b1d3ce1bf",
+      "reader_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "book_sha256": "31fe8b32bf07c2bf33470873e7ae6f01a6d79ceb407686e2778842e6b8bf02c8"
+    },
+    "no_ny": {
+      "entries": 2,
+      "generated": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\book_no_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "453703c1a66cdd6d4f77d89d6e26c87146f12d1d9b82192a9e9b1e8f2bc61f52",
+      "reader_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "book_sha256": "3ae734205b5f82ca482866498ecf252162e6937283c597726d70a1e923d868e7"
+    }
+  },
+  "matrix": {
+    "ny": {
+      "complete": true,
+      "gpu_ids": [
+        0
+      ],
+      "physical_gpu_count": 1,
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "positions": 6,
+      "nodes_budget": 4000,
+      "repeats": 1,
+      "batch": 128,
+      "cache_size": 100000,
+      "pv_threads": 0,
+      "timing": "NN and node rates use wall time through worker drain; response time is recorded separately.",
+      "results": [
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 5951.253635592791,
+          "average_batch": 100.20942408376963,
+          "nodes_per_second": 7640.551493595698,
+          "response_seconds": 3.2153182001784444,
+          "drained_seconds": 3.216129100183025
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 5975.676188072576,
+          "average_batch": 100.20942408376963,
+          "nodes_per_second": 7671.906529232362,
+          "response_seconds": 3.201987199834548,
+          "drained_seconds": 3.202984799980186
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 6171.974225748452,
+          "average_batch": 100.20942408376963,
+          "nodes_per_second": 7923.924903308083,
+          "response_seconds": 3.1001456000376493,
+          "drained_seconds": 3.1011147000826895
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 6201.664119301302,
+          "average_batch": 100.20942408376963,
+          "nodes_per_second": 7962.042445328678,
+          "response_seconds": 3.0852935999864712,
+          "drained_seconds": 3.0862684001913294
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 7710.958021861687,
+          "average_batch": 80.58823529411765,
+          "nodes_per_second": 9182.606555279766,
+          "response_seconds": 2.6640431999694556,
+          "drained_seconds": 2.665038499981165
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 7852.367775744616,
+          "average_batch": 84.11740890688259,
+          "nodes_per_second": 9340.300197802977,
+          "response_seconds": 2.6450344000477344,
+          "drained_seconds": 2.645953500061296
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 7674.314160116599,
+          "average_batch": 82.85140562248996,
+          "nodes_per_second": 9098.321654296256,
+          "response_seconds": 2.687196699786,
+          "drained_seconds": 2.688188099884428
+        },
+        {
+          "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 7698.8765026412675,
+          "average_batch": 82.468,
+          "nodes_per_second": 9160.830303283483,
+          "response_seconds": 2.6770023001590744,
+          "drained_seconds": 2.6779231999535114
+        }
+      ]
+    },
+    "no_ny": {
+      "complete": true,
+      "gpu_ids": [
+        0
+      ],
+      "physical_gpu_count": 1,
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "positions": 6,
+      "nodes_budget": 4000,
+      "repeats": 1,
+      "batch": 128,
+      "cache_size": 100000,
+      "pv_threads": 0,
+      "timing": "NN and node rates use wall time through worker drain; response time is recorded separately.",
+      "results": [
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 13268.738049655067,
+          "average_batch": 103.06806282722513,
+          "nodes_per_second": 16367.877415311576,
+          "response_seconds": 1.4829378998838365,
+          "drained_seconds": 1.4836376998573542
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 13312.981319678083,
+          "average_batch": 103.06806282722513,
+          "nodes_per_second": 16422.45445326946,
+          "response_seconds": 1.4778796000173315,
+          "drained_seconds": 1.4787071000318974
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 14080.946776079683,
+          "average_batch": 103.06806282722513,
+          "nodes_per_second": 17369.79129890882,
+          "response_seconds": 1.3972398997284472,
+          "drained_seconds": 1.3980593999149278
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 14079.926577947728,
+          "average_batch": 103.06806282722513,
+          "nodes_per_second": 17368.532816157807,
+          "response_seconds": 1.3973578000441194,
+          "drained_seconds": 1.398160699987784
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 15177.13071021245,
+          "average_batch": 87.73662551440329,
+          "nodes_per_second": 17509.226404708512,
+          "response_seconds": 1.4037938002729788,
+          "drained_seconds": 1.404745100182481
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 14963.549260870568,
+          "average_batch": 87.49590163934427,
+          "nodes_per_second": 17321.382401231644,
+          "response_seconds": 1.425792400026694,
+          "drained_seconds": 1.4267336998600513
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 14859.70870923814,
+          "average_batch": 88.10833333333333,
+          "nodes_per_second": 17194.14322792201,
+          "response_seconds": 1.4221493998775259,
+          "drained_seconds": 1.4230426998110488
+        },
+        {
+          "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 14789.0370151677,
+          "average_batch": 88.40833333333333,
+          "nodes_per_second": 17126.09239794917,
+          "response_seconds": 1.4336363000329584,
+          "drained_seconds": 1.4347113999538124
+        }
+      ]
+    },
+    "onnx_ny": {
+      "complete": true,
+      "gpu_ids": [
+        0
+      ],
+      "physical_gpu_count": 1,
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "positions": 6,
+      "nodes_budget": 4000,
+      "repeats": 1,
+      "batch": 128,
+      "cache_size": 100000,
+      "pv_threads": 0,
+      "timing": "NN and node rates use wall time through worker drain; response time is recorded separately.",
+      "results": [
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 539.6074388714698,
+          "average_batch": 100.58854166666667,
+          "nodes_per_second": 680.1182766535142,
+          "response_seconds": 35.78973180009052,
+          "drained_seconds": 35.79083349998109
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 543.538818716292,
+          "average_batch": 100.58854166666667,
+          "nodes_per_second": 685.0733663952767,
+          "response_seconds": 35.53074410010595,
+          "drained_seconds": 35.53196080017369
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 544.0481945842876,
+          "average_batch": 100.58854166666667,
+          "nodes_per_second": 685.7153809646729,
+          "response_seconds": 35.49761210009456,
+          "drained_seconds": 35.49869330006186
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 542.4773698556736,
+          "average_batch": 100.58854166666667,
+          "nodes_per_second": 683.73552203318,
+          "response_seconds": 35.600521800108254,
+          "drained_seconds": 35.601485099992715
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 496.614751121651,
+          "average_batch": 84.36437246963563,
+          "nodes_per_second": 581.9339184609115,
+          "response_seconds": 41.95889430004172,
+          "drained_seconds": 41.96009069995489
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 493.88764887728337,
+          "average_batch": 84.31983805668017,
+          "nodes_per_second": 579.0202488422062,
+          "response_seconds": 42.16846189997159,
+          "drained_seconds": 42.1695096999174
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 494.6812072722167,
+          "average_batch": 84.36437246963563,
+          "nodes_per_second": 579.668188846002,
+          "response_seconds": 42.12293719977606,
+          "drained_seconds": 42.124098699656315
+        },
+        {
+          "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 490.7146524395345,
+          "average_batch": 84.31983805668017,
+          "nodes_per_second": 575.3003153894518,
+          "response_seconds": 42.44089550001081,
+          "drained_seconds": 42.44218079990242
+        }
+      ]
+    },
+    "onnx_no_ny": {
+      "complete": true,
+      "gpu_ids": [
+        0
+      ],
+      "physical_gpu_count": 1,
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "positions": 6,
+      "nodes_budget": 4000,
+      "repeats": 1,
+      "batch": 128,
+      "cache_size": 100000,
+      "pv_threads": 0,
+      "timing": "NN and node rates use wall time through worker drain; response time is recorded separately.",
+      "results": [
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 1055.4398734774115,
+          "average_batch": 103.53403141361257,
+          "nodes_per_second": 1296.2562936609806,
+          "response_seconds": 18.735008399933577,
+          "drained_seconds": 18.736263899947517
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 1,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 1057.8564055773898,
+          "average_batch": 103.53403141361257,
+          "nodes_per_second": 1299.2241983442764,
+          "response_seconds": 18.692338099936023,
+          "drained_seconds": 18.69346339988988
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 1065.0982560236423,
+          "average_batch": 103.53403141361257,
+          "nodes_per_second": 1308.118399193234,
+          "response_seconds": 18.565264699980617,
+          "drained_seconds": 18.566362200072035
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 1,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 1065.791339816883,
+          "average_batch": 103.53403141361257,
+          "nodes_per_second": 1308.9696217513344,
+          "response_seconds": 18.55310340016149,
+          "drained_seconds": 18.554288500221446
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 998.2524479524315,
+          "average_batch": 88.94583333333334,
+          "nodes_per_second": 1138.2144836821185,
+          "response_seconds": 21.383054699981585,
+          "drained_seconds": 21.38437030010391
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 2,
+          "task_workers": 0,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 997.0289499468826,
+          "average_batch": 88.94583333333334,
+          "nodes_per_second": 1136.81944262459,
+          "response_seconds": 21.409552900120616,
+          "drained_seconds": 21.410611999919638
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 1,
+          "evaluations_per_second": 998.966815513944,
+          "average_batch": 88.94583333333334,
+          "nodes_per_second": 1139.0290106155148,
+          "response_seconds": 21.368020899943076,
+          "drained_seconds": 21.369078200077638
+        },
+        {
+          "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+          "threads_per_gpu": 2,
+          "task_workers": -1,
+          "max_concurrent_searchers": 0,
+          "evaluations_per_second": 998.1594345825396,
+          "average_batch": 88.94583333333334,
+          "nodes_per_second": 1138.1084291815719,
+          "response_seconds": 21.384893599897623,
+          "drained_seconds": 21.38636300014332
+        }
+      ]
+    }
+  },
+  "protocol": {
+    "ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\ny\\dlshogi_tensorrt.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\ny.onnx",
+      "engine_sha256": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "threads": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    },
+    "no_ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\no_ny\\dlshogi_tensorrt.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\no_ny.onnx",
+      "engine_sha256": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "threads": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    },
+    "onnx_ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\onnx_ny\\dlshogi_onnxruntime.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\ny.onnx",
+      "engine_sha256": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "threads": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    },
+    "onnx_no_ny": {
+      "passed": [
+        "root dfpn mate 1",
+        "root dfpn mate 3",
+        "early declaration infinite / stop",
+        "early declaration ponder nodes 8 / ponderhit",
+        "early declaration ponder nodes 8 / stop",
+        "early root dfpn infinite / stop",
+        "leaf mate 1 with PV workers",
+        "leaf mate 3 with PV workers",
+        "active search infinite / stop",
+        "active search ponder nodes 8 / ponderhit",
+        "active search ponder nodes 8 / stop",
+        "MultiPV 3",
+        "twenty rapid stops with two PV workers",
+        "root advance and rewind with two PV workers",
+        "draw 500/500 root b",
+        "draw 500/500 root w",
+        "draw 400/600 root b",
+        "draw 400/600 root w",
+        "draw 400/400 root b",
+        "draw 400/400 root w",
+        "draw endpoints do not report mate beyond Draw_Ply"
+      ],
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\multigpu_review\\onnx_no_ny\\dlshogi_onnxruntime.exe",
+      "model": "D:\\src\\DeepLearningShogiLc0\\artifacts\\models\\no_ny.onnx",
+      "engine_sha256": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "threads": 2,
+      "task_workers": -1,
+      "max_concurrent_searchers": 0
+    }
+  },
+  "real_backend": {
+    "backend_trt": {
+      "engine_sha256": "5bfc52ca690651860195ffe33bbbc083711a3c17cc413669d80985c3a433c091",
+      "writers": 8,
+      "rounds": 8,
+      "requests_per_round": 96,
+      "overflow_checked": true
+    },
+    "backend_onnx": {
+      "engine_sha256": "a17ed8e8318b48cfecabe2758e2250012b0e79232d98e8804d4edb1dba251933",
+      "writers": 8,
+      "rounds": 8,
+      "requests_per_round": 96,
+      "overflow_checked": true
+    },
+    "backend_debug": {
+      "engine_sha256": "e51cf795504e787a8674f446b63c41cb494c350e7d2402ba52d45afe3db143ff",
+      "writers": 8,
+      "rounds": 8,
+      "requests_per_round": 96,
+      "overflow_checked": true
+    }
+  },
+  "builds": {
+    "ny": "7137043c0955fb8363a9b1c35af17d9365166bd38d249997e1e23e8ed20deec1",
+    "no_ny": "3ff2253473e3ff17110ca12b8c9289c96fa79b85a57d7a703cc4ec35b0130b9f",
+    "onnx_ny": "50d4facfb1f70484a47ccef064333efeb24724adef38559d3378e90253c540e8",
+    "onnx_no_ny": "88917be3d40002584a8b75e8e02789259861023115afe9437b18ec1d1121a0ad",
+    "makebook_ny": "6f62e7eeadede7ec347d5257686d2d1c20c7be92aa8ba9818a128e2b1d3ce1bf",
+    "makebook_no_ny": "453703c1a66cdd6d4f77d89d6e26c87146f12d1d9b82192a9e9b1e8f2bc61f52",
+    "multiponder_ny": "00bb2874bb88caad48e063e8cf478409cb48777b1e58a6d3dc56c3dd9724aa90",
+    "multiponder_no_ny": "7919e44eb3e21c5656dfd63732efbaa00d1ecf0d7d43bd2df83c77e9d5268f91",
+    "tensorrt_double": "093a0ba7a286d96c236fb41add9223931400849fd89b0b15e2e8d99c69d9fb94",
+    "tensorrt_debug": "3d9417e09745b57adacf88c4d12df43ce4bdac344f97a7b529bd355dce0cd3e4"
+  },
+  "unit_tests": [
+    "Release",
+    "Debug"
+  ],
+  "debug_counters": {
+    "complete": true,
+    "checks": [
+      "batch=1 evaluations equal batches across two searches",
+      "uncached single probe increments both counters by one",
+      "cached probe does not increment counters"
+    ],
+    "nodes_per_search": 16,
+    "engine_sha256": "3d9417e09745b57adacf88c4d12df43ce4bdac344f97a7b529bd355dce0cd3e4",
+    "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+  },
+  "upstream_modified_files": [
+    "src/neural/backend.h",
+    "src/search/classic/node.cc",
+    "src/search/classic/node.h",
+    "src/search/classic/search.cc",
+    "src/search/classic/search.h",
+    "src/search/classic/stoppers/timemgr.h"
+  ],
+  "default_options": {
+    "TaskWorkers": 0,
+    "MaxConcurrentSearchers": 1,
+    "UCT_Threads": 2,
+    "UCT_Threads2_through_8": 0
+  },
+  "limitations": [
+    "No multi-GPU utilization/scaling measurement; demux/mux remain unimplemented.",
+    "Small single-GPU matrix is functional validation, not a performance or Elo claim."
+  ]
+}

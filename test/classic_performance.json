@@ -1,0 +1,186 @@
+{
+  "complete": true,
+  "verified_at_utc": "2026-10-25T02:11:51.346804+00:00",
+  "gpu_and_driver": "NVIDIA GeForce RTX 4090, 617.14",
+  "backend": "TensorRT 8.6.1.6",
+  "threads": 2,
+  "nodes": 20000,
+  "batch": 128,
+  "positions": 30,
+  "repeats": 3,
+  "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+  "verification": {
+    "ny": {
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\performance_review\\after_ny\\dlshogi_tensorrt.exe",
+      "sha256": "ce6c3368bfc4a24eb65af44b1cf4d370fdc919579ce79f5cc672590421a51bbe",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "protocol_threads": 2,
+      "max_value_error": 0.0,
+      "max_policy_error": 2.379999999857496e-07
+    },
+    "after_no_ny": {
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\performance_review\\after_no_ny\\dlshogi_tensorrt.exe",
+      "sha256": "9dd081a495f1b462bf883a40f56ae53b1463ff6a06f3448b719ab2cc62267a1a",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "protocol_threads": 2,
+      "max_value_error": 0.0,
+      "max_policy_error": 2.680000000254701e-07
+    },
+    "onnx_ny": {
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\performance_review\\onnx_ny\\dlshogi_onnxruntime.exe",
+      "sha256": "fa46cc2b04c2828bed7ed825225994b26225c5298c0b96e580beabe19207a131",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "protocol_threads": 2,
+      "max_value_error": 1.4999999992104662e-08,
+      "max_policy_error": 2.980000000096794e-07
+    },
+    "onnx_no_ny": {
+      "engine": "D:\\src\\DeepLearningShogiLc0\\artifacts\\performance_review\\onnx_no_ny\\dlshogi_onnxruntime.exe",
+      "sha256": "05162c94995412263e64a0a9cfa3c75ad869427435d0f2c25f869ff0137b8c91",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "nn_positions": 100,
+      "protocol_checks": 21,
+      "protocol_threads": 2,
+      "max_value_error": 1.4999999992104662e-08,
+      "max_policy_error": 2.980000000096794e-07
+    }
+  },
+  "auxiliary": {
+    "book_ny": {
+      "entries": 2,
+      "generated": "artifacts\\performance_review\\book_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "95c7bc8aea0b512f926e8252df5f7ad19c85254895622c5d76f803732711c85d",
+      "reader_sha256": "ce6c3368bfc4a24eb65af44b1cf4d370fdc919579ce79f5cc672590421a51bbe",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "book_sha256": "31fe8b32bf07c2bf33470873e7ae6f01a6d79ceb407686e2778842e6b8bf02c8"
+    },
+    "book_no_ny": {
+      "entries": 2,
+      "generated": "artifacts\\performance_review\\book_no_ny_data\\generated.bin",
+      "readback": true,
+      "policy_blend": true,
+      "makebook_policy_blend": true,
+      "engine_sha256": "e0af54a694771d516565d817f7c38f6a379dd58830c3369b870de72bba058981",
+      "reader_sha256": "9dd081a495f1b462bf883a40f56ae53b1463ff6a06f3448b719ab2cc62267a1a",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "book_sha256": "3ae734205b5f82ca482866498ecf252162e6937283c597726d70a1e923d868e7"
+    },
+    "multiponder": {
+      "hits": 10,
+      "misses": 10,
+      "quit_during_ponder": true,
+      "children_exited": true,
+      "engine_sha256": "dee683229576e251b817b15c82a48259eb9b705e9d367b0fdaa935ac410c3533",
+      "auxiliary_sha256": "ce6c3368bfc4a24eb65af44b1cf4d370fdc919579ce79f5cc672590421a51bbe",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a"
+    },
+    "tensorrt_double": {
+      "sha256": "e0f47d48d824575d26055284aaa4c7e91b8629b2e127ae4359e55ec0bf587ffc",
+      "smoke_threads": 2
+    },
+    "tensorrt_debug": {
+      "sha256": "2969c6f2773405303ebca67800d4e316f32dcab97d523f0962c9d239eb3975d4",
+      "smoke_threads": 2
+    },
+    "multiponder_no_ny": {
+      "sha256": "e124a4191ccfa44fe25038543870fd76f7652234bf4a46ad6cc2226688f9d3a1",
+      "smoke_threads": 2
+    }
+  },
+  "measurements": [
+    {
+      "model": "ny",
+      "pv_threads": 0,
+      "report": "artifacts\\performance_review\\after_ny_pv0.json",
+      "old_sha256": "ba94895200ac58bf27cd97bbc3abeae2be0c9c54e91223fb6d78b16c988aa4bf",
+      "new_sha256": "ce6c3368bfc4a24eb65af44b1cf4d370fdc919579ce79f5cc672590421a51bbe",
+      "samples": 90,
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 11015.253182455977,
+      "median_new_nps": 11866.39831594224,
+      "ratio_of_nps_medians": 1.077269684081514,
+      "median_paired_ratio": 1.0916720755097007,
+      "per_repeat_median_ratio": [
+        1.0998907073750703,
+        1.0752315906360506,
+        1.0943477518579983
+      ]
+    },
+    {
+      "model": "ny",
+      "pv_threads": 2,
+      "report": "artifacts\\performance_review\\after_ny_pv2.json",
+      "old_sha256": "ba94895200ac58bf27cd97bbc3abeae2be0c9c54e91223fb6d78b16c988aa4bf",
+      "new_sha256": "ce6c3368bfc4a24eb65af44b1cf4d370fdc919579ce79f5cc672590421a51bbe",
+      "samples": 90,
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 11686.285772820007,
+      "median_new_nps": 11724.358456209986,
+      "ratio_of_nps_medians": 1.0032578942642776,
+      "median_paired_ratio": 1.0293087400301082,
+      "per_repeat_median_ratio": [
+        1.0101180680123543,
+        1.030167750858189,
+        1.0329959835063025
+      ]
+    },
+    {
+      "model": "no_ny",
+      "pv_threads": 0,
+      "report": "artifacts\\performance_review\\after_no_ny_pv0.json",
+      "old_sha256": "43be5e889ca507fbd7dbf295988b72a9a7cfe7a0191a38d4c5f89c3aeb5b4675",
+      "new_sha256": "9dd081a495f1b462bf883a40f56ae53b1463ff6a06f3448b719ab2cc62267a1a",
+      "samples": 90,
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 20360.274988760135,
+      "median_new_nps": 20243.76301240426,
+      "ratio_of_nps_medians": 0.9942774851312078,
+      "median_paired_ratio": 1.0328885511505703,
+      "per_repeat_median_ratio": [
+        1.0909151033150448,
+        1.0262208546043168,
+        1.0183891849089073
+      ]
+    },
+    {
+      "model": "no_ny",
+      "pv_threads": 2,
+      "report": "artifacts\\performance_review\\after_no_ny_pv2.json",
+      "old_sha256": "43be5e889ca507fbd7dbf295988b72a9a7cfe7a0191a38d4c5f89c3aeb5b4675",
+      "new_sha256": "9dd081a495f1b462bf883a40f56ae53b1463ff6a06f3448b719ab2cc62267a1a",
+      "samples": 90,
+      "full_budget_samples": 90,
+      "early_solved_samples": 0,
+      "median_old_nps": 21542.54879838744,
+      "median_new_nps": 21160.297829638766,
+      "ratio_of_nps_medians": 0.9822560007951665,
+      "median_paired_ratio": 0.9515663335926958,
+      "per_repeat_median_ratio": [
+        0.9685921297846319,
+        0.9515663335926958,
+        0.9278483540842375
+      ]
+    }
+  ],
+  "notes": [
+    "Sequential old/new GPU runs; no concurrent builds or other engine tests.",
+    "One engine process per side is retained for all repeats: subtree reuse is disabled, NN caches persist, and initial model loading/warmup is excluded.",
+    "Early-solved samples are recorded but excluded from NPS aggregates.",
+    "Discarded interrupted preliminary run overlapped compilation and is not included.",
+    "These runs compare legacy search with the corrected classic integration; they do not isolate the speedup of each fix.",
+    "IdlingMinimumWork=0 and MaxPrefetch=32 remain unchanged; no Elo or speed gate.",
+    "Earlier 40-game evidence in classic_acceptance.json concerns earlier executable hashes."
+  ]
+}

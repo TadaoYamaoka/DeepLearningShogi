@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <NyugyokuFeatures Condition="'$(NyugyokuFeatures)'==''">true</NyugyokuFeatures>
+    <ShogiFeatureDefine Condition="'$(NyugyokuFeatures)'=='true'">NYUGYOKU_FEATURES;</ShogiFeatureDefine>
+    <ShogiCudaFeatureDefine Condition="'$(NyugyokuFeatures)'=='true'">-DNYUGYOKU_FEATURES</ShogiCudaFeatureDefine>
+  </PropertyGroup>
+</Project>

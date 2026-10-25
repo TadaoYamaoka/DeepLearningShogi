@@ -1,0 +1,7 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Reuse the production backend, NN, CUDA and feature build settings. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)'=='usi' Or '$(MSBuildProjectName)'=='usi_onnxruntime'">
+    <ClCompile Remove="main.cpp;dfpn.cpp;..\usi\main.cpp;..\usi\dfpn.cpp;..\lc0_shogi\search_session.cpp;..\lc0_shogi\mate_coordinator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)backend_concurrency.cpp" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{4E2F779E-22A4-4518-BA8A-278CC95D4490}</ProjectGuid><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>StaticLibrary</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>MultiByte</CharacterSet></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup><OutDir>$(ProjectDir)x64\$(Configuration)\classic\</OutDir><IntDir>$(ProjectDir)x64\$(Configuration)\classic_obj\</IntDir></PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard><AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)compat;$(ProjectDir)..\lc0\src;$(ProjectDir);$(ProjectDir)..\usi;$(ProjectDir)..\cppshogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'!='Debug'">NDEBUG;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary><Optimization>MaxSpeed</Optimization><WarningLevel>Level3</WarningLevel><MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lc0\src\neural\shared_params.cc" />
+    <ClCompile Include="..\lc0\src\search\classic\search.cc" />
+    <ClCompile Include="..\lc0\src\search\classic\node.cc" />
+    <ClCompile Include="..\lc0\src\search\classic\params.cc" />
+    <ClCompile Include="..\lc0\src\search\classic\stoppers\timemgr.cc" />
+    <ClCompile Include="..\lc0\src\search\classic\stoppers\stoppers.cc" />
+    <ClCompile Include="..\lc0\src\utils\optionsdict.cc" />
+    <ClCompile Include="..\lc0\src\utils\optionsparser.cc" />
+    <ClCompile Include="..\lc0\src\utils\logging.cc" />
+    <ClCompile Include="..\lc0\src\utils\random.cc" />
+    <ClCompile Include="..\lc0\src\utils\string.cc" />
+    <ClCompile Include="..\lc0\src\utils\commandline.cc" />
+    <ClCompile Include="..\lc0\src\utils\configfile.cc" />
+    <ClCompile Include="..\lc0\src\utils\filesystem.win32.cc" />
+    <ClCompile Include="position_adapter.cpp" />
+    <ClCompile Include="rules.cpp" />
+    <ClCompile Include="backend_support.cpp" />
+    <ClCompile Include="classic_options.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CheckClassicSources" BeforeTargets="ClCompile"><Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\test\check_classic_sources.ps1&quot; -Project &quot;$(MSBuildProjectFullPath)&quot;" /></Target>
+</Project>

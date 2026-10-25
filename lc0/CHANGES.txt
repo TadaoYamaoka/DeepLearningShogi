@@ -1,0 +1,46 @@
+Upstream: 58e780090b8ffb765743b73a794f994c3a8c9476
+License: COPYING and per-file notices are retained.
+
+The source directory layout is retained. Only classic is linked; the explicit
+source allowlist is in ../lc0_shogi/lc0_shogi.vcxproj and ../lc0_shogi/classic.mk.
+The sibling ../lc0 upstream checkout is not a build dependency.
+
+Local modifications:
+- neural/backend.h: remove the unused model-loader include. Backend is implemented
+  by dlshogi; no upstream model loader, NN encoder, backend or cache wrapper links.
+- search/classic/node.h: widen edge count to uint16_t, remove protobuf/model
+  includes, assert the compact four-byte shogi Edge layout. Node stays 64 bytes.
+- search/classic/node.cc: remove model includes; parse starting positions and
+  moves through the shogi history adapter.
+- search/classic/search.h: replace 256-entry workspaces with kMaxLegalMoves,
+  remove Syzygy include, add locked snapshot and path-based proof hooks.
+- search/classic/search.cc: exclude tablebase probing; delegate leaf rules to
+  cppshogi; select independent black/white draw scores; expose scalar root Q
+  and decisive terminal classification from WL (not a biased draw Q);
+  apply external proofs to visited nodes and propagate bounds under the node
+  lock without waiting for in-flight visits or correcting past visit averages.
+  Unvisited siblings keep unknown bounds until their first backup publishes
+  the expansion; proof propagation does not read their pending terminal fields.
+  Already-terminal ancestors retain their proof when a delayed descendant proof
+  arrives. Leaf terminal publication also takes the node lock because a loss
+  clears the incoming policy edge, which other workers can already read.
+  Generate legal moves once per leaf and pass emptiness to the rule adapter;
+  only build final move statistics when VerboseMoveStats is enabled. The latter
+  omits default logfile-only statistics, whose histories have no NN cache
+  implementation in this integration; explicit verbose statistics are retained.
+- search/classic/stoppers/timemgr.h: expose scalar edge evaluations alongside
+  edge visits for dlshogi's time-extension decision.
+
+Replacements, not modifications of chess/NN implementations:
+- ../lc0_shogi/compat/chess: 16-bit absolute shogi moves, cppshogi board and owned
+  doMove/undoMove history cursors, callback contracts only (no UCI engine loop).
+- ../lc0_shogi/compat/neural/encoder.h: the unused history-fill option type and a
+  move identifier for diagnostic output; no chess NN encoding is implemented.
+- neural/shared_params.cc and neural/register.h are copied without changes.
+  backend_support.cpp supplies only registry name queries returning dlshogi;
+  no inference factory, network loader, WDL inference or extra cache is linked.
+- ../lc0_shogi/classic_options.cpp exposes an explicit classic option allowlist
+  through upstream OptionsParser, with dlshogi defaults and ready-time snapshots.
+
+Ponder and response gating live outside classic. Standard Node WL/D storage,
+terminal classification and selection/backup machinery are retained.

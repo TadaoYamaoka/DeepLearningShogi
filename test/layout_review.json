@@ -1,0 +1,161 @@
+{
+  "complete": true,
+  "verified_at": "2026-10-25T10:44:32.190520+00:00",
+  "builds": {
+    "ny": {
+      "exe_sha256": "e01e033efa3805c6d80bc0ca136997447fc5f677ac157fbbacc2a618f33659bc",
+      "pdb_sha256": "6680d161eb33d203e94e413e369bb84d70b352426061c3e2b0c924bc28fe7d70"
+    },
+    "no_ny": {
+      "exe_sha256": "b2b5917f2d479788a26763f2f929106b59f73d7fa9187efe56d71f2bfd4f3303",
+      "pdb_sha256": "b5ebc207b34f6324fd01375e5ea365449f9dacf48bf6cbe25a19674b5fd28f4e"
+    },
+    "onnx_ny": {
+      "exe_sha256": "59fc84f0419eeaae1e4c4588865062d6e6b5aaa6154d776d727e371e6b0dad85",
+      "pdb_sha256": "19368563a71cc418bd4e85c5f9ae46fc17c89a74d8449c9af925661099ba1a1e"
+    },
+    "onnx_no_ny": {
+      "exe_sha256": "58e36f1546c00a15e5e3bae3a5d3f6f9e699c44af1eb9c8669817d7370add4d4",
+      "pdb_sha256": "60070f45729887fc641295983532a12e9ac956f648b1e40840dae9b689767d1d"
+    },
+    "makebook_ny": {
+      "exe_sha256": "b26464d8599b60364de1c5ecbd6b66b37f29094daa5e3091f2cc0ccdf524889a",
+      "pdb_sha256": "6fc778251553d350d17ef06f59e0eca5b3fb887b8df1191cb64d2167a9514fb3"
+    },
+    "makebook_no_ny": {
+      "exe_sha256": "3807b4ebb4c0da612a71f94ac862e0419aea411e7ffa3d36dc5b137f58fd30d5",
+      "pdb_sha256": "94bce88cb535b31d49236a92dc5425c023769dfd5c504c9dcf9c025582654a57"
+    },
+    "multiponder_ny": {
+      "exe_sha256": "9018b8d3c8f96f63692dd2498e34db37d03284cfd8c11e5332fcb2ee3036966a",
+      "pdb_sha256": "79e492121ecfabdb8564c30ba9898fd448253435c93ffabc30cebc4fad6f98fa"
+    },
+    "multiponder_no_ny": {
+      "exe_sha256": "4ec9402bec6b5ec98d0468280a026c6d4e6bd73063617f36df06d1ef24f2c097",
+      "pdb_sha256": "82cd0d329edefc8df2b9530740317e24d6b5db832c5475d0a19a32307455d08d"
+    },
+    "tensorrt_double": {
+      "exe_sha256": "9ea8c71ee17ed5569fecabee4cababd03c035834769d6a2bfec10f075b3fb708",
+      "pdb_sha256": "518cbabd68fd3daabb1081bcbdffc5a1411ac2a92a07bb10533926d6bdacc922"
+    },
+    "tensorrt_debug": {
+      "exe_sha256": "6a807bde3b1315ebd53e93e1983e57a1ac902b6464bb08952673b02ca7006e89",
+      "pdb_sha256": "1f56c09da2cbf263af8bfa335764c9481b52b10ae184bc260b9950ee2a344af7"
+    }
+  },
+  "unit_configurations": [
+    "Release",
+    "Debug"
+  ],
+  "moved_file_count": 103,
+  "implementation_byte_identical": true,
+  "moved_metadata_differences": [
+    "lc0/CHANGES.txt",
+    "lc0_shogi/classic.mk"
+  ],
+  "lc0_upstream_modified_files": [
+    "src/neural/backend.h",
+    "src/search/classic/node.cc",
+    "src/search/classic/node.h",
+    "src/search/classic/search.cc",
+    "src/search/classic/search.h",
+    "src/search/classic/stoppers/timemgr.h"
+  ],
+  "source_audit": {
+    "implementation_byte_identical": true,
+    "moved_metadata_differences": [
+      "lc0/CHANGES.txt",
+      "lc0_shogi/classic.mk"
+    ],
+    "projects_verified": 5,
+    "upstream_modified_files": [
+      "src/neural/backend.h",
+      "src/search/classic/node.cc",
+      "src/search/classic/node.h",
+      "src/search/classic/search.cc",
+      "src/search/classic/search.h",
+      "src/search/classic/stoppers/timemgr.h"
+    ],
+    "upstream_revision": "58e780090b8ffb765743b73a794f994c3a8c9476",
+    "upstream_comparison_uses_git_objects": true
+  },
+  "boundary_negative": [
+    {
+      "case": "old_nested",
+      "rejected": true
+    },
+    {
+      "case": "chess",
+      "rejected": true
+    },
+    {
+      "case": "other_search",
+      "rejected": true
+    }
+  ],
+  "equivalence": {
+    "ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "09a221ed76916024ed878a0915e970a369f4ba8d3127353c3832e3807f7e0d8f",
+      "new_sha256": "e01e033efa3805c6d80bc0ca136997447fc5f677ac157fbbacc2a618f33659bc",
+      "model_sha256": "36ae090779c6d7205d22952e780820084fb6ef8b25857cf838816c503ee0300a",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 3,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": true,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    },
+    "no_ny": {
+      "complete": true,
+      "threads": 1,
+      "nodes_budget": 4000,
+      "old_sha256": "399ead51a466bc6cecf451ac0728472c471808eedf89decfc47f84ef58c461ea",
+      "new_sha256": "b2b5917f2d479788a26763f2f929106b59f73d7fa9187efe56d71f2bfd4f3303",
+      "model_sha256": "9d0e845e5010675ed34b9a37821289237e704e80d25ee975703b949e500dcd2c",
+      "fixture_sha256": "8b96b259672df86acddf5add811c0008800bd0c4a1b930669e1d031b8383a508",
+      "visit_count_difference_samples": 1,
+      "nn_count_difference_samples": 0,
+      "nn_batch_difference_samples": 0,
+      "bestmove_difference_samples": 0,
+      "pv_difference_samples": 0,
+      "exact_nn_counts_required": true,
+      "observe_only": false,
+      "transposed_cache_policy_equal": true
+    }
+  },
+  "ready_settings": {
+    "ny": [
+      "all twelve lc0-named options and adjacent session controls reflected from USI",
+      "ready snapshot updates only after isready; root-specific settings take effect",
+      "rejected fractional/range/choice values explain why and preserve previous values",
+      "ReuseSubtree true retains child visits; false starts with zero visits after advancing root"
+    ],
+    "no_ny": [
+      "all twelve lc0-named options and adjacent session controls reflected from USI",
+      "ready snapshot updates only after isready; root-specific settings take effect",
+      "rejected fractional/range/choice values explain why and preserve previous values",
+      "ReuseSubtree true retains child visits; false starts with zero visits after advancing root"
+    ],
+    "onnx_ny": [
+      "all twelve lc0-named options and adjacent session controls reflected from USI",
+      "ready snapshot updates only after isready; root-specific settings take effect",
+      "rejected fractional/range/choice values explain why and preserve previous values",
+      "ReuseSubtree true retains child visits; false starts with zero visits after advancing root"
+    ],
+    "onnx_no_ny": [
+      "all twelve lc0-named options and adjacent session controls reflected from USI",
+      "ready snapshot updates only after isready; root-specific settings take effect",
+      "rejected fractional/range/choice values explain why and preserve previous values",
+      "ReuseSubtree true retains child visits; false starts with zero visits after advancing root"
+    ]
+  },
+  "make_validation": "three dry runs; Linux compilation not rerun",
+  "default_executables_and_symbols_updated": true,
+  "search_logic_changed": false
+}

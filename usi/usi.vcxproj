@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="MakeBook_NoOpt|x64">
@@ -97,6 +97,7 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <Import Project="..\lc0_shogi\features.props" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -140,10 +141,12 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;PV_MATE_SEARCH;BOOK_POLICY;_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)PV_MATE_SEARCH;BOOK_POLICY;_DEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,12 +162,14 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -182,12 +187,14 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;WIN_TYPE_DOUBLE;PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)WIN_TYPE_DOUBLE;PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -205,12 +212,14 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;MAKE_BOOK;WIN_TYPE_DOUBLE;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)MAKE_BOOK;WIN_TYPE_DOUBLE;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -232,12 +241,14 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;MAKE_BOOK;WIN_TYPE_DOUBLE;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)MAKE_BOOK;WIN_TYPE_DOUBLE;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -259,10 +270,12 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NYUGYOKU_FEATURES;PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>$(ShogiFeatureDefine)PV_MATE_SEARCH;BOOK_POLICY;NDEBUG;_CONSOLE;HAVE_SSE4;HAVE_SSE42;HAVE_BMI2;HAVE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\lc0_shogi\compat;$(ProjectDir)..\lc0\src;$(ProjectDir)..\lc0_shogi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -293,24 +306,19 @@
     <ClCompile Include="..\cppshogi\usi.cpp" />
     <ClCompile Include="dfpn.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Message.cpp" />
     <ClCompile Include="nn_tensorrt.cpp" />
-    <ClCompile Include="Node.cpp" />
-    <ClCompile Include="PvMateSearch.cpp" />
-    <ClCompile Include="UctSearch.cpp" />
+    <ClCompile Include="..\lc0_shogi\backend.cpp" />
+    <ClCompile Include="..\lc0_shogi\mate_coordinator.cpp" />
+    <ClCompile Include="..\lc0_shogi\search_session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dfpn.h" />
     <ClInclude Include="error_util.h" />
     <ClInclude Include="fastmath.h" />
     <ClInclude Include="mate.h" />
-    <ClInclude Include="Message.h" />
     <ClInclude Include="int8_calibrator.h" />
     <ClInclude Include="nn_tensorrt.h" />
-    <ClInclude Include="Node.h" />
     <ClInclude Include="PolicyValueCache.h" />
-    <ClInclude Include="PvMateSearch.h" />
-    <ClInclude Include="UctSearch.h" />
     <ClInclude Include="unpack.h" />
   </ItemGroup>
   <ItemGroup>
@@ -319,20 +327,30 @@
   <ItemGroup>
     <CustomBuild Include="unpack.cu">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DNYUGYOKU_FEATURES -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">$(Platform)\$(TargetedSDKConfiguration)\%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu -G --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MTd" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_WinTypeDouble|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">"$(CUDA_PATH_V12_9)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64_x64)" -x cu --keep-dir $(Platform)\$(TargetedSDKConfiguration) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE $(ShogiCudaFeatureDefine) -Xcompiler "/EHsc /W3 /nologo /O2 /Fdx64\Release\vc143.pdb /FS /MT" -o "$(IntDir)%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MakeBook_NoOpt|x64'">$(IntDir)%(Filename)%(Extension).obj</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
+  <ItemGroup>
+    <ProjectReference Include="..\lc0_shogi\lc0_shogi.vcxproj">
+      <Project>{4E2F779E-22A4-4518-BA8A-278CC95D4490}</Project>
+      <SetConfiguration Condition="'$(Configuration)'!='Debug'">Configuration=Release</SetConfiguration>
+      <GlobalPropertiesToRemove>OutDir;IntDir</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="CheckClassicSources" BeforeTargets="ClCompile">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\test\check_classic_sources.ps1&quot; -Project &quot;$(MSBuildProjectFullPath)&quot;" />
+  </Target>
 </Project>
