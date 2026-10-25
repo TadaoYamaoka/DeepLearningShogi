@@ -471,10 +471,10 @@ class SpsaTuner:
                 plus_vs_minus[1] += l
                 plus_vs_minus[2] += d
 
-        # Convert to signed scores (win=1, draw=0.5, loss=0)
+        # Convert to signed scores (win=+1, draw=0, loss=-1).
         def signed_score(tri: List[int]) -> float:
-            W,L,D = tri
-            return float(W) - float(L) + 0.5*float(D)
+            W, L, _ = tri
+            return float(W) - float(L)
 
         S_plus  = signed_score(plus_vs_base)
         S_minus = signed_score(minus_vs_base)
