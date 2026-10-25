@@ -224,8 +224,9 @@ class GameRunner:
             b_eng = self._connect_and_setup(black_cmd, black_opts, black_slot)
             w_eng = self._connect_and_setup(white_cmd, white_opts, white_slot)
             winner = self._play_game(sfen, b_eng, w_eng)
-            b_eng.gameover()
-            w_eng.gameover()
+            # USI results are from each engine's own perspective.
+            b_eng.gameover('win' if winner > 0 else 'lose' if winner < 0 else 'draw')
+            w_eng.gameover('lose' if winner > 0 else 'win' if winner < 0 else 'draw')
             return winner
         except BaseException:
             # A broken protocol stream must not be reused by another match.
