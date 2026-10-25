@@ -222,10 +222,11 @@ class GameRunner:
                     if repetition_hash[key] == 4:
                         # Fourfold repetition handling
                         is_draw = board.is_draw()
+                        # Repetition results are for the side to move after push (opposite of turn).
                         if is_draw == REPETITION_WIN:
-                            winner = 1 if turn == BLACK else -1
-                        elif is_draw == REPETITION_LOSE:
                             winner = -1 if turn == BLACK else 1
+                        elif is_draw == REPETITION_LOSE:
+                            winner = 1 if turn == BLACK else -1
                         else:
                             winner = 0
                         is_game_over = True
