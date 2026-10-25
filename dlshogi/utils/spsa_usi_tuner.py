@@ -12,6 +12,10 @@ In direct mode, OpenBench's pairs_per corresponds to sets_per_iter * repeat_per_
 Scores are summed, not averaged over pairs. Compared with the former combined
 update, direct updates have about half the expected magnitude under a local
 equal-strength model. Doubling r_end approximately preserves that update scale.
+Engines stay resident per worker and are closed when the worker exits. Search
+options are reapplied before each game; changes to dlshogi initialization-only
+options restart the affected process. A distinct baseline executable is retained
+between monitors as an additional process per worker that uses it.
 
 Parameter spec format (for --params, comma separated list):
   name:min~max:start[:c_end][:r_end][:type]
@@ -155,26 +159,84 @@ class GameRunner:
         self.byoyomi_ms = byoyomi_ms
         self.draw_moves = draw_moves
         self.debug = debug
+        # Each worker owns its processes; no USI stream is shared across threads.
+        self._local = threading.local()
 
-    def _connect_and_setup(self, cmd: str, options: Dict[str, str]) -> Engine:
-        eng = Engine(cmd, connect=False, debug=self.debug)
-        eng.connect()
+    def _engine_cache(self):
+        if not hasattr(self._local, 'engines'):
+            self._local.engines = {}
+        return self._local.engines
+
+    @staticmethod
+    def _initialization_options(options: Dict[str, str]) -> Dict[str, str]:
+        # usi/main.cpp reads these only inside the first-isready initialization.
+        prefixes = ('DNN_Model', 'DNN_Batch_Size', 'UCT_Threads', 'Multi_Ponder', 'PV_Mate_Search_')
+        names = {'UCT_NodeLimit', 'DNN_Cache_Size', 'DfPn_Hash', 'Mate_Root_Search'}
+        return {k: v for k, v in options.items() if k in names or k.startswith(prefixes)}
+
+    @staticmethod
+    def _quit_engine(eng: Engine):
+        try:
+            eng.quit()
+        except Exception:
+            pass
+
+    def close(self):
+        """Quit all processes owned by the calling worker (also safe after failure)."""
+        cache = self._engine_cache()
+        engines = [eng for eng, _ in cache.values()]
+        cache.clear()
+        for eng in engines:
+            self._quit_engine(eng)
+
+    def _connect_and_setup(self, cmd: str, options: Dict[str, str], slot: int = 0) -> Engine:
+        cache = self._engine_cache()
+        # Slots distinguish two instances of the same candidate executable.
+        # Keeping commands separate also retains the baseline between monitors.
+        key = (slot, cmd)
+        if key in cache:
+            eng, previous = cache[key]
+            if (previous.keys() - options.keys() or
+                    self._initialization_options(previous) != self._initialization_options(options)):
+                # Removed options need their defaults restored. Initialization-only
+                # options cannot be reapplied by a subsequent dlshogi isready.
+                del cache[key]
+                self._quit_engine(eng)
+        if key not in cache:
+            eng = Engine(cmd, connect=False, debug=self.debug)
+            cache[key] = (eng, {})  # Include partially connected processes in cleanup.
+            eng.connect()
+        else:
+            eng, _ = cache[key]
         for k, v in options.items():
             eng.setoption(k, v)
+        # dlshogi reuses the model, resets game state and reapplies search options.
         eng.isready()
         eng.usinewgame()
+        cache[key] = (eng, dict(options))
         return eng
 
     def _play_single(self, sfen: str,
                      black_cmd: str, white_cmd: str,
-                     black_opts: Dict[str, str], white_opts: Dict[str, str]) -> int:
+                     black_opts: Dict[str, str], white_opts: Dict[str, str],
+                     black_slot: int = 0, white_slot: int = 1) -> int:
+        try:
+            b_eng = self._connect_and_setup(black_cmd, black_opts, black_slot)
+            w_eng = self._connect_and_setup(white_cmd, white_opts, white_slot)
+            winner = self._play_game(sfen, b_eng, w_eng)
+            b_eng.gameover()
+            w_eng.gameover()
+            return winner
+        except BaseException:
+            # A broken protocol stream must not be reused by another match.
+            self.close()
+            raise
+
+    def _play_game(self, sfen: str, b_eng: Engine, w_eng: Engine) -> int:
         """
         Play one game from an SFEN start. Returns result: +1 (black win), -1 (white win), 0 (draw).
         """
         board = Board()
-
-        b_eng = self._connect_and_setup(black_cmd, black_opts)
-        w_eng = self._connect_and_setup(white_cmd, white_opts)
 
         # Keep local record of moves to pass "position ... moves" to pondering if needed.
         usi_moves: List[str] = []
@@ -266,21 +328,6 @@ class GameRunner:
                 is_game_over = True
                 break
 
-        # notify engines
-        try:
-            b_eng.gameover()
-            w_eng.gameover()
-        except Exception:
-            pass
-        # quit engines
-        try:
-            b_eng.quit()
-        except Exception:
-            pass
-        try:
-            w_eng.quit()
-        except Exception:
-            pass
         return winner
 
     def play_pair_color_swapped(self, sfen: str,
@@ -299,7 +346,7 @@ class GameRunner:
             elif res < 0: B_w += 1
             else: D += 1
             # game 2: A as white (swap)
-            res = self._play_single(sfen, b_cmd, a_cmd, b_opts, a_opts)
+            res = self._play_single(sfen, b_cmd, a_cmd, b_opts, a_opts, black_slot=1, white_slot=0)
             # invert perspective
             if res > 0: B_w += 1  # black (B) won
             elif res < 0: A_w += 1
@@ -374,15 +421,18 @@ class SpsaTuner:
             t.start()
 
     def _worker_loop(self, worker_id):
-        while True:
-            task_func = self.task_queue.get()
-            if task_func is None:
-                break
-            try:
-                result = task_func(worker_id)
-                self.result_queue.put(result)
-            except Exception as e:
-                self.result_queue.put(e)
+        try:
+            while True:
+                task_func = self.task_queue.get()
+                if task_func is None:
+                    break
+                try:
+                    result = task_func(worker_id)
+                    self.result_queue.put(result)
+                except Exception as e:
+                    self.result_queue.put(e)
+        finally:
+            self.runner.close()
 
     # schedule accessors
     def _current_c(self, p: SpsaParam, t: int) -> float:
@@ -606,7 +656,7 @@ def main():
     ap.add_argument("--update-mode", choices=("direct", "base"), default="direct", help="Update from theta+ vs theta- (default), or their score difference against baseline")
     ap.add_argument("--monitor-every", type=int, default=0, help="Monitor updated theta against baseline every K iterations (0: disabled, default)")
     ap.add_argument("--monitor-games", type=int, default=2, help="Games per monitor, positive and even (default: 2); recommend at least several dozen for meaningful scores and >= 2*workers to use all workers; never used for updates")
-    ap.add_argument("--workers", type=int, default=1, help="ThreadPool workers (parallel sets)")
+    ap.add_argument("--workers", type=int, default=1, help="Parallel workers; budget GPU memory for 2-3 models per worker (candidate pair plus a distinct monitoring baseline)")
     ap.add_argument("--alpha", type=float, default=0.602, help="SPSA alpha (learning-rate decay)")
     ap.add_argument("--gamma", type=float, default=0.101, help="SPSA gamma (perturbation decay)")
     ap.add_argument("--A-ratio", type=float, default=0.1, dest="A_ratio", help="Stabilizer A as a fraction of iterations")
