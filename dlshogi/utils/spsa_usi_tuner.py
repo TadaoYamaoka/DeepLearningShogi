@@ -166,7 +166,7 @@ class GameRunner:
         if start_sfen == "startpos":
             pass
         elif start_sfen.startswith("sfen "):
-            board.set_sfen(start_sfen)
+            board.set_sfen(start_sfen[5:])
         else:
             raise ValueError(f"Invalid SFEN start position: '{start_sfen}'")
         repetition_hash[board.zobrist_hash()] += 1
