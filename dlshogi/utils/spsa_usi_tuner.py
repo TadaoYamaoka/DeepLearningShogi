@@ -212,6 +212,7 @@ class GameRunner:
                 break
             elif bestmove == "win":
                 # nyugyoku declaration win
+                # Trust the USI engine's declaration without validating nyugyoku conditions.
                 winner = 1 if turn == BLACK else -1
                 is_game_over = True
                 break
