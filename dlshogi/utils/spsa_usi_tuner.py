@@ -1,9 +1,21 @@
 """
-SPSA-based USI parameter tuner (Fishtest-style round-robin among 3 engines).
+SPSA-based USI parameter tuner with direct updates and optional baseline monitoring.
 
 Usage example
 -------------
-python spsa_usi_tuner.py   --baseline ./my_baseline_engine   --candidate ./my_candidate_engine   --options-baseline "Threads:1,Hash:64"   --options-candidate "Threads:1,Hash:64"   --params "C_init:0~200:144:5:1:int,C_base:20000~50000:28288:1000:0.5:int"   --openings openings.sfen   --iterations 50   --sets-per-iter 2   --repeat-per-pair 2   --workers 3   --byoyomi 1000   --draw-moves 320   --resign 1500
+python spsa_usi_tuner.py   --baseline ./my_baseline_engine   --candidate ./my_candidate_engine   --options-baseline "Threads:1,Hash:64"   --options-candidate "Threads:1,Hash:64"   --params "C_init:0~200:144:5:1:int,C_base:20000~50000:28288:1000:0.5:int"   --openings openings.sfen   --iterations 50   --sets-per-iter 3   --repeat-per-pair 2   --workers 3   --byoyomi 1000   --draw-moves 320   --monitor-every 10   --monitor-games 12
+
+The default update mode is direct (theta+ vs theta-). Baseline monitoring is
+disabled unless --monitor-every K is supplied; it evaluates the updated theta.
+Use --update-mode base to optimize only the score difference against a fixed base.
+In direct mode, OpenBench's pairs_per corresponds to sets_per_iter * repeat_per_pair.
+Scores are summed, not averaged over pairs. Compared with the former combined
+update, direct updates have about half the expected magnitude under a local
+equal-strength model. Doubling r_end approximately preserves that update scale.
+Engines stay resident per worker and are closed when the worker exits. Search
+options are reapplied before each game; changes to dlshogi initialization-only
+options restart the affected process. A distinct baseline executable is retained
+between monitors as an additional process per worker that uses it.
 
 Parameter spec format (for --params, comma separated list):
   name:min~max:start[:c_end][:r_end][:type]
@@ -11,12 +23,13 @@ Parameter spec format (for --params, comma separated list):
   - name     : USI option name to tune
   - min~max  : hard range (integers recommended for USI integer options)
   - start    : starting value (inside [min,max])
-  - c_end    : (optional) target perturbation scale at the final iteration (default: 1)
+  - c_end    : (optional) target perturbation scale at the final iteration (default: 1; int uses at least 0.5)
   - r_end    : (optional) target r = a/c^2 at the final iteration (default: 0.5)
   - type     : (optional) "int" (default) or "float"
 """
 
 import argparse
+import math
 import random
 import threading
 import queue
@@ -44,14 +57,24 @@ class SpsaParam:
     a_end: float = 0.0
     a0: float = 0.0
 
-    def clip_and_cast(self, x: float) -> float:
-        x = max(self.vmin, min(self.vmax, x))
+    def clip(self, x: float) -> float:
+        return float(max(self.vmin, min(self.vmax, x)))
+
+    def clip_and_cast(self, x: float, u: Optional[float] = None) -> float:
+        x = self.clip(x)
         if self.is_int:
+            # Keep integer options within the range, including fractional bounds.
+            lower, upper = math.ceil(self.vmin), math.floor(self.vmax)
+            if lower > upper:
+                raise ValueError(f"No integer in range for parameter '{self.name}'")
+            x = max(lower, min(upper, x))
+            if u is not None:
+                return math.floor(x + u)
             return int(round(x))
         return x
 
     def as_usi_value(self) -> str:
-        return str(int(self.value) if self.is_int else self.value)
+        return str(self.clip_and_cast(self.value))
 
 
 @dataclass
@@ -61,7 +84,7 @@ class SpsaConfig:
     A_ratio: float = 0.1
     iterations: int = 250
     sets_per_iter: int = 1
-    repeat_per_pair: int = 1  # 1 -> 2 games/pair (color-swap); 2 -> 4 games/pair => 12 games per set
+    repeat_per_pair: int = 1  # 2 * repeat games/set in direct mode; twice that in base mode
     # computed later
     A: float = 0.0
 
@@ -136,26 +159,85 @@ class GameRunner:
         self.byoyomi_ms = byoyomi_ms
         self.draw_moves = draw_moves
         self.debug = debug
+        # Each worker owns its processes; no USI stream is shared across threads.
+        self._local = threading.local()
 
-    def _connect_and_setup(self, cmd: str, options: Dict[str, str]) -> Engine:
-        eng = Engine(cmd, connect=False, debug=self.debug)
-        eng.connect()
+    def _engine_cache(self):
+        if not hasattr(self._local, 'engines'):
+            self._local.engines = {}
+        return self._local.engines
+
+    @staticmethod
+    def _initialization_options(options: Dict[str, str]) -> Dict[str, str]:
+        # usi/main.cpp reads these only inside the first-isready initialization.
+        prefixes = ('DNN_Model', 'DNN_Batch_Size', 'UCT_Threads', 'Multi_Ponder', 'PV_Mate_Search_')
+        names = {'UCT_NodeLimit', 'DNN_Cache_Size', 'DfPn_Hash', 'Mate_Root_Search'}
+        return {k: v for k, v in options.items() if k in names or k.startswith(prefixes)}
+
+    @staticmethod
+    def _quit_engine(eng: Engine):
+        try:
+            eng.quit()
+        except Exception:
+            pass
+
+    def close(self):
+        """Quit all processes owned by the calling worker (also safe after failure)."""
+        cache = self._engine_cache()
+        engines = [eng for eng, _ in cache.values()]
+        cache.clear()
+        for eng in engines:
+            self._quit_engine(eng)
+
+    def _connect_and_setup(self, cmd: str, options: Dict[str, str], slot: int = 0) -> Engine:
+        cache = self._engine_cache()
+        # Slots distinguish two instances of the same candidate executable.
+        # Keeping commands separate also retains the baseline between monitors.
+        key = (slot, cmd)
+        if key in cache:
+            eng, previous = cache[key]
+            if (previous.keys() - options.keys() or
+                    self._initialization_options(previous) != self._initialization_options(options)):
+                # Removed options need their defaults restored. Initialization-only
+                # options cannot be reapplied by a subsequent dlshogi isready.
+                del cache[key]
+                self._quit_engine(eng)
+        if key not in cache:
+            eng = Engine(cmd, connect=False, debug=self.debug)
+            cache[key] = (eng, {})  # Include partially connected processes in cleanup.
+            eng.connect()
+        else:
+            eng, _ = cache[key]
         for k, v in options.items():
             eng.setoption(k, v)
+        # dlshogi reuses the model, resets game state and reapplies search options.
         eng.isready()
         eng.usinewgame()
+        cache[key] = (eng, dict(options))
         return eng
 
     def _play_single(self, sfen: str,
                      black_cmd: str, white_cmd: str,
-                     black_opts: Dict[str, str], white_opts: Dict[str, str]) -> int:
+                     black_opts: Dict[str, str], white_opts: Dict[str, str],
+                     black_slot: int = 0, white_slot: int = 1) -> int:
+        try:
+            b_eng = self._connect_and_setup(black_cmd, black_opts, black_slot)
+            w_eng = self._connect_and_setup(white_cmd, white_opts, white_slot)
+            winner = self._play_game(sfen, b_eng, w_eng)
+            # USI results are from each engine's own perspective.
+            b_eng.gameover('win' if winner > 0 else 'lose' if winner < 0 else 'draw')
+            w_eng.gameover('lose' if winner > 0 else 'win' if winner < 0 else 'draw')
+            return winner
+        except BaseException:
+            # A broken protocol stream must not be reused by another match.
+            self.close()
+            raise
+
+    def _play_game(self, sfen: str, b_eng: Engine, w_eng: Engine) -> int:
         """
         Play one game from an SFEN start. Returns result: +1 (black win), -1 (white win), 0 (draw).
         """
         board = Board()
-
-        b_eng = self._connect_and_setup(black_cmd, black_opts)
-        w_eng = self._connect_and_setup(white_cmd, white_opts)
 
         # Keep local record of moves to pass "position ... moves" to pondering if needed.
         usi_moves: List[str] = []
@@ -166,7 +248,7 @@ class GameRunner:
         if start_sfen == "startpos":
             pass
         elif start_sfen.startswith("sfen "):
-            board.set_sfen(start_sfen)
+            board.set_sfen(start_sfen[5:])
         else:
             raise ValueError(f"Invalid SFEN start position: '{start_sfen}'")
         repetition_hash[board.zobrist_hash()] += 1
@@ -201,6 +283,7 @@ class GameRunner:
                 break
             elif bestmove == "win":
                 # nyugyoku declaration win
+                # Trust the USI engine's declaration without validating nyugyoku conditions.
                 winner = 1 if turn == BLACK else -1
                 is_game_over = True
                 break
@@ -222,10 +305,11 @@ class GameRunner:
                     if repetition_hash[key] == 4:
                         # Fourfold repetition handling
                         is_draw = board.is_draw()
+                        # Repetition results are for the side to move after push (opposite of turn).
                         if is_draw == REPETITION_WIN:
-                            winner = 1 if turn == BLACK else -1
-                        elif is_draw == REPETITION_LOSE:
                             winner = -1 if turn == BLACK else 1
+                        elif is_draw == REPETITION_LOSE:
+                            winner = 1 if turn == BLACK else -1
                         else:
                             winner = 0
                         is_game_over = True
@@ -245,21 +329,6 @@ class GameRunner:
                 is_game_over = True
                 break
 
-        # notify engines
-        try:
-            b_eng.gameover()
-            w_eng.gameover()
-        except Exception:
-            pass
-        # quit engines
-        try:
-            b_eng.quit()
-        except Exception:
-            pass
-        try:
-            w_eng.quit()
-        except Exception:
-            pass
         return winner
 
     def play_pair_color_swapped(self, sfen: str,
@@ -278,7 +347,7 @@ class GameRunner:
             elif res < 0: B_w += 1
             else: D += 1
             # game 2: A as white (swap)
-            res = self._play_single(sfen, b_cmd, a_cmd, b_opts, a_opts)
+            res = self._play_single(sfen, b_cmd, a_cmd, b_opts, a_opts, black_slot=1, white_slot=0)
             # invert perspective
             if res > 0: B_w += 1  # black (B) won
             elif res < 0: A_w += 1
@@ -291,7 +360,7 @@ class GameRunner:
 
 class SpsaTuner:
     def __init__(self,
-                 baseline_cmd: str,
+                 baseline_cmd: Optional[str],
                  candidate_cmd: str,
                  baseline_options: List[Tuple[str, str]],
                  candidate_base_options: List[Tuple[str, str]],
@@ -301,9 +370,21 @@ class SpsaTuner:
                  byoyomi_ms: int = 1000,
                  draw_moves: int = 320,
                  workers: int = 1,
-                 use_dev_vs_dev_in_update: bool = True,
+                 update_mode: str = "direct",
                  random_seed: Optional[int] = None,
-                 debug: bool = False):
+                 debug: bool = False,
+                 monitor_every: int = 0,
+                 monitor_games: int = 2):
+        if update_mode not in ("direct", "base"):
+            raise ValueError("update_mode must be 'direct' or 'base'")
+        if spsa_cfg.iterations <= 0 or spsa_cfg.sets_per_iter <= 0 or spsa_cfg.repeat_per_pair <= 0:
+            raise ValueError("iterations, sets_per_iter and repeat_per_pair must be positive")
+        if monitor_every < 0 or monitor_games <= 0 or monitor_games % 2:
+            raise ValueError("monitor_every must be nonnegative and monitor_games must be positive and even")
+        if (update_mode == "base" or monitor_every > 0) and not baseline_cmd:
+            raise ValueError("A baseline engine is required for base updates or monitoring")
+        if not openings:
+            raise ValueError("At least one opening is required")
         self.base_cmd = baseline_cmd
         self.cand_cmd = candidate_cmd
         self.base_opts_templates = baseline_options
@@ -313,8 +394,12 @@ class SpsaTuner:
         self.cfg = spsa_cfg
         self.runner = GameRunner(byoyomi_ms=byoyomi_ms, draw_moves=draw_moves, debug=debug)
         self.workers = max(1, workers)
-        self.use_dev_vs_dev_in_update = use_dev_vs_dev_in_update
+        self.update_mode = update_mode
+        self.monitor_every = monitor_every
+        self.monitor_games = monitor_games
         self.rnd = random.Random(random_seed)
+        # Monitoring must not change future perturbations or training openings.
+        self.monitor_rnd = random.Random(None if random_seed is None else f"{random_seed}-monitor")
         self.debug = debug
         self._iter = 0
         self._lock = threading.Lock()
@@ -337,19 +422,24 @@ class SpsaTuner:
             t.start()
 
     def _worker_loop(self, worker_id):
-        while True:
-            task_func = self.task_queue.get()
-            if task_func is None:
-                break
-            try:
-                result = task_func(worker_id)
-                self.result_queue.put(result)
-            except Exception as e:
-                self.result_queue.put(e)
+        try:
+            while True:
+                task_func = self.task_queue.get()
+                if task_func is None:
+                    break
+                try:
+                    result = task_func(worker_id)
+                    self.result_queue.put(result)
+                except Exception as e:
+                    self.result_queue.put(e)
+        finally:
+            self.runner.close()
 
     # schedule accessors
     def _current_c(self, p: SpsaParam, t: int) -> float:
-        return p.c0 / (t ** self.cfg.gamma)
+        c = p.c0 / (t ** self.cfg.gamma)
+        # Keep shared-rounding perturbations distinct away from clipped bounds.
+        return max(c, 0.5) if p.is_int else c
 
     def _current_a(self, p: SpsaParam, t: int) -> float:
         return p.a0 / ((self.cfg.A + t) ** self.cfg.alpha)
@@ -388,7 +478,8 @@ class SpsaTuner:
 
     def _apply_update(self, deltas: Dict[str, float]):
         for p in self.params:
-            p.value = p.clip_and_cast(p.value + deltas.get(p.name, 0.0))
+            # Keep fractional updates even for integer engine options.
+            p.value = p.clip(p.value + deltas.get(p.name, 0.0))
 
     def _task_plus_base(self, sfen, cand_cmd, base_cmd, cand_templates, base_templates, theta, repeat, worker_id):
         cand_opts = self._build_options_from_templates(cand_templates, worker_id)
@@ -412,13 +503,43 @@ class SpsaTuner:
         scores = self.runner.play_pair_color_swapped(sfen, cand_cmd1, cand_cmd2, cand_opts1, cand_opts2, repeat)
         return ('plus_minus', scores)
 
+    def _collect_scores(self, task_count: int) -> Dict[str, List[int]]:
+        scores = defaultdict(lambda: [0, 0, 0])
+        error = None
+        for _ in range(task_count):
+            result = self.result_queue.get()
+            if isinstance(result, Exception):
+                error = result if error is None else error
+                continue
+            label, tri = result
+            for i, count in enumerate(tri):
+                scores[label][i] += count
+        if error is not None:
+            raise error
+        return scores
+
+    def _monitor(self, t: int):
+        # Evaluate the updated central theta, rounded once without perturbations.
+        theta = {p.name: p.clip_and_cast(p.value) for p in self.params}
+        pairs = self.monitor_games // 2
+        for _ in range(pairs):
+            sfen = self.monitor_rnd.choice(self.openings).strip()
+            self.task_queue.put(lambda wid, sfen=sfen: self._task_plus_base(
+                sfen, self.cand_cmd, self.base_cmd, self.cand_base_opts_templates,
+                self.base_opts_templates, theta, 1, wid))
+        wins, losses, draws = self._collect_scores(pairs)['plus_base']
+        score = (wins + 0.5 * draws) / self.monitor_games
+        print(f"[Monitor {t:3d}] games={self.monitor_games}, theta={theta}")
+        print(f"  theta vs base : W-L-D = {wins}-{losses}-{draws}, score={score:.1%}")
+
     def _iteration_once(self, t: int) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float]]:
         """
         Run one SPSA iteration:
           - sample delta in {+1,-1}^d
           - construct theta± = theta ± c_t * delta (with clipping)
-          - run N sets in parallel; each set runs round-robin on its sampled opening
-          - aggregate scores and compute update Δθ = r_t * c_t * (S(θ+) - S(θ-)) ∘ delta
+          - run N sets in parallel, using either direct or fixed-base matches
+          - aggregate the selected mode's score into magnitude
+          - compute update Δθ = r_t * c_t * magnitude * delta
         Returns (theta, theta+, theta-).
         """
         theta = self._current_theta()
@@ -432,9 +553,13 @@ class SpsaTuner:
         theta_plus: Dict[str, float] = {}
         theta_minus: Dict[str, float] = {}
 
+        # Sample integer options once per iteration, before dispatching workers.
+        # Reuse these values in every match involving the same perturbed engine.
         for p in self.params:
-            theta_plus[p.name]  = p.clip_and_cast(theta[p.name] + c_t[p.name] * delta_signs[p.name])
-            theta_minus[p.name] = p.clip_and_cast(theta[p.name] - c_t[p.name] * delta_signs[p.name])
+            # A shared uniform sample preserves the ordering of the perturbations.
+            u = self.rnd.random() if p.is_int else None
+            theta_plus[p.name]  = p.clip_and_cast(theta[p.name] + c_t[p.name] * delta_signs[p.name], u)
+            theta_minus[p.name] = p.clip_and_cast(theta[p.name] - c_t[p.name] * delta_signs[p.name], u)
 
         # Prepare options dicts for engines:
         # candidate+ options = candidate_base_options + param overrides
@@ -443,54 +568,29 @@ class SpsaTuner:
         # Submit sets to worker threads
         for _ in range(self.cfg.sets_per_iter):
             sfen = self._sample_opening()
-            self.task_queue.put(lambda wid, sfen=sfen: self._task_plus_base(sfen, self.cand_cmd, self.base_cmd, self.cand_base_opts_templates, self.base_opts_templates, theta_plus, self.cfg.repeat_per_pair, wid))
-            self.task_queue.put(lambda wid, sfen=sfen: self._task_minus_base(sfen, self.cand_cmd, self.base_cmd, self.cand_base_opts_templates, self.base_opts_templates, theta_minus, self.cfg.repeat_per_pair, wid))
-            self.task_queue.put(lambda wid, sfen=sfen: self._task_plus_minus(sfen, self.cand_cmd, self.cand_cmd, self.cand_base_opts_templates, self.cand_base_opts_templates, theta_plus, theta_minus, self.cfg.repeat_per_pair, wid))
+            if self.update_mode == "direct":
+                self.task_queue.put(lambda wid, sfen=sfen: self._task_plus_minus(sfen, self.cand_cmd, self.cand_cmd, self.cand_base_opts_templates, self.cand_base_opts_templates, theta_plus, theta_minus, self.cfg.repeat_per_pair, wid))
+            else:
+                self.task_queue.put(lambda wid, sfen=sfen: self._task_plus_base(sfen, self.cand_cmd, self.base_cmd, self.cand_base_opts_templates, self.base_opts_templates, theta_plus, self.cfg.repeat_per_pair, wid))
+                self.task_queue.put(lambda wid, sfen=sfen: self._task_minus_base(sfen, self.cand_cmd, self.base_cmd, self.cand_base_opts_templates, self.base_opts_templates, theta_minus, self.cfg.repeat_per_pair, wid))
 
-        # Collect results and aggregate
-        plus_vs_base  = [0,0,0]  # W, L, D for plus vs base (plus on left in our play_set)
-        minus_vs_base = [0,0,0]  # W, L, D for minus vs base (minus on left)
-        plus_vs_minus = [0,0,0]  # W, L, D for plus vs minus (plus on left)
+        matches_per_set = 1 if self.update_mode == "direct" else 2
+        scores = self._collect_scores(self.cfg.sets_per_iter * matches_per_set)
 
-        for _ in range(self.cfg.sets_per_iter * 3):
-            result = self.result_queue.get()
-            if isinstance(result, Exception):
-                raise result
-            label, (w, l, d) = result
-            if label == 'plus_base':
-                plus_vs_base[0] += w
-                plus_vs_base[1] += l
-                plus_vs_base[2] += d
-            elif label == 'minus_base':
-                minus_vs_base[0] += w
-                minus_vs_base[1] += l
-                minus_vs_base[2] += d
-            elif label == 'plus_minus':
-                plus_vs_minus[0] += w
-                plus_vs_minus[1] += l
-                plus_vs_minus[2] += d
-
-        # Convert to signed scores (win=1, draw=0.5, loss=0)
+        # Convert to signed scores (win=+1, draw=0, loss=-1).
         def signed_score(tri: List[int]) -> float:
-            W,L,D = tri
-            return float(W) - float(L) + 0.5*float(D)
+            W, L, _ = tri
+            return float(W) - float(L)
 
-        S_plus  = signed_score(plus_vs_base)
-        S_minus = signed_score(minus_vs_base)
-
-        if self.use_dev_vs_dev_in_update:
-            # Use (+) vs (-) as extra information (scaled to keep variance reasonable)
-            # score_diff = S_plus - S_minus + 0.5 * 2*(W_plus_minus - L_plus_minus)
-            Wpm, Lpm, Dpm = plus_vs_minus
-            S_pm_diff = 2.0 * (float(Wpm) - float(Lpm))
-            S_plus_minus_diff = S_plus - S_minus + 0.5 * S_pm_diff
+        if self.update_mode == "direct":
+            magnitude = signed_score(scores['plus_minus'])
         else:
-            S_plus_minus_diff = S_plus - S_minus
+            magnitude = signed_score(scores['plus_base']) - signed_score(scores['minus_base'])
 
-        # Parameter update: Δθ_i = r_i(t) * c_i(t) * (S(θ+) - S(θ-)) * delta_i
+        # Parameter update: Δθ_i = r_i(t) * c_i(t) * magnitude * delta_i
         # (Fishtest-style: r = a/c^2; see docs)
         updates: Dict[str, float] = {}
-        magnitude = S_plus_minus_diff  # scalar multiplier from aggregate match results
+        # Sum results without pair-count normalization, as in OpenBench.
         for p in self.params:
             updates[p.name] = (r_t[p.name] * c_t[p.name] *
                                magnitude * float(delta_signs[p.name]))
@@ -500,14 +600,15 @@ class SpsaTuner:
 
         # Logging
         total_sets = self.cfg.sets_per_iter
-        total_games = total_sets * (3 * 2 * self.cfg.repeat_per_pair)  # 3 pairs * 2 (swap) * repeat
-        print(f"[Iter {t:3d}] sets={total_sets}, games={total_games}")
+        total_games = total_sets * matches_per_set * 2 * self.cfg.repeat_per_pair
+        print(f"[Iter {t:3d}] mode={self.update_mode}, sets={total_sets}, games={total_games}")
         print(f"  theta+    : " + ", ".join(f"{k}={theta_plus[k]}" for k in theta_plus))
         print(f"  theta-    : " + ", ".join(f"{k}={theta_minus[k]}" for k in theta_minus))
-        print(f"  (+) vs base : W-L-D = {plus_vs_base[0]}-{plus_vs_base[1]}-{plus_vs_base[2]}  (S={S_plus:.1f})")
-        print(f"  (-) vs base : W-L-D = {minus_vs_base[0]}-{minus_vs_base[1]}-{minus_vs_base[2]} (S={S_minus:.1f})")
-        if self.use_dev_vs_dev_in_update:
-            print(f"  (+) vs (-)  : W-L-D = {plus_vs_minus[0]}-{plus_vs_minus[1]}-{plus_vs_minus[2]}")
+        labels = [('plus_minus', '(+) vs (-)')] if self.update_mode == "direct" else [
+            ('plus_base', '(+) vs base'), ('minus_base', '(-) vs base')]
+        for key, label in labels:
+            w, l, d = scores[key]
+            print(f"  {label} : W-L-D = {w}-{l}-{d} (S={signed_score(scores[key]):.1f})")
         print(f"  magnitude     : {magnitude:+.2f}")
         print(f"  updates       : " + ", ".join(f"{k}={updates[k]:+.3f}" for k in updates))
         print(f"  updated theta : " + ", ".join(f"{p.name}={p.value}" for p in self.params))
@@ -516,14 +617,22 @@ class SpsaTuner:
 
     def run(self, start_iter: int = 1, end_iter: Optional[int] = None):
         end_iter = end_iter or self.cfg.iterations
-        for t in range(start_iter, end_iter + 1):
-            self._iteration_once(t)
-
-        # Cleanup workers
-        for _ in range(self.workers):
-            self.task_queue.put(None)
-        for t in self.worker_threads:
-            t.join()
+        try:
+            for t in range(start_iter, end_iter + 1):
+                self._iteration_once(t)
+                if self.monitor_every and t % self.monitor_every == 0:
+                    self._monitor(t)
+        finally:
+            # Discard unstarted matches on interruption; running matches still finish.
+            while True:
+                try:
+                    self.task_queue.get_nowait()
+                except queue.Empty:
+                    break
+            for _ in range(self.workers):
+                self.task_queue.put(None)
+            for worker in self.worker_threads:
+                worker.join()
 
 
 # --- CLI ------------------------------------------------------------------------
@@ -536,16 +645,19 @@ def load_openings_sfen(path: str) -> List[str]:
 
 def main():
     ap = argparse.ArgumentParser(description="SPSA (Fishtest style) USI parameter tuner")
-    ap.add_argument("--baseline", required=True, help="Path to baseline engine binary")
+    ap.add_argument("--baseline", help="Path to baseline engine (required for base updates or monitoring)")
     ap.add_argument("--candidate", required=True, help="Path to candidate engine binary (used for +/- perturbations)")
     ap.add_argument("--options-baseline", default="", help='USI options for baseline: "Name:Value,Name:Value,..."')
     ap.add_argument("--options-candidate", default="", help='Base USI options for candidate: "Name:Value,..." (tuned params override these)')
     ap.add_argument("--params", required=True, help='Param specs: name:min~max:start[:c_end][:r_end][:type], comma-separated')
     ap.add_argument("--openings", required=True, help="SFEN file with one position per line")
     ap.add_argument("--iterations", type=int, default=250, help="Total SPSA iterations")
-    ap.add_argument("--sets-per-iter", type=int, default=1, help="Number of round-robin sets per iteration (can be parallelized)")
-    ap.add_argument("--repeat-per-pair", type=int, default=1, help="How many times to repeat the color-swapped pair per set (1=>2 games/pair). Use 2 for 12 games/set.")
-    ap.add_argument("--workers", type=int, default=1, help="ThreadPool workers (parallel sets)")
+    ap.add_argument("--sets-per-iter", type=int, default=1, help="Sets per iteration; recommend >= workers to keep workers busy")
+    ap.add_argument("--repeat-per-pair", type=int, default=1, help="Color-swapped pairs per match: direct mode uses 2*repeat games/set, base mode 4*repeat")
+    ap.add_argument("--update-mode", choices=("direct", "base"), default="direct", help="Update from theta+ vs theta- (default), or their score difference against baseline")
+    ap.add_argument("--monitor-every", type=int, default=0, help="Monitor updated theta against baseline every K iterations (0: disabled, default)")
+    ap.add_argument("--monitor-games", type=int, default=2, help="Games per monitor, positive and even (default: 2); recommend at least several dozen for meaningful scores and >= 2*workers to use all workers; never used for updates")
+    ap.add_argument("--workers", type=int, default=1, help="Parallel workers; budget GPU memory for 2-3 models per worker (candidate pair plus a distinct monitoring baseline)")
     ap.add_argument("--alpha", type=float, default=0.602, help="SPSA alpha (learning-rate decay)")
     ap.add_argument("--gamma", type=float, default=0.101, help="SPSA gamma (perturbation decay)")
     ap.add_argument("--A-ratio", type=float, default=0.1, dest="A_ratio", help="Stabilizer A as a fraction of iterations")
@@ -554,6 +666,13 @@ def main():
     ap.add_argument("--seed", type=int, default=None, help="Random seed")
     ap.add_argument("--debug", action="store_true")
     args = ap.parse_args()
+
+    if args.iterations <= 0 or args.sets_per_iter <= 0 or args.repeat_per_pair <= 0:
+        ap.error("--iterations, --sets-per-iter and --repeat-per-pair must be positive")
+    if args.monitor_every < 0 or args.monitor_games <= 0 or args.monitor_games % 2:
+        ap.error("--monitor-every must be nonnegative; --monitor-games must be positive and even")
+    if (args.update_mode == "base" or args.monitor_every > 0) and not args.baseline:
+        ap.error("--baseline is required for --update-mode base or enabled monitoring")
 
     # Build configs
     spsa_cfg = SpsaConfig(alpha=args.alpha, gamma=args.gamma, A_ratio=args.A_ratio,
@@ -580,6 +699,9 @@ def main():
         byoyomi_ms=args.byoyomi,
         draw_moves=args.draw_moves,
         workers=args.workers,
+        update_mode=args.update_mode,
+        monitor_every=args.monitor_every,
+        monitor_games=args.monitor_games,
         random_seed=args.seed,
         debug=args.debug
     )
