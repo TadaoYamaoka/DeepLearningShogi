@@ -17,6 +17,7 @@ Parameter spec format (for --params, comma separated list):
 """
 
 import argparse
+import math
 import random
 import threading
 import queue
@@ -44,14 +45,24 @@ class SpsaParam:
     a_end: float = 0.0
     a0: float = 0.0
 
-    def clip_and_cast(self, x: float) -> float:
-        x = max(self.vmin, min(self.vmax, x))
+    def clip(self, x: float) -> float:
+        return float(max(self.vmin, min(self.vmax, x)))
+
+    def clip_and_cast(self, x: float, u: Optional[float] = None) -> float:
+        x = self.clip(x)
         if self.is_int:
+            # Keep integer options within the range, including fractional bounds.
+            lower, upper = math.ceil(self.vmin), math.floor(self.vmax)
+            if lower > upper:
+                raise ValueError(f"No integer in range for parameter '{self.name}'")
+            x = max(lower, min(upper, x))
+            if u is not None:
+                return math.floor(x + u)
             return int(round(x))
         return x
 
     def as_usi_value(self) -> str:
-        return str(int(self.value) if self.is_int else self.value)
+        return str(self.clip_and_cast(self.value))
 
 
 @dataclass
@@ -389,7 +400,8 @@ class SpsaTuner:
 
     def _apply_update(self, deltas: Dict[str, float]):
         for p in self.params:
-            p.value = p.clip_and_cast(p.value + deltas.get(p.name, 0.0))
+            # Keep fractional updates even for integer engine options.
+            p.value = p.clip(p.value + deltas.get(p.name, 0.0))
 
     def _task_plus_base(self, sfen, cand_cmd, base_cmd, cand_templates, base_templates, theta, repeat, worker_id):
         cand_opts = self._build_options_from_templates(cand_templates, worker_id)
@@ -433,9 +445,13 @@ class SpsaTuner:
         theta_plus: Dict[str, float] = {}
         theta_minus: Dict[str, float] = {}
 
+        # Sample integer options once per iteration, before dispatching workers.
+        # Reuse these values in every match involving the same perturbed engine.
         for p in self.params:
-            theta_plus[p.name]  = p.clip_and_cast(theta[p.name] + c_t[p.name] * delta_signs[p.name])
-            theta_minus[p.name] = p.clip_and_cast(theta[p.name] - c_t[p.name] * delta_signs[p.name])
+            # A shared uniform sample preserves the ordering of the perturbations.
+            u = self.rnd.random() if p.is_int else None
+            theta_plus[p.name]  = p.clip_and_cast(theta[p.name] + c_t[p.name] * delta_signs[p.name], u)
+            theta_minus[p.name] = p.clip_and_cast(theta[p.name] - c_t[p.name] * delta_signs[p.name], u)
 
         # Prepare options dicts for engines:
         # candidate+ options = candidate_base_options + param overrides
