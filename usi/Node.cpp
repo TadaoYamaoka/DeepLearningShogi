@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <mutex>
+#include <limits>
 
 // Periodicity of garbage collection, milliseconds.
 const int kGCIntervalMs = 100;
@@ -177,7 +178,7 @@ void set_softmax_temperature(const float temperature) {
 
 void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num) {
     // apply beta exponent to probabilities(in log space)
-    float max = 0.0f;
+    float max = std::numeric_limits<float>::lowest();
     for (int i = 0; i < child_num; i++) {
         float& x = child_node[i].nnrate;
         x *= beta;
