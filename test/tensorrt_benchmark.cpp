@@ -10,7 +10,7 @@
 
 #include "cppshogi.h"
 #include "error_util.h"
-#include "int8_calibrator.h"
+#include "error_util.h"
 
 using namespace std;
 
@@ -70,7 +70,7 @@ static void  showDevices(int i)
 		<< ", boardGroupID=" << prop.multiGpuBoardGroupID << endl;
 }
 
-bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine, const string& calibration_hcpe, const size_t int8_calibration_data_size)
+bool build(const string& onnx_filename, const int batchsize, const string& mode, InferUniquePtr<nvinfer1::ICudaEngine>& engine)
 {
 	auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(tensorrt_benchmark::gLogger));
 	if (!builder)
@@ -108,18 +108,10 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 
 	builder->setMaxBatchSize(batchsize);
 	config->setMaxWorkspaceSize(64_MiB);
-	std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
 
 	if (mode == "fp16")
 	{
 		config->setFlag(nvinfer1::BuilderFlag::kFP16);
-	}
-	else if (mode == "int8")
-	{
-		if (!builder->platformHasFastInt8()) return false;
-		config->setFlag(nvinfer1::BuilderFlag::kINT8);
-		calibrator.reset(new Int8EntropyCalibrator2(onnx_filename.c_str(), 1, calibration_hcpe.c_str(), int8_calibration_data_size));
-		config->setInt8Calibrator(calibrator.get());
 	}
 
 	assert(network->getNbInputs() == 2);
@@ -137,7 +129,6 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 	std::cout << "Output2 name : " << network->getOutput(1)->getName() << std::endl;
 
 	// Optimization Profiles
-	if (calibration_hcpe == "")
 	{
 		auto profile = builder->createOptimizationProfile();
 		const auto dims1 = inputDims[0].d;
@@ -164,7 +155,7 @@ bool build(const string& onnx_filename, const int batchsize, const string& mode,
 
 int main(int argc, char* argv[]) {
 	if (argc < 6) {
-		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> <[fp16|int8]> [calibration_hcpe] [calibration_data_size]" << endl;
+		cout << "test <onnxfile> <hcpe> <num> <gpu_id> <batchsize> [fp16|fp32]" << endl;
 		return 0;
 	}
 
@@ -174,14 +165,8 @@ int main(int argc, char* argv[]) {
 	int gpu_id = stoi(argv[4]);
 	int batchsize = stoi(argv[5]);
 	std::string mode;
-	std::string calibration_hcpe;
-	size_t int8_calibration_data_size = 16384;
 	if (argc > 6)
 		mode = argv[6];
-	if (argc > 7)
-		calibration_hcpe = argv[7];
-	if (argc > 8)
-		int8_calibration_data_size = stoi(argv[8]);
 
 	cout << "onnx_filename = " << onnx_filename << endl;
 	cout << "num = " << num << endl;
@@ -211,7 +196,7 @@ int main(int argc, char* argv[]) {
 
 	const string serialized_filename = onnx_filename + "." + std::to_string(gpu_id) + "." + std::to_string(batchsize) + ".serialized";
 	std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
-	if (seriarizedFile.is_open() && calibration_hcpe == "")
+	if (seriarizedFile.is_open())
 	{
 		// deserializing a model
 		seriarizedFile.seekg(0, std::ios_base::end);
@@ -226,7 +211,7 @@ int main(int argc, char* argv[]) {
 	{
 		// build
 		auto build_start = std::chrono::system_clock::now();
-		if (!build(onnx_filename, batchsize, mode, engine, calibration_hcpe, int8_calibration_data_size))
+		if (!build(onnx_filename, batchsize, mode, engine))
 		{
 			return 1;
 		}

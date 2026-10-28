@@ -107,9 +107,6 @@
     <ClInclude Include="Node.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="int8_calibrator.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="PvMateSearch.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

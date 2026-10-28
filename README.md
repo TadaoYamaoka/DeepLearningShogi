@@ -38,6 +38,14 @@ http://tadaoyamaoka.hatenablog.com/
 * cuDNN 8.9
 * TensorRT 8.6
 
+TensorRT 8をデフォルトとし、`TENSORRT10`を定義するとTensorRT 10向けにビルドします。
+Visual StudioのTensorRT使用プロジェクト（x64）は、`TENSORRT10`定義、TensorRT 10.16.1、CUDA 13.4の設定です。
+TensorRT 8に戻す場合は、定義を外し、インクルード・ライブラリ・CUDAのパスと
+リンク対象（`nvinfer.lib;nvparsers.lib;nvonnxparser.lib`）をTensorRT 8環境に合わせてください。
+Linuxでは`make TENSORRT10=1`で切り替えます（TensorRT 10のヘッダー・ライブラリへのパスは環境に合わせて設定）。
+TensorRT 10のエンジンキャッシュはファイル名に`.trt10`を付け、TensorRT 8と区別します。
+推論には対応GPUでFP16、それ以外ではFP32を使用します。
+
 ※CUDA 10.0以上であれば変更可
 
 ### 学習部

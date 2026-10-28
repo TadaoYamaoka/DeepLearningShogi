@@ -4,6 +4,11 @@ ifneq ($(NYUGYOKU_FEATURES),)
 CFLAGS += -DNYUGYOKU_FEATURES
 endif
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
+
+ifeq ($(TENSORRT10),1)
+CFLAGS += -DTENSORRT10
+LDFLAGS := $(filter-out -lnvparsers,$(LDFLAGS))
+endif
 INCLUDE = -I../usi -I../cppshogi -I../cppshogi -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64
 
