@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <cassert>
 #include <cmath>
@@ -86,9 +87,11 @@ constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
 std::mutex mutexes[MUTEX_NUM];
 inline std::mutex& GetNodeMutex(const uct_node_t* node)
 {
-	// アラインメントで常に0になる下位ビットを除いてstripeを選択する。
+	// operator newが保証するアラインメント分の、常に0になる下位ビットを除いてstripeを選択する。
+	constexpr std::size_t kAlign = std::max<std::size_t>(alignof(uct_node_t), __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	static_assert((kAlign & (kAlign - 1)) == 0, "kAlign must be 2^n");
 	const auto address = reinterpret_cast<std::uintptr_t>(node);
-	return mutexes[(address / alignof(uct_node_t)) & (MUTEX_NUM - 1)];
+	return mutexes[(address / kAlign) & (MUTEX_NUM - 1)];
 }
 
 
