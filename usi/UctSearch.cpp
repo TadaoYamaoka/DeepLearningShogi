@@ -225,16 +225,16 @@ inline void atomic_fetch_add_relaxed(std::atomic<T>* obj, T arg) {
 inline void
 AddVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	atomic_fetch_add_relaxed(&current->move_count, VIRTUAL_LOSS);
-	atomic_fetch_add_relaxed(&child->move_count, VIRTUAL_LOSS);
+	current->move_count.fetch_add(VIRTUAL_LOSS, std::memory_order_relaxed);
+	child->move_count.fetch_add(VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 // Virtual Lossを減算
 inline void
 SubVirtualLoss(child_node_t* child, uct_node_t* current)
 {
-	atomic_fetch_add_relaxed(&current->move_count, -VIRTUAL_LOSS);
-	atomic_fetch_add_relaxed(&child->move_count, -VIRTUAL_LOSS);
+	current->move_count.fetch_add(-VIRTUAL_LOSS, std::memory_order_relaxed);
+	child->move_count.fetch_add(-VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 // 探索結果の更新
@@ -242,9 +242,9 @@ inline void
 UpdateResult(child_node_t* child, float result, uct_node_t* current)
 {
 	atomic_fetch_add_relaxed(&current->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&current->move_count, 1 - VIRTUAL_LOSS);
+	if constexpr (VIRTUAL_LOSS != 1) current->move_count.fetch_add(1 - VIRTUAL_LOSS, std::memory_order_relaxed);
 	atomic_fetch_add_relaxed(&child->win, (WinType)result);
-	if constexpr (VIRTUAL_LOSS != 1) atomic_fetch_add_relaxed(&child->move_count, 1 - VIRTUAL_LOSS);
+	if constexpr (VIRTUAL_LOSS != 1) child->move_count.fetch_add(1 - VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
 typedef pair<uct_node_t*, unsigned int> trajectory_t;
