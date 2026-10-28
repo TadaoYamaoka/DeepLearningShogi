@@ -473,7 +473,7 @@ private:
 				const auto move_count = child[i].move_count - noise_count[i];
 				if (move_count > 0) {
 					record.candidates.emplace_back(
-						static_cast<u16>(child[i].move.value()),
+						static_cast<u16>(child[i].GetMove().value()),
 						static_cast<u16>(move_count)
 					);
 				}
@@ -726,7 +726,7 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 	const unsigned int next_index = SelectMaxUcbChild(parent, current);
 	// 選んだ手を着手
 	StateInfo st;
-	pos->doMove(uct_child[next_index].move, st);
+	pos->doMove(uct_child[next_index].GetMove(), st);
 
 	// ノードの展開の確認
 	if (!current->child_nodes[next_index]) {
@@ -1046,7 +1046,7 @@ void UCTSearcherGroup::EvalNode() {
 
 		// 合法手一覧
 		for (int j = 0; j < child_num; j++) {
-			Move move = uct_child[j].move;
+			Move move = uct_child[j].GetMove();
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
@@ -1074,7 +1074,7 @@ void UCTSearcherGroup::EvalNode() {
 				}
 				// policyと定跡から作成した分布の加重平均
 				for (int j = 0; j < child_num; ++j) {
-					const Move& move = uct_child[j].move;
+					const Move move = uct_child[j].GetMove();
 					const auto itr2 = count_map.find((u16)move.proFromAndTo());
 					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
 					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
@@ -1168,7 +1168,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 			}
 			else if (root_node->child_num == 1) {
 				// 1手しかないときは、その手を指して次の手番へ
-				const Move move = root_node->child[0].move;
+				const Move move = root_node->child[0].GetMove();
 				SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} skip:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), move.toUSI());
 				AddRecord(move, 0, false);
 				NextPly(move);
@@ -1344,13 +1344,13 @@ void UCTSearcher::NextStep()
 				const auto probability = std::pow(sorted_uct_childs[i]->move_count, reciprocal_temperature);
 				probabilities.emplace_back(probability);
 				SPDLOG_TRACE(logger, "gpu_id:{} group_id:{} id:{} {}:{} move_count:{} nnrate:{} win_rate:{} probability:{}",
-					grp->gpu_id, grp->group_id, id, i, sorted_uct_childs[i]->move.toUSI(), sorted_uct_childs[i]->move_count,
+					grp->gpu_id, grp->group_id, id, i, sorted_uct_childs[i]->GetMove().toUSI(), sorted_uct_childs[i]->move_count,
 					sorted_uct_childs[i]->nnrate, sorted_uct_childs[i]->win / sorted_uct_childs[i]->move_count, probability);
 			}
 
 			discrete_distribution<unsigned int> dist(probabilities.begin(), probabilities.end());
 			const auto sorted_select_index = dist(*mt_64);
-			best_move = sorted_uct_childs[sorted_select_index]->move;
+			best_move = sorted_uct_childs[sorted_select_index]->GetMove();
 			best_wp = sorted_uct_childs[sorted_select_index]->win / sorted_uct_childs[sorted_select_index]->move_count;
 			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} random_move:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
 
@@ -1434,7 +1434,7 @@ void UCTSearcher::NextStep()
 			else if (child_win_count == child_num) {
 				best_wp = 0.0f;
 			}
-			best_move = uct_child[select_index].move;
+			best_move = uct_child[select_index].GetMove();
 			SPDLOG_DEBUG(logger, "gpu_id:{} group_id:{} id:{} ply:{} {} bestmove:{} winrate:{}", grp->gpu_id, grp->group_id, id, ply, pos_root->toSFEN(), best_move.toUSI(), best_wp);
 
 			{
@@ -1511,7 +1511,7 @@ void UCTSearcher::NextPly(const Move move)
 		bool found = false;
 		if (root_node->child_nodes) {
 			for (int i = 0; i < root_node->child_num; i++) {
-				if (root_node->child[i].move == move && root_node->child_nodes[i] && root_node->child_nodes[i]->child) {
+				if (root_node->child[i].GetMove() == move && root_node->child_nodes[i] && root_node->child_nodes[i]->child) {
 					found = true;
 					// 子ノードをルートノードにする
 					auto root_node_tmp = std::move(root_node->child_nodes[i]);

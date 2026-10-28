@@ -74,7 +74,7 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
             auto& child_node = child_nodes[i];
             // 勝敗・引き分けの状態ビットを除いて着手を比較する。
             constexpr u32 outcome_mask = VALUE_WIN | VALUE_LOSE | VALUE_DRAW;
-            if ((uct_child.move.value() & ~outcome_mask) == (move.value() & ~outcome_mask)) {
+            if ((uct_child.GetMove().value() & ~outcome_mask) == (move.value() & ~outcome_mask)) {
                 found = true;
                 if (!child_node) {
                     // 新しいノードを作成する

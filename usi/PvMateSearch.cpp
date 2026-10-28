@@ -33,7 +33,7 @@ void PvMateSearcher::SearchInner(Position& pos, uct_node_t* uct_node)
 
 	// 選んだ手を着手
 	StateInfo st;
-	const auto move = uct_child[next_index].move;
+	const auto move = uct_child[next_index].GetMove();
 	pos.doMove(move, st);
 
 	// 停止

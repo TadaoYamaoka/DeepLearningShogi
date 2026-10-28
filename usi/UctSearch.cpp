@@ -864,7 +864,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 		best_wp = 0.0f;
 	}
 
-	const Move move = best_root_uct_child.move;
+	const Move move = best_root_uct_child.GetMove();
 	int cp;
 	if (best_wp == 1.0f) {
 		cp = 30000;
@@ -890,7 +890,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 		best_index = select_max_child_node(best_node);
 		const auto& best_uct_child = best_node->child[best_index];
 
-		const auto best_move = best_uct_child.move;
+		const auto best_move = best_uct_child.GetMove();
 		pv += " ";
 		pv += best_move.toUSI();
 
@@ -935,7 +935,7 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node, float& 
 		const auto probability = std::pow((float)sorted_uct_childs[i]->move_count, reciprocal_temperature);
 		probabilities.emplace_back(probability);
 		if (debug_message)
-			std::cout << sorted_uct_childs[i]->move.toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
+			std::cout << sorted_uct_childs[i]->GetMove().toUSI() << " move_count:" << sorted_uct_childs[i]->move_count
 			<< " nnrate:" << sorted_uct_childs[i]->nnrate << " win_rate:" << sorted_uct_childs[i]->win / (sorted_uct_childs[i]->move_count)
 			<< " probability:" << probability << std::endl;
 	}
@@ -1053,7 +1053,7 @@ bool GetMultiPonderMove(std::vector<Move>& moves, int num)
 
 	for (int i = 0; i < multipv_num; i++) {
 		const child_node_t* best_root_uct_child = sorted_root_uct_childs[i];
-		moves.emplace_back(best_root_uct_child->move);
+		moves.emplace_back(best_root_uct_child->GetMove());
 	}
 	return true;
 }
@@ -1152,7 +1152,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		// 候補手の情報を出力
 		for (int i = 0; i < child_num; i++) {
 			const auto& child = current_root->child[i];
-			cout << i << ":" << child.move.toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
+			cout << i << ":" << child.GetMove().toUSI() << " move_count:" << child.move_count << " nnrate:" << child.nnrate
 				<< " win_rate:" << (child.move_count > 0 ? child.win / child.move_count : 0)
 				<< (child.IsLose() ? " win" : "") << (child.IsWin() ? " lose" : "") << endl;
 		}
@@ -1484,7 +1484,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	uct_node_t* child_node = created_child
 		? current->CreateChildNode(next_index)
 		: current->child_nodes[next_index].get();
-	const Move selected_move = uct_child[next_index].move;
+	const Move selected_move = uct_child[next_index].GetMove();
 	lock.unlock();
 
 	// Positionはスレッドローカルなので、着手はノードのロック外で行う
@@ -1600,6 +1600,8 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		uct_node_t* next_node = child_node;
 
 		// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+		// 終端フラグはSetEvaled()より前に設定されるため、評価完了を確認してから読む。
+		// IsEvaled()/SetEvaled()のacquire/release以上の同期を維持すること。
 		if (!next_node->IsEvaled())
 			return DISCARDED;
 
@@ -1672,12 +1674,14 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
-		if (uct_child[i].IsWin()) {
+		// 1回のatomic loadで、この候補手の勝敗フラグをまとめて読む。
+		const u32 move_value = uct_child[i].GetMove().value();
+		if (move_value & VALUE_WIN) {
 			child_win_count++;
 			// 負けが確定しているノードは選択しない
 			continue;
 		}
-		else if (uct_child[i].IsLose()) {
+		else if (move_value & VALUE_LOSE) {
 			// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 			if (parent != nullptr)
 				parent->SetWin();
@@ -1753,7 +1757,7 @@ void UCTSearcher::EvalNode() {
 
 		// 合法手一覧
 		for (int j = 0; j < child_num; j++) {
-			const Move move = uct_child[j].move;
+			const Move move = uct_child[j].GetMove();
 			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
 			const float logit = (float)(*logits)[move_label];
 			uct_child[j].nnrate = logit;
@@ -1781,7 +1785,7 @@ void UCTSearcher::EvalNode() {
 				}
 				// policyと定跡から作成した分布の加重平均
 				for (int j = 0; j < child_num; ++j) {
-					const Move& move = uct_child[j].move;
+					const Move move = uct_child[j].GetMove();
 					const auto itr2 = count_map.find((u16)move.proFromAndTo());
 					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
 					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;

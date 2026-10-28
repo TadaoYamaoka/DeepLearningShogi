@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <thread>
 
 #include "cppshogi.h"
 #include "python_module.h"
@@ -10,8 +11,91 @@
 #include "dfpn.h"
 #include "mate.h"
 #include "PolicyValueCache.h"
+#include "Node.h"
 
 using namespace std;
+
+TEST(ChildNodeTest, PackedMoveAndFlagsPreserveLayout) {
+#ifndef WIN_TYPE_DOUBLE
+    EXPECT_EQ(16u, sizeof(child_node_t));
+#endif
+    const u32 moveValue = 0x00123456;
+    child_node_t child{Move(moveValue)};
+    EXPECT_EQ(moveValue, child.GetMove().value());
+    EXPECT_FALSE(child.IsWin());
+    EXPECT_FALSE(child.IsLose());
+    EXPECT_FALSE(child.IsDraw());
+    child.SetWin();
+    child.SetLose();
+    child.SetDraw();
+    EXPECT_EQ(moveValue | VALUE_WIN | VALUE_LOSE | VALUE_DRAW, child.GetMove().value());
+    EXPECT_TRUE(child.IsWin());
+    EXPECT_TRUE(child.IsLose());
+    EXPECT_TRUE(child.IsDraw());
+}
+
+TEST(ChildNodeTest, MovingPreservesMoveFlagsAndStatistics) {
+    child_node_t source{Move(0x00123456)};
+    source.SetWin();
+    source.move_count = 17;
+    source.win = 9;
+    source.nnrate = 0.75f;
+    child_node_t constructed(std::move(source));
+    child_node_t assigned;
+    assigned = std::move(constructed);
+    EXPECT_EQ(0x00123456u | VALUE_WIN, assigned.GetMove().value());
+    EXPECT_EQ(17, static_cast<int>(assigned.move_count));
+    EXPECT_EQ(static_cast<WinType>(9), static_cast<WinType>(assigned.win));
+    EXPECT_FLOAT_EQ(0.75f, assigned.nnrate);
+}
+
+#ifndef LEARN
+TEST(ChildNodeTest, ConcurrentFlagsPreserveMoveAndOtherFlags) {
+    const u32 moveValue = 0x00123456;
+    const u32 flagMask = VALUE_WIN | VALUE_LOSE | VALUE_DRAW;
+    child_node_t child{Move(moveValue)};
+    std::atomic<bool> start{false};
+    std::atomic<bool> invalid{false};
+    auto wait = [&] { while (!start.load(std::memory_order_acquire)) std::this_thread::yield(); };
+    std::thread win([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetWin(); });
+    std::thread lose([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetLose(); });
+    std::thread draw([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetDraw(); });
+    std::thread reader([&] {
+        wait();
+        u32 previousFlags = 0;
+        for (int i = 0; i < 100000; ++i) {
+            const u32 value = child.GetMove().value();
+            if ((value & ~flagMask) != moveValue || (value & previousFlags) != previousFlags)
+                invalid.store(true, std::memory_order_relaxed);
+            previousFlags = value & flagMask;
+        }
+    });
+    start.store(true, std::memory_order_release);
+    win.join();
+    lose.join();
+    draw.join();
+    reader.join();
+    EXPECT_FALSE(invalid.load());
+    EXPECT_EQ(moveValue | flagMask, child.GetMove().value());
+}
+
+TEST(ChildNodeTest, EvalCompletionPublishesTerminalFlagAndChildren) {
+    child_node_t edge{Move(0x00123456)};
+    uct_node_t node;
+    std::thread publisher([&] {
+        node.child = std::make_unique<child_node_t[]>(1);
+        node.child[0].nnrate = 0.75f;
+        node.child_num = 1;
+        edge.SetDraw();
+        node.SetEvaled();
+    });
+    while (!node.IsEvaled()) std::this_thread::yield();
+    EXPECT_TRUE(edge.IsDraw());
+    EXPECT_EQ(1, node.child_num);
+    EXPECT_FLOAT_EQ(0.75f, node.child[0].nnrate);
+    publisher.join();
+}
+#endif
 
 TEST(Mate, AllMate5Positions) {
     constexpr const char* Mate5Path = R"(E:\game\shogi\mate3_5_7_9_11\mate5_filtered.sfen)";

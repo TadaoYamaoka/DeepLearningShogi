@@ -662,7 +662,7 @@ struct child_node_t_copy {
 	WinType win;       // 勝った回数
 
 	child_node_t_copy(const child_node_t& child) {
-		this->move = child.move;
+		this->move = child.GetMove();
 		this->move_count = child.move_count;
 		this->win = child.win;
 	}
