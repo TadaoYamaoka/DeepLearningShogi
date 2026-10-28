@@ -1167,6 +1167,10 @@ ExpandRoot(const Position *pos)
 	uct_node_t* current_head = tree->GetCurrentHead();
 	if (current_head->child_num == 0) {
 		current_head->ExpandNode(pos);
+		// 終端判定で評価済みになったノードも、ルートではpolicyを再評価する。
+		current_head->win = 0;
+		current_head->visited_nnrate = 0.0f;
+		current_head->move_count = NOT_EXPANDED;
 	}
 }
 
