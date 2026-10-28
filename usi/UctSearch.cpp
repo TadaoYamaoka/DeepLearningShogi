@@ -1336,6 +1336,7 @@ UCTSearcher::ParallelUctSearch()
 		current_policy_value_batch_index = 0;
 
 		// バッチサイズ分探索を繰り返す
+		int local_count = 0;
 		for (int i = 0; i < policy_value_batch_maxsize; i++) {
 			// 盤面のコピー
 			Position pos(*pos_root);
@@ -1346,7 +1347,7 @@ UCTSearcher::ParallelUctSearch()
 
 			if (result != DISCARDED) {
 				// 探索回数を1回増やす
-				po_info.count.fetch_add(1);
+				++local_count;
 			}
 			else {
 				// 破棄した探索経路を保存
@@ -1360,6 +1361,9 @@ UCTSearcher::ParallelUctSearch()
 				visitor_batch.emplace_back(&visitor_pool[i]);
 			}
 		}
+
+		// 探索回数はバッチ単位で公開する。
+		po_info.count.fetch_add(local_count, std::memory_order_relaxed);
 
 		// 評価
 		EvalNode();
