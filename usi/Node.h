@@ -105,7 +105,7 @@ struct uct_node_t {
 
 class NodeTree {
 public:
-	~NodeTree() { DeallocateTree(); }
+	~NodeTree() = default;
 	// ツリー内の位置を設定し、ツリーの再利用を試みる
 	// 新しい位置が古い位置と同じゲームであるかどうかを返す（いくつかの着手動が追加されている）
 	// 位置が完全に異なる場合、または以前よりも短い場合は、falseを返す
