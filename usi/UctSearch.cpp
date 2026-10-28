@@ -84,14 +84,18 @@ void WaitPrepareMultiPonder()
 #define LOCK_EXPAND mutex_expand.lock();
 #define UNLOCK_EXPAND mutex_expand.unlock();
 constexpr uint64_t MUTEX_NUM = 65536; // must be 2^n
-std::mutex mutexes[MUTEX_NUM];
+// 64バイトのキャッシュラインを異なるmutex間で共有しないようにする。
+struct alignas(64) PaddedMutex {
+	std::mutex m;
+};
+PaddedMutex mutexes[MUTEX_NUM];
 inline std::mutex& GetNodeMutex(const uct_node_t* node)
 {
 	// operator newが保証するアラインメント分の、常に0になる下位ビットを除いてstripeを選択する。
 	constexpr std::size_t kAlign = std::max<std::size_t>(alignof(uct_node_t), __STDCPP_DEFAULT_NEW_ALIGNMENT__);
 	static_assert((kAlign & (kAlign - 1)) == 0, "kAlign must be 2^n");
 	const auto address = reinterpret_cast<std::uintptr_t>(node);
-	return mutexes[(address / kAlign) & (MUTEX_NUM - 1)];
+	return mutexes[(address / kAlign) & (MUTEX_NUM - 1)].m;
 }
 
 
