@@ -412,7 +412,8 @@ def main(*argv):
 
     # save model
     if args.model:
-        if args.use_swa and epoch >= args.swa_start_epoch:
+        use_swa_model = args.use_swa and swa_model.n_averaged.item() > 0
+        if use_swa_model:
             logging.info('Updating batch normalization')
             forward_ = swa_model.forward
             swa_model.forward = lambda x : forward_(**x)
@@ -431,7 +432,7 @@ def main(*argv):
 
         model_path = args.model.format(**{'epoch':epoch, 'step':t})
         logging.info('Saving the model to {}'.format(model_path))
-        serializers.save_npz(model_path, swa_model.module if args.use_swa else model)
+        serializers.save_npz(model_path, swa_model.module if use_swa_model else model)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
