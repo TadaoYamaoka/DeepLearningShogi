@@ -1113,23 +1113,27 @@ void __hcpe3_cache_re_eval(const size_t len, char* ndindex, char* ndlogits, char
     auto logits = reinterpret_cast<float(*)[9 * 9 * MAX_MOVE_LABEL_NUM]>(ndlogits);
     float* values = reinterpret_cast<float*>(ndvalue);
 
+    if (alpha_p > 0 && (!(temperature > 0) || !std::isfinite(temperature))) {
+        throw std::invalid_argument("hcpe3 re-evaluation temperature must be finite and positive");
+    }
+
     const size_t start_index = trainingData.size();
     trainingData.resize(trainingData.size() + len);
 
     const auto softmax = [](std::vector<float>& probabilities, const float temperature) {
-        float max = 0.0f;
+        float max = -std::numeric_limits<float>::infinity();
         for (int i = 0; i < probabilities.size(); i++) {
-            float& x = probabilities[i];
-            x /= temperature;
+            const float x = probabilities[i];
             if (x > max) {
                 max = x;
             }
         }
-        // オーバーフローを防止するため最大値で引く
+        // 温度で割る前に最大値を引き、最大要素の exp(0) = 1 を保証する
         float sum = 0.0f;
         for (int i = 0; i < probabilities.size(); i++) {
             float& x = probabilities[i];
-            x = expf(x - max);
+            // 減算前にdoubleへ昇格し、floatの両極値の差も保持する
+            x = static_cast<float>(std::exp((static_cast<double>(x) - max) / temperature));
             sum += x;
         }
         // normalize
