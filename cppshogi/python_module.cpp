@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -628,7 +629,10 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 
 #pragma omp parallel for num_threads(decode_threads) if (decode_threads > 1 && len > 1)
     for (int64_t i = 0; i < len; i++) {
-        const auto& hcpe3 = cache ? (decode_threads > 1 && len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i])) : trainingData[index[i]];
+        std::optional<TrainingData> cached;
+        const auto& hcpe3 = cache
+            ? cached.emplace(decode_threads > 1 && len > 1 ? get_cache_with_lock(index[i]) : get_cache(index[i]))
+            : trainingData[index[i]];
 
         Position position;
         position.set(hcpe3.hcp);
@@ -655,7 +659,8 @@ void __hcpe3_decode_with_value(const size_t len, char* ndindex, char* ndfeatures
 void __hcpe3_get_hcpe(const size_t index, char* ndhcpe) {
     HuffmanCodedPosAndEval* hcpe = reinterpret_cast<HuffmanCodedPosAndEval*>(ndhcpe);
 
-    const auto& hcpe3 = cache ? get_cache(index) : trainingData[index];
+    std::optional<TrainingData> cached;
+    const auto& hcpe3 = cache ? cached.emplace(get_cache(index)) : trainingData[index];
 
     hcpe->hcp = hcpe3.hcp;
     float max_prob = FLT_MIN;
