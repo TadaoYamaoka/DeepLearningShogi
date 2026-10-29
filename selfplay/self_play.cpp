@@ -1503,7 +1503,7 @@ void UCTSearcher::NextPly(const Move move)
 
 	if (usi_engine_turn >= 0) {
 		usi_position += " " + move.toUSI();
-		if (ply % 2 == usi_engine_turn)
+		if (ply % 2 == usi_engine_turn && ply > RANDOM_MOVE)
 			grp->usi_engines[id % usi_threads].ThinkAsync(id / usi_threads, *pos_root, usi_position, usi_byoyomi);
 	}
 
