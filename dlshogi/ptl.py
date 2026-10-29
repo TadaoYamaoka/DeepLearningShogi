@@ -370,6 +370,9 @@ class Model(pl.LightningModule):
         self.log("train/value_loss", loss3)
         return loss
 
+    def _has_ema_updates(self):
+        return self.hparams.use_ema and self.ema_model.n_averaged.item() > 0
+
     def on_train_batch_end(self, outputs, batch, batch_idx):
         if (
             self.hparams.use_ema
@@ -380,7 +383,7 @@ class Model(pl.LightningModule):
 
     def on_train_epoch_end(self):
         if (
-            self.hparams.use_ema
+            self._has_ema_updates()
             and self.hparams.update_bn
             and self.current_epoch == self.trainer.max_epochs - 1
             and self.current_epoch >= self.hparams.ema_start_epoch
@@ -403,10 +406,7 @@ class Model(pl.LightningModule):
 
     def on_fit_end(self):
         if self.hparams.model_filename:
-            if self.hparams.use_ema:
-                model = self.ema_model.module
-            else:
-                model = self.model
+            model = self.ema_model.module if self._has_ema_updates() else self.model
             model_filename = self.hparams.model_filename.format(
                 epoch=self.current_epoch, step=self.global_step
             )
@@ -451,10 +451,8 @@ class Model(pl.LightningModule):
             val.clear()
 
     def on_test_start(self):
-        if self.hparams.use_ema:
-            self.tmp_model = self.model
-            self.model = self.ema_model
-            self._set_forward_model(self.model)
+        if self._has_ema_updates():
+            self._set_forward_model(self.ema_model)
         return super().on_test_start()
 
     def test_step(self, batch, batch_idx):
@@ -468,10 +466,8 @@ class Model(pl.LightningModule):
 
     def on_test_end(self):
         super().on_test_end()
-        if self.hparams.use_ema:
-            self.model = self.tmp_model
+        if self._has_ema_updates():
             self._set_forward_model(self.model)
-            del self.tmp_model
 
 
 class CustomLightningCLI(LightningCLI):
