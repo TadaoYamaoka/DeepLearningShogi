@@ -361,8 +361,8 @@ class Model(pl.LightningModule):
         loss3 = bce_with_logits_loss(y2, value)
         loss = (
             loss1
-            + (1 - self.hparams.val_lambda) * loss2
-            + self.hparams.val_lambda * loss3
+            + (1 - self.val_lambda) * loss2
+            + self.val_lambda * loss3
         )
         self.log("train/loss", loss)
         self.log("train/policy_loss", loss1)
