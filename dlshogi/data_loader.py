@@ -274,6 +274,16 @@ class Hcpe3DataLoader(DataLoader):
             self.value,
         )
 
+        if self.device.type == "cpu":
+            # Keep the returned batch independent of the next prefetch.
+            return (
+                self.torch_features1.clone(),
+                self.torch_features2.clone(),
+                self.torch_probability.clone(),
+                self.torch_result.clone(),
+                self.torch_value.clone(),
+            )
+
         return (
             self.torch_features1.to(self.device),
             self.torch_features2.to(self.device),
