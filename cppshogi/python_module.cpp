@@ -273,27 +273,42 @@ void read_hcpe3_cache(std::ifstream& ifs, char* buffer, const std::streamsize si
 size_t __hcpe3_load_cache(const std::string& filepath) {
     close_hcpe3_cache();
     cache = new std::ifstream(filepath, std::ios::binary);
+    const auto fail = [&filepath](const char* message) {
+        close_hcpe3_cache();
+        throw std::runtime_error(message + filepath);
+    };
 
     if (!*cache) {
-        close_hcpe3_cache();
-        throw std::runtime_error("failed to open hcpe3 cache: " + filepath);
+        fail("failed to open hcpe3 cache: ");
     }
 
     size_t num = 0;
     read_hcpe3_cache(*cache, (char*)&num, sizeof(num), "failed to read hcpe3 cache header: " + filepath);
-    cache_pos.resize(num + 1);
-    read_hcpe3_cache(*cache, (char*)cache_pos.data(), sizeof(size_t) * num, "failed to read hcpe3 cache index: " + filepath);
     cache->seekg(0, std::ios_base::end);
     const auto endPos = cache->tellg();
     if (endPos < 0) {
-        close_hcpe3_cache();
-        throw std::runtime_error("failed to get hcpe3 cache size: " + filepath);
+        fail("failed to get hcpe3 cache size: ");
     }
-    cache_pos[num] = static_cast<size_t>(endPos);
+    const size_t fileSize = static_cast<size_t>(endPos);
+    if (num > (fileSize - sizeof(num)) / sizeof(size_t)) {
+        fail("invalid hcpe3 cache index size: ");
+    }
+    const size_t dataBegin = sizeof(num) + sizeof(size_t) * num;
+    cache_pos.resize(num + 1);
+    cache->seekg(sizeof(num), std::ios_base::beg);
+    read_hcpe3_cache(*cache, (char*)cache_pos.data(), sizeof(size_t) * num, "failed to read hcpe3 cache index: " + filepath);
+    cache_pos[num] = fileSize;
+    // Validate once at load time so both cache readers can keep their hot paths unchanged.
+    constexpr size_t maxRecordSize = sizeof(Hcpe3CacheBody) + sizeof(Hcpe3CacheCandidate) * MaxLegalMoves;
     for (size_t i = 0; i < num; i++) {
-        if (cache_pos[i] > cache_pos[i + 1]) {
-            close_hcpe3_cache();
-            throw std::runtime_error("invalid hcpe3 cache index order: " + filepath);
+        if (cache_pos[i] < dataBegin || cache_pos[i] > cache_pos[i + 1]) {
+            fail("invalid hcpe3 cache index order: ");
+        }
+        const size_t recordSize = cache_pos[i + 1] - cache_pos[i];
+        if (recordSize < sizeof(Hcpe3CacheBody)
+            || recordSize > maxRecordSize
+            || (recordSize - sizeof(Hcpe3CacheBody)) % sizeof(Hcpe3CacheCandidate) != 0) {
+            fail("invalid hcpe3 cache record size: ");
         }
     }
     return num;
