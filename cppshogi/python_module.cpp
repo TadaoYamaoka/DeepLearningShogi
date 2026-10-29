@@ -1591,6 +1591,25 @@ void hcpe3_add_suffixes(
     }
 }
 
+void hcpe3_remove_suffixes(
+    std::unordered_multimap<Hcpe3SuffixKey, Hcpe3SuffixLocation, Hcpe3SuffixKeyHash>& suffixIndex,
+    const std::vector<Hcpe3MergedGame>& games,
+    const size_t gameIndex) {
+    const auto& game = games[gameIndex];
+    const auto hashes = hcpe3_suffix_hashes(game);
+    for (size_t offset = 0; offset < game.moves.size(); ++offset) {
+        const auto range = suffixIndex.equal_range(hcpe3_make_suffix_key(game, hashes, offset));
+        for (auto it = range.first; it != range.second;) {
+            if (it->second.gameIndex == gameIndex) {
+                it = suffixIndex.erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
+    }
+}
+
 bool hcpe3_find_existing_suffix(
     const Hcpe3ParsedGame& parsed,
     const std::vector<uint64_t>& parsedHashes,
@@ -1662,7 +1681,9 @@ void hcpe3_add_game(
             continue;
         }
         hcpe3_merge_merged_into_merged(newGame, offset, games[gameIndex]);
-        games[gameIndex].active = false;
+        hcpe3_remove_suffixes(suffixIndex, games, gameIndex);
+        // スロットを残したまま無効化・解放し、他のgameIndexを維持する。
+        games[gameIndex] = Hcpe3MergedGame{};
     }
 
     const size_t newIndex = games.size();
