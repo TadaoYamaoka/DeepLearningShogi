@@ -92,7 +92,7 @@ def main(*argv):
 
     def create_optimizer(optimizer_str, model_params, lr, weight_decay):
         optimizer_name, optimizer_args = optimizer_str.split('(', 1)
-        optimizer_args = eval(f'dict({optimizer_args.rstrip(")")})')
+        optimizer_args = eval(f'dict({optimizer_args[:-1]})')
         if '.' in optimizer_name:
             module_name, class_name = optimizer_name.rsplit('.', 1)
             module = importlib.import_module(module_name)
@@ -114,7 +114,7 @@ def main(*argv):
 
     def create_scheduler(scheduler_str, optimizer):
         scheduler_name, scheduler_args = scheduler_str.split('(', 1)
-        scheduler_args = eval(f'dict({scheduler_args.rstrip(")")})')
+        scheduler_args = eval(f'dict({scheduler_args[:-1]})')
         if '.' in scheduler_name:
             module_name, class_name = scheduler_name.rsplit('.', 1)
             module = importlib.import_module(module_name)
