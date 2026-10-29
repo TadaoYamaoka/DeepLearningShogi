@@ -1246,36 +1246,35 @@ void __hcpe3_reserve_train_data(unsigned int size) {
 
 template<typename T>
 void printStat(std::vector<T>& values) {
+    std::cout << "\tcount " << values.size() << "\n";
+    if (values.empty()) return;
+
     auto sum = std::accumulate(values.begin(), values.end(), 0.0);
     const auto mean = (double)sum / values.size();
 
     double variance = std::accumulate(values.begin(), values.end(), 0.0, [mean](double sum, double value) { return sum + std::pow(value - mean, 2); }) / values.size();
     const auto std = std::sqrt(variance);
 
-    const auto min = *std::min_element(values.begin(), values.end());
-    const auto max = *std::max_element(values.begin(), values.end());
-
     std::sort(values.begin(), values.end());
 
-    const auto percentile = [](const std::vector<T>& values, const double q) {
-        double q_index = (values.size() - 1) * q;
-        size_t q_low = static_cast<size_t>(q_index);
-        size_t q_high = q_low + 1;
+    const auto percentile = [&values](const double q) {
+        const double q_index = (values.size() - 1) * q;
+        const size_t q_low = static_cast<size_t>(q_index);
+        const size_t q_high = std::min(q_low + 1, values.size() - 1);
         return values[q_low] + (q_index - q_low) * (values[q_high] - values[q_low]);
     };
 
-    std::cout << "\tcount " << values.size() << "\n";
     std::cout << "\tmean  " << std::fixed << std::setprecision(4) << mean << "\n";
-    std::cout << "\tstd   " << std::fixed << std::setprecision(4) << std << "\n";
-    std::cout << "\tmin   " << min << "\n";
-    std::cout << "\t25%   " << std::fixed << std::setprecision(4) << percentile(values, 0.25) << "\n";
-    std::cout << "\t50%   " << std::fixed << std::setprecision(4) << percentile(values, 0.5) << "\n";
-    std::cout << "\t75%   " << std::fixed << std::setprecision(4) << percentile(values, 0.75) << "\n";
-    std::cout << "\tmax   " << max << std::endl;
+    std::cout << "\tstd   " << std << "\n";
+    std::cout << "\tmin   " << values.front() << "\n";
+    std::cout << "\t25%   " << percentile(0.25) << "\n";
+    std::cout << "\t50%   " << percentile(0.5) << "\n";
+    std::cout << "\t75%   " << percentile(0.75) << "\n";
+    std::cout << "\tmax   " << values.back() << std::endl;
 }
 
 void __hcpe3_stat_cache() {
-    const auto size = cache_pos.size() - 1;
+    const auto size = __hcpe3_get_cache_num();
 
     std::vector<int> counts;
     counts.reserve(size);
