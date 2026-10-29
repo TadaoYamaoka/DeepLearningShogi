@@ -1201,6 +1201,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 					assert(cache_lock->nnrate.size() == root_node->child_num);
 					// キャッシュからnnrateをコピー
 					CopyNNRate(root_node.get(), cache_lock->nnrate);
+					root_node->SetEvaled();
 				}
 			}
 		}
