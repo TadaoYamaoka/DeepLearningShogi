@@ -120,6 +120,9 @@ std::string hcpe3_cache_writer_path;
 
 void __hcpe3_create_cache(const std::string& filepath) {
     std::ofstream ofs(filepath, std::ios::binary);
+    if (!ofs) {
+        throw std::runtime_error("failed to open output hcpe3 cache: " + filepath);
+    }
 
     // インデックス部
     // 局面数
@@ -150,6 +153,9 @@ void __hcpe3_create_cache(const std::string& filepath) {
         }
     }
     ofs.close();
+    if (!ofs) {
+        throw std::runtime_error("failed to write or close output hcpe3 cache: " + filepath);
+    }
 
     // メモリ開放
     // trainingDataを開放してしまうため、キャッシュを作成した場合、データはキャッシュから読み込むこと
