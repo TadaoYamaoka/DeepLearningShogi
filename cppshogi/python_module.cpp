@@ -563,37 +563,43 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 
 size_t __hcpe3_patch_with_hcpe(const std::string& filepath, size_t& add_len) {
     std::ifstream ifs(filepath, std::ifstream::binary);
-    size_t sum_len = 0;
-    while (ifs) {
-        HuffmanCodedPosAndEval hcpe;
-        ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
-        if (ifs.eof()) {
-            break;
+    std::vector<HuffmanCodedPosAndEval> patches;
+    std::unordered_map<HuffmanCodedPos, std::vector<size_t>> patch_indices;
+    HuffmanCodedPosAndEval hcpe;
+    while (ifs.read(reinterpret_cast<char*>(&hcpe), sizeof(hcpe))) {
+        patches.emplace_back(hcpe);
+        patch_indices.try_emplace(hcpe.hcp);
+    }
+    if (patches.empty()) return 0;
+
+    // パッチ対象の局面だけ索引を作成し、重複局面もすべて更新する。
+    for (size_t i = 0; i < trainingData.size(); ++i) {
+        auto it = patch_indices.find(trainingData[i].hcp);
+        if (it != patch_indices.end()) {
+            it->second.emplace_back(i);
         }
-        bool found = false;
-        const float value = score_to_value((Score)hcpe.eval);
-        for (auto& data : trainingData) {
-            if (data.hcp == hcpe.hcp) {
-                found = true;
-                data.count = 1;
-                data.value = value;
-                data.result = make_result(hcpe.gameResult, hcpe.hcp.color());
-                data.candidates.clear();
-                data.candidates[hcpe.bestMove16] = 1;
-            }
-        }
-        if (!found) {
-            auto& data = trainingData.emplace_back(
-                hcpe.hcp,
-                value,
-                make_result(hcpe.gameResult, hcpe.hcp.color())
-            );
-            data.candidates[hcpe.bestMove16] = 1;
+    }
+
+    for (const auto& hcpe : patches) {
+        auto& indices = patch_indices.at(hcpe.hcp);
+        if (indices.empty()) {
+            indices.emplace_back(trainingData.size());
+            trainingData.emplace_back().hcp = hcpe.hcp;
             ++add_len;
         }
-        ++sum_len;
+
+        const float value = score_to_value((Score)hcpe.eval);
+        const float result = make_result(hcpe.gameResult, hcpe.hcp.color());
+        for (const size_t index : indices) {
+            auto& data = trainingData[index];
+            data.count = 1;
+            data.value = value;
+            data.result = result;
+            data.candidates.clear();
+            data.candidates[hcpe.bestMove16] = 1;
+        }
     }
-    return sum_len;
+    return patches.size();
 }
 
 // load_hcpe3で読み込み済みのtrainingDataから、インデックスを使用してサンプリングする
