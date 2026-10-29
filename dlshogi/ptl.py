@@ -404,7 +404,7 @@ class Model(pl.LightningModule):
     def on_fit_end(self):
         if self.hparams.model_filename:
             if self.hparams.use_ema:
-                model = self.ema_model
+                model = self.ema_model.module
             else:
                 model = self.model
             model_filename = self.hparams.model_filename.format(
