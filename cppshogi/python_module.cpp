@@ -441,15 +441,18 @@ inline void visits_to_proberbility(TrainingData& data, const std::vector<MoveVis
 
 // フォーマット自動判別
 bool is_hcpe(std::ifstream& ifs) {
-    if (ifs.tellg() % sizeof(HuffmanCodedPosAndEval) == 0) {
+    const auto fileSize = ifs.tellg();
+    if (fileSize >= static_cast<std::streamoff>(sizeof(HuffmanCodedPosAndEval))
+        && fileSize % sizeof(HuffmanCodedPosAndEval) == 0) {
         // 最後のデータがhcpeであるかで判別
         ifs.seekg(-sizeof(HuffmanCodedPosAndEval), std::ios_base::end);
         HuffmanCodedPosAndEval hcpe;
-        ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval));
-        if (hcpe.hcp.isOK() && hcpe.bestMove16 >= 1 && hcpe.bestMove16 <= 26703) {
+        if (ifs.read((char*)&hcpe, sizeof(HuffmanCodedPosAndEval))
+            && hcpe.hcp.isOK() && hcpe.bestMove16 >= 1 && hcpe.bestMove16 <= 26703) {
             return true;
         }
     }
+    ifs.clear();
     return false;
 }
 
@@ -472,12 +475,17 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
     std::vector<MoveVisits> candidates;
 
     for (int p = 0; ifs; ++p) {
+        const auto read_error = [&](const char* part) {
+            throw std::runtime_error("failed to read hcpe3 " + std::string(part)
+                + " at " + filepath + "(" + std::to_string(p) + ")");
+        };
         HuffmanCodedPosAndEval3 hcpe3;
-        ifs.read((char*)&hcpe3, sizeof(HuffmanCodedPosAndEval3));
-        if (ifs.eof()) {
-            break;
+        if (!ifs.read((char*)&hcpe3, sizeof(hcpe3)) || hcpe3.moveNum > 513) {
+            if (ifs.eof() && ifs.gcount() == 0) {
+                break;
+            }
+            read_error("header (incomplete or invalid move count)");
         }
-        assert(hcpe3.moveNum <= 513);
 
         // 開始局面
         Position pos;
@@ -490,15 +498,18 @@ size_t __load_hcpe3(const std::string& filepath, bool use_average, double a, dou
 
         for (int i = 0; i < hcpe3.moveNum; ++i) {
             MoveInfo moveInfo;
-            ifs.read((char*)&moveInfo, sizeof(MoveInfo));
-            assert(moveInfo.candidateNum <= 593);
+            if (!ifs.read((char*)&moveInfo, sizeof(moveInfo)) || moveInfo.candidateNum > 593) {
+                read_error("move info (incomplete or invalid candidate count)");
+            }
 
             const Move move = move16toMove((Move)moveInfo.selectedMove16, pos);
 
             // candidateNum==0の手は読み飛ばす
             if (moveInfo.candidateNum > 0) {
                 candidates.resize(moveInfo.candidateNum);
-                ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum);
+                if (!ifs.read((char*)candidates.data(), sizeof(MoveVisits) * moveInfo.candidateNum)) {
+                    read_error("candidates");
+                }
 
                 // 繰り返しと優越/劣等局面になる手は除く
                 const auto draw = pos.moveIsDraw(move, 16);
