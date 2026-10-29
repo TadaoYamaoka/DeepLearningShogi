@@ -216,10 +216,9 @@ class DataModule(pl.LightningDataModule):
                 and self.hparams.num_workers > 0
                 else 2,
             )
-            self.val_dataset = HcpeDataset(self.hparams.val_files)
 
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage == "predict":
+        # Assign validation/test/predict dataset for use in dataloader(s)
+        if stage in ("fit", "validate", "test", "predict"):
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
     def train_dataloader(self):
