@@ -6,6 +6,7 @@ from torch.optim.swa_utils import AveragedModel, update_bn
 
 from dlshogi.common import *
 from dlshogi.network.policy_value_network import policy_value_network
+from dlshogi.optim import build_weight_decay_param_groups
 from dlshogi import serializers
 from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.data_loader import DataLoader
@@ -37,6 +38,7 @@ def main(*argv):
     parser.add_argument('--optimizer', default='SGD(momentum=0.9,nesterov=True)', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
+    parser.add_argument('--use_no_weight_decay', action='store_true', help="Use the model's no_weight_decay() exclusions")
     parser.add_argument('--lr_scheduler', help='learning rate scheduler')
     parser.add_argument('--scheduler_step_mode', type=str, default='epoch', choices=['epoch', 'step'], help='Scheduler step mode: epoch or step')
     parser.add_argument('--reset_scheduler', action='store_true')
@@ -73,6 +75,7 @@ def main(*argv):
     logging.info('batchsize={}'.format(args.batchsize))
     logging.info('lr={}'.format(args.lr))
     logging.info('weight_decay={}'.format(args.weight_decay))
+    logging.info('use_no_weight_decay={}'.format(args.use_no_weight_decay))
     if args.lr_scheduler:
         logging.info('lr_scheduler {}'.format(args.lr_scheduler))
     if args.use_critic:
@@ -110,7 +113,8 @@ def main(*argv):
 
     if args.optimizer[-1] != ')':
         args.optimizer += '()'
-    optimizer = create_optimizer(args.optimizer, model.parameters(), args.lr, args.weight_decay)
+    model_params = build_weight_decay_param_groups(model) if args.use_no_weight_decay else model.parameters()
+    optimizer = create_optimizer(args.optimizer, model_params, args.lr, args.weight_decay)
 
     def create_scheduler(scheduler_str, optimizer):
         scheduler_name, scheduler_args = scheduler_str.split('(', 1)
@@ -163,12 +167,13 @@ def main(*argv):
             if args.use_swa and 'swa_model' in checkpoint:
                 swa_model.load_state_dict(checkpoint['swa_model'])
             if not args.reset_optimizer:
+                weight_decays = [group.get('weight_decay') for group in optimizer.param_groups]
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 if not args.lr_scheduler:
-                    for param_group in optimizer.param_groups:
+                    for param_group, weight_decay in zip(optimizer.param_groups, weight_decays):
                         param_group['lr'] = args.lr
                         if args.weight_decay >= 0:
-                            param_group['weight_decay'] = args.weight_decay
+                            param_group['weight_decay'] = weight_decay
             if args.use_amp and 'scaler' in checkpoint:
                 scaler.load_state_dict(checkpoint['scaler'])
             if args.lr_scheduler and not args.reset_scheduler and 'scheduler' in checkpoint:
