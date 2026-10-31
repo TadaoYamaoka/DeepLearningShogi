@@ -968,6 +968,10 @@ bool DfPn::dfpn(Position& r) {
 	transposition_table.NewSearch();
 
 	searchedNode = 0;
+	// 最大手数を超える1手詰みは認めない。
+	if (r.gamePly() >= draw_ply)
+		return false;
+
 	if (!r.inCheck()) {
 		// 1手詰みチェック
 		Move mate1ply = r.mateMoveIn1Ply();
