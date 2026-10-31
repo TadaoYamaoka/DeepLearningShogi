@@ -809,6 +809,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					best_dn = child_entry.dn;
 					best_pn = child_entry.pn;
 					best_move = move;
+					best_num_search = child_entry.num_searched;
 				}
 				else if (child_entry.dn < second_best_dn) {
 					second_best_dn = child_entry.dn;
