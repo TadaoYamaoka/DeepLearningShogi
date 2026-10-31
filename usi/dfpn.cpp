@@ -238,7 +238,12 @@ void TranspositionTable::Resize(int64_t hash_size_mb) {
 
 void TranspositionTable::NewSearch() {
 	++generation;
-	if (generation == 0) generation = 1;
+	if (generation == 0) {
+		// 世代番号を再利用する前に、過去の探索結果をすべて無効化する。
+		if (tt)
+			std::memset(tt, 0, num_clusters * sizeof(Cluster));
+		generation = 1;
+	}
 }
 
 static const constexpr int kInfinitePnDn = 100000000;
