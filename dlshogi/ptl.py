@@ -1,14 +1,15 @@
 import logging
 import os
 from collections import defaultdict
+from functools import partial, update_wrapper
+from types import MethodType
 
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgressBar
-from lightning.pytorch.cli import LightningCLI
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from lightning.pytorch.cli import LightningCLI, instantiate_class
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
@@ -17,6 +18,7 @@ from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
 from dlshogi.data_loader import DataLoader as HcpeDataLoader
 from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.network.policy_value_network import policy_value_network
+from dlshogi.optim import build_weight_decay_param_groups
 
 
 class HcpeDataset(Dataset):
@@ -470,26 +472,36 @@ class Model(pl.LightningModule):
 
 
 class CustomLightningCLI(LightningCLI):
+    def _add_configure_optimizers_method_to_model(self, subcommand):
+        optimizer_init = self._get(self.config_init, "optimizer")
+        if (
+            not self.auto_configure_optimizers
+            or not optimizer_init
+            or not hasattr(self.model.model, "no_weight_decay")
+        ):
+            return super()._add_configure_optimizers_method_to_model(subcommand)
+
+        params = build_weight_decay_param_groups(self.model.model)
+        if len(params) == 1:
+            return super()._add_configure_optimizers_method_to_model(subcommand)
+
+        # This CLI uses Lightning's default automatic optimizer/scheduler groups.
+        # Construct both in Lightning's order so schedulers see every param group.
+        optimizer = instantiate_class(params, optimizer_init)
+        scheduler_init = self._get(self.config_init, "lr_scheduler")
+        lr_scheduler = instantiate_class(optimizer, scheduler_init) if scheduler_init else None
+        fn = partial(self.configure_optimizers, optimizer=optimizer, lr_scheduler=lr_scheduler)
+        update_wrapper(fn, self.configure_optimizers)
+        self.model.configure_optimizers = MethodType(fn, self.model)
+
     @staticmethod
     def configure_optimizers(lightning_module, optimizer, lr_scheduler=None):
-        if lightning_module.hparams.lr_scheduler_interval == "epoch":
-            return LightningCLI.configure_optimizers(
-                lightning_module, optimizer, lr_scheduler
-            )
-        if lr_scheduler is None:
-            return optimizer
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "step",
-                **(
-                    {"monitor": lr_scheduler.monitor}
-                    if isinstance(lr_scheduler, ReduceLROnPlateau)
-                    else {}
-                ),
-            },
-        }
+        config = LightningCLI.configure_optimizers(lightning_module, optimizer, lr_scheduler)
+        if lr_scheduler is not None and lightning_module.hparams.lr_scheduler_interval != "epoch":
+            if not isinstance(config, dict):
+                config = {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler}}
+            config["lr_scheduler"]["interval"] = "step"
+        return config
 
 
 def main():
