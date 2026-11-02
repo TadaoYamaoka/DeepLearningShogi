@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from torch.optim.swa_utils import AveragedModel, update_bn
 
 from dlshogi.common import *
-from dlshogi.network.policy_value_network import policy_value_network
-from dlshogi.optim import build_weight_decay_param_groups
+from dlshogi.network.policy_value_network import policy_value_network, compile_model
+from dlshogi.optim import build_optimizer
 from dlshogi import serializers
 from dlshogi.data_loader import Hcpe3DataLoader
 from dlshogi.data_loader import DataLoader
@@ -15,11 +15,22 @@ from dlshogi.data_loader import DataLoader
 import argparse
 import random
 import sys
-import os
 import re
 import importlib
 
 import logging
+
+def resolve_spec(spec, default_module, names=None):
+    """Resolve a CLI expression using train.py globals and explicitly supplied names."""
+    if not spec.endswith(')'):
+        spec += '()'
+    name, arguments = spec.split('(', 1)
+    kwargs = eval(f'dict({arguments[:-1]})', globals(), dict(names or {}))
+    if '.' in name:
+        module_name, name = name.rsplit('.', 1)
+        default_module = importlib.import_module(module_name)
+    return getattr(default_module, name), kwargs
+
 
 def main(*argv):
     parser = argparse.ArgumentParser(description='Train policy value network')
@@ -38,6 +49,9 @@ def main(*argv):
     parser.add_argument('--optimizer', default='SGD(momentum=0.9,nesterov=True)', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay rate')
+    parser.add_argument('--param_optimizer', action='append', default=[], metavar='TAG=OPTIMIZER',
+                        help="optimize model.<TAG>_parameters() with another optimizer, "
+                             "e.g. matrix=Muon(adjust_lr_fn='match_rms_adamw'); repeatable")
     parser.add_argument('--lr_scheduler', help='learning rate scheduler')
     parser.add_argument('--scheduler_step_mode', type=str, default='epoch', choices=['epoch', 'step'], help='Scheduler step mode: epoch or step')
     parser.add_argument('--reset_scheduler', action='store_true')
@@ -91,41 +105,33 @@ def main(*argv):
     model = policy_value_network(args.network)
     model.to(device)
 
-    def create_optimizer(optimizer_str, model_params, lr, weight_decay):
-        optimizer_name, optimizer_args = optimizer_str.split('(', 1)
-        optimizer_args = eval(f'dict({optimizer_args[:-1]})')
-        if '.' in optimizer_name:
-            module_name, class_name = optimizer_name.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-            optimizer_class = getattr(module, class_name)
-        else:
-            optimizer_class = getattr(optim, optimizer_name)
+    def create_optimizer(spec, params):
+        optimizer_class, optimizer_args = resolve_spec(spec, optim)
 
-        if weight_decay >= 0:
-            optimizer_args["weight_decay"] = weight_decay
+        # lr / weight_decay written in the spec take precedence over --lr / --weight_decay
+        optimizer_args.setdefault("lr", args.lr)
+        if args.weight_decay >= 0:
+            optimizer_args.setdefault("weight_decay", args.weight_decay)
 
-        optimizer = optimizer_class(model_params, lr=lr, **optimizer_args)
+        optimizer = optimizer_class(params, **optimizer_args)
         if not isinstance(optimizer, torch.optim.Optimizer):
             raise TypeError(f"Invalid optimizer type: {type(optimizer)}. Must be a subclass of torch.optim.Optimizer")
         return optimizer
 
-    if args.optimizer[-1] != ')':
-        args.optimizer += '()'
-    model_params = (
-        build_weight_decay_param_groups(model)
-        if hasattr(model, 'no_weight_decay') else model.parameters()
-    )
-    optimizer = create_optimizer(args.optimizer, model_params, args.lr, args.weight_decay)
+    routes = {}
+    for route in args.param_optimizer:
+        tag, _, spec = route.partition('=')
+        if not tag.isidentifier() or not spec:
+            parser.error(f'--param_optimizer must be TAG=OPTIMIZER: {route}')
+        if tag in routes:
+            parser.error(f'--param_optimizer: duplicate tag {tag}')
+        routes[tag] = spec
+    optimizer = build_optimizer(model, create_optimizer, args.optimizer, routes)
 
     def create_scheduler(scheduler_str, optimizer):
-        scheduler_name, scheduler_args = scheduler_str.split('(', 1)
-        scheduler_args = eval(f'dict({scheduler_args[:-1]})')
-        if '.' in scheduler_name:
-            module_name, class_name = scheduler_name.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-            scheduler_class = getattr(module, class_name)
-        else:
-            scheduler_class = getattr(optim.lr_scheduler, scheduler_name)
+        scheduler_class, scheduler_args = resolve_spec(
+            scheduler_str, optim.lr_scheduler, {"optimizer": optimizer}
+        )
 
         scheduler = scheduler_class(optimizer, **scheduler_args)
         if not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
@@ -168,11 +174,12 @@ def main(*argv):
             if args.use_swa and 'swa_model' in checkpoint:
                 swa_model.load_state_dict(checkpoint['swa_model'])
             if not args.reset_optimizer:
-                weight_decays = [group.get('weight_decay') for group in optimizer.param_groups]
+                # Each group's configured lr (--lr or an lr written in the optimizer spec)
+                configured = [(group['lr'], group.get('weight_decay')) for group in optimizer.param_groups]
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 if not args.lr_scheduler:
-                    for param_group, weight_decay in zip(optimizer.param_groups, weight_decays):
-                        param_group['lr'] = args.lr
+                    for param_group, (lr, weight_decay) in zip(optimizer.param_groups, configured):
+                        param_group['lr'] = lr
                         if args.weight_decay >= 0:
                             param_group['weight_decay'] = weight_decay
             if args.use_amp and 'scaler' in checkpoint:
@@ -191,24 +198,14 @@ def main(*argv):
 
     compiled_model = model
     if args.use_compile:
-        if not hasattr(torch, 'compile'):
-            raise RuntimeError('torch.compile is not available. Please use PyTorch 2.0 or later.')
-
-        compile_kwargs = {}
-        compile_backend = args.compile_backend
-        if compile_backend is None and os.name == 'nt':
-            compile_backend = 'aot_eager'
-        if compile_backend:
-            compile_kwargs['backend'] = compile_backend
-        if args.compile_mode:
-            compile_kwargs['mode'] = args.compile_mode
-        if args.compile_fullgraph:
-            compile_kwargs['fullgraph'] = True
-        if args.compile_dynamic:
-            compile_kwargs['dynamic'] = True
-
-        logging.info('use torch.compile({})'.format(', '.join(f'{key}={value}' for key, value in compile_kwargs.items())))
-        compiled_model = torch.compile(model, **compile_kwargs)
+        compiled_model = compile_model(
+            model,
+            backend=args.compile_backend,
+            mode=args.compile_mode,
+            fullgraph=args.compile_fullgraph,
+            dynamic=args.compile_dynamic,
+            logger=logging.getLogger(),
+        )
 
     logging.info('optimizer {}'.format(re.sub(' +', ' ', str(optimizer).replace('\n', ''))))
 

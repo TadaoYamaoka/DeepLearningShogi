@@ -1,3 +1,6 @@
+import logging
+import os
+
 import torch
 import torch.nn as nn
 import re
@@ -68,3 +71,41 @@ def policy_value_network(network, add_sigmoid=False):
             return PolicyValueNetwork(blocks=blocks, channels=channels, activation=activation, fcl=fcl)
     else:
         return PolicyValueNetwork()
+
+
+def set_compile_backend(model, backend):
+    """Notify modules of the selected backend before torch.compile captures them."""
+    for module in model.modules():
+        hook = getattr(module, "set_compile_backend", None)
+        if hook is not None:
+            hook(backend)
+
+
+def _default_backend():
+    return "aot_eager" if os.name == "nt" else None
+
+
+def compile_model(model, *, backend=None, mode=None, fullgraph=False, dynamic=False, logger=None):
+    """Compile a network with shared platform defaults and backend notification."""
+    if not hasattr(torch, "compile"):
+        raise RuntimeError("torch.compile is not available. Please use PyTorch 2.0 or later.")
+
+    if backend is None:
+        backend = _default_backend()
+    kwargs = {}
+    if backend:
+        kwargs["backend"] = backend
+    if mode:
+        kwargs["mode"] = mode
+    if fullgraph:
+        kwargs["fullgraph"] = True
+    if dynamic:
+        kwargs["dynamic"] = True
+
+    if logger is None:
+        logger = logging.getLogger()
+    logger.info("use torch.compile({})".format(
+        ", ".join(f"{key}={value}" for key, value in kwargs.items())
+    ))
+    set_compile_backend(model, backend)
+    return torch.compile(model, **kwargs)

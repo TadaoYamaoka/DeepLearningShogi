@@ -1,0 +1,17 @@
+# Overlay: python -m dlshogi.ptl fit --config dlshogi/config.yaml --config dlshogi/config_muon.yaml
+# Requires PyTorch with torch.optim.Muon. Keep data/trainer settings in the base config.
+model:
+  network: exp__by10x192
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 1e-4
+    weight_decay: 1e-2
+param_optimizers:
+  matrix:
+    class_path: torch.optim.Muon
+    init_args:
+      lr: 1e-4
+      weight_decay: 1e-2
+      momentum: 0.95
+      adjust_lr_fn: match_rms_adamw

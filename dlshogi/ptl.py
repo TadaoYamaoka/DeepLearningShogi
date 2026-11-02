@@ -17,8 +17,8 @@ from dlshogi import cppshogi, serializers
 from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
 from dlshogi.data_loader import DataLoader as HcpeDataLoader
 from dlshogi.data_loader import Hcpe3DataLoader
-from dlshogi.network.policy_value_network import policy_value_network
-from dlshogi.optim import build_weight_decay_param_groups
+from dlshogi.network.policy_value_network import policy_value_network, compile_model
+from dlshogi.optim import build_optimizer
 
 
 class HcpeDataset(Dataset):
@@ -315,29 +315,14 @@ class Model(pl.LightningModule):
     def _compile_model(self, model):
         if not self.hparams.use_compile:
             return model
-        if not hasattr(torch, "compile"):
-            raise RuntimeError("torch.compile is not available. Please use PyTorch 2.0 or later.")
-
-        compile_kwargs = {}
-        compile_backend = self.hparams.get("compile_backend")
-        if compile_backend is None and os.name == "nt":
-            compile_backend = "aot_eager"
-        if compile_backend:
-            compile_kwargs["backend"] = compile_backend
-        compile_mode = self.hparams.get("compile_mode")
-        if compile_mode:
-            compile_kwargs["mode"] = compile_mode
-        if self.hparams.compile_fullgraph:
-            compile_kwargs["fullgraph"] = True
-        if self.hparams.compile_dynamic:
-            compile_kwargs["dynamic"] = True
-
-        logging.getLogger("lightning.pytorch.core").info(
-            "use torch.compile({})".format(
-                ", ".join(f"{key}={value}" for key, value in compile_kwargs.items())
-            )
+        return compile_model(
+            model,
+            backend=self.hparams.get("compile_backend"),
+            mode=self.hparams.get("compile_mode"),
+            fullgraph=self.hparams.compile_fullgraph,
+            dynamic=self.hparams.compile_dynamic,
+            logger=logging.getLogger("lightning.pytorch.core"),
         )
-        return torch.compile(model, **compile_kwargs)
 
     def _set_forward_model(self, model):
         object.__setattr__(self, "_forward_model", self._compile_model(model))
@@ -471,23 +456,39 @@ class Model(pl.LightningModule):
             self._set_forward_model(self.model)
 
 
+def _has_trainable_no_decay(model):
+    hook = getattr(model, "no_weight_decay", None)
+    if hook is None:
+        return False
+    names = set(hook())
+    return any(p.requires_grad for n, p in model.named_parameters() if n in names)
+
+
 class CustomLightningCLI(LightningCLI):
+    def add_arguments_to_parser(self, parser):
+        super().add_arguments_to_parser(parser)
+        parser.add_argument("--param_optimizers", type=dict, default={},
+                            help="{tag: optimizer config (class_path/init_args)}; "
+                                 "optimizes model.<tag>_parameters() with that optimizer")
+
     def _add_configure_optimizers_method_to_model(self, subcommand):
         optimizer_init = self._get(self.config_init, "optimizer")
-        if (
-            not self.auto_configure_optimizers
-            or not optimizer_init
-            or not hasattr(self.model.model, "no_weight_decay")
-        ):
+        routes = self._get(self.config_init, "param_optimizers") or {}
+        network = self.model.model
+        if not (self.auto_configure_optimizers and optimizer_init):
+            if routes:
+                raise ValueError("param_optimizers requires an automatically configured optimizer")
             return super()._add_configure_optimizers_method_to_model(subcommand)
 
-        params = build_weight_decay_param_groups(self.model.model)
-        if len(params) == 1:
+        if not routes and not _has_trainable_no_decay(network):
+            # Preserve Lightning's original parameter list, including frozen/EMA parameters.
             return super()._add_configure_optimizers_method_to_model(subcommand)
 
-        # This CLI uses Lightning's default automatic optimizer/scheduler groups.
-        # Construct both in Lightning's order so schedulers see every param group.
-        optimizer = instantiate_class(params, optimizer_init)
+        # Construct optimizer and scheduler in Lightning's order so the scheduler
+        # sees every param group, including those of routed optimizers.
+        optimizer = build_optimizer(
+            network, lambda init, params: instantiate_class(params, init), optimizer_init, routes
+        )
         scheduler_init = self._get(self.config_init, "lr_scheduler")
         lr_scheduler = instantiate_class(optimizer, scheduler_init) if scheduler_init else None
         fn = partial(self.configure_optimizers, optimizer=optimizer, lr_scheduler=lr_scheduler)
