@@ -7,32 +7,6 @@ from torch.nn.utils import fuse_conv_bn_eval
 from dlshogi.common import *
 
 
-# -----------------------------------------------------------
-# 学習時の Attention 実装 (ONNX エクスポート / fuse 後は常に "math")
-#   "auto": Inductor は "flex"、その他の backend / eager 実行は "sdpa" (デフォルト)
-#   "sdpa": F.scaled_dot_product_attention (相対位置バイアスを attn_mask で渡す
-#           → memory-efficient / cuDNN backend)。Triton 不要。
-#           ※ Inductor でコンパイルすると、Inductor がバイアスのメモリ配置を
-#             並べ替え、efficient attention の backward が
-#             "(*bias): last dimension must be contiguous" で失敗する。
-#             eager または Inductor 以外の backend 用。
-#   "flex": FlexAttention (score_mod でバイアス加算)。Inductor (Triton) が必要。
-#   "math": 明示的な matmul -> softmax -> matmul (TensorRT の fused MHA パターン)
-# fused backend は [B, H, S, S] の attention 行列を保存しない (backward で再計算)
-# ため、GPU メモリが減り、メモリ帯域も節約できる。
-# -----------------------------------------------------------
-ATTN_BACKENDS = ("auto", "sdpa", "flex", "math")
-
-try:
-    from torch.nn.attention.flex_attention import flex_attention as _flex_attention
-
-    # flex_attention は torch.compile しないと fused kernel にならない。
-    # torch.compile は遅延評価なので、ここでは実際のコンパイルは走らない。
-    _compiled_flex_attention = torch.compile(_flex_attention, dynamic=False)
-except ImportError:
-    _compiled_flex_attention = None
-
-
 class Bias(nn.Module):
     def __init__(self, shape):
         super(Bias, self).__init__()
@@ -136,21 +110,16 @@ class AttentionBlock(nn.Module):
       scores = Q @ K^T + rel_bias        : [B, H, S, S]
       out    = Softmax(scores) @ V       : [B, H, S, D] -> [B, C, 9, 9]
 
-    推論 / ONNX エクスポート時は BMM1 -> (bias 加算) -> Softmax -> BMM2 という
-    標準の並びで、TensorRT の fused MHA (_gemm_mha_v2) のパターンに一致する。
-    学習時 (CUDA, fuse 前) は attn_backend の fused kernel で同じ計算をする。
+    BMM1 -> (bias 加算) -> Softmax -> BMM2 という標準の並びにしてあり、
+    学習時も推論時も同じ計算グラフで TensorRT の fused MHA
+    (_gemm_mha_v2) のパターンに一致する。
     """
 
     SEQ_LEN = 81
 
-    def __init__(self, d_model, nhead, ffn_multiple_of=64, attn_backend="auto"):
+    def __init__(self, d_model, nhead, ffn_multiple_of=64):
         super(AttentionBlock, self).__init__()
         assert d_model % nhead == 0, "d_model must be divisible by nhead"
-        assert attn_backend in ATTN_BACKENDS, f"attn_backend must be one of {ATTN_BACKENDS}"
-        if attn_backend == "flex" and _compiled_flex_attention is None:
-            raise RuntimeError("FlexAttention is not available in this PyTorch")
-        self.attn_backend = attn_backend
-        self._compile_backend = None
         self.d_model = d_model
         self.nhead = nhead
         self.depth = d_model // nhead
@@ -214,53 +183,6 @@ class AttentionBlock(nn.Module):
         bias = self.relative_position_bias_table[:, self.relative_position_index_flat]
         return bias.view(1, self.nhead, self.SEQ_LEN, self.SEQ_LEN)
 
-    def set_compile_backend(self, backend):
-        self._compile_backend = backend
-
-    def _attention_impl(self, x):
-        # CPU / fused inference / ONNX always use the explicit TensorRT pattern.
-        if (self.attn_backend == "math" or self._fused or not x.is_cuda
-                or torch.onnx.is_in_onnx_export()):
-            return "math"
-        if self.attn_backend != "auto":
-            return self.attn_backend
-        # Inductor 下では SDPA の bias 配置が backward を壊すため flex を使う。
-        # その他の backend は flex の backward が失敗しうるため SDPA にする。
-        # None は通常の torch.compile の既定 backend (Inductor) として扱う。
-        if (torch.compiler.is_compiling() and self._compile_backend in (None, "inductor")
-                and _compiled_flex_attention is not None):
-            return "flex"
-        return "sdpa"
-
-    def _fused_attention(self, q, k, v, impl):
-        """q, k, v: [B, H, S, D] -> [B, H, S, D]
-
-        スケールは q 側に適用済みなので scale=1.0 を渡す。
-        """
-        # QK norm (rsqrt) は autocast で fp32 になるので v (bf16/fp16) に揃え、
-        # 同時に last dim を連続にする (copy は 1 回)。
-        dtype = v.dtype
-        q = q.to(dtype=dtype, memory_format=torch.contiguous_format)
-        k = k.to(dtype=dtype, memory_format=torch.contiguous_format)
-        v = v.contiguous()
-        bias = self._relative_position_bias()  # [1, H, S, S]
-
-        if impl == "flex":
-            bias = bias[0]  # [H, S, S]
-
-            def score_mod(score, b, h, q_idx, kv_idx):
-                return score + bias[h, q_idx, kv_idx]
-
-            return _compiled_flex_attention(q, k, v, score_mod=score_mod, scale=1.0)
-
-        # memory-efficient kernel は attn_mask の行ストライドが 16 要素の倍数である
-        # 必要があるので、81 -> 96 にパディングしてからスライスする (値は 81 のまま)。
-        bias = bias.to(dtype)
-        pad = (-self.SEQ_LEN) % 16
-        if pad:
-            bias = F.pad(bias, (0, pad))[..., : self.SEQ_LEN]
-        return F.scaled_dot_product_attention(q, k, v, attn_mask=bias, scale=1.0)
-
     @torch.no_grad()
     def fuse(self):
         """推論用に pre/post の BN をすべて隣接する 1x1 conv に畳み込む。
@@ -295,25 +217,18 @@ class AttentionBlock(nn.Module):
 
         # [B, C, 9, 9] -> [B, H, D, S]
         q = q.view(-1, H, D, S).transpose(2, 3)  # [B, H, S, D]
+        k = k.view(-1, H, D, S)                  # [B, H, D, S] = K^T
         v = v.view(-1, H, D, S).transpose(2, 3)  # [B, H, S, D]
 
         # QK norm (depth 軸) とスケールは BMM1 の前に Q/K 側で済ませる
         # Q 側は weight と scale をまとめて 1 回の定数乗算にする
         q = self._rms_norm(q, dim=-1) * (self.q_norm_weight * self.scale)
+        k = self._rms_norm(k, dim=2) * self.k_norm_weight.view(1, 1, D, 1)
 
-        impl = self._attention_impl(x)
-        if impl != "math":
-            # ---- 学習用: fused kernel (attention 行列を保存しない) ----
-            k = k.view(-1, H, D, S).transpose(2, 3)  # [B, H, S, D]
-            k = self._rms_norm(k, dim=-1) * self.k_norm_weight
-            out = self._fused_attention(q, k, v, impl)     # [B, H, S, D]
-        else:
-            # ---- 推論 / ONNX 用 fused MHA パターン: BMM1 -> add bias -> Softmax -> BMM2 ----
-            k = k.view(-1, H, D, S)                  # [B, H, D, S] = K^T
-            k = self._rms_norm(k, dim=2) * self.k_norm_weight.view(1, 1, D, 1)
-            scores = torch.matmul(q, k) + self._relative_position_bias()  # [B, H, S, S]
-            attention = F.softmax(scores, dim=-1)
-            out = torch.matmul(attention, v)                              # [B, H, S, D]
+        # ---- fused MHA パターン: BMM1 -> add bias -> Softmax -> BMM2 ----
+        scores = torch.matmul(q, k) + self._relative_position_bias()  # [B, H, S, S]
+        attention = F.softmax(scores, dim=-1)
+        out = torch.matmul(attention, v)                              # [B, H, S, D]
         # ------------------------------------------------------------------
 
         out = out.transpose(2, 3).reshape(-1, C, 9, 9)
@@ -334,7 +249,7 @@ class AttentionBlock(nn.Module):
 
 
 class PolicyValueNetwork(nn.Module):
-    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256, nhead=4, attn_backend="auto"):
+    def __init__(self, blocks, channels, activation=nn.ReLU(), fcl=256, nhead=4):
         super(PolicyValueNetwork, self).__init__()
         self.l1_1_1 = nn.Conv2d(
             in_channels=FEATURES1_NUM,
@@ -367,7 +282,7 @@ class PolicyValueNetwork(nn.Module):
 
         # 中間層はすべて AttentionBlock
         self.blocks = nn.Sequential(
-            *[AttentionBlock(channels, nhead, attn_backend=attn_backend) for _ in range(blocks)]
+            *[AttentionBlock(channels, nhead) for _ in range(blocks)]
         )
         # 残差経路は正規化されないので、ヘッドの前で最終正規化する。
         # 直後は活性化なしで 1x1 conv (policy / value_conv1) なので、
