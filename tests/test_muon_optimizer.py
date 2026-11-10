@@ -17,7 +17,7 @@ class MuonTests(unittest.TestCase):
         torch.set_num_threads(1)
 
     def model(self):
-        return PolicyValueNetwork(1, 8, nhead=2, fcl=8, attn_backend='math')
+        return PolicyValueNetwork(1, 8, nhead=2, fcl=8)
 
     def inputs(self):
         return (torch.randn(2, FEATURES1_NUM, 9, 9),
