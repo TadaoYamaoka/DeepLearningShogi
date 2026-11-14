@@ -1277,6 +1277,14 @@ InterruptionCheck(const int spend_time)
 		return false;
 	}
 
+	const bool can_extend = extend_time && pos_root->gamePly() > 20 &&
+		remaining_time[pos_root->turn()] > time_limit * 2;
+
+	// 予算到達後に延長できない場合は、訪問数の走査を省いて停止する
+	if (spend_time >= time_limit && !can_extend) {
+		return true;
+	}
+
 	const uct_node_t* current_root = tree->GetCurrentHead();
 	const child_node_t* uct_child = current_root->child.get();
 
@@ -1285,21 +1293,17 @@ InterruptionCheck(const int spend_time)
 	int max_index, second_index;
 	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
 
-	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
-	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
-	if (max_searched - second_searched <= rest_po) {
-		return false;
+	// 予算内だけ、残りの探索で次善手が最善手を超える可能性を確認する
+	// 予算到達後は、訪問数差にかかわらず延長または停止を判定する
+	if (spend_time < time_limit) {
+		const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
+		if (max_searched - second_searched <= rest_po) {
+			return false;
+		}
 	}
 
-	// 着手が21手以降で,
-	// 時間延長を行う設定になっていて,
-	// 探索時間延長をすべきときは
-	// 探索回数を2倍に増やす
-	if (extend_time &&
-		pos_root->gamePly() > 20 &&
-		remaining_time[pos_root->turn()] > time_limit * 2 &&
-		// 最善手の探索回数が次善手の探索回数の1.5倍未満
-		// もしくは、勝率が逆なら探索延長
+	// 訪問数が拮抗しているか、勝率が逆なら探索時間を2倍に延長する
+	if (can_extend &&
 		(max_searched < second_searched * 1.5 ||
 		 uct_child[max_index].win / uct_child[max_index].move_count < uct_child[second_index].win / uct_child[second_index].move_count)) {
 		time_limit *= 2;
