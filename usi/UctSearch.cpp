@@ -155,6 +155,7 @@ Timer search_begin_time;
 class UCTSearcherGroup;
 UCTSearcherGroup* monitoring_group = nullptr;
 atomic<bool> interruption;
+static atomic<bool> root_decided(false);
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -1082,6 +1083,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	monitoring_group = nullptr;
 	interruption = false;
+	root_decided.store(false, std::memory_order_relaxed);
 
 	if (!reuse_subtree) {
 		// ゲーム木を再利用しない場合クリア
@@ -1263,6 +1265,10 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 static bool
 InterruptionCheck(void)
 {
+	// ルートの勝敗確定は、既存のUCB選択処理で検出する。
+	if (root_decided.load(std::memory_order_relaxed))
+		return true;
+
 	// 消費時間が短い場合は打ち止めしない
 	const auto spend_time = begin_time.elapsed();
 	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
@@ -1276,10 +1282,6 @@ InterruptionCheck(void)
 	int max_searched, second_searched;
 	int max_index, second_index;
 	std::tie(max_searched, second_searched, max_index, second_index) = FindMaxAndSecondVisits(current_root, uct_child);
-
-	// 詰みが見つかった場合は探索を打ち切る
-	if (uct_child[max_index].IsLose())
-		return true;
 
 	// 残りの探索で次善手が最善手を超える可能性がある場合は打ち切らない
 	const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
@@ -1710,6 +1712,8 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 			if (parent != nullptr)
 				parent->SetWin();
+			else
+				root_decided.store(true, std::memory_order_relaxed);
 			// 勝ちが確定しているため、選択する
 			return i;
 		}
@@ -1741,6 +1745,8 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		if (parent != nullptr)
 			parent->SetLose();
+		else if (child_num > 0)
+			root_decided.store(true, std::memory_order_relaxed);
 	}
 	else {
 		// for FPU reduction
