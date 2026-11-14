@@ -1362,18 +1362,23 @@ UCTSearcher::ParallelUctSearch()
 			if (uct_search_stop || (!pondering && interruption))
 				break;
 
-			// 監視GPUで次にGatherするスレッドが時間を判定する。
-			// 既存のGatherロックにより、時間延長の更新も直列化される。
-			if (is_monitoring_group && !pondering && po_info.halt <= 0 &&
-				po_info.count > 0) {
-				const auto spend_time = begin_time.elapsed();
-				const bool check_time = time_check_next || spend_time >= time_limit;
-				time_check_next = !time_check_next;
-				// 勝敗確定と予算超過は毎回確認し、予算内の通常判定は2回に1回行う。
-				if (root_decided.load(std::memory_order_relaxed) ||
-					(check_time && InterruptionCheck(spend_time))) {
+			if (!pondering && po_info.halt <= 0 && po_info.count > 0) {
+				// 勝敗確定は全GPUの探索スレッドが毎回確認する
+				if (root_decided.load(std::memory_order_relaxed)) {
 					interruption = true;
 					break;
+				}
+
+				// 時間延長と間引きの更新は監視GPUのGatherロックで直列化する
+				if (is_monitoring_group) {
+					const auto spend_time = begin_time.elapsed();
+					const bool check_time = time_check_next || spend_time >= time_limit;
+					time_check_next = !time_check_next;
+					// 予算超過は毎回判定し、予算内の通常判定は2回に1回行う
+					if (check_time && InterruptionCheck(spend_time)) {
+						interruption = true;
+						break;
+					}
 				}
 			}
 
