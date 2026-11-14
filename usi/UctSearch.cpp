@@ -1471,7 +1471,9 @@ UCTSearcher::ParallelUctSearch()
 		if (is_monitoring_thread && pv_interval > 0) {
 			const auto elapsed_time = search_begin_time.elapsed();
 			// いずれかのスレッドが1回だけ表示する
-			if (elapsed_time > last_pv_print + pv_interval) {
+			// 他スレッドが停止を確定した場合、定期PVは出力しない。
+			if (elapsed_time > last_pv_print + pv_interval &&
+				!uct_search_stop && (pondering || !interruption)) {
 				last_pv_print = elapsed_time;
 				// PV表示
 				get_and_print_pv();

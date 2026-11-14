@@ -561,7 +561,7 @@ void MySearcher::goUct(Position& pos) {
 	if (mate_depth > 0) {
 		// 最小詰み探索時間の間待つ
 		const int time_limit = GetTimeLimit();
-		while (!dfpn_done) {
+		while (!dfpn_done && !IsUctSearchStoped()) {
 			const auto elapse = limits.startTime.elapsed();
 			if (elapse >= time_limit ||
 				elapse >= dfpn_min_search_millisecs)
