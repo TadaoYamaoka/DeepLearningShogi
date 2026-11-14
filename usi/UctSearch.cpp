@@ -155,7 +155,6 @@ Timer search_begin_time;
 class UCTSearcherGroup;
 UCTSearcherGroup* monitoring_group = nullptr;
 atomic<bool> interruption;
-static atomic<bool> root_decided(false);
 // 監視GPUのGatherロックで保護し、通常の時間判定を交互に実行する。
 static bool time_check_next = true;
 
@@ -1085,7 +1084,6 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 
 	monitoring_group = nullptr;
 	interruption = false;
-	root_decided.store(false, std::memory_order_relaxed);
 	time_check_next = true;
 
 	if (!reuse_subtree) {
@@ -1366,23 +1364,16 @@ UCTSearcher::ParallelUctSearch()
 			if (uct_search_stop || (!pondering && interruption))
 				break;
 
-			if (!pondering && po_info.halt <= 0 && po_info.count > 0) {
-				// 勝敗確定は全GPUの探索スレッドが毎回確認する
-				if (root_decided.load(std::memory_order_relaxed)) {
+			// 時間延長と間引きの更新は監視GPUのGatherロックで直列化する
+			if (is_monitoring_group && !pondering && po_info.halt <= 0 &&
+				po_info.count > 0) {
+				const auto spend_time = begin_time.elapsed();
+				const bool check_time = time_check_next || spend_time >= time_limit;
+				time_check_next = !time_check_next;
+				// 予算超過は毎回判定し、予算内の通常判定は2回に1回行う
+				if (check_time && InterruptionCheck(spend_time)) {
 					interruption = true;
 					break;
-				}
-
-				// 時間延長と間引きの更新は監視GPUのGatherロックで直列化する
-				if (is_monitoring_group) {
-					const auto spend_time = begin_time.elapsed();
-					const bool check_time = time_check_next || spend_time >= time_limit;
-					time_check_next = !time_check_next;
-					// 予算超過は毎回判定し、予算内の通常判定は2回に1回行う
-					if (check_time && InterruptionCheck(spend_time)) {
-						interruption = true;
-						break;
-					}
 				}
 			}
 
@@ -1730,8 +1721,8 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 			if (parent != nullptr)
 				parent->SetWin();
-			else
-				root_decided.store(true, std::memory_order_relaxed);
+			else if (po_info.halt <= 0)
+				interruption = true;
 			// 勝ちが確定しているため、選択する
 			return i;
 		}
@@ -1763,8 +1754,8 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
 		if (parent != nullptr)
 			parent->SetLose();
-		else if (child_num > 0)
-			root_decided.store(true, std::memory_order_relaxed);
+		else if (child_num > 0 && po_info.halt <= 0)
+			interruption = true;
 	}
 	else {
 		// for FPU reduction
