@@ -152,7 +152,8 @@ bool reuse_subtree = true;
 Timer begin_time;
 // 探索スレッドの思考開始時刻
 Timer search_begin_time;
-atomic<bool> init_search_begin_time;
+class UCTSearcherGroup;
+UCTSearcherGroup* monitoring_group = nullptr;
 atomic<bool> interruption;
 
 // 投了する勝率の閾値
@@ -859,7 +860,8 @@ bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node
 inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_node_t* root_uct_node, const unsigned int best_root_child_index)
 {
 	const auto& best_root_uct_child = root_uct_node->child[best_root_child_index];
-	float best_wp = best_root_uct_child.win / best_root_uct_child.move_count;
+	const int move_count = best_root_uct_child.move_count;
+	float best_wp = move_count > 0 ? best_root_uct_child.win / move_count : 0.5f;
 
 	// 勝ちの場合
 	if (best_root_uct_child.IsLose()) {
@@ -952,9 +954,11 @@ inline unsigned int select_random_child_node(const uct_node_t* uct_node, float& 
 	return static_cast<unsigned int>(sorted_uct_childs[selected_index] - uct_child);
 }
 
-std::tuple<Move, float, Move> get_and_print_pv(const bool use_random = false)
+std::tuple<Move, float, Move> get_and_print_pv(bool use_random = false)
 {
 	const uct_node_t* current_root = tree->GetCurrentHead();
+	// 未探索の場合は、訪問回数に基づくランダム選択を行わない。
+	use_random = use_random && current_root->move_count > 0;
 
 	// 探索にかかった時間
 	const auto finish_time = std::max(1, begin_time.elapsed());
@@ -1076,7 +1080,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		searcher.Stop(false);
 #endif
 
-	init_search_begin_time = false;
+	monitoring_group = nullptr;
 	interruption = false;
 
 	if (!reuse_subtree) {
@@ -1322,15 +1326,16 @@ UCTSearcher::ParallelUctSearch()
 		else
 			EvalNode();
 	}
-	UNLOCK_EXPAND;
 
-	// いずれか一つのスレッドが時間を監視する
-	bool monitoring_thread = false;
-	if (!init_search_begin_time.exchange(true)) {
+	// 最初のスレッドがPV表示を、そのGPUグループが時間監視を担当する。
+	const bool is_monitoring_thread = monitoring_group == nullptr;
+	if (is_monitoring_thread) {
+		monitoring_group = grp;
 		search_begin_time.restart();
 		last_pv_print = 0;
-		monitoring_thread = true;
 	}
+	const bool is_monitoring_group = monitoring_group == grp;
+	UNLOCK_EXPAND;
 
 	// 探索経路のバッチ
 	vector<visitor_t> visitor_pool(policy_value_batch_maxsize);
@@ -1345,12 +1350,24 @@ UCTSearcher::ParallelUctSearch()
 		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
 
-		int local_count = 0;
 		{
 			// 同一GPUのスレッド間ではGatherを直列化し、探索幅の過剰な拡大を抑える
 			auto gather_lock = grp->AcquireGatherLock();
 
+			// ロック待ちの間に停止した場合は、新しいバッチを構築しない。
+			if (uct_search_stop || (!pondering && interruption))
+				break;
+
+			// 監視GPUで次にGatherするスレッドが時間を判定する。
+			// 既存のGatherロックにより、時間延長の更新も直列化される。
+			if (is_monitoring_group && !pondering && po_info.halt <= 0 &&
+				po_info.count > 0 && InterruptionCheck()) {
+				interruption = true;
+				break;
+			}
+
 			// バッチサイズ分探索を繰り返す
+			int local_count = 0;
 			for (int i = 0; i < policy_value_batch_maxsize; i++) {
 				// 盤面のコピー
 				Position pos(*pos_root);
@@ -1375,10 +1392,10 @@ UCTSearcher::ParallelUctSearch()
 					visitor_batch.emplace_back(&visitor_pool[i]);
 				}
 			}
-		}
 
-		// 探索回数はバッチ単位で公開する。
-		po_info.count.fetch_add(local_count, std::memory_order_relaxed);
+			// 次にGatherするスレッドが参照できるよう、ロック解放前に公開する。
+			po_info.count.fetch_add(local_count, std::memory_order_relaxed);
+		}
 
 		// 評価
 		EvalNode();
@@ -1414,7 +1431,7 @@ UCTSearcher::ParallelUctSearch()
 		// 探索の強制終了
 		// ハッシュフル
 		if ((unsigned int)current_root->move_count >= uct_node_limit) {
-			/*if (monitoring_thread)
+			/*if (is_monitoring_thread)
 				cout << "info string interrupt_no_hash" << endl;*/
 			break;
 		}
@@ -1422,12 +1439,12 @@ UCTSearcher::ParallelUctSearch()
 			// po_info.halt を超えたら打ち切る
 			if (po_info.halt > 0) {
 				if (po_info.count > po_info.halt) {
-					/*if (monitoring_thread)
+					/*if (is_monitoring_thread)
 						cout << "info string interrupt_node_limit" << endl;*/
 					break;
 				}
 #ifdef MAKE_BOOK
-				if (use_interruption && monitoring_thread) {
+				if (use_interruption && is_monitoring_thread) {
 					const child_node_t* uct_child = current_root->child.get();
 
 					// 探索回数が最も多い手と次に多い手を求める
@@ -1444,11 +1461,6 @@ UCTSearcher::ParallelUctSearch()
 				}
 #endif
 			}
-			else {
-				// 探索を打ち切るか確認
-				if (monitoring_thread)
-					interruption = InterruptionCheck();
-			}
 			// 探索打ち切り
 			if (interruption) {
 				break;
@@ -1456,7 +1468,7 @@ UCTSearcher::ParallelUctSearch()
 		}
 
 		// PV表示
-		if (monitoring_thread && pv_interval > 0) {
+		if (is_monitoring_thread && pv_interval > 0) {
 			const auto elapsed_time = search_begin_time.elapsed();
 			// いずれかのスレッドが1回だけ表示する
 			if (elapsed_time > last_pv_print + pv_interval) {
