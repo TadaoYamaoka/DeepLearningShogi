@@ -156,6 +156,8 @@ class UCTSearcherGroup;
 UCTSearcherGroup* monitoring_group = nullptr;
 atomic<bool> interruption;
 static atomic<bool> root_decided(false);
+// 監視GPUのGatherロックで保護し、通常の時間判定を交互に実行する。
+static bool time_check_next = true;
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -220,7 +222,7 @@ static void ExpandRoot(const Position *pos);
 static bool ExtendTime(void);
 
 // 探索打ち切りの確認
-static bool InterruptionCheck(void);
+static bool InterruptionCheck(const int spend_time);
 
 template <typename T>
 inline void atomic_fetch_add_relaxed(std::atomic<T>* obj, T arg) {
@@ -1084,6 +1086,7 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 	monitoring_group = nullptr;
 	interruption = false;
 	root_decided.store(false, std::memory_order_relaxed);
+	time_check_next = true;
 
 	if (!reuse_subtree) {
 		// ゲーム木を再利用しない場合クリア
@@ -1267,14 +1270,9 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 //  探索打ち止めの確認  //
 //////////////////////////
 static bool
-InterruptionCheck(void)
+InterruptionCheck(const int spend_time)
 {
-	// ルートの勝敗確定は、既存のUCB選択処理で検出する。
-	if (root_decided.load(std::memory_order_relaxed))
-		return true;
-
 	// 消費時間が短い場合は打ち止めしない
-	const auto spend_time = begin_time.elapsed();
 	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
@@ -1367,9 +1365,16 @@ UCTSearcher::ParallelUctSearch()
 			// 監視GPUで次にGatherするスレッドが時間を判定する。
 			// 既存のGatherロックにより、時間延長の更新も直列化される。
 			if (is_monitoring_group && !pondering && po_info.halt <= 0 &&
-				po_info.count > 0 && InterruptionCheck()) {
-				interruption = true;
-				break;
+				po_info.count > 0) {
+				const auto spend_time = begin_time.elapsed();
+				const bool check_time = time_check_next || spend_time >= time_limit;
+				time_check_next = !time_check_next;
+				// 勝敗確定と予算超過は毎回確認し、予算内の通常判定は2回に1回行う。
+				if (root_decided.load(std::memory_order_relaxed) ||
+					(check_time && InterruptionCheck(spend_time))) {
+					interruption = true;
+					break;
+				}
 			}
 
 			// バッチサイズ分探索を繰り返す
