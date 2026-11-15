@@ -152,11 +152,8 @@ bool reuse_subtree = true;
 Timer begin_time;
 // 探索スレッドの思考開始時刻
 Timer search_begin_time;
-class UCTSearcherGroup;
-UCTSearcherGroup* monitoring_group = nullptr;
+atomic<bool> init_search_begin_time;
 atomic<bool> interruption;
-// 監視GPUのGatherロックで保護し、通常の時間判定を交互に実行する。
-static bool time_check_next = true;
 
 // 投了する勝率の閾値
 float RESIGN_THRESHOLD = 0.01f;
@@ -218,7 +215,7 @@ static void ExpandRoot(const Position *pos);
 static bool ExtendTime(void);
 
 // 探索打ち切りの確認
-static bool InterruptionCheck(const int spend_time);
+static bool InterruptionCheck(void);
 
 template <typename T>
 inline void atomic_fetch_add_relaxed(std::atomic<T>* obj, T arg) {
@@ -310,9 +307,6 @@ public:
 	void Run();
 	void Join();
 	void Term();
-	std::unique_lock<std::mutex> AcquireGatherLock() {
-		return std::unique_lock<std::mutex>(mutex_gather);
-	}
 
 	// GPUID
 	int gpu_id;
@@ -329,9 +323,6 @@ private:
 
 	// mutex for gpu
 	mutex mutex_gpu;
-
-	// 同一GPUの探索スレッドが同時にバッチを構築しないためのmutex
-	mutex mutex_gather;
 };
 UCTSearcherGroup* search_groups;
 static PolicyValueCache policy_value_cache;
@@ -1093,9 +1084,8 @@ UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Mo
 		searcher.Stop(false);
 #endif
 
-	monitoring_group = nullptr;
+	init_search_begin_time = false;
 	interruption = false;
-	time_check_next = true;
 
 	if (!reuse_subtree) {
 		// ゲーム木を再利用しない場合クリア
@@ -1279,9 +1269,10 @@ inline std::tuple<int, int, int, int> FindMaxAndSecondVisits(const uct_node_t* c
 //  探索打ち止めの確認  //
 //////////////////////////
 static bool
-InterruptionCheck(const int spend_time)
+InterruptionCheck(void)
 {
 	// 消費時間が短い場合は打ち止めしない
+	const auto spend_time = begin_time.elapsed();
 	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
@@ -1343,16 +1334,14 @@ UCTSearcher::ParallelUctSearch()
 		else
 			EvalNode();
 	}
+	UNLOCK_EXPAND;
 
-	// 最初のスレッドがPV表示を、そのGPUグループが時間監視を担当する。
-	const bool is_monitoring_thread = monitoring_group == nullptr;
+	// いずれか一つのスレッドが時間監視とPV表示を担当する。
+	const bool is_monitoring_thread = !init_search_begin_time.exchange(true);
 	if (is_monitoring_thread) {
-		monitoring_group = grp;
 		search_begin_time.restart();
 		last_pv_print = 0;
 	}
-	const bool is_monitoring_group = monitoring_group == grp;
-	UNLOCK_EXPAND;
 
 	// ルート局面は探索中に変わらないため、各プレイアウトで王手情報を再利用する。
 	root_check_info.emplace(*pos_root);
@@ -1363,57 +1352,35 @@ UCTSearcher::ParallelUctSearch()
 		trajectories_batch_discarded.clear();
 		current_policy_value_batch_index = 0;
 
-		{
-			// 同一GPUのスレッド間ではGatherを直列化し、探索幅の過剰な拡大を抑える
-			auto gather_lock = grp->AcquireGatherLock();
+		// バッチサイズ分探索を繰り返す
+		int local_count = 0;
+		for (int i = 0; i < policy_value_batch_maxsize; i++) {
+			// 盤面のコピー
+			Position pos(*pos_root);
 
-			// ロック待ちの間に停止した場合は、新しいバッチを構築しない。
-			if (uct_search_stop || (!pondering && interruption))
-				break;
+			// 1回プレイアウトする
+			visitor_pool[i].trajectories.clear();
+			const float result = UctSearch<true>(&pos, nullptr, current_root, visitor_pool[i]);
 
-			// 時間延長と間引きの更新は監視GPUのGatherロックで直列化する
-			if (is_monitoring_group && !pondering && po_info.halt <= 0 &&
-				po_info.count > 0) {
-				const auto spend_time = begin_time.elapsed();
-				const bool check_time = time_check_next || spend_time >= time_limit;
-				time_check_next = !time_check_next;
-				// 予算超過は毎回判定し、予算内の通常判定は2回に1回行う
-				if (check_time && InterruptionCheck(spend_time)) {
-					interruption = true;
-					break;
-				}
+			if (result != DISCARDED) {
+				// 探索回数を1回増やす
+				++local_count;
+			}
+			else {
+				// 破棄した探索経路を保存
+				trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
 			}
 
-			// バッチサイズ分探索を繰り返す
-			int local_count = 0;
-			for (int i = 0; i < policy_value_batch_maxsize; i++) {
-				// 盤面のコピー
-				Position pos(*pos_root);
-
-				// 1回プレイアウトする
-				visitor_pool[i].trajectories.clear();
-				const float result = UctSearch<true>(&pos, nullptr, current_root, visitor_pool[i]);
-
-				if (result != DISCARDED) {
-					// 探索回数を1回増やす
-					++local_count;
-				}
-				else {
-					// 破棄した探索経路を保存
-					trajectories_batch_discarded.emplace_back(&visitor_pool[i].trajectories);
-				}
-
-				if (result == DISCARDED || result != QUEUING) {
-					// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
-				}
-				else {
-					visitor_batch.emplace_back(&visitor_pool[i]);
-				}
+			if (result == DISCARDED || result != QUEUING) {
+				// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 			}
-
-			// 次にGatherするスレッドが参照できるよう、ロック解放前に公開する。
-			po_info.count.fetch_add(local_count, std::memory_order_relaxed);
+			else {
+				visitor_batch.emplace_back(&visitor_pool[i]);
+			}
 		}
+
+		// 探索回数はバッチ単位で公開する。
+		po_info.count.fetch_add(local_count, std::memory_order_relaxed);
 
 		// 評価
 		EvalNode();
@@ -1476,6 +1443,11 @@ UCTSearcher::ParallelUctSearch()
 					}
 				}
 #endif
+			}
+			else {
+				// 探索を打ち切るか確認
+				if (is_monitoring_thread && InterruptionCheck())
+					interruption = true;
 			}
 			// 探索打ち切り
 			if (interruption) {
