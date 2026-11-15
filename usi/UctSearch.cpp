@@ -1817,17 +1817,23 @@ void UCTSearcher::EvalNode() {
 			if (itr != bookMap.end()) {
 				const auto& entries = itr->second;
 				// countから分布を作成
-				std::map<u16, u16> count_map;
+				std::vector<std::pair<u16, u16>> counts;
+				counts.reserve(entries.size());
 				int sum = 0;
 				for (const auto& entry : entries) {
-					count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+					counts.emplace_back(entry.fromToPro, entry.count);
 					sum += entry.count;
 				}
+				// 重複する着手は、最初のcountを使用する。
+				std::stable_sort(counts.begin(), counts.end(),
+					[](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 				// policyと定跡から作成した分布の加重平均
 				for (int j = 0; j < child_num; ++j) {
 					const Move move = uct_child[j].GetMove();
-					const auto itr2 = count_map.find((u16)move.proFromAndTo());
-					const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
+					const u16 move16 = (u16)move.proFromAndTo();
+					const auto itr2 = std::lower_bound(counts.begin(), counts.end(), move16,
+						[](const auto& entry, const u16 key) { return entry.first < key; });
+					const float bookrate = itr2 != counts.end() && itr2->first == move16 ? (float)itr2->second / sum : 0.0f;
 					uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
 				}
 
