@@ -109,34 +109,58 @@ public:
 	}
 
 private:
-    static const int HPawnShiftBits   =  0;
-    static const int HLanceShiftBits  =  6;
-    static const int HKnightShiftBits = 10;
-    static const int HSilverShiftBits = 14;
-    static const int HGoldShiftBits   = 18;
-    static const int HBishopShiftBits = 22;
-    static const int HRookShiftBits   = 25;
-    static const u32 HPawnMask   = 0x1f << HPawnShiftBits;
-    static const u32 HLanceMask  = 0x7  << HLanceShiftBits;
-    static const u32 HKnightMask = 0x7  << HKnightShiftBits;
-    static const u32 HSilverMask = 0x7  << HSilverShiftBits;
-    static const u32 HGoldMask   = 0x7  << HGoldShiftBits;
-    static const u32 HBishopMask = 0x3  << HBishopShiftBits;
-    static const u32 HRookMask   = 0x3  << HRookShiftBits;
-    static const u32 HandPieceExceptPawnMask = (HLanceMask  | HKnightMask |
-                                                HSilverMask | HGoldMask   |
-                                                HBishopMask | HRookMask  );
-    static const int HandPieceShiftBits[HandPieceNum];
-    static const u32 HandPieceMask[HandPieceNum];
+    static constexpr int HPawnShiftBits   =  0;
+    static constexpr int HLanceShiftBits  =  6;
+    static constexpr int HKnightShiftBits = 10;
+    static constexpr int HSilverShiftBits = 14;
+    static constexpr int HGoldShiftBits   = 18;
+    static constexpr int HBishopShiftBits = 22;
+    static constexpr int HRookShiftBits   = 25;
+    static constexpr u32 HPawnMask   = 0x1f << HPawnShiftBits;
+    static constexpr u32 HLanceMask  = 0x7  << HLanceShiftBits;
+    static constexpr u32 HKnightMask = 0x7  << HKnightShiftBits;
+    static constexpr u32 HSilverMask = 0x7  << HSilverShiftBits;
+    static constexpr u32 HGoldMask   = 0x7  << HGoldShiftBits;
+    static constexpr u32 HBishopMask = 0x3  << HBishopShiftBits;
+    static constexpr u32 HRookMask   = 0x3  << HRookShiftBits;
+    static constexpr u32 HandPieceExceptPawnMask = (HLanceMask  | HKnightMask |
+                                                    HSilverMask | HGoldMask   |
+                                                    HBishopMask | HRookMask  );
+    static constexpr int HandPieceShiftBits[HandPieceNum] = {
+        HPawnShiftBits,
+        HLanceShiftBits,
+        HKnightShiftBits,
+        HSilverShiftBits,
+        HGoldShiftBits,
+        HBishopShiftBits,
+        HRookShiftBits
+    };
+    static constexpr u32 HandPieceMask[HandPieceNum] = {
+        HPawnMask,
+        HLanceMask,
+        HKnightMask,
+        HSilverMask,
+        HGoldMask,
+        HBishopMask,
+        HRookMask
+    };
     // 特定の種類の持ち駒を 1 つ増やしたり減らしたりするときに使用するテーブル
-    static const u32 HandPieceOne[HandPieceNum];
-    static const u32 BorrowMask = ((HPawnMask   + (1 << HPawnShiftBits  )) |
-                                   (HLanceMask  + (1 << HLanceShiftBits )) |
-                                   (HKnightMask + (1 << HKnightShiftBits)) |
-                                   (HSilverMask + (1 << HSilverShiftBits)) |
-                                   (HGoldMask   + (1 << HGoldShiftBits  )) |
-                                   (HBishopMask + (1 << HBishopShiftBits)) |
-                                   (HRookMask   + (1 << HRookShiftBits  )));
+    static constexpr u32 HandPieceOne[HandPieceNum] = {
+        1 << HPawnShiftBits,
+        1 << HLanceShiftBits,
+        1 << HKnightShiftBits,
+        1 << HSilverShiftBits,
+        1 << HGoldShiftBits,
+        1 << HBishopShiftBits,
+        1 << HRookShiftBits
+    };
+    static constexpr u32 BorrowMask = ((HPawnMask   + (1 << HPawnShiftBits  )) |
+                                       (HLanceMask  + (1 << HLanceShiftBits )) |
+                                       (HKnightMask + (1 << HKnightShiftBits)) |
+                                       (HSilverMask + (1 << HSilverShiftBits)) |
+                                       (HGoldMask   + (1 << HGoldShiftBits  )) |
+                                       (HBishopMask + (1 << HBishopShiftBits)) |
+                                       (HRookMask   + (1 << HRookShiftBits  )));
 
     u32 value_;
 };
