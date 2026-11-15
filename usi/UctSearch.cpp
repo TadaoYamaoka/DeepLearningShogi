@@ -356,7 +356,11 @@ public:
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 		policy_value_book_key(nullptr),
 #endif
-		current_policy_value_batch_index(0) {
+		current_policy_value_batch_index(0),
+		visitor_pool(policy_value_batch_maxsize) {
+		visitor_batch.reserve(policy_value_batch_maxsize);
+		trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
+
 		// キューを動的に確保する
 #ifdef ONNXRUNTIME
 		features1 = new features1_t[policy_value_batch_maxsize];
@@ -387,7 +391,10 @@ public:
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 		policy_value_book_key(o.policy_value_book_key),
 #endif
-		current_policy_value_batch_index(o.current_policy_value_batch_index) {
+		current_policy_value_batch_index(o.current_policy_value_batch_index),
+		visitor_pool(move(o.visitor_pool)),
+		visitor_batch(move(o.visitor_batch)),
+		trajectories_batch_discarded(move(o.trajectories_batch_discarded)) {
 		o.handle = nullptr;
 		o.features1 = nullptr;
 		o.features2 = nullptr;
@@ -520,6 +527,11 @@ private:
 	Key* policy_value_book_key;
 #endif
 	int current_policy_value_batch_index;
+
+	// 探索経路のバッファは探索間で再利用する。poolは構築後にサイズを変更しない。
+	vector<visitor_t> visitor_pool;
+	vector<visitor_t*> visitor_batch;
+	vector<trajectories_t*> trajectories_batch_discarded;
 };
 
 /////////////////////
@@ -1342,13 +1354,6 @@ UCTSearcher::ParallelUctSearch()
 	}
 	const bool is_monitoring_group = monitoring_group == grp;
 	UNLOCK_EXPAND;
-
-	// 探索経路のバッチ
-	vector<visitor_t> visitor_pool(policy_value_batch_maxsize);
-	vector<visitor_t*> visitor_batch;
-	vector<trajectories_t*> trajectories_batch_discarded;
-	visitor_batch.reserve(policy_value_batch_maxsize);
-	trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
