@@ -1865,10 +1865,11 @@ void UCTSearcher::EvalNode() {
 			}
 		}
 #endif
+		// キャッシュ保存の完了を待たず、確定した評価を探索スレッドへ公開する。
+		node->SetEvaled();
 		if (policy_value_cache.IsEnabled()) {
 			policy_value_cache.Store(policy_value_batch[i].key, *policy_value_batch[i].value_win, child_num,
 				[uct_child](const size_t j) { return uct_child[j].nnrate; });
 		}
-		node->SetEvaled();
 	}
 }
