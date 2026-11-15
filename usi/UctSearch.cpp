@@ -1638,16 +1638,18 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		if (!next_node->IsEvaled())
 			return DISCARDED;
 
-		if (uct_child[next_index].IsWin()) {
+		// 評価完了後に1回のatomic loadで勝敗・引き分けフラグをまとめて読む。
+		const u32 move_value = uct_child[next_index].GetMove().value();
+		if (move_value & VALUE_WIN) {
 			// 詰み、もしくはRepetitionWinかRepetitionSuperior
 			result = 0.0f;  // 反転して値を返すため0を返す
 		}
-		else if (uct_child[next_index].IsLose()) {
+		else if (move_value & VALUE_LOSE) {
 			// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
 			result = 1.0f; // 反転して値を返すため1を返す
 		}
 		// 千日手チェック
-		else if (uct_child[next_index].IsDraw()) {
+		else if (move_value & VALUE_DRAW) {
 			if (pos->turn() == Black) {
 				// 着手前の手番が黒なので、黒の引き分けの価値を返す
 				result = draw_value_black;
