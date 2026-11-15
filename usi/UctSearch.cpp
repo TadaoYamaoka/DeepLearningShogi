@@ -1523,12 +1523,12 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	const Move selected_move = uct_child[next_index].GetMove();
 	lock.unlock();
 
-	// Positionはスレッドローカルなので、着手はノードのロック外で行う
 	StateInfo st;
-	pos->doMove(selected_move, st);
-
 	// ノードの展開の確認
 	if (created_child) {
+		// 新規ノードの判定には着手後の局面が必要。着手はノードのロック外で行う。
+		pos->doMove(selected_move, st);
+
 		// ノードの作成
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
@@ -1652,12 +1652,12 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		// 千日手チェック
 		else if (uct_child[next_index].IsDraw()) {
 			if (pos->turn() == Black) {
-				// 白が選んだ手なので、白の引き分けの価値を返す
-				result = draw_value_white;
+				// 着手前の手番が黒なので、黒の引き分けの価値を返す
+				result = draw_value_black;
 			}
 			else {
-				// 黒が選んだ手なので、黒の引き分けの価値を返す
-				result = draw_value_black;
+				// 着手前の手番が白なので、白の引き分けの価値を返す
+				result = draw_value_white;
 			}
 		}
 		// 詰みのチェック
@@ -1666,6 +1666,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		else {
 			// 手番を入れ替えて1手深く読む
+			pos->doMove(selected_move, st);
 			result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
 		}
 	}
