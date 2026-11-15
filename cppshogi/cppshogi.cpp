@@ -34,6 +34,68 @@ inline void set_features2(packed_features2_t packed_features2, const int f2idx)
 	packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
 }
 
+inline void add_attacks(Bitboard (&counts)[MAX_ATTACK_NUM], const Bitboard& attacks) {
+	// 下の段を更新する前に、利きが重なるマスを上の段へ加える。
+#if defined(HAVE_AVX2)
+	static_assert(MAX_ATTACK_NUM == 3 && sizeof(Bitboard) == 16,
+		"AVX2 attack counts require three 128-bit boards");
+	const __m128i attack = _mm_set_epi64x(attacks.p(1), attacks.p(0));
+	const __m256i both = _mm256_broadcastsi128_si256(attack);
+	const __m256i lower = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&counts[0]));
+	const __m256i upper = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&counts[1]));
+	// 旧[0,1]から[1,2]を同時に更新する。読み込みは書き込みより先に行う。
+	_mm256_storeu_si256(reinterpret_cast<__m256i*>(&counts[1]),
+		_mm256_or_si256(upper, _mm256_and_si256(lower, both)));
+#else
+	for (int i = MAX_ATTACK_NUM - 1; i > 0; --i)
+		counts[i] |= counts[i - 1] & attacks;
+#endif
+	counts[0] |= attacks;
+}
+
+template <Color turn>
+inline void set_attack_features(features1_t features1, const Color c, const int f1idx, Bitboard attacks) {
+	FOREACH_BB(attacks, Square to, {
+		if (turn == White) to = SQ99 - to;
+		set_features1(features1, c, f1idx, to);
+	});
+}
+
+template <Color turn>
+inline void set_attack_features(packed_features1_t features1, const Color c, const int f1idx, Bitboard attacks) {
+	u64 low, high;
+	if constexpr (turn == White) {
+		// 各バイト内のビットを反転してから、バイト順も反転する
+		const Bitboard mask1(0x5555555555555555ULL, 0x5555555555555555ULL);
+		const Bitboard mask2(0x3333333333333333ULL, 0x3333333333333333ULL);
+		const Bitboard mask4(0x0f0f0f0f0f0f0f0fULL, 0x0f0f0f0f0f0f0f0fULL);
+		attacks = ((attacks >> 1) & mask1) | ((attacks & mask1) << 1);
+		attacks = ((attacks >> 2) & mask2) | ((attacks & mask2) << 2);
+		attacks = ((attacks >> 4) & mask4) | ((attacks & mask4) << 4);
+		attacks = attacks.byteReverse();
+		low = (attacks.p(1) << 17) | (attacks.p(0) >> 46);
+		high = attacks.p(1) >> 47;
+	}
+	else {
+		// Bitboardの63ビット＋18ビットを、連続した81ビットに詰める
+		low = attacks.p(0) | (attacks.p(1) << 63);
+		high = attacks.p(1) >> 1;
+	}
+
+	const int idx = MAX_FEATURES1_NUM * (int)SquareNum * (int)c + (int)SquareNum * f1idx;
+	const int shift = idx & 7;
+	if (shift != 0) {
+		high = (high << shift) | (low >> (64 - shift));
+		low <<= shift;
+	}
+	// 境界バイトの隣接特徴量や、呼び出し前に立っていたビットは保持する
+	char* out = features1 + (idx >> 3);
+	for (int i = 0; i < 8; ++i)
+		out[i] |= static_cast<char>((low >> (8 * i)) & 0xff);
+	for (int i = 0; i < 3; ++i)
+		out[8 + i] |= static_cast<char>((high >> (8 * i)) & 0xff);
+}
+
 // make input features
 template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
 inline void make_input_features(const Position& position, T1 features1, T2 features2) {
@@ -43,7 +105,8 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 	Bitboard pawns_bb = position.bbOf(Pawn);
 	Bitboard without_pawns_bb = occupied_bb & ~pawns_bb;
 	// 利き数集計用
-	int attack_num[ColorNum][SquareNum] = {};
+	Bitboard attack_num[ColorNum][MAX_ATTACK_NUM];
+	std::memset(attack_num, 0, sizeof(attack_num));
 
 	// 歩以外
 	FOREACH_BB(without_pawns_bb, Square sq, {
@@ -61,19 +124,15 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		// 駒の配置
 		set_features1(features1, c, pt - 1, sq);
 
+		// 利き数は盤面を反転せず、1枚以上・2枚以上・3枚以上に分けて集計する。
+		add_attacks(attack_num[c], attacks);
+
 		FOREACH_BB(attacks, Square to, {
 			// 後手の場合、盤面を180度回転
 			if (turn == White) to = SQ99 - to;
 
 			// 駒の利き
 			set_features1(features1, c, PIECETYPE_NUM + pt - 1, to);
-
-			// 利き数
-			auto& num = attack_num[c][to];
-			if (num < MAX_ATTACK_NUM) {
-				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + num, to);
-				num++;
-			}
 		});
 	});
 
@@ -83,6 +142,9 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 
 		// 歩
 		Bitboard pawns_bb2 = pawns_bb & position.bbOf(c2);
+		// 歩の利き先は重ならないため、全ての歩をまとめて加算できる。
+		const Bitboard pawn_attacks = c2 == Black ? pawns_bb2 >> 1 : pawns_bb2 << 1;
+		add_attacks(attack_num[c], pawn_attacks);
 		const SquareDelta pawnDelta = c == Black ? DeltaN : DeltaS;
 		FOREACH_BB(pawns_bb2, Square sq, {
 			// 後手の場合、盤面を180度回転
@@ -94,14 +156,12 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 			// 駒の利き
 			const Square to = sq + pawnDelta; // 1マス先
 			set_features1(features1, c, PIECETYPE_NUM + Pawn - 1, to);
-
-			// 利き数
-			auto& num = attack_num[c][to];
-			if (num < MAX_ATTACK_NUM) {
-				set_features1(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + num, to);
-				num++;
-			}
 		});
+
+		// 集計した利き数を特徴量に変換する。
+		for (int i = 0; i < MAX_ATTACK_NUM; ++i) {
+			set_attack_features<turn>(features1, c, PIECETYPE_NUM + PIECETYPE_NUM + i, attack_num[c][i]);
+		}
 
 		// 持ち駒
 		const Hand hand = position.hand(c);
