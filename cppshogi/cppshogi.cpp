@@ -218,12 +218,10 @@ int make_move_label(const u16 move16, const Color color) {
 			from_sq = (u16)SQ99 - from_sq;
 		}
 
-		const div_t to_d = div(to_sq, 9);
-		const int to_x = to_d.quot;
-		const int to_y = to_d.rem;
-		const div_t from_d = div(from_sq, 9);
-		const int from_x = from_d.quot;
-		const int from_y = from_d.rem;
+		const int to_x = to_sq / 9;
+		const int to_y = to_sq % 9;
+		const int from_x = from_sq / 9;
+		const int from_y = from_sq % 9;
 		const int dir_x = from_x - to_x;
 		const int dir_y = to_y - from_y;
 
