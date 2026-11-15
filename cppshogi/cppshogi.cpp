@@ -111,6 +111,34 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 		out[8 + i] |= static_cast<char>((high >> (8 * i)) & 0xff);
 }
 
+template <typename T1>
+FORCE_INLINE Bitboard feature_attacks(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied) {
+    // 圧縮形式では、既存の駒別利き生成をその場で展開する。
+    // 同条件の計測で圧縮形式は高速化したが、floatの先手では遅くなったため、floatは従来の呼び出しを保つ。
+    if constexpr (std::is_same_v<T1, packed_features1_t>) {
+        switch (pt) {
+        case Occupied:  return allZeroBB();
+        case Pawn:      return pawnAttack(c, sq);
+        case Lance:     return lanceAttack(c, sq, occupied);
+        case Knight:    return knightAttack(c, sq);
+        case Silver:    return silverAttack(c, sq);
+        case Bishop:    return bishopAttack(sq, occupied);
+        case Rook:      return rookAttack(sq, occupied);
+        case Gold:
+        case ProPawn:
+        case ProLance:
+        case ProKnight:
+        case ProSilver: return goldAttack(c, sq);
+        case King:      return kingAttack(sq);
+        case Horse:     return horseAttack(sq, occupied);
+        case Dragon:    return dragonAttack(sq, occupied);
+        default:        UNREACHABLE; return allOneBB();
+        }
+    } else {
+        return Position::attacksFrom(pt, c, sq, occupied);
+    }
+}
+
 // make input features
 template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
 inline void make_input_features(const Position& position, T1 features1, T2 features2) {
@@ -134,7 +162,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 		const Piece pc = position.piece(sq);
 		const PieceType pt = pieceToPieceType(pc);
 		Color c = pieceToColor(pc);
-		Bitboard attacks = Position::attacksFrom(pt, c, sq, occupied_bb);
+		Bitboard attacks = feature_attacks<T1>(pt, c, sq, occupied_bb);
 
 		// 後手の場合、色を反転し、盤面を180度回転
 		if (turn == White) {
