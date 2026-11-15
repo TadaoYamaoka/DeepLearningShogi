@@ -123,8 +123,22 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
-	void SetEvaled() { move_count = 0; }
+	bool IsEvaled() const {
+#ifdef LEARN
+		return move_count != NOT_EXPANDED;
+#else
+		// 評価完了を確認した後に、公開されたpolicyや終端情報を参照する
+		return move_count.load(std::memory_order_acquire) != NOT_EXPANDED;
+#endif
+	}
+	void SetEvaled() {
+#ifdef LEARN
+		move_count = 0;
+#else
+		// policyや終端情報の書き込みを、評価完了とともに公開する
+		move_count.store(0, std::memory_order_release);
+#endif
+	}
 
 	atomic_t<int> move_count;
 	atomic_t<WinType> win;
