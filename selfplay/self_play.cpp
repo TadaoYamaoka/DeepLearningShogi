@@ -1044,16 +1044,8 @@ void UCTSearcherGroup::EvalNode() {
 		const int child_num = node->child_num;
 		child_node_t* uct_child = node->child.get();
 
-		// 合法手一覧
-		for (int j = 0; j < child_num; j++) {
-			Move move = uct_child[j].GetMove();
-			const int move_label = make_move_label((u16)move.proFromAndTo(), color);
-			const float logit = (float)(*logits)[move_label];
-			uct_child[j].nnrate = logit;
-		}
-
-		// Boltzmann distribution
-		softmax_temperature_with_normalize(uct_child, child_num);
+		// 合法手のlogitを着手確率に変換する。
+		softmax_temperature_with_normalize(uct_child, child_num, *logits, color);
 
 		float value_win = (float)*value;
 

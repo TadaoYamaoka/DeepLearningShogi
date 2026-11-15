@@ -202,3 +202,31 @@ void softmax_temperature_with_normalize(child_node_t* child_node, const int chil
         x *= inv_sum;
     }
 }
+
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num, const DType* logits, const Color color) {
+    assert(child_num >= 0 && child_num <= MaxLegalMoves);
+    // 途中値は連続したfloat配列に保持し、正規化後にだけnnrateへ書き戻す。
+    alignas(32) float values[MaxLegalMoves];
+    const float scale = beta;
+    float max = std::numeric_limits<float>::lowest();
+    for (int i = 0; i < child_num; i++) {
+        const Move move = child_node[i].GetMove();
+        const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+        const float x = (float)logits[move_label] * scale;
+        values[i] = x;
+        if (x > max) {
+            max = x;
+        }
+    }
+    // expfと加算の順序は従来のsoftmaxと揃える。
+    float sum = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = values[i];
+        x = expf(x - max);
+        sum += x;
+    }
+    const float inv_sum = 1.0f / sum;
+    for (int i = 0; i < child_num; i++) {
+        child_node[i].nnrate = values[i] * inv_sum;
+    }
+}

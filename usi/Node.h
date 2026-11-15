@@ -170,3 +170,5 @@ private:
 // Boltzmann distribution
 void set_softmax_temperature(const float temperature);
 void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num);
+// 合法手のlogitを連続バッファ上で正規化する。child_numはMaxLegalMoves以下。
+void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num, const DType* logits, const Color color);
