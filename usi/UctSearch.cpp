@@ -1517,13 +1517,13 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	uct_node_t* child_node = created_child
 		? current->CreateChildNode(next_index)
 		: current->child_nodes[next_index].get();
-	const Move selected_move = uct_child[next_index].GetMove();
 	lock.unlock();
 
 	StateInfo st;
 	// ノードの展開の確認
 	if (created_child) {
 		// 新規ノードの判定には着手後の局面が必要。着手はノードのロック外で行う。
+		const Move selected_move = uct_child[next_index].GetMove();
 		pos->doMove(selected_move, st);
 
 		// ノードの作成
@@ -1665,7 +1665,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		else {
 			// 手番を入れ替えて1手深く読む
-			pos->doMove(selected_move, st);
+			pos->doMove(Move(move_value), st);
 			result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
 		}
 	}
