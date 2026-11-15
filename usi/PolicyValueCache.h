@@ -59,6 +59,9 @@ public:
 			// 行い、このキャッシュへ再入してはならない。
 			for (size_t i = 0; i < policy_size; ++i)
 				set_policy(i, result.policy[i]);
+			// 既に先頭なら、LRU更新用のロック取得・再検索は不要。
+			if (it->second.lru_position == shard.lru.begin())
+				return true;
 		}
 
 		// ヒット処理を待たせないため、LRU順の更新は排他ロックを
