@@ -1410,8 +1410,8 @@ UCTSearcher::ParallelUctSearch()
 
 		// 破棄した探索経路のVirtual Lossを戻す
 		for (auto trajectories : trajectories_batch_discarded) {
-			for (int i = static_cast<int>(trajectories->size() - 1); i >= 0; i--) {
-				auto& current_next = trajectories->at(i);
+			for (auto it = trajectories->rbegin(); it != trajectories->rend(); ++it) {
+				auto& current_next = *it;
 				uct_node_t* current = current_next.first;
 				child_node_t* uct_child = current->child.get();
 				const unsigned int next_index = current_next.second;
