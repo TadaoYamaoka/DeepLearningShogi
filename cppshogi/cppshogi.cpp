@@ -169,7 +169,7 @@ void make_input_features(const Position& position, packed_features1_t packed_fea
 		make_input_features<White, packed_features1_t, packed_features2_t>(position, packed_features1, packed_features2);
 }
 
-inline MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {
+constexpr MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {
 	if (dir_y < 0 && dir_x == 0) {
 		return UP;
 	}
@@ -202,6 +202,23 @@ inline MOVE_DIRECTION get_move_direction(const int dir_x, const int dir_y) {
 	}
 }
 
+namespace {
+struct MoveLabelTable {
+	u16 labels[SquareNum][SquareNum]{};
+
+	constexpr MoveLabelTable() {
+		for (int from = 0; from < SquareNum; ++from) {
+			for (int to = 0; to < SquareNum; ++to) {
+				labels[from][to] = static_cast<u16>(SquareNum *
+					get_move_direction(from / 9 - to / 9, to % 9 - from % 9) + to);
+			}
+		}
+	}
+};
+
+constexpr MoveLabelTable move_label_table;
+}
+
 // make move
 int make_move_label(const u16 move16, const Color color) {
 	// see: move.hpp : 30
@@ -210,6 +227,7 @@ int make_move_label(const u16 move16, const Color color) {
 	// x1xxxxxx xxxxxxxx  1 なら成り
 	u16 to_sq = move16 & 0b1111111;
 	u16 from_sq = (move16 >> 7) & 0b1111111;
+	assert(to_sq < SquareNum);
 
 	if (from_sq < SquareNum) {
 		// 白の場合、盤面を180度回転
@@ -218,20 +236,9 @@ int make_move_label(const u16 move16, const Color color) {
 			from_sq = (u16)SQ99 - from_sq;
 		}
 
-		const int to_x = to_sq / 9;
-		const int to_y = to_sq % 9;
-		const int from_x = from_sq / 9;
-		const int from_y = from_sq % 9;
-		const int dir_x = from_x - to_x;
-		const int dir_y = to_y - from_y;
-
-		MOVE_DIRECTION move_direction = get_move_direction(dir_x, dir_y);
-
-		// promote
-		if ((move16 & 0b100000000000000) > 0) {
-			move_direction = (MOVE_DIRECTION)(move_direction + 10);
-		}
-		return 9 * 9 * move_direction + to_sq;
+		return move_label_table.labels[from_sq][to_sq] +
+			// promote
+			((move16 & 0b100000000000000) ? 9 * 9 * 10 : 0);
 	}
 	// 持ち駒の場合
 	else {
