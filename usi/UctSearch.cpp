@@ -1,6 +1,5 @@
 ﻿#include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -172,9 +171,6 @@ float c_fpu_reduction_root;
 // モデルのパス
 string model_path[max_gpu];
 
-// ランダム
-uniform_int_distribution<int> rnd(0, 999);
-
 // 末端ノードでの詰み探索の深さ(奇数であること)
 #ifndef MATE_SEARCH_DEPTH
 constexpr int MATE_SEARCH_DEPTH = 5;
@@ -343,7 +339,6 @@ public:
 	UCTSearcher(UCTSearcherGroup* grp, const int thread_id, const int policy_value_batch_maxsize) :
 		grp(grp),
 		thread_id(thread_id),
-		mt(new std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count() + thread_id)),
 		handle(nullptr),
 		ready_th(true),
 		term_th(false),
@@ -378,7 +373,6 @@ public:
 	UCTSearcher(UCTSearcher&& o) :
 		grp(o.grp),
 		thread_id(o.thread_id),
-		mt(move(o.mt)),
 		handle(o.handle),
 		ready_th(o.ready_th),
 		term_th(o.term_th),
@@ -507,8 +501,6 @@ private:
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
 	int thread_id;
-	// 乱数生成器
-	unique_ptr<std::mt19937_64> mt;
 	// スレッドのハンドル
 	thread *handle;
 	// スレッドプール用
