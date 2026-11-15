@@ -196,8 +196,9 @@ void softmax_temperature_with_normalize(child_node_t* child_node, const int chil
         sum += x;
     }
     // normalize
+    const float inv_sum = 1.0f / sum;
     for (int i = 0; i < child_num; i++) {
         float& x = child_node[i].nnrate;
-        x /= sum;
+        x *= inv_sum;
     }
 }
