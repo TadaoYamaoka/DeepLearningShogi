@@ -105,8 +105,14 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 	}
 	// 境界バイトの隣接特徴量や、呼び出し前に立っていたビットは保持する
 	char* out = features1 + (idx >> 3);
+#if defined(HAVE_SSE4)
+	const __m128i previous = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(out));
+	const __m128i bits = _mm_cvtsi64_si128(low);
+	_mm_storel_epi64(reinterpret_cast<__m128i*>(out), _mm_or_si128(previous, bits));
+#else
 	for (int i = 0; i < 8; ++i)
 		out[i] |= static_cast<char>((low >> (8 * i)) & 0xff);
+#endif
 	for (int i = 0; i < 3; ++i)
 		out[8 + i] |= static_cast<char>((high >> (8 * i)) & 0xff);
 }
