@@ -1705,7 +1705,9 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	const float c = parent == nullptr ?
 		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
 		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
-	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(current->visited_nnrate);
+	// この関数はGetNodeMutex(current)を保持して呼ばれるため、加算も同じロックで保護される。
+	const float visited_nnrate = current->visited_nnrate.load(std::memory_order_relaxed);
+	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(visited_nnrate);
 	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
@@ -1760,7 +1762,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	}
 	else {
 		// for FPU reduction
-		atomic_fetch_add_relaxed(&current->visited_nnrate, uct_child[max_child].nnrate);
+		current->visited_nnrate.store(visited_nnrate + uct_child[max_child].nnrate, std::memory_order_relaxed);
 	}
 
 	return max_child;
