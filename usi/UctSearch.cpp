@@ -1706,7 +1706,9 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	const float visited_nnrate = current->visited_nnrate.load(std::memory_order_relaxed);
 	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(visited_nnrate);
 	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
-	const float init_u = sum == 0 ? 1.0f : sqrt_sum;
+	// 探索係数と親の訪問数に依存する乗算は、候補手のループ外で計算する。
+	const float c_sqrt_sum = c * sqrt_sum;
+	const float init_u = sum == 0 ? c : c_sqrt_sum;
 
 	// UCB値最大の手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1737,12 +1739,12 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		}
 		else {
 			q = (float)(win / move_count);
-			u = sqrt_sum / (1 + move_count);
+			u = c_sqrt_sum / (1 + move_count);
 		}
 
 		const float rate = uct_child[i].nnrate;
 
-		const float ucb_value = q + c * u * rate;
+		const float ucb_value = q + u * rate;
 
 		if (ucb_value > max_value) {
 			max_value = ucb_value;
