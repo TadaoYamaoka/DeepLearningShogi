@@ -1,5 +1,6 @@
 ﻿#include <numeric>
 #include <algorithm>
+#include <type_traits>
 
 #include "cppshogi.h"
 
@@ -66,6 +67,19 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 	u64 low, high;
 	if constexpr (turn == White) {
 		// 各バイト内のビットを反転してから、バイト順も反転する
+#if defined(HAVE_SSE4)
+		const __m128i value = _mm_set_epi64x(attacks.p(1), attacks.p(0));
+		const __m128i mask = _mm_set1_epi8(0x0f);
+		const __m128i reverse_nibble = _mm_setr_epi8(0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15);
+		const __m128i lo = _mm_shuffle_epi8(_mm_slli_epi16(reverse_nibble, 4), _mm_and_si128(value, mask));
+		const __m128i hi = _mm_shuffle_epi8(reverse_nibble, _mm_and_si128(_mm_srli_epi16(value, 4), mask));
+		const __m128i reversed = _mm_shuffle_epi8(_mm_or_si128(lo, hi),
+			_mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
+		const u64 reversed_low = static_cast<u64>(_mm_cvtsi128_si64(reversed));
+		const u64 reversed_high = static_cast<u64>(_mm_extract_epi64(reversed, 1));
+		low = (reversed_high << 17) | (reversed_low >> 46);
+		high = reversed_high >> 47;
+#else
 		const Bitboard mask1(0x5555555555555555ULL, 0x5555555555555555ULL);
 		const Bitboard mask2(0x3333333333333333ULL, 0x3333333333333333ULL);
 		const Bitboard mask4(0x0f0f0f0f0f0f0f0fULL, 0x0f0f0f0f0f0f0f0fULL);
@@ -75,6 +89,7 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 		attacks = attacks.byteReverse();
 		low = (attacks.p(1) << 17) | (attacks.p(0) >> 46);
 		high = attacks.p(1) >> 47;
+#endif
 	}
 	else {
 		// Bitboardの63ビット＋18ビットを、連続した81ビットに詰める
@@ -99,6 +114,12 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 // make input features
 template <Color turn, typename T1 = features1_t, typename T2 = features2_t>
 inline void make_input_features(const Position& position, T1 features1, T2 features2) {
+#if defined(HAVE_SSE4)
+	constexpr bool bulk_attacks = std::is_same_v<T1, packed_features1_t>;
+#else
+	// 後手の一括書き込みには、高速なビット反転が必要。
+	constexpr bool bulk_attacks = turn == Black && std::is_same_v<T1, packed_features1_t>;
+#endif
 	const Bitboard occupied_bb = position.occupiedBB();
 
 	// 歩と歩以外に分ける
@@ -126,6 +147,14 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 
 		// 利き数は盤面を反転せず、1枚以上・2枚以上・3枚以上に分けて集計する。
 		add_attacks(attack_num[c], attacks);
+
+		// 飛車・角・龍・馬の利きを、圧縮特徴量へまとめて書き込む。
+		if constexpr (bulk_attacks) {
+			if (pt == Bishop || pt == Rook || pt == Horse || pt == Dragon) {
+				set_attack_features<turn>(features1, c, PIECETYPE_NUM + pt - 1, attacks);
+				continue;
+			}
+		}
 
 		FOREACH_BB(attacks, Square to, {
 			// 後手の場合、盤面を180度回転
