@@ -253,7 +253,8 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	if constexpr (VIRTUAL_LOSS != 1) child->move_count.fetch_add(1 - VIRTUAL_LOSS, std::memory_order_relaxed);
 }
 
-typedef pair<uct_node_t*, unsigned int> trajectory_t;
+// 探索中は枝配列が再配置されないため、枝のアドレスを直接保持する。
+typedef pair<uct_node_t*, child_node_t*> trajectory_t;
 typedef vector<trajectory_t> trajectories_t;
 
 struct visitor_t {
@@ -1413,9 +1414,8 @@ UCTSearcher::ParallelUctSearch()
 			for (auto it = trajectories->rbegin(); it != trajectories->rend(); ++it) {
 				auto& current_next = *it;
 				uct_node_t* current = current_next.first;
-				child_node_t* uct_child = current->child.get();
-				const unsigned int next_index = current_next.second;
-				SubVirtualLoss(&uct_child[next_index], current);
+				child_node_t* child = current_next.second;
+				SubVirtualLoss(child, current);
 			}
 		}
 
@@ -1426,9 +1426,8 @@ UCTSearcher::ParallelUctSearch()
 			for (int i = static_cast<int>(trajectories.size() - 1); i >= 0; i--) {
 				auto& current_next = trajectories[i];
 				uct_node_t* current = current_next.first;
-				const unsigned int next_index = current_next.second;
-				child_node_t* uct_child = current->child.get();
-				UpdateResult(&uct_child[next_index], result, current);
+				child_node_t* child = current_next.second;
+				UpdateResult(child, result, current);
 				result = 1.0f - result;
 			}
 		}
@@ -1530,7 +1529,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 		// 経路を記録
-		trajectories.emplace_back(current, next_index);
+		trajectories.emplace_back(current, &uct_child[next_index]);
 
 		int isDraw = 0;
 		// 最大手数を超えていたら千日手扱いとする
@@ -1628,7 +1627,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	}
 	else {
 		// 経路を記録
-		trajectories.emplace_back(current, next_index);
+		trajectories.emplace_back(current, &uct_child[next_index]);
 
 		uct_node_t* next_node = child_node;
 
