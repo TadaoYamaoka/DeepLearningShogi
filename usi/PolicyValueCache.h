@@ -125,7 +125,8 @@ private:
 		uint64_t generation = 0;
 	};
 
-	struct Shard {
+	// 隣接シャードのロック・LRU更新が同じ64バイトのキャッシュラインを共有しないようにする。
+	struct alignas(64) Shard {
 		size_t capacity = 0;
 		std::shared_mutex mutex;
 		std::list<Key> lru;
