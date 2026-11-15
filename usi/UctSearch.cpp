@@ -13,6 +13,7 @@
 #include <iterator>
 #include <mutex>
 #include <numeric>
+#include <optional>
 #include <thread>
 #include <random>
 #include <queue>
@@ -469,8 +470,10 @@ private:
 	// UCT探索
 	void ParallelUctSearch();
 	//  UCT探索(1回の呼び出しにつき, 1回の探索)
+	template <bool ROOT>
 	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor);
 	// UCB値が最大の子ノードを返す
+	template <bool ROOT>
 	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
 	// ノードをキューに追加
 	bool QueuingNode(const Position* pos, uct_node_t* node, float* value_win);
@@ -520,6 +523,9 @@ private:
 	Key* policy_value_book_key;
 #endif
 	int current_policy_value_batch_index;
+
+	// 各探索の開始時に更新し、このスレッドのルート着手だけで使用する。
+	std::optional<CheckInfo> root_check_info;
 
 	// 探索経路のバッファは探索間で再利用する。poolは構築後にサイズを変更しない。
 	vector<visitor_t> visitor_pool;
@@ -1348,6 +1354,9 @@ UCTSearcher::ParallelUctSearch()
 	const bool is_monitoring_group = monitoring_group == grp;
 	UNLOCK_EXPAND;
 
+	// ルート局面は探索中に変わらないため、各プレイアウトで王手情報を再利用する。
+	root_check_info.emplace(*pos_root);
+
 	// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 	do {
 		visitor_batch.clear();
@@ -1383,7 +1392,7 @@ UCTSearcher::ParallelUctSearch()
 
 				// 1回プレイアウトする
 				visitor_pool[i].trajectories.clear();
-				const float result = UctSearch(&pos, nullptr, current_root, visitor_pool[i]);
+				const float result = UctSearch<true>(&pos, nullptr, current_root, visitor_pool[i]);
 
 				if (result != DISCARDED) {
 					// 探索回数を1回増やす
@@ -1496,19 +1505,31 @@ UCTSearcher::ParallelUctSearch()
 //  UCT探索を行う関数                        //
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
+template <bool ROOT>
 float
 UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor)
 {
+	assert((parent == nullptr) == ROOT);
 	float result;
 	child_node_t *uct_child = current->child.get();
 	auto& trajectories = visitor.trajectories;
+	const auto do_move = [this, pos](const Move move, StateInfo& st) {
+		if constexpr (ROOT) {
+			assert(root_check_info.has_value());
+			const CheckInfo& ci = *root_check_info;
+			pos->doMove(move, st, ci, pos->moveGivesCheck(move, ci));
+		}
+		else {
+			pos->doMove(move, st);
+		}
+	};
 
 	// 現在見ているノードをロック
 	std::unique_lock<std::mutex> lock(GetNodeMutex(current));
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
 	if (!current->child_nodes) current->InitChildNodes();
 	// UCB値最大の手を求める
-	const unsigned int next_index = SelectMaxUcbChild(parent, current);
+	const unsigned int next_index = SelectMaxUcbChild<ROOT>(parent, current);
 	// Virtual Lossを加算
 	AddVirtualLoss(&uct_child[next_index], current);
 	// ノードの展開確認と作成は同じロック区間で行う
@@ -1523,7 +1544,7 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 	if (created_child) {
 		// 新規ノードの判定には着手後の局面が必要。着手はノードのロック外で行う。
 		const Move selected_move = uct_child[next_index].GetMove();
-		pos->doMove(selected_move, st);
+		do_move(selected_move, st);
 
 		// ノードの作成
 		//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
@@ -1664,8 +1685,8 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 		}
 		else {
 			// 手番を入れ替えて1手深く読む
-			pos->doMove(Move(move_value), st);
-			result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
+			do_move(Move(move_value), st);
+			result = UctSearch<false>(pos, &uct_child[next_index], next_node, visitor);
 		}
 	}
 
@@ -1686,9 +1707,11 @@ UCTSearcher::UctSearch(Position *pos, child_node_t* parent, uct_node_t* current,
 /////////////////////////////////////////////////////
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
+template <bool ROOT>
 int
 UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 {
+	assert((parent == nullptr) == ROOT);
 	const child_node_t *uct_child = current->child.get();
 	const int child_num = current->child_num;
 	int max_child = 0;
@@ -1700,12 +1723,12 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 	max_value = -FLT_MAX;
 
 	const float sqrt_sum = sqrtf(static_cast<float>(sum));
-	const float c = parent == nullptr ?
-		FastLog((sum + c_base_root + 1.0f) / c_base_root) + c_init_root :
-		FastLog((sum + c_base + 1.0f) / c_base) + c_init;
+	const float base = ROOT ? c_base_root : c_base;
+	const float init = ROOT ? c_init_root : c_init;
+	const float c = FastLog((sum + base + 1.0f) / base) + init;
 	// この関数はGetNodeMutex(current)を保持して呼ばれるため、加算も同じロックで保護される。
 	const float visited_nnrate = current->visited_nnrate.load(std::memory_order_relaxed);
-	const float fpu_reduction = (parent == nullptr ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(visited_nnrate);
+	const float fpu_reduction = (ROOT ? c_fpu_reduction_root : c_fpu_reduction) * sqrtf(visited_nnrate);
 	const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 	// 探索係数と親の訪問数に依存する乗算は、候補手のループ外で計算する。
 	const float c_sqrt_sum = c * sqrt_sum;
@@ -1722,7 +1745,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 		}
 		else if (move_value & VALUE_LOSE) {
 			// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-			if (parent != nullptr)
+			if constexpr (!ROOT)
 				parent->SetWin();
 			else if (po_info.halt <= 0)
 				interruption = true;
@@ -1755,7 +1778,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 
 	if (child_win_count == child_num) {
 		// 子ノードがすべて勝ちのため、自ノードを負けにする
-		if (parent != nullptr)
+		if constexpr (!ROOT)
 			parent->SetLose();
 		else if (child_num > 0 && po_info.halt <= 0)
 			interruption = true;
