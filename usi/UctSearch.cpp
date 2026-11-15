@@ -1731,7 +1731,6 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			return i;
 		}
 
-		const WinType win = uct_child[i].win;
 		const int move_count = uct_child[i].move_count;
 
 		if (move_count == 0) {
@@ -1740,6 +1739,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 			u = init_u;
 		}
 		else {
+			const WinType win = uct_child[i].win;
 			q = (float)(win / move_count);
 			u = c_sqrt_sum / (1 + move_count);
 		}
