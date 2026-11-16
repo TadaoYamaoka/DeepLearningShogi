@@ -3,6 +3,8 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <thread>
+#include <deque>
 
 #include "cppshogi.h"
 #include "python_module.h"
@@ -10,8 +12,91 @@
 #include "dfpn.h"
 #include "mate.h"
 #include "PolicyValueCache.h"
+#include "Node.h"
 
 using namespace std;
+
+TEST(ChildNodeTest, PackedMoveAndFlagsPreserveLayout) {
+#ifndef WIN_TYPE_DOUBLE
+    EXPECT_EQ(16u, sizeof(child_node_t));
+#endif
+    const u32 moveValue = 0x00123456;
+    child_node_t child{Move(moveValue)};
+    EXPECT_EQ(moveValue, child.GetMove().value());
+    EXPECT_FALSE(child.IsWin());
+    EXPECT_FALSE(child.IsLose());
+    EXPECT_FALSE(child.IsDraw());
+    child.SetWin();
+    child.SetLose();
+    child.SetDraw();
+    EXPECT_EQ(moveValue | VALUE_WIN | VALUE_LOSE | VALUE_DRAW, child.GetMove().value());
+    EXPECT_TRUE(child.IsWin());
+    EXPECT_TRUE(child.IsLose());
+    EXPECT_TRUE(child.IsDraw());
+}
+
+TEST(ChildNodeTest, MovingPreservesMoveFlagsAndStatistics) {
+    child_node_t source{Move(0x00123456)};
+    source.SetWin();
+    source.move_count = 17;
+    source.win = 9;
+    source.nnrate = 0.75f;
+    child_node_t constructed(std::move(source));
+    child_node_t assigned;
+    assigned = std::move(constructed);
+    EXPECT_EQ(0x00123456u | VALUE_WIN, assigned.GetMove().value());
+    EXPECT_EQ(17, static_cast<int>(assigned.move_count));
+    EXPECT_EQ(static_cast<WinType>(9), static_cast<WinType>(assigned.win));
+    EXPECT_FLOAT_EQ(0.75f, assigned.nnrate);
+}
+
+#ifndef LEARN
+TEST(ChildNodeTest, ConcurrentFlagsPreserveMoveAndOtherFlags) {
+    const u32 moveValue = 0x00123456;
+    const u32 flagMask = VALUE_WIN | VALUE_LOSE | VALUE_DRAW;
+    child_node_t child{Move(moveValue)};
+    std::atomic<bool> start{false};
+    std::atomic<bool> invalid{false};
+    auto wait = [&] { while (!start.load(std::memory_order_acquire)) std::this_thread::yield(); };
+    std::thread win([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetWin(); });
+    std::thread lose([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetLose(); });
+    std::thread draw([&] { wait(); for (int i = 0; i < 100000; ++i) child.SetDraw(); });
+    std::thread reader([&] {
+        wait();
+        u32 previousFlags = 0;
+        for (int i = 0; i < 100000; ++i) {
+            const u32 value = child.GetMove().value();
+            if ((value & ~flagMask) != moveValue || (value & previousFlags) != previousFlags)
+                invalid.store(true, std::memory_order_relaxed);
+            previousFlags = value & flagMask;
+        }
+    });
+    start.store(true, std::memory_order_release);
+    win.join();
+    lose.join();
+    draw.join();
+    reader.join();
+    EXPECT_FALSE(invalid.load());
+    EXPECT_EQ(moveValue | flagMask, child.GetMove().value());
+}
+
+TEST(ChildNodeTest, EvalCompletionPublishesTerminalFlagAndChildren) {
+    child_node_t edge{Move(0x00123456)};
+    uct_node_t node;
+    std::thread publisher([&] {
+        node.child = std::make_unique<child_node_t[]>(1);
+        node.child[0].nnrate = 0.75f;
+        node.child_num = 1;
+        edge.SetDraw();
+        node.SetEvaled();
+    });
+    while (!node.IsEvaled()) std::this_thread::yield();
+    EXPECT_TRUE(edge.IsDraw());
+    EXPECT_EQ(1, node.child_num);
+    EXPECT_FLOAT_EQ(0.75f, node.child[0].nnrate);
+    publisher.join();
+}
+#endif
 
 TEST(Mate, AllMate5Positions) {
     constexpr const char* Mate5Path = R"(E:\game\shogi\mate3_5_7_9_11\mate5_filtered.sfen)";
@@ -1501,6 +1586,74 @@ TEST(DfPn, dfpn_get_pv) {
             EXPECT_EQ(pv_truth, pv);
         }
     }
+}
+
+TEST(DfPn, dfpn_get_pv_inferior) {
+    initTable();
+    Position::initZobrist();
+
+    Position pos;
+    // Start after move 132 and preserve the four moves needed for dominance.
+    // SFEN alone at move 137 does not reproduce RepetitionInferior.
+    pos.set("l6n1/7r1/3gpgn2/2P1sppSk/8B/PPG1S1GpL/1K1L+b1NRP/9/LN7 b 9Psp 133");
+    std::deque<StateInfo> states;
+    for (const auto text : {"1e2f", "P*1e", "2f1e", "S*2f"}) {
+        const Move move = usiToMove(pos, text);
+        ASSERT_TRUE(MoveList<Legal>(pos).contains(move)) << text;
+        pos.doMove(move, states.emplace_back());
+    }
+    const auto before = pos.toSFEN();
+    ASSERT_EQ("sfen l6n1/7r1/3gpgn2/2P1sppSk/8B/PPG1S1GsL/1K1L+b1NRP/9/LN7 b 11P 137", before);
+
+    DfPn dfpn;
+    dfpn.init();
+    ASSERT_TRUE(dfpn.dfpn(pos));
+    const Move best = dfpn.dfpn_move(pos);
+    ASSERT_TRUE(MoveList<Legal>(pos).contains(best));
+    ASSERT_EQ("1e2f", best.toUSI());
+    {
+        StateInfo state;
+        pos.doMove(best, state);
+        EXPECT_EQ(RepetitionInferior, pos.isDraw(16));
+        EXPECT_EQ(RepetitionInferior, pos.isDraw(256));
+        pos.undoMove(best);
+    }
+
+    const auto [pv, depth, move] = dfpn.get_pv(pos);
+    EXPECT_EQ("1e2f 1d2d 2f3e", pv);
+    EXPECT_EQ(3, depth);
+    EXPECT_EQ(best, move);
+    EXPECT_EQ(before, pos.toSFEN());
+
+    std::istringstream moves(pv);
+    std::string text;
+    while (moves >> text) {
+        const Move pv_move = usiToMove(pos, text);
+        ASSERT_TRUE(MoveList<Legal>(pos).contains(pv_move)) << text;
+        pos.doMove(pv_move, states.emplace_back());
+    }
+    EXPECT_TRUE(pos.inCheck());
+    EXPECT_EQ(0u, MoveList<Legal>(pos).size());
+}
+
+TEST(DfPn, dfpn_get_pv_empty) {
+    initTable();
+    Position::initZobrist();
+
+    Position pos;
+    pos.set(DefaultStartPositionSFEN);
+    DfPn dfpn;
+    dfpn.init();
+    const auto [pv, depth, move] = dfpn.get_pv(pos);
+    EXPECT_TRUE(pv.empty());
+    EXPECT_EQ(0, depth);
+    EXPECT_EQ(Move::moveNone(), move);
+
+    ASSERT_FALSE(dfpn.dfpn(pos));
+    const auto [nonmate_pv, nonmate_depth, nonmate_move] = dfpn.get_pv(pos);
+    EXPECT_TRUE(nonmate_pv.empty());
+    EXPECT_EQ(0, nonmate_depth);
+    EXPECT_EQ(Move::moveNone(), nonmate_move);
 }
 
 // DfPnのPV表示テスト

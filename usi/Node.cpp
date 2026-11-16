@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <mutex>
+#include <limits>
 
 NodeGarbageCollector gNodeGc;
 
@@ -18,7 +19,9 @@ uct_node_t* uct_node_t::ReleaseChildrenExceptOne(const Move move)
         for (int i = 0; i < child_num; ++i) {
             auto& uct_child = child[i];
             auto& child_node = child_nodes[i];
-            if (uct_child.move == move) {
+            // 勝敗・引き分けの状態ビットを除いて着手を比較する。
+            constexpr u32 outcome_mask = VALUE_WIN | VALUE_LOSE | VALUE_DRAW;
+            if ((uct_child.GetMove().value() & ~outcome_mask) == (move.value() & ~outcome_mask)) {
                 found = true;
                 if (!child_node) {
                     // 新しいノードを作成する
@@ -76,7 +79,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 
     history_starting_pos_key_ = starting_pos_key;
 
-    uct_node_t* old_head = current_head_;
+    const uct_node_t* const old_head = current_head_;
     uct_node_t* prev_head = nullptr;
     current_head_ = gamebegin_node_.get();
     bool seen_old_head = (gamebegin_node_.get() == old_head);
@@ -122,9 +125,9 @@ void set_softmax_temperature(const float temperature) {
     beta = 1.0f / temperature;
 }
 
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num) {
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num) {
     // apply beta exponent to probabilities(in log space)
-    float max = 0.0f;
+    float max = std::numeric_limits<float>::lowest();
     for (int i = 0; i < child_num; i++) {
         float& x = child_node[i].nnrate;
         x *= beta;
@@ -140,8 +143,37 @@ void softmax_temperature_with_normalize(child_node_t* child_node, const int chil
         sum += x;
     }
     // normalize
+    const float inv_sum = 1.0f / sum;
     for (int i = 0; i < child_num; i++) {
         float& x = child_node[i].nnrate;
-        x /= sum;
+        x *= inv_sum;
+    }
+}
+
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num, const DType* const logits, const Color color) {
+    assert(child_num >= 0 && child_num <= MaxLegalMoves);
+    // 途中値は連続したfloat配列に保持し、正規化後にだけnnrateへ書き戻す。
+    alignas(32) float values[MaxLegalMoves];
+    const float scale = beta;
+    float max = std::numeric_limits<float>::lowest();
+    for (int i = 0; i < child_num; i++) {
+        const Move move = child_node[i].GetMove();
+        const int move_label = make_move_label((u16)move.proFromAndTo(), color);
+        const float x = (float)logits[move_label] * scale;
+        values[i] = x;
+        if (x > max) {
+            max = x;
+        }
+    }
+    // expfと加算の順序は従来のsoftmaxと揃える。
+    float sum = 0.0f;
+    for (int i = 0; i < child_num; i++) {
+        float& x = values[i];
+        x = expf(x - max);
+        sum += x;
+    }
+    const float inv_sum = 1.0f / sum;
+    for (int i = 0; i < child_num; i++) {
+        child_node[i].nnrate = values[i] * inv_sum;
     }
 }

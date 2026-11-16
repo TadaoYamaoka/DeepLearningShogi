@@ -31,30 +31,61 @@ constexpr int NOT_EXPANDED = -1;
 
 struct uct_node_t;
 struct child_node_t {
-	child_node_t() : move_count(0), win((WinType)0), nnrate(0.0f) {}
-	child_node_t(const Move move)
-		: move(move), move_count(0), win((WinType)0), nnrate(0.0f) {}
+private:
+	// 着手と勝敗フラグを同じ32ビット値に保持する。
+	atomic_t<u32> move_;
+#ifndef LEARN
+	static_assert(std::atomic<u32>::is_always_lock_free, "Move flags must be lock-free");
+#endif
+
+	void AddMoveFlags(const u32 bits) {
+#ifdef LEARN
+		move_ |= bits;
+#else
+		// フラグは単調に増えるため、設定済みならRMWを繰り返さない。
+		if ((GetMove().value() & bits) != bits)
+			move_.fetch_or(bits, std::memory_order_relaxed);
+#endif
+	}
+
+public:
+	child_node_t(const Move move = Move::moveNone())
+		: move_(move.value()), nnrate(0.0f), move_count(0), win((WinType)0) {}
 	// ムーブコンストラクタ
 	child_node_t(child_node_t&& o) noexcept
-		: move(o.move), move_count((int)o.move_count), win((WinType)o.win), nnrate(o.nnrate) {}
+		: move_(o.GetMove().value()), nnrate(o.nnrate), move_count((int)o.move_count), win((WinType)o.win) {}
 	// ムーブ代入演算子
 	child_node_t& operator=(child_node_t&& o) noexcept {
-		move = o.move;
+		SetMove(o.GetMove());
 		move_count = (int)o.move_count;
 		win = (WinType)o.win;
 		nnrate = (float)o.nnrate;
 		return *this;
 	}
 
-	// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
-	bool IsWin() const { return move.value() & VALUE_WIN; }
-	void SetWin() { move |= Move(VALUE_WIN); }
-	bool IsLose() const { return move.value() & VALUE_LOSE; }
-	void SetLose() { move |= Move(VALUE_LOSE); }
-	bool IsDraw() const { return move.value() & VALUE_DRAW; }
-	void SetDraw() { move |= Move(VALUE_DRAW); }
+	// 従来どおり、上位ビットの勝敗フラグも含めて返す。
+	Move GetMove() const {
+#ifdef LEARN
+		return Move(move_);
+#else
+		return Move(move_.load(std::memory_order_relaxed));
+#endif
+	}
+	// 初期化・探索停止中のツリー再利用時のみ、着手全体を設定する。
+	void SetMove(const Move move) {
+#ifdef LEARN
+		move_ = move.value();
+#else
+		move_.store(move.value(), std::memory_order_relaxed);
+#endif
+	}
+	bool IsWin() const { return GetMove().value() & VALUE_WIN; }
+	void SetWin() { AddMoveFlags(VALUE_WIN); }
+	bool IsLose() const { return GetMove().value() & VALUE_LOSE; }
+	void SetLose() { AddMoveFlags(VALUE_LOSE); }
+	bool IsDraw() const { return GetMove().value() & VALUE_DRAW; }
+	void SetDraw() { AddMoveFlags(VALUE_DRAW); }
 
-	Move move;                   // 着手する座標
 	float nnrate;                // ニューラルネットワークでのレート
 	atomic_t<int> move_count; // 探索回数
 	atomic_t<WinType> win;    // 勝った回数
@@ -65,21 +96,21 @@ struct uct_node_t {
 		: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード作成
-	uct_node_t* CreateChildNode(int i) {
+	uct_node_t* CreateChildNode(const int i) {
 		return (child_nodes[i] = std::make_unique<uct_node_t>()).get();
 	}
 	// 子ノード一つのみで初期化する
 	void CreateSingleChildNode(const Move move) {
 		child_num = 1;
 		child = std::make_unique<child_node_t[]>(1);
-		child[0].move = move;
+		child[0].SetMove(move);
 	}
 	// 候補手の展開
-	void ExpandNode(const Position* pos) {
+	void ExpandNode(const Position* const pos) {
 		MoveList<Legal> ml(*pos);
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
-		for (; !ml.end(); ++ml) child_node++->move = ml.move();
+		for (; !ml.end(); ++ml) child_node++->SetMove(ml.move());
 		child_num = (short)ml.size();
 	}
 	// 子ノードへのポインタ配列の初期化
@@ -92,8 +123,22 @@ struct uct_node_t {
 	// 残したノードを返す
 	uct_node_t* ReleaseChildrenExceptOne(const Move move);
 
-	bool IsEvaled() const { return move_count != NOT_EXPANDED; }
-	void SetEvaled() { move_count = 0; }
+	bool IsEvaled() const {
+#ifdef LEARN
+		return move_count != NOT_EXPANDED;
+#else
+		// 評価完了を確認した後に、公開されたpolicyや終端情報を参照する
+		return move_count.load(std::memory_order_acquire) != NOT_EXPANDED;
+#endif
+	}
+	void SetEvaled() {
+#ifdef LEARN
+		move_count = 0;
+#else
+		// policyや終端情報の書き込みを、評価完了とともに公開する
+		move_count.store(0, std::memory_order_release);
+#endif
+	}
 
 	atomic_t<int> move_count;
 	atomic_t<WinType> win;
@@ -105,7 +150,7 @@ struct uct_node_t {
 
 class NodeTree {
 public:
-	~NodeTree() { DeallocateTree(); }
+	~NodeTree() = default;
 	// ツリー内の位置を設定し、ツリーの再利用を試みる
 	// 新しい位置が古い位置と同じゲームであるかどうかを返す（いくつかの着手動が追加されている）
 	// 位置が完全に異なる場合、または以前よりも短い場合は、falseを返す
@@ -178,4 +223,6 @@ private:
 
 // Boltzmann distribution
 void set_softmax_temperature(const float temperature);
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num);
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num);
+// 合法手のlogitを連続バッファ上で正規化する。child_numはMaxLegalMoves以下。
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num, const DType* const logits, const Color color);

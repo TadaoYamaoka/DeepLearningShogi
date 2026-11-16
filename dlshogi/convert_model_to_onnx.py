@@ -7,6 +7,7 @@ from dlshogi import serializers
 from dlshogi import cppshogi
 
 import argparse
+import inspect
 import sys
 
 def main(*argv):
@@ -18,6 +19,7 @@ def main(*argv):
     parser.add_argument('--fixed_batchsize', type=int)
     parser.add_argument('--remove_aux', action='store_true')
     parser.add_argument('--fuse', action='store_true')
+    parser.add_argument('--dynamo', action='store_true', help='Use the dynamo ONNX exporter when supported (default: disabled)')
     args = parser.parse_args(argv)
 
     if args.gpu >= 0:
@@ -59,8 +61,13 @@ def main(*argv):
     hcpevec = np.array([([ 88, 164,  73,  33,  12, 215,  87,  33, 126, 142,  77,  33,  44, 175,  66, 120,  20, 194, 171,  16, 158,  77,  33,  44, 215,  95,  33,  62, 142,  73,  33,  12], 0, 7739, 1, 0)] * batchsize, HuffmanCodedPosAndEval)
     x1, x2, t1, t2, z, value = mini_batch(hcpevec)
 
+    export_kwargs = {}
+    if 'dynamo' in inspect.signature(torch.onnx.export).parameters:
+        export_kwargs['dynamo'] = args.dynamo
+
     if args.fixed_batchsize is None:
         torch.onnx.export(model, (x1, x2), args.onnx,
+            **export_kwargs,
             verbose = True,
             do_constant_folding = True,
             input_names = ['input1', 'input2'],
@@ -73,6 +80,7 @@ def main(*argv):
                 })
     else:
         torch.onnx.export(model, (x1, x2), args.onnx,
+            **export_kwargs,
             verbose = True,
             do_constant_folding = True,
             input_names = ['input1', 'input2'],

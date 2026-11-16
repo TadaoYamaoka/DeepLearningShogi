@@ -6,12 +6,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('command')
 parser.add_argument('onnxfile')
 parser.add_argument('--batchsize', '-b', type=int, default=128)
-parser.add_argument('--gpu_id', '-g', type=int, nargs='+', default=0)
+parser.add_argument('--gpu_id', '-g', type=int, nargs='+', default=[0])
+parser.add_argument('--profiles', '-p', type=int, default=2, help='optimization profile count')
 args = parser.parse_args()
 
 procs = []
 for gpu_id in args.gpu_id:
-    procs.append(subprocess.Popen([args.command, args.onnxfile, '-b', str(args.batchsize), '-g', str(gpu_id)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+    procs.append(subprocess.Popen([args.command, args.onnxfile, '-b', str(args.batchsize), '-g', str(gpu_id), '-p', str(args.profiles)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
 
 for proc in procs:
     proc.wait()

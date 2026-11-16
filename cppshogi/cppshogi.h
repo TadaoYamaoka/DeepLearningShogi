@@ -95,7 +95,7 @@ enum Hcpe3MaxMove : u8 {
 	HCPE3_MAX_MOVE_512 = 3,
 };
 
-inline u8 hcpe3_max_move_to_code(const int maxMove) {
+constexpr u8 hcpe3_max_move_to_code(const int maxMove) {
 	switch (maxMove) {
 	case 256: return HCPE3_MAX_MOVE_256;
 	case 320: return HCPE3_MAX_MOVE_320;
@@ -104,7 +104,7 @@ inline u8 hcpe3_max_move_to_code(const int maxMove) {
 	}
 }
 
-inline int hcpe3_max_move_from_code(const u8 maxMoveCode) {
+constexpr int hcpe3_max_move_from_code(const u8 maxMoveCode) {
 	switch (maxMoveCode) {
 	case HCPE3_MAX_MOVE_256: return 256;
 	case HCPE3_MAX_MOVE_320: return 320;
@@ -113,30 +113,30 @@ inline int hcpe3_max_move_from_code(const u8 maxMoveCode) {
 	}
 }
 
-inline u8 make_hcpe3_game_info(const u8 opponent, const u8 maxMoveCode = HCPE3_MAX_MOVE_UNKNOWN) {
+constexpr u8 make_hcpe3_game_info(const u8 opponent, const u8 maxMoveCode = HCPE3_MAX_MOVE_UNKNOWN) {
 	assert(opponent <= 2);
 	assert(maxMoveCode <= 3);
 	return static_cast<u8>((opponent & HCPE3_GAME_INFO_OPPONENT_MASK) |
 		((maxMoveCode << HCPE3_GAME_INFO_MAX_MOVE_SHIFT) & HCPE3_GAME_INFO_MAX_MOVE_MASK));
 }
 
-inline u8 hcpe3_opponent(const u8 gameInfo) {
+constexpr u8 hcpe3_opponent(const u8 gameInfo) {
 	return gameInfo & HCPE3_GAME_INFO_OPPONENT_MASK;
 }
 
-inline u8 hcpe3_opponent(const HuffmanCodedPosAndEval3& hcpe3) {
+constexpr u8 hcpe3_opponent(const HuffmanCodedPosAndEval3& hcpe3) {
 	return hcpe3_opponent(hcpe3.gameInfo);
 }
 
-inline u8 hcpe3_max_move_code(const u8 gameInfo) {
+constexpr u8 hcpe3_max_move_code(const u8 gameInfo) {
 	return static_cast<u8>((gameInfo & HCPE3_GAME_INFO_MAX_MOVE_MASK) >> HCPE3_GAME_INFO_MAX_MOVE_SHIFT);
 }
 
-inline u8 hcpe3_max_move_code(const HuffmanCodedPosAndEval3& hcpe3) {
+constexpr u8 hcpe3_max_move_code(const HuffmanCodedPosAndEval3& hcpe3) {
 	return hcpe3_max_move_code(hcpe3.gameInfo);
 }
 
-inline int hcpe3_max_move(const HuffmanCodedPosAndEval3& hcpe3) {
+constexpr int hcpe3_max_move(const HuffmanCodedPosAndEval3& hcpe3) {
 	return hcpe3_max_move_from_code(hcpe3_max_move_code(hcpe3));
 }
 
@@ -149,7 +149,7 @@ static_assert(sizeof(MoveInfo) == 6, "");
 
 struct MoveVisits {
 	MoveVisits() {}
-	MoveVisits(const u16 move16, const u16 visitNum) : move16(move16), visitNum(visitNum) {}
+	constexpr MoveVisits(const u16 move16, const u16 visitNum) : move16(move16), visitNum(visitNum) {}
 
 	u16 move16;
 	u16 visitNum;
@@ -172,7 +172,7 @@ struct TrainingData {
     TrainingData() = default;
 	TrainingData(const HuffmanCodedPos& hcp, const float value, const float result)
 		: hcp(hcp), value(value), result(result), count(1) {};
-	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* candidates, const size_t candidateNum)
+	TrainingData(const Hcpe3CacheBody& body, const Hcpe3CacheCandidate* const candidates, const size_t candidateNum)
 		: hcp(body.hcp), value(body.value), result(body.result), count(body.count), candidates(candidateNum) {
 		for (size_t i = 0; i < candidateNum; i++) {
 			this->candidates.emplace(candidates[i].move16, candidates[i].prob);

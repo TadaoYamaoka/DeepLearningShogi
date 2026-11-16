@@ -6,6 +6,11 @@ CFLAGS += -DNYUGYOKU_FEATURES
 NVCC_CFLAGS += -DNYUGYOKU_FEATURES
 endif
 LDFLAGS = -lpthread -lnvinfer -lnvparsers -lnvonnxparser -lcudart -flto
+
+ifeq ($(TENSORRT10),1)
+CFLAGS += -DTENSORRT10
+LDFLAGS := $(filter-out -lnvparsers,$(LDFLAGS))
+endif
 INCLUDE = -I../cppshogi -I../usi -I../selfplay -I/usr/local/cuda/include
 LIB = -L/usr/local/cuda/lib64 -L$(CONDA_PREFIX)/lib
 

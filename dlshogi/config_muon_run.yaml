@@ -1,0 +1,59 @@
+seed_everything: 0
+
+trainer:
+  accelerator: gpu
+  devices: [0]
+  max_epochs: 2
+  precision: bf16-mixed
+  gradient_clip_val: 10.0
+  val_check_interval: 1.0
+  num_sanity_val_steps: 0
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        save_top_k: -1
+        save_on_train_epoch_end: true
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+
+model:
+  network: exp__by4x256_relu
+  model_filename: "model-exp__by4x256_muon"
+  val_lambda: 0.333
+  val_lambda_decay_epoch: null
+  use_ema: false
+  use_compile: true
+  lr_scheduler_interval: epoch
+
+data:
+  train_files:
+    - /work/hcpe3/floodgate_2022_0418_r3800_nomate.hcpe3
+  val_files:
+    - /work/hcpe3/floodgate.hcpe
+  batch_size: 4096
+  val_batch_size: 1024
+  use_average: true
+  use_evalfix: true
+  temperature: 1.0
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.001
+    weight_decay: 0.05
+    betas: [0.9, 0.95]
+    fused: true
+
+param_optimizers:
+  matrix:
+    class_path: torch.optim.Muon
+    init_args:
+      lr: 0.001
+      weight_decay: 0.05
+      momentum: 0.95
+      adjust_lr_fn: match_rms_adamw
+
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.StepLR
+  init_args:
+    step_size: 1
+    gamma: 0.5

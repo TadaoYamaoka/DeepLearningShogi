@@ -1,14 +1,15 @@
 import logging
 import os
 from collections import defaultdict
+from functools import partial, update_wrapper
+from types import MethodType
 
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks.progress.tqdm_progress import Tqdm, TQDMProgressBar
-from lightning.pytorch.cli import LightningCLI
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from lightning.pytorch.cli import LightningCLI, instantiate_class
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
@@ -16,7 +17,8 @@ from dlshogi import cppshogi, serializers
 from dlshogi.common import FEATURES1_NUM, FEATURES2_NUM, MAX_MOVE_LABEL_NUM
 from dlshogi.data_loader import DataLoader as HcpeDataLoader
 from dlshogi.data_loader import Hcpe3DataLoader
-from dlshogi.network.policy_value_network import policy_value_network
+from dlshogi.network.policy_value_network import policy_value_network, compile_model
+from dlshogi.optim import build_optimizer
 
 
 class HcpeDataset(Dataset):
@@ -216,10 +218,9 @@ class DataModule(pl.LightningDataModule):
                 and self.hparams.num_workers > 0
                 else 2,
             )
-            self.val_dataset = HcpeDataset(self.hparams.val_files)
 
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage == "predict":
+        # Assign validation/test/predict dataset for use in dataloader(s)
+        if stage in ("fit", "validate", "test", "predict"):
             self.val_dataset = HcpeDataset(self.hparams.val_files)
 
     def train_dataloader(self):
@@ -314,29 +315,14 @@ class Model(pl.LightningModule):
     def _compile_model(self, model):
         if not self.hparams.use_compile:
             return model
-        if not hasattr(torch, "compile"):
-            raise RuntimeError("torch.compile is not available. Please use PyTorch 2.0 or later.")
-
-        compile_kwargs = {}
-        compile_backend = self.hparams.get("compile_backend")
-        if compile_backend is None and os.name == "nt":
-            compile_backend = "aot_eager"
-        if compile_backend:
-            compile_kwargs["backend"] = compile_backend
-        compile_mode = self.hparams.get("compile_mode")
-        if compile_mode:
-            compile_kwargs["mode"] = compile_mode
-        if self.hparams.compile_fullgraph:
-            compile_kwargs["fullgraph"] = True
-        if self.hparams.compile_dynamic:
-            compile_kwargs["dynamic"] = True
-
-        logging.getLogger("lightning.pytorch.core").info(
-            "use torch.compile({})".format(
-                ", ".join(f"{key}={value}" for key, value in compile_kwargs.items())
-            )
+        return compile_model(
+            model,
+            backend=self.hparams.get("compile_backend"),
+            mode=self.hparams.get("compile_mode"),
+            fullgraph=self.hparams.compile_fullgraph,
+            dynamic=self.hparams.compile_dynamic,
+            logger=logging.getLogger("lightning.pytorch.core"),
         )
-        return torch.compile(model, **compile_kwargs)
 
     def _set_forward_model(self, model):
         object.__setattr__(self, "_forward_model", self._compile_model(model))
@@ -361,14 +347,17 @@ class Model(pl.LightningModule):
         loss3 = bce_with_logits_loss(y2, value)
         loss = (
             loss1
-            + (1 - self.hparams.val_lambda) * loss2
-            + self.hparams.val_lambda * loss3
+            + (1 - self.val_lambda) * loss2
+            + self.val_lambda * loss3
         )
         self.log("train/loss", loss)
         self.log("train/policy_loss", loss1)
         self.log("train/result_loss", loss2)
         self.log("train/value_loss", loss3)
         return loss
+
+    def _has_ema_updates(self):
+        return self.hparams.use_ema and self.ema_model.n_averaged.item() > 0
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
         if (
@@ -380,7 +369,7 @@ class Model(pl.LightningModule):
 
     def on_train_epoch_end(self):
         if (
-            self.hparams.use_ema
+            self._has_ema_updates()
             and self.hparams.update_bn
             and self.current_epoch == self.trainer.max_epochs - 1
             and self.current_epoch >= self.hparams.ema_start_epoch
@@ -403,10 +392,7 @@ class Model(pl.LightningModule):
 
     def on_fit_end(self):
         if self.hparams.model_filename:
-            if self.hparams.use_ema:
-                model = self.ema_model
-            else:
-                model = self.model
+            model = self.ema_model.module if self._has_ema_updates() else self.model
             model_filename = self.hparams.model_filename.format(
                 epoch=self.current_epoch, step=self.global_step
             )
@@ -451,10 +437,8 @@ class Model(pl.LightningModule):
             val.clear()
 
     def on_test_start(self):
-        if self.hparams.use_ema:
-            self.tmp_model = self.model
-            self.model = self.ema_model
-            self._set_forward_model(self.model)
+        if self._has_ema_updates():
+            self._set_forward_model(self.ema_model)
         return super().on_test_start()
 
     def test_step(self, batch, batch_idx):
@@ -468,33 +452,57 @@ class Model(pl.LightningModule):
 
     def on_test_end(self):
         super().on_test_end()
-        if self.hparams.use_ema:
-            self.model = self.tmp_model
+        if self._has_ema_updates():
             self._set_forward_model(self.model)
-            del self.tmp_model
+
+
+def _has_trainable_no_decay(model):
+    hook = getattr(model, "no_weight_decay", None)
+    if hook is None:
+        return False
+    names = set(hook())
+    return any(p.requires_grad for n, p in model.named_parameters() if n in names)
 
 
 class CustomLightningCLI(LightningCLI):
+    def add_arguments_to_parser(self, parser):
+        super().add_arguments_to_parser(parser)
+        parser.add_argument("--param_optimizers", type=dict, default={},
+                            help="{tag: optimizer config (class_path/init_args)}; "
+                                 "optimizes model.<tag>_parameters() with that optimizer")
+
+    def _add_configure_optimizers_method_to_model(self, subcommand):
+        optimizer_init = self._get(self.config_init, "optimizer")
+        routes = self._get(self.config_init, "param_optimizers") or {}
+        network = self.model.model
+        if not (self.auto_configure_optimizers and optimizer_init):
+            if routes:
+                raise ValueError("param_optimizers requires an automatically configured optimizer")
+            return super()._add_configure_optimizers_method_to_model(subcommand)
+
+        if not routes and not _has_trainable_no_decay(network):
+            # Preserve Lightning's original parameter list, including frozen/EMA parameters.
+            return super()._add_configure_optimizers_method_to_model(subcommand)
+
+        # Construct optimizer and scheduler in Lightning's order so the scheduler
+        # sees every param group, including those of routed optimizers.
+        optimizer = build_optimizer(
+            network, lambda init, params: instantiate_class(params, init), optimizer_init, routes
+        )
+        scheduler_init = self._get(self.config_init, "lr_scheduler")
+        lr_scheduler = instantiate_class(optimizer, scheduler_init) if scheduler_init else None
+        fn = partial(self.configure_optimizers, optimizer=optimizer, lr_scheduler=lr_scheduler)
+        update_wrapper(fn, self.configure_optimizers)
+        self.model.configure_optimizers = MethodType(fn, self.model)
+
     @staticmethod
     def configure_optimizers(lightning_module, optimizer, lr_scheduler=None):
-        if lightning_module.hparams.lr_scheduler_interval == "epoch":
-            return LightningCLI.configure_optimizers(
-                lightning_module, optimizer, lr_scheduler
-            )
-        if lr_scheduler is None:
-            return optimizer
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "step",
-                **(
-                    {"monitor": lr_scheduler.monitor}
-                    if isinstance(lr_scheduler, ReduceLROnPlateau)
-                    else {}
-                ),
-            },
-        }
+        config = LightningCLI.configure_optimizers(lightning_module, optimizer, lr_scheduler)
+        if lr_scheduler is not None and lightning_module.hparams.lr_scheduler_interval != "epoch":
+            if not isinstance(config, dict):
+                config = {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler}}
+            config["lr_scheduler"]["interval"] = "step"
+        return config
 
 
 def main():

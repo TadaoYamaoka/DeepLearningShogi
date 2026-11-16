@@ -247,7 +247,6 @@ ModelManifest.xml
 /dlshogi/model*
 /dlshogi/floodgate_train.txt
 /dlshogi/floodgate_test.txt
-/dlshogi/**/__pycache__
 /dlshogi.egg-info
 /dlshogi/opponent_models
 /dlshogi/cppshogi.pyd
@@ -257,3 +256,5 @@ ModelManifest.xml
 lightning_logs/
 .vscode/
 .devcontainer/
+__pycache__/
+*.so

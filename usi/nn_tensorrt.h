@@ -6,7 +6,7 @@
 #include "NvInferRuntimeCommon.h"
 #include "NvInfer.h"
 #include "NvOnnxParser.h"
-#include "int8_calibrator.h"
+#include "error_util.h"
 
 #include <memory>
 #include <mutex>
@@ -51,6 +51,8 @@ private:
 	const int gpu_id;
 	const int max_batch_size;
 	const int profile_count;
+	// The runtime must outlive the engine deserialized from it.
+	InferUniquePtr<nvinfer1::IRuntime> runtime;
 	InferUniquePtr<nvinfer1::ICudaEngine> engine;
 	nvinfer1::Dims inputDims1;
 	nvinfer1::Dims inputDims2;

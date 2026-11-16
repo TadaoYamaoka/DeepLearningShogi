@@ -27,7 +27,7 @@ public:
 
 		for (size_t i = 0; i < kShardCount; ++i) {
 			auto& shard = shards_[i];
-			std::unique_lock<std::shared_mutex> lock(shard.mutex);
+			const std::unique_lock<std::shared_mutex> lock(shard.mutex);
 			shard.entries.clear();
 			shard.lru.clear();
 			shard.capacity = i < shard_count_
@@ -47,8 +47,8 @@ public:
 		auto& shard = GetShard(key);
 		uint64_t generation;
 		{
-			std::shared_lock<std::shared_mutex> lock(shard.mutex);
-			auto it = shard.entries.find(key);
+			const std::shared_lock<std::shared_mutex> lock(shard.mutex);
+			const auto it = shard.entries.find(key);
 			if (it == shard.entries.end() || it->second.result.policy.size() != policy_size)
 				return false;
 
@@ -59,13 +59,16 @@ public:
 			// 行い、このキャッシュへ再入してはならない。
 			for (size_t i = 0; i < policy_size; ++i)
 				set_policy(i, result.policy[i]);
+			// 既に先頭なら、LRU更新用のロック取得・再検索は不要。
+			if (it->second.lru_position == shard.lru.begin())
+				return true;
 		}
 
 		// ヒット処理を待たせないため、LRU順の更新は排他ロックを
 		// 即時取得できた場合だけ行う。
-		std::unique_lock<std::shared_mutex> lock(shard.mutex, std::try_to_lock);
+		const std::unique_lock<std::shared_mutex> lock(shard.mutex, std::try_to_lock);
 		if (lock.owns_lock()) {
-			auto it = shard.entries.find(key);
+			const auto it = shard.entries.find(key);
 			if (it != shard.entries.end() && it->second.generation == generation)
 				shard.lru.splice(shard.lru.begin(), shard.lru, it->second.lru_position);
 		}
@@ -80,8 +83,8 @@ public:
 			return;
 
 		auto& shard = GetShard(key);
-		std::unique_lock<std::shared_mutex> lock(shard.mutex);
-		auto it = shard.entries.find(key);
+		const std::unique_lock<std::shared_mutex> lock(shard.mutex);
+		const auto it = shard.entries.find(key);
 		if (it != shard.entries.end()) {
 			// 同じ局面を複数GPUが推論した場合は先着結果を維持する。
 			// policy長が異なる場合だけ不整合エントリとして置換する。
@@ -125,7 +128,8 @@ private:
 		uint64_t generation = 0;
 	};
 
-	struct Shard {
+	// 隣接シャードのロック・LRU更新が同じ64バイトのキャッシュラインを共有しないようにする。
+	struct alignas(64) Shard {
 		size_t capacity = 0;
 		std::shared_mutex mutex;
 		std::list<Key> lru;

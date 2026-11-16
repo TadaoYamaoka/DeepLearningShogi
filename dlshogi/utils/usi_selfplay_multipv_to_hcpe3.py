@@ -18,6 +18,7 @@ import math
 import os
 import random
 import re
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -334,9 +335,6 @@ def play_one_game(
     board.reset()
 
     opening = openings[game_index % len(openings)]
-    if args.opening_seed is not None:
-        # Deterministic but varied when openings were shuffled before the loop.
-        opening = openings[game_index % len(openings)]
     played_opening, repetition_hash = apply_opening(board, opening, args.opening_moves)
     start_hcp = np.zeros(1, dtypeHcp)
     board.to_hcp(start_hcp)
@@ -354,21 +352,20 @@ def play_one_game(
     win = RESULT_DRAW
 
     while True:
+        if board.is_game_over():
+            win = opponent(board.turn)
+            break
         if board.move_number > args.draw:
             is_max_moves = True
             win = RESULT_DRAW
-            break
-        if board.is_game_over():
-            win = opponent(board.turn)
             break
 
         engine.position(usi_moves, listener=listener)
         listener.clear()
 
-        import time as _time
-        start = _time.perf_counter()
+        start = time.perf_counter()
         bestmove, _pondermove = engine.go(listener=listener, **build_go_kwargs(args, remain_time))
-        elapsed_ms = math.ceil((_time.perf_counter() - start) * 1000)
+        elapsed_ms = math.ceil((time.perf_counter() - start) * 1000)
 
         if args.time is not None and args.nodes is None:
             remain_time[board.turn] = (remain_time[board.turn] or 0) + (args.inc or 0) - elapsed_ms
