@@ -31,8 +31,8 @@
 //#define SPDLOG_DEBUG_ON
 #define SPDLOG_EOL "\n"
 #include "spdlog/spdlog.h"
-auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
-auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
+const auto loggersink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+const auto logger = std::make_shared<spdlog::async_logger>("selfplay", loggersink, 8192);
 
 using namespace std;
 
@@ -129,7 +129,7 @@ void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vec
 	size_t count = 0;
 	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
 		count++;
-		auto itr = bookMap.find(entry.key);
+		const auto itr = bookMap.find(entry.key);
 		if (itr != bookMap.end()) {
 			// すでにある場合、追加
 			itr->second.emplace_back(entry);
@@ -143,7 +143,7 @@ void read_book(const std::string& bookFileName, std::unordered_map<Key, std::vec
 #endif
 
 struct CachedNNRequest {
-	CachedNNRequest(size_t size) : nnrate(size) {}
+	CachedNNRequest(const size_t size) : nnrate(size) {}
 	float value_win;
 	std::vector<float> nnrate;
 };
@@ -212,7 +212,7 @@ struct batch_element_t {
 
 // 探索結果の更新
 inline void
-UpdateResult(child_node_t* child, float result, uct_node_t* current)
+UpdateResult(child_node_t* const child, const float result, uct_node_t* const current)
 {
 	current->win += (WinType)result;
 	current->move_count++;
@@ -220,7 +220,7 @@ UpdateResult(child_node_t* child, float result, uct_node_t* current)
 	child->move_count++;
 }
 
-bool compare_child_node_ptr_descending(const child_node_t* lhs, const child_node_t* rhs)
+bool compare_child_node_ptr_descending(const child_node_t* const lhs, const child_node_t* const rhs)
 {
 	if (lhs->IsWin()) {
 		// 負けが確定しているノードは選択しない
@@ -279,7 +279,7 @@ inline s16 value_to_score(const float value) {
 
 // 詰み探索スロット
 struct MateSearchEntry {
-	Position *pos;
+	const Position *pos;
 	enum State { RUNNING, NOMATE, WIN, LOSE };
 	atomic<State> status;
 	Move move;
@@ -291,7 +291,7 @@ class UCTSearcher;
 class UCTSearcherGroupPair;
 class UCTSearcherGroup {
 public:
-	UCTSearcherGroup(const int gpu_id, const int group_id, const int policy_value_batch_maxsize, UCTSearcherGroupPair* parent) :
+	UCTSearcherGroup(const int gpu_id, const int group_id, const int policy_value_batch_maxsize, UCTSearcherGroupPair* const parent) :
 		gpu_id(gpu_id), group_id(group_id), policy_value_batch_maxsize(policy_value_batch_maxsize), parent(parent),
 		nn_cache(nn_cache_size),
 		current_policy_value_batch_index(0), features1(nullptr), features2(nullptr), policy_value_batch(nullptr), y1(nullptr), y2(nullptr), running(false) {
@@ -307,21 +307,21 @@ public:
 		checkCudaErrors(cudaFreeHost(y2));
 	}
 
-	void QueuingNode(const Position *pos, uct_node_t* node, float* value_win);
+	void QueuingNode(const Position* const pos, uct_node_t* const node, float* const value_win);
 	void EvalNode();
 	void SelfPlay();
 	void Run();
 	void Join();
-	void QueuingMateSearch(Position *pos, const int id) {
-		lock_guard<mutex> lock(mate_search_mutex);
+	void QueuingMateSearch(const Position* const pos, const int id) {
+		const lock_guard<mutex> lock(mate_search_mutex);
 		mate_search_slot[id].pos = pos;
 		mate_search_slot[id].status = MateSearchEntry::RUNNING;
 		mate_search_queue.push_back(id);
 	}
-	MateSearchEntry::State GetMateSearchStatus(const int id) {
+	MateSearchEntry::State GetMateSearchStatus(const int id) const {
 		return mate_search_slot[id].status;
 	}
-	Move GetMateSearchMove(const int id) {
+	Move GetMateSearchMove(const int id) const {
 		return mate_search_slot[id].move;
 	}
 	void MateSearch();
@@ -367,7 +367,7 @@ private:
 
 class UCTSearcher {
 public:
-	UCTSearcher(UCTSearcherGroup* grp, NNCache& nn_cache, const int id, const size_t entryNum) :
+	UCTSearcher(UCTSearcherGroup* const grp, NNCache& nn_cache, const int id, const size_t entryNum) :
 		grp(grp),
 		nn_cache(nn_cache),
 		id(id),
@@ -396,15 +396,15 @@ public:
 	void NextStep();
 
 private:
-	float UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor);
-	int SelectMaxUcbChild(child_node_t* parent, uct_node_t* current);
+	float UctSearch(Position* const pos, child_node_t* const parent, uct_node_t* const current, visitor_t& visitor);
+	int SelectMaxUcbChild(child_node_t* const parent, uct_node_t* const current);
 	bool InterruptionCheck(const int playout_count, const int extension_times);
 	void NextPly(const Move move);
 	void NextGame();
 
 	// キャッシュからnnrateをコピー
-	void CopyNNRate(uct_node_t* node, const vector<float>& nnrate) {
-		child_node_t* uct_child = node->child.get();
+	void CopyNNRate(uct_node_t* const node, const vector<float>& nnrate) {
+		child_node_t* const uct_child = node->child.get();
 		for (int i = 0; i < node->child_num; i++) {
 			uct_child[i].nnrate = nnrate[i];
 		}
@@ -459,13 +459,13 @@ private:
 
 	// 局面追加
 	// 訓練に使用しない手はtrainingをfalseにする
-	void AddRecord(Move move, s16 eval, bool training) {
+	void AddRecord(const Move move, const s16 eval, const bool training) {
 		Record& record = records.emplace_back(
 			static_cast<u16>(move.value()),
 			eval
 		);
 		if (training) {
-			const auto child = root_node->child.get();
+			const child_node_t* const child = root_node->child.get();
 			record.candidates.reserve(root_node->child_num);
 			const size_t child_num = root_node->child_num;
 			for (size_t i = 0; i < child_num; ++i) {
@@ -482,14 +482,14 @@ private:
 		}
 	}
 	// 局面出力
-	void WriteRecords(std::ofstream& ofs, HuffmanCodedPosAndEval3& hcpe3) {
-		std::unique_lock<Mutex> lock(omutex);
-		ofs.write(reinterpret_cast<char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
-		for (auto& record : records) {
-			MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
-			ofs.write(reinterpret_cast<char*>(&moveInfo), sizeof(MoveInfo));
+	void WriteRecords(std::ofstream& ofs, const HuffmanCodedPosAndEval3& hcpe3) const {
+		const std::unique_lock<Mutex> lock(omutex);
+		ofs.write(reinterpret_cast<const char*>(&hcpe3), sizeof(HuffmanCodedPosAndEval3));
+		for (const auto& record : records) {
+			const MoveInfo moveInfo{ record.selectedMove16, record.eval, static_cast<u16>(record.candidates.size()) };
+			ofs.write(reinterpret_cast<const char*>(&moveInfo), sizeof(MoveInfo));
 			if (record.candidates.size() > 0) {
-				ofs.write(reinterpret_cast<char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
+				ofs.write(reinterpret_cast<const char*>(record.candidates.data()), sizeof(MoveVisits) * record.candidates.size());
 				madeTeacherNodes++;
 			}
 		}
@@ -516,10 +516,10 @@ public:
 		nn->prepare_slots(threads);
 		mutex_all_gpu.unlock();
 	}
-	void nn_forward(const int slot_id, const int batch_size, packed_features1_t* x1, packed_features2_t* x2, DType* y1, DType* y2) {
+	void nn_forward(const int slot_id, const int batch_size, packed_features1_t* const x1, packed_features2_t* const x2, DType* const y1, DType* const y2) {
 		nn->forward(slot_id, batch_size, x1, x2, y1, y2);
 	}
-	int Running() {
+	int Running() const {
 		int running = 0;
 		for (int i = 0; i < threads; i++)
 			running += groups[i].running;
@@ -618,14 +618,14 @@ void UCTSearcherGroup::SelfPlay()
 		EvalNode();
 
 		// バックアップ
-		for (auto& visitor : visitor_batch) {
-			auto& trajectories = visitor.trajectories;
+		for (const auto& visitor : visitor_batch) {
+			const auto& trajectories = visitor.trajectories;
 			float result = 1.0f - visitor.value_win;
 			for (int i = (int)trajectories.size() - 1; i >= 0; i--) {
-				auto& current_next = trajectories[i];
-				uct_node_t* current = current_next.first;
+				const auto& current_next = trajectories[i];
+				uct_node_t* const current = current_next.first;
 				const unsigned int next_index = current_next.second;
-				child_node_t* uct_child = current->child.get();
+				child_node_t* const uct_child = current->child.get();
 				UpdateResult(&uct_child[next_index], result, current);
 				result = 1.0f - result;
 			}
@@ -685,7 +685,7 @@ void UCTSearcherGroup::MateSearch()
 			continue;
 		}
 
-		for (int& id : queue) {
+		for (const int id : queue) {
 			// 盤面のコピー
 			Position pos_copy(*mate_search_slot[id].pos);
 
@@ -714,10 +714,10 @@ void UCTSearcherGroup::MateSearch()
 //  1回の呼び出しにつき, 1プレイアウトする    //
 //////////////////////////////////////////////
 float
-UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current, visitor_t& visitor)
+UCTSearcher::UctSearch(Position* const pos, child_node_t* const parent, uct_node_t* const current, visitor_t& visitor)
 {
 	float result;
-	child_node_t* uct_child = current->child.get();
+	child_node_t* const uct_child = current->child.get();
 	auto& trajectories = visitor.trajectories;
 
 	// 子ノードへのポインタ配列が初期化されていない場合、初期化する
@@ -731,7 +731,7 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 	// ノードの展開の確認
 	if (!current->child_nodes[next_index]) {
 		// ノードの作成
-		uct_node_t* child_node = current->CreateChildNode(next_index);
+		uct_node_t* const child_node = current->CreateChildNode(next_index);
 
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
@@ -836,7 +836,7 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 		// 経路を記録
 		trajectories.emplace_back(current, next_index);
 
-		uct_node_t* next_node = current->child_nodes[next_index].get();
+		uct_node_t* const next_node = current->child_nodes[next_index].get();
 
 		if (uct_child[next_index].IsWin()) {
 			// 詰み、もしくはRepetitionWinかRepetitionSuperior
@@ -873,9 +873,9 @@ UCTSearcher::UctSearch(Position* pos, child_node_t* parent, uct_node_t* current,
 //  UCBが最大となる子ノードのインデックスを返す関数  //
 /////////////////////////////////////////////////////
 int
-UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
+UCTSearcher::SelectMaxUcbChild(child_node_t* const parent, uct_node_t* const current)
 {
-	const child_node_t* uct_child = current->child.get();
+	const child_node_t* const uct_child = current->child.get();
 	const int child_num = current->child_num;
 	int max_child = 0, max_child_nonoise = 0;
 	const int sum = current->move_count;
@@ -964,7 +964,7 @@ UCTSearcher::SelectMaxUcbChild(child_node_t* parent, uct_node_t* current)
 //  ノードをキューに追加            //
 //////////////////////////////////////
 void
-UCTSearcherGroup::QueuingNode(const Position *pos, uct_node_t* node, float* value_win)
+UCTSearcherGroup::QueuingNode(const Position* const pos, uct_node_t* const node, float* const value_win)
 {
 	// set all zero
 	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
@@ -989,7 +989,7 @@ UCTSearcher::InterruptionCheck(const int playout_count, const int extension_time
 	int max = 0, second = 0;
 	const int child_num = root_node->child_num;
 	const int rest = max_playout_num - playout_count;
-	const child_node_t* uct_child = root_node->child.get();
+	const child_node_t* const uct_child = root_node->child.get();
 
 	// 探索回数が最も多い手と次に多い手を求める
 	for (int i = 0; i < child_num; i++) {
@@ -1034,15 +1034,15 @@ void UCTSearcherGroup::EvalNode() {
 	// predict
 	parent->nn_forward(group_id, policy_value_batch_size, features1, features2, y1, y2);
 
-	DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-	DType *value = y2;
+	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<const DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
+	const DType *value = y2;
 
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
-		uct_node_t* node = policy_value_batch[i].node;
+		uct_node_t* const node = policy_value_batch[i].node;
 		const Color color = policy_value_batch[i].color;
 
 		const int child_num = node->child_num;
-		child_node_t* uct_child = node->child.get();
+		child_node_t* const uct_child = node->child.get();
 
 		// 合法手のlogitを着手確率に変換する。
 		softmax_temperature_with_normalize(uct_child, child_num, *logits, color);
@@ -1106,7 +1106,7 @@ void UCTSearcher::Playout(visitor_t& visitor)
 
 				// 開始局面を局面集からランダムに選ぶ
 				{
-					std::unique_lock<Mutex> lock(imutex);
+					const std::unique_lock<Mutex> lock(imutex);
 					ifs.seekg(inputFileDist(*mt_64) * sizeof(HuffmanCodedPos), std::ios_base::beg);
 					ifs.read(reinterpret_cast<char*>(&hcp), sizeof(hcp));
 				}
@@ -1305,7 +1305,7 @@ void UCTSearcher::NextStep()
 			}
 		}
 
-		const child_node_t* uct_child = root_node->child.get();
+		const child_node_t* const uct_child = root_node->child.get();
 		float best_wp;
 		Move best_move;
 		if (ply <= RANDOM_MOVE) {
@@ -1569,7 +1569,7 @@ void UCTSearcher::NextGame()
 
 	// すぐに終局した初期局面を出力する
 	if (OUT_MIN_HCP && ply < MIN_MOVE) {
-		std::unique_lock<Mutex> lock(omutex);
+		const std::unique_lock<Mutex> lock(omutex);
 		ofs_minhcp.write(reinterpret_cast<char*>(&hcp), sizeof(HuffmanCodedPos));
 	}
 
@@ -1579,7 +1579,7 @@ void UCTSearcher::NextGame()
 }
 
 // 教師局面生成
-void make_teacher(const char* recordFileName, const char* outputFileName, const vector<int>& gpu_id, const vector<int>& batchsize)
+void make_teacher(const char* const recordFileName, const char* const outputFileName, const vector<int>& gpu_id, const vector<int>& batchsize)
 {
 	s.init();
 
@@ -1623,7 +1623,7 @@ void make_teacher(const char* recordFileName, const char* outputFileName, const 
 		group_pairs[i].Run();
 
 	// 進捗状況表示
-	auto progressFunc = [&gpu_id, &group_pairs](MonotonicTimer& t) {
+	const auto progressFunc = [&gpu_id, &group_pairs](const MonotonicTimer& t) {
 		ostringstream ss;
 		for (size_t i = 0; i < gpu_id.size(); i++) {
 			if (i > 0) ss << " ";
@@ -1752,7 +1752,7 @@ int main(int argc, char* argv[]) {
 			;
 		options.parse_positional({ "modelfile", "hcp", "output", "nodes", "playout_num", "gpu_id", "batchsize", "positional" });
 
-		auto result = options.parse(argc, argv);
+		const auto result = options.parse(argc, argv);
 
 		if (result.count("help")) {
 			std::cout << options.help({}) << std::endl;
@@ -1764,14 +1764,14 @@ int main(int argc, char* argv[]) {
 			if (positional_count % 2 == 1) {
 				throw cxxopts::option_required_exception("batchsize");
 			}
-			auto positional = result["positional"].as<std::vector<int>>();
+			const auto positional = result["positional"].as<std::vector<int>>();
 			for (size_t i = 0; i < positional_count; i += 2) {
 				gpu_id.push_back(positional[i]);
 				batchsize.push_back(positional[i + 1]);
 			}
 		}
 	}
-	catch (cxxopts::OptionException &e) {
+	catch (const cxxopts::OptionException& e) {
 		std::cout << options.usage() << std::endl;
 		std::cerr << e.what() << std::endl;
 		return 0;

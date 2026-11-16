@@ -10,7 +10,7 @@ using namespace ns_dfpn;
 
 int64_t DfPn::HASH_SIZE_MB = 2048;
 int DfPn::draw_ply = INT_MAX;
-const constexpr uint32_t REPEAT = UINT_MAX - 1;
+constexpr uint32_t REPEAT = UINT_MAX - 1;
 
 // --- 詰み将棋探索
 
@@ -21,7 +21,7 @@ void DfPn::dfpn_stop(const bool stop)
 
 // 詰将棋エンジン用のMovePicker
 namespace ns_dfpn {
-	const constexpr size_t MaxCheckMoves = 91;
+	constexpr size_t MaxCheckMoves = 91;
 
 	template <bool or_node>
 	class MovePicker {
@@ -76,7 +76,7 @@ TranspositionTable::~TranspositionTable() {
 
 TTEntry& TranspositionTable::LookUp(const Key key, const Hand hand, const uint16_t depth) {
 	auto& entries = tt[key & clusters_mask];
-	uint32_t hash_high = key >> 32;
+	const uint32_t hash_high = key >> 32;
 	return LookUpDirect(entries, hash_high, hand, depth);
 }
 
@@ -181,7 +181,7 @@ TTEntry& TranspositionTable::LookUp(const Position& n) {
 
 // moveを指した後の子ノードのキーを返す
 template <bool or_node>
-void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) {
+void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) const {
 	// 手駒は常に先手の手駒で表す
 	if (or_node) {
 		hand = n.hand(n.turn());
@@ -199,7 +199,7 @@ void TranspositionTable::GetChildFirstEntry(const Position& n, const Move move, 
 	else {
 		hand = n.hand(oppositeColor(n.turn()));
 	}
-	Key key = n.getBoardKeyAfter(move);
+	const Key key = n.getBoardKeyAfter(move);
 	entries = &tt[key & clusters_mask];
 	hash_high = key >> 32;
 }
@@ -218,7 +218,7 @@ void TranspositionTable::Resize(int64_t hash_size_mb) {
 	if (hash_size_mb == 16) {
 		hash_size_mb = 4096;
 	}
-	int64_t new_num_clusters = 1LL << msb((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
+	const int64_t new_num_clusters = 1LL << msb((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
 	if (new_num_clusters == num_clusters) {
 		return;
 	}
@@ -246,7 +246,7 @@ void TranspositionTable::NewSearch() {
 	}
 }
 
-static const constexpr int kInfinitePnDn = 100000000;
+static constexpr int kInfinitePnDn = 100000000;
 
 // 王手の指し手が近接王手か
 FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
@@ -284,13 +284,13 @@ FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
 // 反証駒を計算(持っている持ち駒を最大数にする(後手の持ち駒を加える))
 FORCE_INLINE u32 dp(const Hand& us, const Hand& them) {
 	u32 dp = 0;
-	u32 pawn = us.exists<HPawn>(); if (pawn > 0) dp += pawn + them.exists<HPawn>();
-	u32 lance = us.exists<HLance>(); if (lance > 0) dp += lance + them.exists<HLance>();
-	u32 knight = us.exists<HKnight>(); if (knight > 0) dp += knight + them.exists<HKnight>();
-	u32 silver = us.exists<HSilver>(); if (silver > 0) dp += silver + them.exists<HSilver>();
-	u32 gold = us.exists<HGold>(); if (gold > 0) dp += gold + them.exists<HGold>();
-	u32 bishop = us.exists<HBishop>(); if (bishop > 0) dp += bishop + them.exists<HBishop>();
-	u32 rook = us.exists<HRook>(); if (rook > 0) dp += rook + them.exists<HRook>();
+	const u32 pawn = us.exists<HPawn>(); if (pawn > 0) dp += pawn + them.exists<HPawn>();
+	const u32 lance = us.exists<HLance>(); if (lance > 0) dp += lance + them.exists<HLance>();
+	const u32 knight = us.exists<HKnight>(); if (knight > 0) dp += knight + them.exists<HKnight>();
+	const u32 silver = us.exists<HSilver>(); if (silver > 0) dp += silver + them.exists<HSilver>();
+	const u32 gold = us.exists<HGold>(); if (gold > 0) dp += gold + them.exists<HGold>();
+	const u32 bishop = us.exists<HBishop>(); if (bishop > 0) dp += bishop + them.exists<HBishop>();
+	const u32 rook = us.exists<HRook>(); if (rook > 0) dp += rook + them.exists<HRook>();
 	return dp;
 }
 
@@ -335,9 +335,6 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 	if (entry.num_searched == 0) {
 		if (or_node) {
 			// 3手詰みチェック
-			Color us = n.turn();
-			Color them = oppositeColor(us);
-
 			StateInfo si;
 			StateInfo si2;
 
@@ -617,7 +614,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			u32 rook = UINT_MAX;
 			bool repeat = false; // 最大手数チェック用
 			for (const auto& move : move_picker) {
-				auto& ttkey = ttkeys[&move - move_picker.begin()];
+				const auto& ttkey = ttkeys[&move - move_picker.begin()];
 				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
 				if (child_entry.pn == 0) {
 					// 詰みの場合
@@ -702,13 +699,13 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					entry.num_searched = REPEAT;
 				else {
 					// 先手が一枚も持っていない種類の先手の持ち駒を反証駒から削除する
-					u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
-					u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
-					u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
-					u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
-					u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
-					u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
-					u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
+					const u32 curr_pawn = entry.hand.template exists<HPawn>(); if (curr_pawn == 0) pawn = 0; else if (pawn < curr_pawn) pawn = curr_pawn;
+					const u32 curr_lance = entry.hand.template exists<HLance>(); if (curr_lance == 0) lance = 0; else if (lance < curr_lance) lance = curr_lance;
+					const u32 curr_knight = entry.hand.template exists<HKnight>(); if (curr_knight == 0) knight = 0; else if (knight < curr_knight) knight = curr_knight;
+					const u32 curr_silver = entry.hand.template exists<HSilver>(); if (curr_silver == 0) silver = 0; else if (silver < curr_silver) silver = curr_silver;
+					const u32 curr_gold = entry.hand.template exists<HGold>(); if (curr_gold == 0) gold = 0; else if (gold < curr_gold) gold = curr_gold;
+					const u32 curr_bishop = entry.hand.template exists<HBishop>(); if (curr_bishop == 0) bishop = 0; else if (bishop < curr_bishop) bishop = curr_bishop;
+					const u32 curr_rook = entry.hand.template exists<HRook>(); if (curr_rook == 0) rook = 0; else if (rook < curr_rook) rook = curr_rook;
 					// 反証駒に子局面の証明駒の積集合を設定
 					entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 					//cout << entry.hand.value() << endl;
@@ -738,7 +735,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			u32 rook = 0;
 			bool all_mate = true;
 			for (const auto& move : move_picker) {
-				auto& ttkey = ttkeys[&move - move_picker.begin()];
+				const auto& ttkey = ttkeys[&move - move_picker.begin()];
 				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
 				if (all_mate) {
 					if (child_entry.pn == 0) {
@@ -821,13 +818,13 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				//cout << n.toSFEN() << " and" << endl;
 				//cout << bitset<32>(entry.hand.value()) << endl;
 				// 証明駒に子局面の証明駒の和集合を設定
-				u32 curr_pawn = entry.hand.template exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
-				u32 curr_lance = entry.hand.template exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
-				u32 curr_knight = entry.hand.template exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
-				u32 curr_silver = entry.hand.template exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
-				u32 curr_gold = entry.hand.template exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
-				u32 curr_bishop = entry.hand.template exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
-				u32 curr_rook = entry.hand.template exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
+				const u32 curr_pawn = entry.hand.template exists<HPawn>(); if (pawn > curr_pawn) pawn = curr_pawn;
+				const u32 curr_lance = entry.hand.template exists<HLance>(); if (lance > curr_lance) lance = curr_lance;
+				const u32 curr_knight = entry.hand.template exists<HKnight>(); if (knight > curr_knight) knight = curr_knight;
+				const u32 curr_silver = entry.hand.template exists<HSilver>(); if (silver > curr_silver) silver = curr_silver;
+				const u32 curr_gold = entry.hand.template exists<HGold>(); if (gold > curr_gold) gold = curr_gold;
+				const u32 curr_bishop = entry.hand.template exists<HBishop>(); if (bishop > curr_bishop) bishop = curr_bishop;
+				const u32 curr_rook = entry.hand.template exists<HRook>(); if (rook > curr_rook) rook = curr_rook;
 				entry.hand.set(pawn | lance | knight | silver | gold | bishop | rook);
 				//cout << bitset<32>(entry.hand.value()) << endl;
 				// 後手が一枚も持っていない種類の先手の持ち駒を証明駒に設定する
@@ -857,7 +854,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 }
 
 // 詰みの手返す
-Move DfPn::dfpn_move(Position& pos) {
+Move DfPn::dfpn_move(const Position& pos) {
 	MovePicker<true> move_picker(pos);
 	for (const auto& move : move_picker) {
 		const auto& child_entry = transposition_table.LookUpChildEntry<true>(pos, move);
@@ -915,7 +912,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				if (child_entry.dn == kInfinitePnDn + 2) {
 					if (!pos.inCheck()) {
 						// 1手詰みチェック
-						Move mate1ply = pos.mateMoveIn1Ply();
+						const Move mate1ply = pos.mateMoveIn1Ply();
 						if (mate1ply) {
                             depth = 1;
                             tmp_pv.emplace_back(mate1ply);
@@ -981,7 +978,7 @@ bool DfPn::dfpn(Position& r) {
 
 	if (!r.inCheck()) {
 		// 1手詰みチェック
-		Move mate1ply = r.mateMoveIn1Ply();
+		const Move mate1ply = r.mateMoveIn1Ply();
 		if (mate1ply) {
 			auto& child_entry = transposition_table.LookUpChildEntry<true>(r, mate1ply);
 			child_entry.pn = 0;

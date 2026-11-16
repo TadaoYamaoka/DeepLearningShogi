@@ -13,7 +13,7 @@
 void ResetMultiPonder();
 void PrepareMultiPonder();
 void WaitPrepareMultiPonder();
-bool GetMultiPonderMove(std::vector<Move>& moves, int num);
+bool GetMultiPonderMove(std::vector<Move>& moves, const int num);
 #endif
 
 // 候補手の最大数(盤上全体)
@@ -37,9 +37,9 @@ struct po_info_t {
 };
 
 void SetLimits(const LimitsType& limits);
-void SetLimits(const Position* pos, const LimitsType& limits);
+void SetLimits(const Position* const pos, const LimitsType& limits);
 void SetConstPlayout(const int playout);
-void SetPondering(bool value);
+void SetPondering(const bool value);
 
 // 残り時間
 extern int remaining_time[ColorNum];
@@ -58,7 +58,7 @@ void StopUctSearch(void);
 bool IsUctSearchStoped();
 
 // 予測読みのモードの設定
-void SetPonderingMode(bool flag);
+void SetPonderingMode(const bool flag);
 
 
 // 使用するスレッド数の指定
@@ -87,10 +87,10 @@ void TerminateUctSearch();
 void FinalizeUctSearch(void);
 
 // UCT探索による着手生成
-Move UctSearchGenmove(Position* pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove);
+Move UctSearchGenmove(const Position* const pos, const Key starting_pos_key, const std::vector<Move>& moves, Move& ponderMove);
 
 // 探索の再利用の設定
-void SetReuseSubtree(bool flag);
+void SetReuseSubtree(const bool flag);
 
 // PV表示間隔設定
 void SetPvInterval(const int interval);
@@ -124,9 +124,9 @@ void SetDrawPly(const int ply);
 void SetPvMateSearch(const int threads, const int depth, const int nodes);
 
 // 訪問回数が最大の子ノードを選択
-inline unsigned int select_max_child_node(const uct_node_t* uct_node)
+inline unsigned int select_max_child_node(const uct_node_t* const uct_node)
 {
-	const child_node_t* uct_child = uct_node->child.get();
+	const child_node_t* const uct_child = uct_node->child.get();
 
 	unsigned int select_index = 0;
 	int max_count = 0;

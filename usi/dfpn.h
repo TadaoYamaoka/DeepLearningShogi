@@ -31,7 +31,7 @@ namespace ns_dfpn {
 
 		// moveを指した後の子ノードのキーを返す
 		template <bool or_node>
-		void GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand);
+		void GetChildFirstEntry(const Position& n, const Move move, Cluster*& entries, uint32_t& hash_high, Hand& hand) const;
 
 		// moveを指した後の子ノードの置換表エントリを返す
 		template <bool or_node>
@@ -56,7 +56,7 @@ public:
 	bool dfpn(Position& r);
 	bool dfpn_andnode(Position& r);
 	void dfpn_stop(const bool stop);
-	Move dfpn_move(Position& pos);
+	Move dfpn_move(const Position& pos);
 	std::tuple<std::string, int, Move> get_pv(Position& pos);
 
 	static void set_hashsize(const uint64_t size) {

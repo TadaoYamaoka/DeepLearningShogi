@@ -104,7 +104,7 @@ inline void set_attack_features(packed_features1_t features1, const Color c, con
 		low <<= shift;
 	}
 	// 境界バイトの隣接特徴量や、呼び出し前に立っていたビットは保持する
-	char* out = features1 + (idx >> 3);
+	char* const out = features1 + (idx >> 3);
 #if defined(HAVE_SSE4)
 	const __m128i previous = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(out));
 	const __m128i bits = _mm_cvtsi64_si128(low);
@@ -157,7 +157,7 @@ inline void make_input_features(const Position& position, T1 features1, T2 featu
 	const Bitboard occupied_bb = position.occupiedBB();
 
 	// 歩と歩以外に分ける
-	Bitboard pawns_bb = position.bbOf(Pawn);
+	const Bitboard pawns_bb = position.bbOf(Pawn);
 	Bitboard without_pawns_bb = occupied_bb & ~pawns_bb;
 	// 利き数集計用
 	Bitboard attack_num[ColorNum][MAX_ATTACK_NUM];

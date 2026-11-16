@@ -5,7 +5,7 @@
 #include <limits>
 
 // Periodicity of garbage collection, milliseconds.
-const int kGCIntervalMs = 100;
+constexpr int kGCIntervalMs = 100;
 
 // Every kGCIntervalMs milliseconds release nodes in a separate GC thread.
 class NodeGarbageCollector {
@@ -16,7 +16,7 @@ public:
     // it has time.
     void AddToGcQueue(std::unique_ptr<uct_node_t> node) {
         if (!node) return;
-        std::lock_guard<std::mutex> lock(gc_mutex_);
+        const std::lock_guard<std::mutex> lock(gc_mutex_);
         subtrees_to_gc_.emplace_back(std::move(node));
     }
 
@@ -34,7 +34,7 @@ private:
             {
                 // Lock the mutex and move last subtree from subtrees_to_gc_ into
                 // node_to_gc.
-                std::lock_guard<std::mutex> lock(gc_mutex_);
+                const std::lock_guard<std::mutex> lock(gc_mutex_);
                 if (subtrees_to_gc_.empty()) return;
                 node_to_gc = std::move(subtrees_to_gc_.back());
                 subtrees_to_gc_.pop_back();
@@ -132,7 +132,7 @@ bool NodeTree::ResetToPosition(const Key starting_pos_key, const std::vector<Mov
 
     history_starting_pos_key_ = starting_pos_key;
 
-    uct_node_t* old_head = current_head_;
+    const uct_node_t* const old_head = current_head_;
     uct_node_t* prev_head = nullptr;
     current_head_ = gamebegin_node_.get();
     bool seen_old_head = (gamebegin_node_.get() == old_head);
@@ -178,7 +178,7 @@ void set_softmax_temperature(const float temperature) {
     beta = 1.0f / temperature;
 }
 
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num) {
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num) {
     // apply beta exponent to probabilities(in log space)
     float max = std::numeric_limits<float>::lowest();
     for (int i = 0; i < child_num; i++) {
@@ -203,7 +203,7 @@ void softmax_temperature_with_normalize(child_node_t* child_node, const int chil
     }
 }
 
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num, const DType* logits, const Color color) {
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num, const DType* const logits, const Color color) {
     assert(child_num >= 0 && child_num <= MaxLegalMoves);
     // 途中値は連続したfloat配列に保持し、正規化後にだけnnrateへ書き戻す。
     alignas(32) float values[MaxLegalMoves];

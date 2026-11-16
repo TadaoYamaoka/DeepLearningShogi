@@ -26,7 +26,7 @@ constexpr size_t nohit = (size_t)-1;
 extern std::ostream& operator << (std::ostream& os, const OptionsMap& om);
 
 struct MySearcher : Searcher {
-	static void doUSICommandLoop(int argc, char* argv[]);
+	static void doUSICommandLoop(const int argc, char* argv[]);
 #ifdef MAKE_BOOK
 	static void makeBook(std::istringstream& ssCmd);
 #endif
@@ -66,7 +66,7 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 	size_t count = 0;
 	while (ifs.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
 		count++;
-		auto itr = bookMap.find(entry.key);
+		const auto itr = bookMap.find(entry.key);
 		if (itr != bookMap.end()) {
 			// すでにある場合、追加
 			itr->second.emplace_back(entry);
@@ -79,11 +79,11 @@ void read_book(const std::string& bookFileName, std::map<Key, std::vector<BookEn
 }
 #endif
 
-int main(int argc, char* argv[]) {
+int main(const int argc, char* argv[]) {
 	initTable();
 	Position::initZobrist();
 	//HuffmanCodedPos::init();
-	auto s = std::unique_ptr<MySearcher>(new MySearcher);
+	const auto s = std::unique_ptr<MySearcher>(new MySearcher);
 
 	s->init();
 	s->doUSICommandLoop(argc, argv);
@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
 	std::quick_exit(0);
 }
 
-void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
+void MySearcher::doUSICommandLoop(const int argc, char* argv[]) {
 	bool evalTableIsRead = false;
 	Position pos(DefaultStartPositionSFEN, thisptr);
 	std::string posCmd("startpos");
@@ -151,7 +151,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 			USIPonderResult ponderResult;
 			size_t ponderhit_i = nohit;
 			if (need_multi_ponder) {
-				for (size_t i : multi_ponder_engine_index) {
+				for (const size_t i : multi_ponder_engine_index) {
 					if (usi_ponder_engines[i].IsLiving()) {
 						if (posCmd == usi_ponder_engines[i].GetUsiPosition())
 							ponderhit_i = i;
@@ -163,7 +163,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					std::cout << "info string multiponder " << ponderhit_i + 1 << " ponderhit" << std::endl;
 					ponderResult = usi_ponder_engines[ponderhit_i].Ponderhit();
 				}
-				for (size_t i : multi_ponder_engine_index) {
+				for (const size_t i : multi_ponder_engine_index) {
 					if (usi_ponder_engines[i].IsLiving())
 						usi_ponder_engines[i].Join();
 				}
@@ -193,7 +193,7 @@ void MySearcher::doUSICommandLoop(int argc, char* argv[]) {
 					promise.set_value({ Move::moveWin(), Move::moveNone() });
 				else {
 					// 相手局面から探索を継続する
-					Move move = usiToMove(pos, ponderResult.bestMove);
+					const Move move = usiToMove(pos, ponderResult.bestMove);
 					need_multi_ponder = true;
 					promise.set_value({ move, Move::moveNone() });
 					th = std::thread([&pos, move] {
@@ -516,7 +516,7 @@ void MySearcher::goUct(Position& pos) {
 			if (options["USI_Ponder"] && options["Stochastic_Ponder"])
 				need_multi_ponder = true;
 #endif
-			auto move = std::get<0>(bookMoveScore);
+			const auto move = std::get<0>(bookMoveScore);
 			promise.set_value({ move, Move::moveNone() });
 
 			// 確率的なPonderの場合、相手局面から探索を継続する
@@ -555,7 +555,7 @@ void MySearcher::goUct(Position& pos) {
 	}
 
 	// UCTによる探索
-	Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
+	const Move move = UctSearchGenmove(&pos, starting_pos_key, moves, ponderMove);
 
 	// 詰み探索待ち
 	if (mate_depth > 0) {
@@ -635,7 +635,7 @@ void MySearcher::getAndPrintBestMove() {
 }
 #else
 std::pair<Move, Move> MySearcher::getAndPrintBestMove() {
-	auto bestMove = future.get();
+	const auto bestMove = future.get();
 	std::cout << "bestmove ";
 	if (bestMove.first == Move::moveResign()) {
 		std::cout << "resign";
@@ -677,14 +677,14 @@ double book_visit_threshold = 0.005;
 double book_cutoff = 0.015;
 double book_reciprocal_temperature = 1.0;
 
-inline Move UctSearchGenmoveNoPonder(Position* pos, const std::vector<Move>& moves) {
+inline Move UctSearchGenmoveNoPonder(const Position* const pos, const std::vector<Move>& moves) {
 	Move move;
 	return UctSearchGenmove(pos, book_starting_pos_key, moves, move);
 }
 
-bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, const std::vector<Move> &moves) {
+bool make_book_entry_with_uct(const Position& pos, LimitsType& limits, const Key& key, std::map<Key, std::vector<BookEntry> > &outMap, int& count, const std::vector<Move> &moves) {
 	std::cout << "position startpos moves";
-	for (Move move : moves) {
+	for (const Move move : moves) {
 		std::cout << " " << move.toUSI();
 	}
 	std::cout << std::endl;
@@ -694,7 +694,7 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	SetLimits(limits);
 	UctSearchGenmoveNoPonder(&pos, moves);
 
-	const uct_node_t* current_root = tree->GetCurrentHead();
+	const uct_node_t* const current_root = tree->GetCurrentHead();
 	if (current_root->child_num == 0) {
 		// 詰みの局面
 		return false;
@@ -703,12 +703,12 @@ bool make_book_entry_with_uct(Position& pos, LimitsType& limits, const Key& key,
 	// 探索回数で降順ソート
 	std::vector<child_node_t_copy> movelist;
 	int num = 0;
-	const child_node_t *uct_child = current_root->child.get();
+	const child_node_t* const uct_child = current_root->child.get();
 	for (int i = 0; i < current_root->child_num; i++) {
 		movelist.emplace_back(uct_child[i]);
 	}
 
-	std::sort(movelist.begin(), movelist.end(), [](auto left, auto right) {
+	std::sort(movelist.begin(), movelist.end(), [](const auto left, const auto right) {
 		return left.move_count > right.move_count;
 	});
 
@@ -766,7 +766,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 				// 評価値が閾値を超えた場合、探索終了
 				if (std::abs(entry.score) > book_eval_threshold) {
 					std::cout << "position startpos moves";
-					for (Move move : moves) {
+					for (const Move move : moves) {
 						std::cout << " " << move.toUSI();
 					}
 					std::cout << "\nentry.score: " << entry.score << std::endl;
@@ -794,7 +794,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 	}
 	else {
 		// 定跡を使用
-		std::vector<BookEntry> *entries;
+		const std::vector<BookEntry>* entries;
 
 		// 局面が定跡にあるか確認
 		auto itr = bookMap.find(key);
@@ -825,7 +825,7 @@ void make_book_inner(Position& pos, LimitsType& limits, std::map<Key, std::vecto
 			probabilities.emplace_back(probability);
 		}
 		std::discrete_distribution<std::size_t> dist(probabilities.begin(), probabilities.end());
-		size_t selected = dist(g_randomTimeSeed);
+		const size_t selected = dist(g_randomTimeSeed);
 
 		const Move move = move16toMove(Move(entries->at(selected).fromToPro), pos);
 
@@ -985,9 +985,9 @@ void MySearcher::makeBook(std::istringstream& ssCmd) {
 
 			prev_num = outMap.size();
 			std::ofstream ofs(outFileName.c_str(), std::ios::binary);
-			for (auto& elem : outMap) {
-				for (auto& elel : elem.second)
-					ofs.write(reinterpret_cast<char*>(&(elel)), sizeof(BookEntry));
+			for (const auto& elem : outMap) {
+				for (const auto& elel : elem.second)
+					ofs.write(reinterpret_cast<const char*>(&(elel)), sizeof(BookEntry));
 			}
 		}
 	}

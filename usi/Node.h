@@ -96,7 +96,7 @@ struct uct_node_t {
 		: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f), child_num(0) {}
 
 	// 子ノード作成
-	uct_node_t* CreateChildNode(int i) {
+	uct_node_t* CreateChildNode(const int i) {
 		return (child_nodes[i] = std::make_unique<uct_node_t>()).get();
 	}
 	// 子ノード一つのみで初期化する
@@ -106,7 +106,7 @@ struct uct_node_t {
 		child[0].SetMove(move);
 	}
 	// 候補手の展開
-	void ExpandNode(const Position* pos) {
+	void ExpandNode(const Position* const pos) {
 		MoveList<Legal> ml(*pos);
 		child = std::make_unique<child_node_t[]>(ml.size());
 		auto* child_node = child.get();
@@ -169,6 +169,6 @@ private:
 
 // Boltzmann distribution
 void set_softmax_temperature(const float temperature);
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num);
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num);
 // 合法手のlogitを連続バッファ上で正規化する。child_numはMaxLegalMoves以下。
-void softmax_temperature_with_normalize(child_node_t* child_node, const int child_num, const DType* logits, const Color color);
+void softmax_temperature_with_normalize(child_node_t* const child_node, const int child_num, const DType* const logits, const Color color);
