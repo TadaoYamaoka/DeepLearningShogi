@@ -886,6 +886,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 				switch (pos.isDraw(256)) {
 				case NotRepetition:
 				case RepetitionSuperior:
+				case RepetitionInferior:
 				{
 					pv.emplace_back(move);
 					const auto depth = get_pv_inner<false>(pos, pv);
@@ -949,6 +950,11 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 std::tuple<std::string, int, Move> DfPn::get_pv(Position& pos) {
 	std::vector<Move> pv;
 	const auto depth = get_pv_inner<true>(pos, pv);
+	if (pv.empty()) {
+		// Preserve the mating move even when the PV cannot be reconstructed.
+		const Move best_move = dfpn_move(pos);
+		return std::make_tuple(best_move ? best_move.toUSI() : std::string(), 0, best_move);
+	}
 	const Move& best_move = pv[0];
 	std::stringstream ss;
 	ss << best_move.toUSI();

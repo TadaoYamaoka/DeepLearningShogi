@@ -4,6 +4,7 @@
 #include <chrono>
 #include <fstream>
 #include <thread>
+#include <deque>
 
 #include "cppshogi.h"
 #include "python_module.h"
@@ -1585,6 +1586,74 @@ TEST(DfPn, dfpn_get_pv) {
             EXPECT_EQ(pv_truth, pv);
         }
     }
+}
+
+TEST(DfPn, dfpn_get_pv_inferior) {
+    initTable();
+    Position::initZobrist();
+
+    Position pos;
+    // Start after move 132 and preserve the four moves needed for dominance.
+    // SFEN alone at move 137 does not reproduce RepetitionInferior.
+    pos.set("l6n1/7r1/3gpgn2/2P1sppSk/8B/PPG1S1GpL/1K1L+b1NRP/9/LN7 b 9Psp 133");
+    std::deque<StateInfo> states;
+    for (const auto text : {"1e2f", "P*1e", "2f1e", "S*2f"}) {
+        const Move move = usiToMove(pos, text);
+        ASSERT_TRUE(MoveList<Legal>(pos).contains(move)) << text;
+        pos.doMove(move, states.emplace_back());
+    }
+    const auto before = pos.toSFEN();
+    ASSERT_EQ("sfen l6n1/7r1/3gpgn2/2P1sppSk/8B/PPG1S1GsL/1K1L+b1NRP/9/LN7 b 11P 137", before);
+
+    DfPn dfpn;
+    dfpn.init();
+    ASSERT_TRUE(dfpn.dfpn(pos));
+    const Move best = dfpn.dfpn_move(pos);
+    ASSERT_TRUE(MoveList<Legal>(pos).contains(best));
+    ASSERT_EQ("1e2f", best.toUSI());
+    {
+        StateInfo state;
+        pos.doMove(best, state);
+        EXPECT_EQ(RepetitionInferior, pos.isDraw(16));
+        EXPECT_EQ(RepetitionInferior, pos.isDraw(256));
+        pos.undoMove(best);
+    }
+
+    const auto [pv, depth, move] = dfpn.get_pv(pos);
+    EXPECT_EQ("1e2f 1d2d 2f3e", pv);
+    EXPECT_EQ(3, depth);
+    EXPECT_EQ(best, move);
+    EXPECT_EQ(before, pos.toSFEN());
+
+    std::istringstream moves(pv);
+    std::string text;
+    while (moves >> text) {
+        const Move pv_move = usiToMove(pos, text);
+        ASSERT_TRUE(MoveList<Legal>(pos).contains(pv_move)) << text;
+        pos.doMove(pv_move, states.emplace_back());
+    }
+    EXPECT_TRUE(pos.inCheck());
+    EXPECT_EQ(0u, MoveList<Legal>(pos).size());
+}
+
+TEST(DfPn, dfpn_get_pv_empty) {
+    initTable();
+    Position::initZobrist();
+
+    Position pos;
+    pos.set(DefaultStartPositionSFEN);
+    DfPn dfpn;
+    dfpn.init();
+    const auto [pv, depth, move] = dfpn.get_pv(pos);
+    EXPECT_TRUE(pv.empty());
+    EXPECT_EQ(0, depth);
+    EXPECT_EQ(Move::moveNone(), move);
+
+    ASSERT_FALSE(dfpn.dfpn(pos));
+    const auto [nonmate_pv, nonmate_depth, nonmate_move] = dfpn.get_pv(pos);
+    EXPECT_TRUE(nonmate_pv.empty());
+    EXPECT_EQ(0, nonmate_depth);
+    EXPECT_EQ(Move::moveNone(), nonmate_move);
 }
 
 // DfPnのPV表示テスト
