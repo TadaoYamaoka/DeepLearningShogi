@@ -1814,11 +1814,6 @@ void UCTSearcher::EvalNode() {
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
 	const DType *value = y2;
 
-#if defined(MAKE_BOOK) || defined(BOOK_POLICY)
-	// バッチ内の各局面で定跡policy用の作業領域を再利用する。
-	std::vector<std::pair<u16, u16>> counts;
-#endif
-
 	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 		uct_node_t* node = policy_value_batch[i].node;
 		const Color color = policy_value_batch[i].color;
@@ -1840,7 +1835,7 @@ void UCTSearcher::EvalNode() {
 			if (itr != bookMap.end()) {
 				const auto& entries = itr->second;
 				// countから分布を作成
-				counts.clear();
+				std::vector<std::pair<u16, u16>> counts;
 				counts.reserve(entries.size());
 				int sum = 0;
 				for (const auto& entry : entries) {
