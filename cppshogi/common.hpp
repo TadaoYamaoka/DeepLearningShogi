@@ -294,11 +294,11 @@ private:
 // ミリ秒単位の時間を表すクラス
 class Timer {
 public:
-    void restart() { t_ = std::chrono::system_clock::now(); }
+    void restart() { t_ = std::chrono::steady_clock::now(); }
     int elapsed() const {
         using std::chrono::duration_cast;
         using std::chrono::milliseconds;
-        return static_cast<int>(duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count());
+        return static_cast<int>(duration_cast<milliseconds>(std::chrono::steady_clock::now() - t_).count());
     }
     static Timer currentTime() {
         Timer t;
@@ -307,7 +307,7 @@ public:
     }
 
 private:
-    std::chrono::time_point<std::chrono::system_clock> t_;
+    std::chrono::time_point<std::chrono::steady_clock> t_;
 };
 
 extern std::mt19937_64 g_randomTimeSeed;
