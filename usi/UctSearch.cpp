@@ -924,7 +924,7 @@ inline std::tuple<std::string, int, int, Move, float, Move> get_pv(const uct_nod
 		depth++;
 	}
 
-	return std::make_tuple(pv, cp, depth, move, best_wp, ponderMove);
+	return std::make_tuple(std::move(pv), cp, depth, move, best_wp, ponderMove);
 }
 
 // 訪問回数に応じてランダムに子ノードを選択
