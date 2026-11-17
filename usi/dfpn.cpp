@@ -901,11 +901,12 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 		// ANDノードでは詰みまでが最大手数となる手を選ぶ
 		int max_depth = 0;
 		std::vector<Move> max_pv;
+		std::vector<Move> tmp_pv;
 		MovePicker<false> move_picker(pos);
 		for (const auto& move : move_picker) {
 			const auto& child_entry = transposition_table.LookUpChildEntry<false>(pos, move);
 			if (child_entry.pn == 0) {
-				std::vector<Move> tmp_pv{ move };
+				tmp_pv.assign(1, move);
 				StateInfo state_info;
 				pos.doMove(move, state_info);
 				int depth = -kInfinitePnDn;
@@ -931,7 +932,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 
 				if (depth > max_depth) {
 					max_depth = depth;
-					max_pv = std::move(tmp_pv);
+					max_pv.swap(tmp_pv);
 				}
 			}
 		}
