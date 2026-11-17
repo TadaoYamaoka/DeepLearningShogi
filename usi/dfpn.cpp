@@ -936,7 +936,7 @@ int DfPn::get_pv_inner(Position& pos, std::vector<Move>& pv) {
 			}
 		}
 		if (max_depth > 0) {
-			std::copy(max_pv.begin(), max_pv.end(), std::back_inserter(pv));
+			pv.insert(pv.end(), max_pv.begin(), max_pv.end());
 			return max_depth + 1;
 		}
 	}
@@ -953,12 +953,13 @@ std::tuple<std::string, int, Move> DfPn::get_pv(Position& pos) {
 		return std::make_tuple(best_move ? best_move.toUSI() : std::string(), 0, best_move);
 	}
 	const Move& best_move = pv[0];
-	std::stringstream ss;
-	ss << best_move.toUSI();
-	for (size_t i = 1; i < pv.size(); i++)
-		ss << " " << pv[i].toUSI();
+	std::string pv_text = best_move.toUSI();
+	for (size_t i = 1; i < pv.size(); i++) {
+		pv_text += ' ';
+		pv_text += pv[i].toUSI();
+	}
 
-	return std::make_tuple(ss.str(), depth, best_move);
+	return std::make_tuple(std::move(pv_text), depth, best_move);
 }
 
 void DfPn::init()
