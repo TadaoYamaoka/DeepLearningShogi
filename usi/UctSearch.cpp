@@ -978,7 +978,7 @@ std::tuple<Move, float, Move> get_and_print_pv(bool use_random = false)
 	// 探索にかかった時間
 	const auto finish_time = std::max(1, begin_time.elapsed());
 	// nps
-	const auto nps = po_info.count * 1000LL / finish_time;
+	const auto nps = po_info.count * 1000LL / std::max(1, search_begin_time.elapsed());
 	// hashfull
 	const auto hashfull = current_root->move_count * 1000LL / uct_node_limit;
 
@@ -1303,7 +1303,9 @@ InterruptionCheck(void)
 	// 予算到達後は、訪問数差にかかわらず延長または停止を判定する
 	if (spend_time < time_limit) {
 		const auto count = po_info.count.load() - search_baseline.playout_count;
-		const int rest_po = (int)((long long)count * ((long long)time_limit - (long long)spend_time) / spend_time);
+		// 探索開始とponderhitの遅い方を起点とし、停止待ちを速度推定に含めない。
+		const auto search_time = std::max(1, std::min(spend_time, search_begin_time.elapsed()));
+		const int rest_po = (int)((long long)count * ((long long)time_limit - (long long)spend_time) / search_time);
 		if (max_searched - second_searched <= rest_po) {
 			return false;
 		}

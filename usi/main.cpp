@@ -34,7 +34,7 @@ struct MySearcher : Searcher {
 	static std::vector<Move> moves;
 	static std::promise<std::pair<Move, Move>> promise;
 	static std::future<std::pair<Move, Move>> future;
-	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd);
+	static void setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const Timer& start_time);
 	static void goUct(Position& pos);
 #ifndef MULTI_PONDER
 	static void getAndPrintBestMove();
@@ -147,6 +147,7 @@ void MySearcher::doUSICommandLoop(const int argc, char* argv[]) {
 			}
 		}
 		else if (token == "go") {
+			const auto start_time = Timer::currentTime();
 #ifdef MULTI_PONDER
 			USIPonderResult ponderResult;
 			size_t ponderhit_i = nohit;
@@ -178,7 +179,7 @@ void MySearcher::doUSICommandLoop(const int argc, char* argv[]) {
 			StopUctSearch();
 			if (th.joinable())
 				th.join();
-			setPositionAndLimits(pos, ssCmd, posCmd);
+			setPositionAndLimits(pos, ssCmd, posCmd, start_time);
 			InitUctSearchStop();
 			// ponderhitで探索を継続するため、bestmoveはfutureで受け取る
 			promise = std::promise<std::pair<Move, Move>>();
@@ -431,10 +432,10 @@ void MySearcher::doUSICommandLoop(const int argc, char* argv[]) {
 		th.join();
 }
 
-void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd) {
+void MySearcher::setPositionAndLimits(Position& pos, std::istringstream& ssCmd, const std::string& posCmd, const Timer& start_time) {
 	std::string token;
 
-	limits.startTime.restart();
+	limits.startTime = start_time;
 
 	// 探索開始局面設定
 	// 持ち時間設定よりも前に実行が必要
