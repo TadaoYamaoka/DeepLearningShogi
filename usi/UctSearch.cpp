@@ -150,6 +150,12 @@ bool reuse_subtree = true;
 
 // 思考開始時刻
 Timer begin_time;
+// 時間管理の観測起点（時刻・探索回数）。表示用の時計・累積回数とは分ける。
+struct SearchBaseline {
+	Timer time;
+	int playout_count;
+};
+static SearchBaseline search_baseline;
 // 探索スレッドの思考開始時刻
 Timer search_begin_time;
 atomic<bool> init_search_begin_time;
@@ -737,6 +743,8 @@ void TerminateUctSearch()
 void SetLimits(const LimitsType& limits)
 {
 	begin_time = limits.startTime;
+	po_info.count = 0;
+	search_baseline = { limits.startTime, 0 };
 	time_limit = limits.moveTime;
 	po_info.halt = static_cast<int>(limits.nodes);
 	minimum_time = limits.moveTime;
@@ -748,6 +756,8 @@ void SetLimits(const Position* const pos, const LimitsType& limits)
 {
 	pondering = limits.ponder;
 	begin_time = limits.startTime;
+	po_info.count = 0;
+	search_baseline = { limits.startTime, 0 };
 	if (const_playout > 0) {
 		po_info.halt = const_playout;
 		return;
@@ -779,7 +789,14 @@ void SetConstPlayout(const int playout)
 
 void SetPondering(const bool value)
 {
-	pondering = value;
+	if (value) {
+		// 確率的ponderも、探索開始前にカウンタを初期化する。
+		po_info.count = 0;
+	}
+	else if (pondering) {
+		search_baseline = { Timer::currentTime(), po_info.count.load() };
+	}
+	pondering = value; // falseの公開後、監視スレッドがsearch_baselineを参照する。
 }
 
 ////////////
@@ -1094,9 +1111,6 @@ UctSearchGenmove(const Position* const pos, const Key starting_pos_key, const st
 
 	const uct_node_t* const current_root = tree->GetCurrentHead();
 
-	// 探索情報をクリア
-	po_info.count = 0;
-
 	// UCTの初期化
 	ExpandRoot(pos);
 
@@ -1266,7 +1280,7 @@ static bool
 InterruptionCheck(void)
 {
 	// 消費時間が短い場合は打ち止めしない
-	const auto spend_time = begin_time.elapsed();
+	const auto spend_time = search_baseline.time.elapsed();
 	if (spend_time * 10 < time_limit || spend_time < minimum_time) {
 		return false;
 	}
@@ -1288,7 +1302,8 @@ InterruptionCheck(void)
 	// 予算内だけ、残りの探索で次善手が最善手を超える可能性を確認する
 	// 予算到達後は、訪問数差にかかわらず延長または停止を判定する
 	if (spend_time < time_limit) {
-		const int rest_po = (int)((long long)po_info.count * ((long long)time_limit - (long long)spend_time) / spend_time);
+		const auto count = po_info.count.load() - search_baseline.playout_count;
+		const int rest_po = (int)((long long)count * ((long long)time_limit - (long long)spend_time) / spend_time);
 		if (max_searched - second_searched <= rest_po) {
 			return false;
 		}
