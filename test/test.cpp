@@ -98,6 +98,32 @@ TEST(ChildNodeTest, EvalCompletionPublishesTerminalFlagAndChildren) {
 }
 #endif
 
+TEST(Mate, EvasionPickerPreservesEagerOrder) {
+    initTable();
+    Position::initZobrist();
+
+    for (const char* sfen : {
+        "k3r4/9/9/5G3/4K4/9/7b1/9/9 b G 1",
+        "k3r4/9/9/5G3/4K4/9/9/9/9 b G 1",
+        "k3r4/9/9/5G3/4K4/1b7/7b1/9/9 b G 1", // 4e で後段に移り、残った玉の候補 6d も非合法。
+        "k3r4/9/9/5G3/4K4/1b7/6b2/9/9 b G 1", // 両王手。6d は玉の移動先として非合法。
+    }) {
+        SCOPED_TRACE(sfen);
+        Position pos;
+        pos.set(sfen);
+        ASSERT_TRUE(pos.inCheck());
+
+        MoveList<Legal> eager(pos);
+        ASSERT_FALSE(eager.end());
+        ns_mate::EvasionMovePicker picker(pos);
+        const Bitboard pinned = pos.pinnedBB();
+        for (; !eager.end(); ++eager)
+            ASSERT_EQ(eager.move().value(), picker.nextLegal(pos, pinned).value());
+        EXPECT_FALSE(picker.nextLegal(pos, pinned));
+        EXPECT_FALSE(picker.nextLegal(pos, pinned));
+    }
+}
+
 TEST(Mate, AllMate5Positions) {
     constexpr const char* Mate5Path = R"(E:\game\shogi\mate3_5_7_9_11\mate5_filtered.sfen)";
     constexpr size_t ExpectedPositionCount = 990246;

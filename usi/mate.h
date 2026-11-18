@@ -41,30 +41,33 @@ namespace ns_mate {
 		ExtMove* last_;
 	};
 
-	// 受け側。候補は一括生成し、合法性は取り出すときだけ判定する。
+	// 受け側。玉以外の応手は、従来の探索順で必要になってから生成する。
 	class EvasionMovePicker {
 	public:
 		explicit EvasionMovePicker(const Position& pos)
-			: curr_(moveList_), last_(generateMoves<Evasion>(moveList_, pos)) {
-#ifndef NDEBUG
-			// Releaseでは合法性判定を遅延したままにする。
-			const Bitboard pinned = pos.pinnedBB();
-			size_t legalSize = 0;
-			for (ExtMove* it = moveList_; it != last_; ++it) {
-				if (pos.pseudoLegalMoveIsLegal<false, false>(it->move, pinned))
-					++legalSize;
-			}
-			assert(legalSize <= MaxCheckMoves);
-#endif
-		}
+			: curr_(moveList_), last_(generateKingEvasions(moveList_, pos)) {}
 
 		// posは必ずこのpickerを構築した局面に戻してから呼び出す。
 		// pinnedには同じ局面で計算したCheckInfo::pinned等を渡す。
-		// 末尾との置換を遅延実行し、従来の全件除去後と同じ合法手順序を保つ。
 		// 合法手が残っていなければmoveNone()を返す。
 		Move nextLegal(const Position& pos, const Bitboard& pinned) {
+			if (nonKingEvasionsPending_) {
+				const bool hasKingMove = curr_ != last_;
+				if (hasKingMove && kingMoveIsLegal(pos, curr_->move))
+					return (curr_++)->move;
+
+				// 非合法な玉の手は候補列全体の末尾と交換する。玉の手を使い切った場合もここで追記する。
+				Bitboard checkers = pos.checkersBB();
+				const Square checker = checkers.firstOneFromSQ11();
+				if (!checkers)
+					last_ = generateNonKingEvasions(last_, pos, checker);
+				nonKingEvasionsPending_ = false;
+				if (hasKingMove)
+					curr_->move = (--last_)->move;
+			}
+
 			while (curr_ != last_) {
-				if (!pos.pseudoLegalMoveIsLegal<false, false>(curr_->move, pinned))
+				if (!generatedMoveIsLegal(pos, curr_->move, pinned))
 					curr_->move = (--last_)->move;
 				else
 					return (curr_++)->move;
@@ -73,9 +76,24 @@ namespace ns_mate {
 		}
 
 	private:
-		ExtMove moveList_[MaxCheckMoves];
+		static bool kingMoveIsLegal(const Position& pos, const Move move) {
+			return !pos.attackersToIsAny(oppositeColor(pos.turn()), move.to());
+		}
+
+		// 回避手生成済みの候補なので、移動元の駒種は指し手から取得できる。
+		static bool generatedMoveIsLegal(const Position& pos, const Move move, const Bitboard& pinned) {
+			if (move.isDrop())
+				return true;
+			assert(move.pieceTypeFrom() == pieceToPieceType(pos.piece(move.from())));
+			if (move.pieceTypeFrom() == King)
+				return kingMoveIsLegal(pos, move);
+			return !pos.isPinnedIllegal(move.from(), move.to(), pos.kingSquare(pos.turn()), pinned);
+		}
+
+		ExtMove moveList_[MaxLegalMoves];
 		ExtMove* curr_;
 		ExtMove* last_;
+		bool nonKingEvasionsPending_ = true;
 	};
 
 	enum class MateRepetitionAction {

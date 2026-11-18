@@ -54,6 +54,11 @@ ExtMove* generateMoves(ExtMove* moveList, const Position& pos, const Square to);
 struct CheckInfo;
 ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const CheckInfo& ci);
 
+// この順に追記すると generateMoves<Evasion> と同じ候補列になる。
+ExtMove* generateKingEvasions(ExtMove* moveList, const Position& pos);
+// 単王手の局面で、王手駒を指定する。
+ExtMove* generateNonKingEvasions(ExtMove* moveList, const Position& pos, Square checker);
+
 template <MoveType MT>
 class MoveList {
 public:

@@ -19,6 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <type_traits>
+
 #include "generateMoves.hpp"
 #include "usi.hpp"
 
@@ -439,42 +441,54 @@ namespace {
 	// 王手をしている駒による王手は避けるが、
 	// 玉の移動先に敵の利きがある場合と、pinされている味方の駒を動かした場合、非合法手を生成する。
 	// そのため、pseudo legal である。
-	template <Color US, bool ALL> struct GenerateMoves<Evasion, US, ALL> {
-		/*FORCE_INLINE*/ ExtMove* operator () (ExtMove* moveList, const Position& pos) {
-			assert(pos.isOK());
+	enum class EvasionPart { All, King, NonKing };
+
+	// 渡された王手駒の位置は、玉以外の応手だけを生成する場合に保持する。
+	struct NoEvasionChecker {};
+	struct EvasionChecker { Square checker; };
+
+	template <Color US, bool ALL, EvasionPart Part>
+	struct EvasionGenerator
+		: std::conditional_t<Part == EvasionPart::NonKing, EvasionChecker, NoEvasionChecker> {
+		ExtMove* operator () (ExtMove* moveList, const Position& pos) {
+			if constexpr (Part == EvasionPart::All)
+				assert(pos.isOK());
 			assert(pos.inCheck());
 
 			const Square ksq = pos.kingSquare(US);
 			constexpr Color Them = oppositeColor(US);
 			const Bitboard checkers = pos.checkersBB();
-			Bitboard bb = checkers;
-			Bitboard bannedKingToBB = allZeroBB();
-			int checkersNum = 0;
 			Square checkSq;
+			if constexpr (Part == EvasionPart::NonKing) {
+				checkSq = this->checker;
+				assert(isInSquare(checkSq) && checkers == setMaskBB(checkSq));
+			}
+			else {
+				Bitboard bb = checkers;
+				Bitboard bannedKingToBB = allZeroBB();
+				int checkersNum = 0;
 
-			// 玉が逃げられない位置の bitboard を生成する。
-			// 絶対に王手が掛かっているので、while ではなく、do while
-			do {
-				checkSq = bb.firstOneFromSQ11();
-				assert(pieceToColor(pos.piece(checkSq)) == Them);
-				++checkersNum;
-				makeBannedKingTo<Them>(bannedKingToBB, pos, checkSq, ksq);
-			} while (bb);
+				// 玉が逃げられない位置の bitboard を生成する。
+				// 絶対に王手が掛かっているので、while ではなく、do while
+				do {
+					checkSq = bb.firstOneFromSQ11();
+					assert(pieceToColor(pos.piece(checkSq)) == Them);
+					++checkersNum;
+					makeBannedKingTo<Them>(bannedKingToBB, pos, checkSq, ksq);
+				} while (bb);
 
-			// 玉が移動出来る移動先を格納。
-			bb = bannedKingToBB.notThisAnd(pos.bbOf(US).notThisAnd(kingAttack(ksq)));
-			FOREACH_BB(bb, const Square to, {
-				// 移動先に相手駒の利きがあるか調べずに指し手を生成する。
-				// attackersTo() が重いので、movePicker か search で合法手か調べる。
-				(*moveList++).move = makeNonPromoteMove<Capture>(King, ksq, to, pos);
-			});
+				// 移動先に他の相手駒の利きがあるかは合法性判定で調べる。
+				bb = bannedKingToBB.notThisAnd(pos.bbOf(US).notThisAnd(kingAttack(ksq)));
+				FOREACH_BB(bb, const Square to, {
+					(*moveList++).move = makeNonPromoteMove<Capture>(King, ksq, to, pos);
+				});
 
-			// 両王手なら、玉を移動するしか回避方法は無い。
-			// 玉の移動は生成したので、ここで終了
-			if (1 < checkersNum)
-				return moveList;
+				// 両王手なら玉の手だけ。単王手では走査済みの王手駒の位置を再利用する。
+				if (Part == EvasionPart::King || 1 < checkersNum)
+					return moveList;
+			}
 
-			// 王手している駒を玉以外で取る手の生成。
+			// 玉以外の駒で王手駒を取る手と、王手を遮る手を生成する。
 			// pin されているかどうかは movePicker か search で調べる。
 			const Bitboard target1 = betweenBB(checkSq, ksq);
 			const Bitboard target2 = target1 | checkers;
@@ -492,6 +506,9 @@ namespace {
 			return moveList;
 		}
 	};
+
+	template <Color US, bool ALL>
+	struct GenerateMoves<Evasion, US, ALL> : EvasionGenerator<US, ALL, EvasionPart::All> {};
 
 	// 部分特殊化
 	// 王手が掛かっていないときの指し手生成
@@ -1198,6 +1215,18 @@ ExtMove* generateCheckAllMoves(ExtMove* moveList, const Position& pos, const Che
 	return (pos.turn() == Black ?
 		GenerateMoves<Check, Black, true>()(moveList, pos, ci) :
 		GenerateMoves<Check, White, true>()(moveList, pos, ci));
+}
+
+ExtMove* generateKingEvasions(ExtMove* moveList, const Position& pos) {
+	return pos.turn() == Black
+		? EvasionGenerator<Black, false, EvasionPart::King>()(moveList, pos)
+		: EvasionGenerator<White, false, EvasionPart::King>()(moveList, pos);
+}
+
+ExtMove* generateNonKingEvasions(ExtMove* moveList, const Position& pos, const Square checker) {
+	return pos.turn() == Black
+		? EvasionGenerator<Black, false, EvasionPart::NonKing>{{checker}}(moveList, pos)
+		: EvasionGenerator<White, false, EvasionPart::NonKing>{{checker}}(moveList, pos);
 }
 
 // 明示的なインスタンス化
