@@ -20,13 +20,29 @@ namespace ns_mate {
 		CheckMovePicker(const Position& pos, const CheckInfo& ci) {
 			last_ = generateCheckAllMoves(moveList_, pos, ci);
 			if (INCHECK) {
-				// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
 				ExtMove* curr = moveList_;
-				while (curr != last_) {
-					if (!pos.checkMoveIsEvasion(curr->move))
-						curr->move = (--last_)->move;
-					else
+				// 玉以外の候補が現れるまでは、遮断・捕獲先を求めない。
+				while (curr != last_ && curr->move.pieceTypeFrom() == King) {
+					if (kingMoveIsEvasion(pos, curr->move))
 						++curr;
+					else
+						curr->move = (--last_)->move;
+				}
+				if (curr != last_) {
+					const Bitboard checkers = pos.checkersBB();
+					Bitboard remaining = checkers;
+					const Square checker = remaining.firstOneFromSQ11();
+					const Bitboard nonKingTargets = remaining ? allZeroBB() : betweenBB(checker, pos.kingSquare(pos.turn())) | checkers;
+					do {
+						const Move move = curr->move;
+						const bool evasion = move.pieceTypeFrom() == King
+							? kingMoveIsEvasion(pos, move)
+							: nonKingTargets.isSet(move.to());
+						if (evasion)
+							++curr;
+						else
+							curr->move = (--last_)->move;
+					} while (curr != last_);
 				}
 			}
 			assert(static_cast<size_t>(last_ - moveList_) <= MaxCheckMoves);
@@ -37,6 +53,12 @@ namespace ns_mate {
 		bool empty() const { return size() == 0; }
 
 	private:
+		static bool kingMoveIsEvasion(const Position& pos, Move move) {
+			Bitboard occupied = pos.occupiedBB();
+			occupied.clearBit(move.from());
+			return !pos.attackersToIsAny(oppositeColor(pos.turn()), move.to(), occupied);
+		}
+
 		ExtMove moveList_[MaxCheckMoves];
 		ExtMove* last_;
 	};
