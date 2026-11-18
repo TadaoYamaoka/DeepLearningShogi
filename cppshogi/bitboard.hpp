@@ -50,7 +50,7 @@ public:
     u64 merge() const { return this->p(0) | this->p(1); }
     explicit operator bool() const {
 #ifdef HAVE_SSE4
-        return !(_mm_testz_si128(this->m_, _mm_set1_epi8(static_cast<char>(0xffu))));
+        return !_mm_testz_si128(this->m_, this->m_);
 #else
         return (this->merge() ? true : false);
 #endif
