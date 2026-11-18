@@ -691,7 +691,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
     // 王手する前の状態の dcBB。
     // 間にある駒は相手側の駒。
     // 駒打ちのときは、打った後も、打たれる前の状態の dcBB を使用する。
-    const Bitboard dcBB_betweenIsThem = discoveredCheckBB<false>();
+    const Bitboard blockers = hiddenCheckers<false, BlockerSide::Both>();
+    const Bitboard dcBB_betweenIsThem = blockers & bbOf(Them);
 
     // 飛車打ち
     if (ourHand.exists<HRook>()) {
@@ -811,7 +812,7 @@ silver_drop_end:
     // moveTarget は桂馬以外の移動先の大まかな位置。飛角香の遠隔王手は含まない。
     const Bitboard moveTarget = bbOf(US).notThisAnd(kingAttack(ksq));
     const Bitboard pinned = pinnedBB();
-    const Bitboard dcBB_betweenIsUs = discoveredCheckBB<true>();
+    const Bitboard dcBB_betweenIsUs = blockers & bbOf(US);
 
     {
         // 竜による移動
