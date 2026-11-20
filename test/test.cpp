@@ -160,8 +160,8 @@ TEST(Mate, CapturingEitherCheckingBishopReachesTheSamePosition) {
     Position::initZobrist();
     for (const bool countercheck : {false, true}) {
         Position pos;
-        pos.set(countercheck ? "9/3B1k3/5r3/9/9/9/9/9/4K4 b - 1"
-                             : "9/3B1k3/5r3/9/9/9/9/9/K8 b - 1");
+        pos.set(countercheck ? "4ll3/3Bnks2/5rn2/9/3N5/9/9/9/4K4 b - 1"
+                             : "4ll3/3Bnks2/5rn2/9/3N5/9/9/9/K8 b - 1");
         const CheckInfo ci(pos);
         ns_mate::CheckMovePicker<false> checks(pos, ci);
         const Move promoted = usiToMove(pos, "6b5c+");
@@ -180,6 +180,8 @@ TEST(Mate, CapturingEitherCheckingBishopReachesTheSamePosition) {
             pos.doMoveCheck(m, check, ci);
             const Move reply = usiToMove(pos, "4c5c");
             ASSERT_TRUE(reply);
+            ns_mate::EvasionMovePicker evasions(pos);
+            ASSERT_EQ(reply.value(), evasions.nextLegal(pos).value());
             EXPECT_EQ(countercheck, pos.moveGivesCheck(reply));
             pos.doMove(reply, capture);
             if (!countercheck)
@@ -195,24 +197,39 @@ TEST(Mate, CapturingEitherCheckingBishopReachesTheSamePosition) {
     }
 }
 
-TEST(Mate, CountercheckCompletingPerpetualCheckWinsBeforeEvasions) {
+TEST(Mate, UnpromotedCountercheckWinsByRepetitionAfterPromotedCheckIsRefuted) {
     initTable();
     Position::initZobrist();
     Position pos;
-    pos.set("4k4/9/9/3K1b3/9/9/9/9/4R4 w - 1");
-    StateInfo history[4];
-    int ply = 0;
-    for (const char* text : {"4d5c", "6d5e", "5c4d"}) {
-        const Move m = usiToMove(pos, text);
-        ASSERT_TRUE(m) << text;
-        pos.doMove(m, history[ply++]);
-    }
+    pos.set("9/4+r4/7+r1/4KB3/2k6/5+b3/9/9/9 b - 1");
+    const Key root = pos.getKey();
     ASSERT_TRUE(pos.inCheck());
-    const Move check = usiToMove(pos, "5e6d");
-    ASSERT_TRUE(check);
-    pos.doMove(check, history[3]);
+    EXPECT_FALSE(mateMoveIn3Ply<true>(pos));
+
+    const char* const cycle[] = {"4d5c", "4f6d", "5d4e", "5b4a", "5c4d", "6d4f", "4e5d", "4a5b"};
+    StateInfo history[std::size(cycle)];
+    for (size_t i = 0; i < std::size(cycle); ++i) {
+        const Move m = usiToMove(pos, cycle[i]);
+        ASSERT_TRUE(m) << cycle[i];
+        pos.doMove(m, history[i]);
+    }
+    ASSERT_EQ(root, pos.getKey());
+
+    StateInfo check;
+    const Move promoted = usiToMove(pos, "4d5c+");
+    ASSERT_TRUE(promoted);
+    pos.doMove(promoted, check);
+    EXPECT_EQ(NotRepetition, pos.isDraw(16));
+    const Move capture = usiToMove(pos, "5b5c");
+    ASSERT_TRUE(capture);
+    EXPECT_TRUE(pos.moveGivesCheck(capture));
+    pos.undoMove(promoted);
+
+    const Move plain = usiToMove(pos, "4d5c");
+    ASSERT_TRUE(plain);
+    pos.doMove(plain, check);
     ASSERT_EQ(RepetitionLose, pos.isDraw(16));
-    pos.undoMove(check);
+    pos.undoMove(plain);
     EXPECT_TRUE(mateMoveIn3Ply<true>(pos));
 }
 
