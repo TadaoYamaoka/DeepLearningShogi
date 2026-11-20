@@ -223,9 +223,9 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 	StateInfo si2;
 
 	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::CheckMovePicker<INCHECK>(pos, ci))
-	{
-		const Move& m = ml.move;
+	ns_mate::CheckMovePicker<INCHECK> checks(pos, ci);
+	for (auto it = checks.begin(); it != checks.end(); ++it) {
+		const Move& m = it->move;
 
 		pos.doMoveCheck(m, si, ci);
 
@@ -276,7 +276,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 
 			// この指し手で逆王手になるなら、不詰めとして扱う
 			if (ns_mate::evasionGivesCheck(pos, m2, ksq, directChecks))
-				goto NEXT_CHECK;
+				goto BOARD_REFUTATION;
 
 			pos.doMoveNoCheck(m2, si2);
 
@@ -284,7 +284,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 				// 詰んでないので、m2で詰みを逃れている。
 				// m2は非王手なので、反復判定でこの失敗が成功へ反転することはない。
 				pos.undoMove(m2);
-				goto NEXT_CHECK;
+				goto BOARD_REFUTATION;
 			}
 
 			// 盤面上の1手詰めが見つかった場合だけ反復履歴を走査する。
@@ -309,7 +309,12 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		pos.undoMove(m);
 		return true;
 
-	NEXT_CHECK:;
+	BOARD_REFUTATION:
+		// 王手駒を取った後の盤面は成り・不成で同じ。王手直後の反復で勝つ可能性があれば両方調べる。
+		if (m2.to() == m.to() && it + 1 != checks.end()
+			&& (it[1].move.value() ^ m.value()) == Move::PromoteFlag && defer_check_repetition)
+			++it;
+	NEXT_CHECK:
 		pos.undoMove(m);
 	}
 	return false;

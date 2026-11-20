@@ -155,6 +155,67 @@ TEST(Mate, EvasionGivesCheck) {
     }
 }
 
+TEST(Mate, CapturingEitherCheckingBishopReachesTheSamePosition) {
+    initTable();
+    Position::initZobrist();
+    for (const bool countercheck : {false, true}) {
+        Position pos;
+        pos.set(countercheck ? "9/3B1k3/5r3/9/9/9/9/9/4K4 b - 1"
+                             : "9/3B1k3/5r3/9/9/9/9/9/K8 b - 1");
+        const CheckInfo ci(pos);
+        ns_mate::CheckMovePicker<false> checks(pos, ci);
+        const Move promoted = usiToMove(pos, "6b5c+");
+        const Move plain = usiToMove(pos, "6b5c");
+        ASSERT_TRUE(promoted && plain);
+        auto it = checks.begin();
+        while (it != checks.end() && it->move != promoted)
+            ++it;
+        ASSERT_NE(it, checks.end());
+        ASSERT_NE(it + 1, checks.end());
+        ASSERT_EQ(plain.value(), it[1].move.value());
+
+        std::string refuted;
+        for (const Move m : {promoted, plain}) {
+            StateInfo check, capture;
+            pos.doMoveCheck(m, check, ci);
+            const Move reply = usiToMove(pos, "4c5c");
+            ASSERT_TRUE(reply);
+            EXPECT_EQ(countercheck, pos.moveGivesCheck(reply));
+            pos.doMove(reply, capture);
+            if (!countercheck)
+                EXPECT_FALSE(pos.mateMoveIn1Ply());
+            if (m == promoted)
+                refuted = pos.toSFEN();
+            else
+                EXPECT_EQ(refuted, pos.toSFEN());
+            pos.undoMove(reply);
+            pos.undoMove(m);
+        }
+        EXPECT_FALSE(mateMoveIn3Ply<false>(pos));
+    }
+}
+
+TEST(Mate, CountercheckCompletingPerpetualCheckWinsBeforeEvasions) {
+    initTable();
+    Position::initZobrist();
+    Position pos;
+    pos.set("4k4/9/9/3K1b3/9/9/9/9/4R4 w - 1");
+    StateInfo history[4];
+    int ply = 0;
+    for (const char* text : {"4d5c", "6d5e", "5c4d"}) {
+        const Move m = usiToMove(pos, text);
+        ASSERT_TRUE(m) << text;
+        pos.doMove(m, history[ply++]);
+    }
+    ASSERT_TRUE(pos.inCheck());
+    const Move check = usiToMove(pos, "5e6d");
+    ASSERT_TRUE(check);
+    pos.doMove(check, history[3]);
+    ASSERT_EQ(RepetitionLose, pos.isDraw(16));
+    pos.undoMove(check);
+    EXPECT_TRUE(mateMoveIn3Ply<true>(pos));
+}
+
 TEST(Mate, AllMate5Positions) {
     constexpr const char* Mate5Path = R"(E:\game\shogi\mate3_5_7_9_11\mate5_filtered.sfen)";
     constexpr size_t ExpectedPositionCount = 990246;
