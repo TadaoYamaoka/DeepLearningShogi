@@ -116,12 +116,9 @@ TEST(Mate, EvasionPickerPreservesEagerOrder) {
 
         MoveList<Legal> eager(pos);
         ASSERT_FALSE(eager.end());
-        ns_mate::EvasionMovePicker picker(pos, pos.pinnedBB()), lazyPicker(pos);
-        for (; !eager.end(); ++eager) {
+        ns_mate::EvasionMovePicker picker(pos);
+        for (; !eager.end(); ++eager)
             ASSERT_EQ(eager.move().value(), picker.nextLegal(pos).value());
-            ASSERT_EQ(eager.move().value(), lazyPicker.nextLegal(pos).value());
-        }
-        EXPECT_FALSE(lazyPicker.nextLegal(pos));
         EXPECT_FALSE(picker.nextLegal(pos));
         EXPECT_FALSE(picker.nextLegal(pos));
     }

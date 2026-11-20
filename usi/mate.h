@@ -71,12 +71,6 @@ namespace ns_mate {
 			last_ = generateKingEvasions(moveList_, pos);
 		}
 
-		// この局面で計算済みのピン情報を、応手の列挙が終わるまで保持する。
-		EvasionMovePicker(const Position& pos, const Bitboard& pinned) : EvasionMovePicker(pos) {
-			pinned_ = pinned;
-			pinnedProvided_ = true;
-		}
-
 		// posは必ずこのpickerを構築した局面に戻してから呼び出す。
 		// 合法手が残っていなければmoveNone()を返す。
 		Move nextLegal(const Position& pos) {
@@ -91,7 +85,7 @@ namespace ns_mate {
 				if (!checkers) {
 					ExtMove* const firstNonKing = last_;
 					last_ = generateNonKingEvasions(last_, pos, checker);
-					if (firstNonKing != last_ && !pinnedProvided_)
+					if (firstNonKing != last_)
 						pinned_ = pos.pinnedBB();
 				}
 				nonKingEvasionsPending_ = false;
@@ -126,8 +120,7 @@ namespace ns_mate {
 		ExtMove* curr_ = moveList_;
 		ExtMove* last_;
 		bool nonKingEvasionsPending_ = true;
-		bool pinnedProvided_ = false;
-		Bitboard pinned_; // 未指定なら玉以外の候補を初めて追記したときに計算する。
+		Bitboard pinned_; // 玉以外の候補を初めて追記したときに計算する。
 		ExtMove moveList_[MaxLegalMoves];
 	};
 
@@ -432,17 +425,21 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply)
 {
 	// AND節点
 
-	// 受け手の合法性は取り出すときに判定し、計算済みのci.pinnedを再利用する。
-	const CheckInfo ci(pos);
-	ns_mate::EvasionMovePicker move_picker(pos, ci.pinned);
+	const Color kingColor = oppositeColor(pos.turn());
+	const Square ksq = pos.kingSquare(kingColor);
+	const auto& directChecks = ns_mate::directCheckPieceTypes(kingColor, ksq);
+	ns_mate::EvasionMovePicker move_picker(pos);
 	for (Move m = move_picker.nextLegal(pos); m;
 		m = move_picker.nextLegal(pos)) {
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << m.toUSI() << std::endl;
-		const bool givesCheck = pos.moveGivesCheck(m, ci);
+		const bool givesCheck = ns_mate::evasionGivesCheck(pos, m, ksq, directChecks);
 
 		// 1手動かす
 		StateInfo state;
-		pos.doMove(m, state, ci, givesCheck);
+		if (givesCheck)
+			pos.doMoveCheck(m, state, CheckInfo(pos));
+		else
+			pos.doMoveNoCheck(m, state);
 
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
