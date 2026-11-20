@@ -443,12 +443,12 @@ private:
     // 最後の手が何か覚えておけば、attackersTo() を使用しなくても良いはずで、処理が軽くなる。
     void findCheckers() { st_->checkersBB = attackersToExceptKing(oppositeColor(turn()), kingSquare(turn())); }
 
-    enum class BlockerSide { Us, Them, Both };
+    enum class BlockerSide { Us, Them };
 
     void xorBBs(const PieceType pt, const Square sq, const Color c);
     // turn() 側が
     // pin されて(して)いる駒の Bitboard を返す。
-    // Side は手番側を基準に間の駒の側を指定する。Both は両方の側を含む。
+    // Side は手番側を基準に間の駒の側を指定する。
     template <bool FindPinned, BlockerSide Side> Bitboard hiddenCheckers() const {
         Bitboard result = allZeroBB();
         const Color us = turn();
@@ -471,7 +471,7 @@ private:
             // pin する遠隔駒と玉の間にある駒が1つで、かつ、引数の色のとき、その駒は(を) pin されて(して)いる。
             if (between
                 && between.isOneBit<false>()
-                && (Side == BlockerSide::Both || between.andIsAny(bbOf(Side == BlockerSide::Us ? us : them))))
+                && between.andIsAny(bbOf(Side == BlockerSide::Us ? us : them)))
             {
                 result |= between;
             }

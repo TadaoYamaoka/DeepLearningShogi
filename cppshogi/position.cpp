@@ -594,7 +594,7 @@ namespace {
     // bb : sq の利きのある場所のBitboard。よって、玉は bb のビットが立っている場所には行けない。
     // sq と ksq の位置の Occupied Bitboard のみは、ここで更新して評価し、元に戻す。
     // (実際にはテンポラリのOccupied Bitboard を使うので、元には戻さない。)
-    bool canKingEscape(const Position& pos, const Color us, const Square sq, const Bitboard& bb) {
+    bool canKingEscape(const Position& pos, const Color us, const Square sq, const Bitboard& bb, Square& lastEscape) {
         const Color them = oppositeColor(us);
         const Square ksq = pos.kingSquare(them);
         Bitboard kingMoveBB = bb.notThisAnd(pos.bbOf(them).notThisAnd(kingAttack(ksq)));
@@ -604,35 +604,45 @@ namespace {
             Bitboard tempOccupied = pos.occupiedBB();
             tempOccupied.setBit(sq);
             tempOccupied.clearBit(ksq);
+            if (lastEscape != SquareNum && kingMoveBB.isSet(lastEscape)) {
+                if (!pos.attackersToIsAny(us, lastEscape, tempOccupied))
+                    return true;
+                kingMoveBB.clearBit(lastEscape);
+                if (!kingMoveBB)
+                    return false;
+            }
             do {
                 const Square to = kingMoveBB.firstOneFromSQ11();
                 // 玉の移動先に、us 側の利きが無ければ、true
-                if (!pos.attackersToIsAny(us, to, tempOccupied))
+                if (!pos.attackersToIsAny(us, to, tempOccupied)) {
+                    lastEscape = to;
                     return true;
+                }
             } while (kingMoveBB);
         }
         // 玉の移動先が無い。
         return false;
     }
-    // them(相手) 側の玉以外の駒が sq にある us 側の駒を取れるか。
-    bool canPieceCapture(const Position& pos, const Color them, const Square sq, const Bitboard& dcBB) {
-        // 玉以外で打った駒を取れる相手側の駒の Bitboard
-        Bitboard fromBB = pos.attackersToExceptKing(them, sq);
 
-        if (fromBB) {
-            const Square ksq = pos.kingSquare(them);
-            do {
-                const Square from = fromBB.firstOneFromSQ11();
-                if (!pos.isDiscoveredCheck(from, sq, ksq, dcBB))
-                    // them 側から見て、pin されていない駒で、打たれた駒を取れるので、true
-                    return true;
-            } while (fromBB);
-        }
-        // 玉以外の駒で、打った駒を取れない。
-        return false;
+    // fromの駒を取り除いた盤面で、移動によって玉への射線が開くかを調べる。
+    bool opensSliderAttack(const Position& pos, Color slider, Square king, Square from, Square to) {
+        const Direction direction = squareRelation(king, from);
+        if (direction == DirecMisc || direction == squareRelation(from, to))
+            return false;
+        const Bitboard occupied = pos.occupiedBB();
+        if (betweenBB(king, from).andIsAny(occupied))
+            return false;
+        Bitboard attackers;
+        if (direction == DirecFile)
+            attackers = rookAttackFile(from, occupied) & (pos.bbOf(Rook, Dragon) | (pos.bbOf(Lance) & lanceAttackToEdge(oppositeColor(slider), king)));
+        else if (direction == DirecRank)
+            attackers = rookAttackRank(from, occupied) & pos.bbOf(Rook, Dragon);
+        else
+            attackers = bishopAttack(from, occupied) & bishopAttackToEdge(king) & pos.bbOf(Bishop, Horse);
+        return attackers.andIsAny(pos.bbOf(slider));
     }
 
-    // pos.discoveredCheckBB<false>() を遅延評価するバージョン。
+    // 玉以外の駒で取れる候補があるときだけ、その駒のピンを調べる。
     bool canPieceCapture(const Position& pos, const Color them, const Square sq) {
         Bitboard fromBB = pos.attackersToExceptKing(them, sq);
 
@@ -693,6 +703,7 @@ inline void Position::xorBBs(const PieceType pt, const Square sq, const Color c)
 // 1手詰みでないなら、Move::moveNone() を返す。
 // Bitboard の状態を途中で更新する為、const 関数ではない。(更新後、元に戻すが。)
 template <Color US> Move Position::mateMoveIn1Ply() {
+    Square lastEscape = SquareNum; // 前の王手候補で逃げられたマスを、新しい盤面でも先に調べる。
     constexpr Color Them = oppositeColor(US);
     const Square ksq = kingSquare(Them);
     const SquareDelta TDeltaS = (US == Black ? DeltaS : DeltaN);
@@ -702,11 +713,6 @@ template <Color US> Move Position::mateMoveIn1Ply() {
     // 駒打ちを調べる。
     const Bitboard dropTarget = nOccupiedBB(); // emptyBB() ではないので注意して使うこと。
     const Hand ourHand = hand(US);
-    // 王手する前の状態の dcBB。
-    // 間にある駒は相手側の駒。
-    // 駒打ちのときは、打った後も、打たれる前の状態の dcBB を使用する。
-    const Bitboard blockers = hiddenCheckers<false, BlockerSide::Both>();
-    const Bitboard dcBB_betweenIsThem = blockers & bbOf(Them);
 
     // 飛車打ち
     if (ourHand.exists<HRook>()) {
@@ -718,8 +724,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
             // 駒を打った場所に自駒の利きがあるか。(無ければ玉で取られて詰まない)
             if (attackersToIsAny(US, to)) {
                 // 玉が逃げられず、他の駒で取ることも出来ないか
-                if (!canKingEscape(*this, US, to, rookAttackToEdge(to))
-                    && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+                if (!canKingEscape(*this, US, to, rookAttackToEdge(to), lastEscape)
+                    && !canPieceCapture(*this, Them, to))
                 {
                     return makeDropMove(Rook, to);
                 }
@@ -732,8 +738,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
     else if (ourHand.exists<HLance>() && isInFrontOf<US, Rank9, Rank1>(makeRank(ksq))) {
         const Square to = ksq + TDeltaS;
         if (piece(to) == Empty && attackersToIsAny(US, to)) {
-            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to))
-                && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to), lastEscape)
+                && !canPieceCapture(*this, Them, to))
             {
                 return makeDropMove(Lance, to);
             }
@@ -746,8 +752,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
         while (toBB) {
             const Square to = toBB.firstOneFromSQ11();
             if (attackersToIsAny(US, to)) {
-                if (!canKingEscape(*this, US, to, bishopAttackToEdge(to))
-                    && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+                if (!canKingEscape(*this, US, to, bishopAttackToEdge(to), lastEscape)
+                    && !canPieceCapture(*this, Them, to))
                 {
                     return makeDropMove(Bishop, to);
                 }
@@ -766,8 +772,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
         while (toBB) {
             const Square to = toBB.firstOneFromSQ11();
             if (attackersToIsAny(US, to)) {
-                if (!canKingEscape(*this, US, to, goldAttack(US, to))
-                    && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+                if (!canKingEscape(*this, US, to, goldAttack(US, to), lastEscape)
+                    && !canPieceCapture(*this, Them, to))
                 {
                     return makeDropMove(Gold, to);
                 }
@@ -796,8 +802,8 @@ template <Color US> Move Position::mateMoveIn1Ply() {
         while (toBB) {
             const Square to = toBB.firstOneFromSQ11();
             if (attackersToIsAny(US, to)) {
-                if (!canKingEscape(*this, US, to, silverAttack(US, to))
-                    && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+                if (!canKingEscape(*this, US, to, silverAttack(US, to), lastEscape)
+                    && !canPieceCapture(*this, Them, to))
                 {
                     return makeDropMove(Silver, to);
                 }
@@ -812,8 +818,8 @@ silver_drop_end:
             const Square to = toBB.firstOneFromSQ11();
             // 桂馬は紐が付いている必要はない。
             // よって、このcanKingEscape() 内での to の位置に逃げられないようにする処理は無駄。
-            if (!canKingEscape(*this, US, to, allZeroBB())
-                && !canPieceCapture(*this, Them, to, dcBB_betweenIsThem))
+            if (!canKingEscape(*this, US, to, allZeroBB(), lastEscape)
+                && !canPieceCapture(*this, Them, to))
             {
                 return makeDropMove(Knight, to);
             }
@@ -825,8 +831,6 @@ silver_drop_end:
     // 駒を移動する場合
     // moveTarget は桂馬以外の移動先の大まかな位置。飛角香の遠隔王手は含まない。
     const Bitboard moveTarget = bbOf(US).notThisAnd(kingAttack(ksq));
-    const Bitboard pinned = pinnedBB();
-    const Bitboard dcBB_betweenIsUs = blockers & bbOf(US);
 
     {
         // 竜による移動
@@ -837,8 +841,7 @@ silver_drop_end:
             Bitboard toBB = moveTarget & attacksFrom<Dragon>(from);
             if (toBB) {
                 xorBBs(Dragon, from, US);
-                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                 // to の位置の Bitboard は canKingEscape の中で更新する。
                 do {
                     const Square to = toBB.firstOneFromSQ11();
@@ -847,10 +850,9 @@ silver_drop_end:
                         // 玉が逃げられない
                         // かつ、(空き王手 または 他の駒で取れない)
                         // かつ、王手した駒が pin されていない
-                        if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)))
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Dragon, from, US);
                             return makeCaptureMove(Dragon, from, to, *this);
@@ -877,16 +879,14 @@ silver_drop_end:
                 Bitboard toBB = moveTarget & attacksFrom<Rook>(from);
                 if (toBB) {
                     xorBBs(Rook, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     do {
                         const Square to = toBB.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
-                            if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Rook, from, US);
                                 return makeCapturePromoteMove(Rook, from, to, *this);
@@ -904,8 +904,7 @@ silver_drop_end:
             Bitboard toBB = moveTarget & attacksFrom<Rook>(from) & (rookStepAttacks(ksq) | TRank123BB);
             if (toBB) {
                 xorBBs(Rook, from, US);
-                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
 
                 Bitboard toOn123BB = toBB & TRank123BB;
                 // 成り
@@ -913,10 +912,9 @@ silver_drop_end:
                     do {
                         const Square to = toOn123BB.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
-                            if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Dragon>(to, occupiedBB() ^ setMaskBB(ksq)), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Rook, from, US);
                                 return makeCapturePromoteMove(Rook, from, to, *this);
@@ -930,10 +928,9 @@ silver_drop_end:
                 while (toBB) {
                     const Square to = toBB.firstOneFromSQ11();
                     if (unDropCheckIsSupported(US, to)) {
-                        if (!canKingEscape(*this, US, to, rookAttackToEdge(to))
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, rookAttackToEdge(to), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Rook, from, US);
                             return makeCaptureMove(Rook, from, to, *this);
@@ -954,8 +951,7 @@ silver_drop_end:
             Bitboard toBB = moveTarget & attacksFrom<Horse>(from);
             if (toBB) {
                 xorBBs(Horse, from, US);
-                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                 // to の位置の Bitboard は canKingEscape の中で更新する。
                 do {
                     const Square to = toBB.firstOneFromSQ11();
@@ -964,10 +960,9 @@ silver_drop_end:
                         // 玉が逃げられない
                         // かつ、(空き王手 または 他の駒で取れない)
                         // かつ、動かした駒が pin されていない)
-                        if (!canKingEscape(*this, US, to, horseAttackToEdge(to)) // 竜の場合と違って、常に最大の利きを使用して良い。
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, horseAttackToEdge(to), lastEscape) // 竜の場合と違って、常に最大の利きを使用して良い。
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Horse, from, US);
                             return makeCaptureMove(Horse, from, to, *this);
@@ -991,16 +986,14 @@ silver_drop_end:
                 Bitboard toBB = moveTarget & attacksFrom<Bishop>(from);
                 if (toBB) {
                     xorBBs(Bishop, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     do {
                         const Square to = toBB.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
-                            if (!canKingEscape(*this, US, to, horseAttackToEdge(to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, horseAttackToEdge(to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Bishop, from, US);
                                 return makeCapturePromoteMove(Bishop, from, to, *this);
@@ -1018,8 +1011,7 @@ silver_drop_end:
             Bitboard toBB = moveTarget & attacksFrom<Bishop>(from) & (bishopStepAttacks(ksq) | TRank123BB);
             if (toBB) {
                 xorBBs(Bishop, from, US);
-                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
 
                 Bitboard toOn123BB = toBB & TRank123BB;
                 // 成り
@@ -1027,10 +1019,9 @@ silver_drop_end:
                     do {
                         const Square to = toOn123BB.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
-                            if (!canKingEscape(*this, US, to, horseAttackToEdge(to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, horseAttackToEdge(to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Bishop, from, US);
                                 return makeCapturePromoteMove(Bishop, from, to, *this);
@@ -1044,10 +1035,9 @@ silver_drop_end:
                 while (toBB) {
                     const Square to = toBB.firstOneFromSQ11();
                     if (unDropCheckIsSupported(US, to)) {
-                        if (!canKingEscape(*this, US, to, bishopAttackToEdge(to))
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, bishopAttackToEdge(to), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Bishop, from, US);
                             return makeCaptureMove(Bishop, from, to, *this);
@@ -1069,8 +1059,7 @@ silver_drop_end:
                 const PieceType pt = pieceToPieceType(piece(from));
                 xorBBs(pt, from, US);
                 goldsBB_.xorBit(from);
-                // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                 // to の位置の Bitboard は canKingEscape の中で更新する。
                 do {
                     const Square to = toBB.firstOneFromSQ11();
@@ -1079,10 +1068,9 @@ silver_drop_end:
                         // 玉が逃げられない
                         // かつ、(空き王手 または 他の駒で取れない)
                         // かつ、動かした駒が pin されていない)
-                        if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(pt, from, US);
                             goldsBB_.xorBit(from);
@@ -1117,17 +1105,15 @@ silver_drop_end:
                     toBB &= chkBB;
                     if ((toBB_promo | toBB)) {
                         xorBBs(Silver, from, US);
-                        // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                        const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                         // to の位置の Bitboard は canKingEscape の中で更新する。
                         while (toBB_promo) {
                             const Square to = toBB_promo.firstOneFromSQ11();
                             if (unDropCheckIsSupported(US, to)) {
                                 // 成り
-                                if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                    && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                        || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                    && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                                if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                                    && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                    && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                                 {
                                     xorBBs(Silver, from, US);
                                     return makeCapturePromoteMove(Silver, from, to, *this);
@@ -1142,10 +1128,9 @@ silver_drop_end:
                             const Square to = toBB.firstOneFromSQ11();
                             if (unDropCheckIsSupported(US, to)) {
                                 // 不成
-                                if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to))
-                                    && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                        || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                    && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                                if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to), lastEscape)
+                                    && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                    && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                                 {
                                     xorBBs(Silver, from, US);
                                     return makeCaptureMove(Silver, from, to, *this);
@@ -1168,17 +1153,15 @@ silver_drop_end:
 
                     if (toBB) {
                         xorBBs(Silver, from, US);
-                        // 動いた後の dcBB, pinned: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                        const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                         // to の位置の Bitboard は canKingEscape の中で更新する。
                         while (toBB) {
                             const Square to = toBB.firstOneFromSQ11();
                             if (unDropCheckIsSupported(US, to)) {
                                 // 不成
-                                if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to))
-                                    && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                        || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                    && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                                if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to), lastEscape)
+                                    && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                    && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                                 {
                                     xorBBs(Silver, from, US);
                                     return makeCaptureMove(Silver, from, to, *this);
@@ -1201,17 +1184,15 @@ silver_drop_end:
                 toBB &= chkBB;
                 if ((toBB_promo | toBB)) {
                     xorBBs(Silver, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     while (toBB_promo) {
                         const Square to = toBB_promo.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
                             // 成り
-                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Silver, from, US);
                                 return makeCapturePromoteMove(Silver, from, to, *this);
@@ -1223,10 +1204,9 @@ silver_drop_end:
                         const Square to = toBB.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
                             // 不成
-                            if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Silver>(US, to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Silver, from, US);
                                 return makeCaptureMove(Silver, from, to, *this);
@@ -1254,17 +1234,15 @@ silver_drop_end:
                 toBB &= chkBB;
                 if ((toBB_promo | toBB)) {
                     xorBBs(Knight, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     while (toBB_promo) {
                         const Square to = toBB_promo.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
                             // 成り
-                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                && (isDiscoveredCheck<true>(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal<true>(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Knight, from, US);
                                 return makeCapturePromoteMove(Knight, from, to, *this);
@@ -1276,10 +1254,9 @@ silver_drop_end:
                         const Square to = toBB.firstOneFromSQ11();
                         // 桂馬は紐が付いてなくて良いので、紐が付いているかは調べない。
                         // 不成
-                        if (!canKingEscape(*this, US, to, allZeroBB())
-                            && (isDiscoveredCheck<true>(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal<true>(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, allZeroBB(), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Knight, from, US);
                             return makeCaptureMove(Knight, from, to, *this);
@@ -1312,18 +1289,16 @@ silver_drop_end:
 
                 if ((toBB_promo | toBB)) {
                     xorBBs(Lance, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
 
                     while (toBB_promo) {
                         const Square to = toBB_promo.firstOneFromSQ11();
                         if (unDropCheckIsSupported(US, to)) {
                             // 成り
-                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Lance, from, US);
                                 return makeCapturePromoteMove(Lance, from, to, *this);
@@ -1337,10 +1312,9 @@ silver_drop_end:
                         const Square to = ksq + TDeltaS;
                         if (unDropCheckIsSupported(US, to)) {
                             // 不成
-                            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to))
-                                && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                    || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                                && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                            if (!canKingEscape(*this, US, to, lanceAttackToEdge(US, to), lastEscape)
+                                && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                                && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                             {
                                 xorBBs(Lance, from, US);
                                 return makeCaptureMove(Lance, from, to, *this);
@@ -1375,15 +1349,13 @@ silver_drop_end:
                     const Square to = from + TDeltaN;
 
                     xorBBs(Pawn, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     if (unDropCheckIsSupported(US, to)) {
                         // 成り
-                        if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to))
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, attacksFrom<Gold>(US, to), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Pawn, from, US);
                             return makeCapturePromoteMove(Pawn, from, to, *this);
@@ -1401,15 +1373,13 @@ silver_drop_end:
                 // 玉が 1, 2 段目にいるなら、成りで王手出来るので不成は調べない。
                 if (isBehind<US, Rank2, Rank8>(krank)) {
                     xorBBs(Pawn, from, US);
-                    // 動いた後の dcBB: to の位置の occupied や checkers は関係ないので、ここで生成できる。
-                    const Bitboard dcBB_betweenIsThem_after = discoveredCheckBB<false>();
+
                     // to の位置の Bitboard は canKingEscape の中で更新する。
                     if (unDropCheckIsSupported(US, to)) {
                         // 不成
-                        if (!canKingEscape(*this, US, to, allZeroBB())
-                            && (isDiscoveredCheck(from, to, ksq, dcBB_betweenIsUs)
-                                || !canPieceCapture(*this, Them, to, dcBB_betweenIsThem_after))
-                            && !isPinnedIllegal(from, to, kingSquare(US), pinned))
+                        if (!canKingEscape(*this, US, to, allZeroBB(), lastEscape)
+                            && (!canPieceCapture(*this, Them, to) || opensSliderAttack(*this, US, ksq, from, to))
+                            && !opensSliderAttack(*this, Them, kingSquare(US), from, to))
                         {
                             xorBBs(Pawn, from, US);
                             return makeCaptureMove(Pawn, from, to, *this);
