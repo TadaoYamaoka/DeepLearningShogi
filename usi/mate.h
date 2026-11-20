@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <climits>
+#include <array>
 
 #include "position.hpp"
 #include "move.hpp"
@@ -66,13 +67,19 @@ namespace ns_mate {
 	// 受け側。玉以外の応手は、従来の探索順で必要になってから生成する。
 	class EvasionMovePicker {
 	public:
-		explicit EvasionMovePicker(const Position& pos)
-			: curr_(moveList_), last_(generateKingEvasions(moveList_, pos)) {}
+		explicit EvasionMovePicker(const Position& pos) {
+			last_ = generateKingEvasions(moveList_, pos);
+		}
+
+		// この局面で計算済みのピン情報を、応手の列挙が終わるまで保持する。
+		EvasionMovePicker(const Position& pos, const Bitboard& pinned) : EvasionMovePicker(pos) {
+			pinned_ = pinned;
+			pinnedProvided_ = true;
+		}
 
 		// posは必ずこのpickerを構築した局面に戻してから呼び出す。
-		// pinnedには同じ局面で計算したCheckInfo::pinned等を渡す。
 		// 合法手が残っていなければmoveNone()を返す。
-		Move nextLegal(const Position& pos, const Bitboard& pinned) {
+		Move nextLegal(const Position& pos) {
 			if (nonKingEvasionsPending_) {
 				const bool hasKingMove = curr_ != last_;
 				if (hasKingMove && kingMoveIsLegal(pos, curr_->move))
@@ -81,15 +88,19 @@ namespace ns_mate {
 				// 非合法な玉の手は候補列全体の末尾と交換する。玉の手を使い切った場合もここで追記する。
 				Bitboard checkers = pos.checkersBB();
 				const Square checker = checkers.firstOneFromSQ11();
-				if (!checkers)
+				if (!checkers) {
+					ExtMove* const firstNonKing = last_;
 					last_ = generateNonKingEvasions(last_, pos, checker);
+					if (firstNonKing != last_ && !pinnedProvided_)
+						pinned_ = pos.pinnedBB();
+				}
 				nonKingEvasionsPending_ = false;
 				if (hasKingMove)
 					curr_->move = (--last_)->move;
 			}
 
 			while (curr_ != last_) {
-				if (!generatedMoveIsLegal(pos, curr_->move, pinned))
+				if (!generatedMoveIsLegal(pos, curr_->move, pinned_))
 					curr_->move = (--last_)->move;
 				else
 					return (curr_++)->move;
@@ -112,11 +123,48 @@ namespace ns_mate {
 			return !pos.isPinnedIllegal(move.from(), move.to(), pos.kingSquare(pos.turn()), pinned);
 		}
 
-		ExtMove moveList_[MaxLegalMoves];
-		ExtMove* curr_;
+		ExtMove* curr_ = moveList_;
 		ExtMove* last_;
 		bool nonKingEvasionsPending_ = true;
+		bool pinnedProvided_ = false;
+		Bitboard pinned_; // 未指定なら玉以外の候補を初めて追記したときに計算する。
+		ExtMove moveList_[MaxLegalMoves];
 	};
+
+	// 相手玉の色・位置と着手先から、遮断がなければ直接王手になる着手後の駒種を引く。
+	using DirectCheckMasks = std::array<u16, SquareNum>;
+	inline const DirectCheckMasks& directCheckPieceTypes(Color kingColor, Square ksq) {
+		static const auto table = [] {
+			static_assert(PieceTypeNum <= 16, "Direct check piece types must fit in u16");
+			std::array<std::array<DirectCheckMasks, SquareNum>, ColorNum> masks{};
+			for (Color c = Black; c < ColorNum; ++c) {
+				for (Square king = SQ11; king < SquareNum; ++king) {
+					for (PieceType pt = Pawn; pt < PieceTypeNum; ++pt) {
+						if (pt == King) continue; // 合法な玉の手は直接王手にならない。
+						Bitboard targets = Position::attacksFrom(pt, c, king, allZeroBB());
+						while (targets)
+							masks[c][king][targets.firstOneFromSQ11()] |= static_cast<u16>(1u << pt);
+					}
+				}
+			}
+			return masks;
+		}();
+		return table[kingColor][ksq];
+	}
+
+	inline bool evasionGivesCheck(const Position& pos, Move move, Square ksq, const DirectCheckMasks& directChecks) {
+		const Square to = move.to();
+		if ((directChecks[to] & (1u << move.pieceTypeTo()))
+			&& !(betweenBB(ksq, to) & pos.occupiedBB()))
+			return true;
+
+		if (move.isDrop())
+			return false;
+		const Square from = move.from();
+		const Direction direction = squareRelation(from, ksq);
+		return direction != DirecMisc && direction != squareRelation(from, to)
+			&& pos.discoveredCheckBB().isSet(from);
+	}
 
 	enum class MateRepetitionAction {
 		Continue,
@@ -179,7 +227,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 	{
 		const Move& m = ml.move;
 
-		pos.doMove(m, si, ci, true);
+		pos.doMoveCheck(m, si, ci);
 
 		// RepetitionLoseだけは、盤面上の詰みを調べる前でも攻め側の成功になる。
 		// 受け側のcontinuousCheckが4未満ならRepetitionLoseは起こらないため、
@@ -202,8 +250,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 
 		// 最初の合法な受けだけを取得する。残りの合法性判定は遅延する。
 		ns_mate::EvasionMovePicker move_picker2(pos);
-		const Bitboard pinned2 = pos.pinnedBB();
-		Move m2 = move_picker2.nextLegal(pos, pinned2);
+		Move m2 = move_picker2.nextLegal(pos);
 
 		if (!m2) {
 			// 盤面上は1手で詰んでいる。遅延していた反復判定があれば、ここでだけ実行する。
@@ -222,16 +269,16 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 			continue;
 		}
 
-		// 受けなし・手数制限で終了する場合はCheckInfo全体を構築しない。
-		// 最初の合法性判定に使ったpin情報を再利用する。
-		const CheckInfo ci2(pos, pinned2);
+		const Color kingColor = oppositeColor(pos.turn());
+		const Square ksq = pos.kingSquare(kingColor);
+		const auto& directChecks = ns_mate::directCheckPieceTypes(kingColor, ksq);
 		do {
 
 			// この指し手で逆王手になるなら、不詰めとして扱う
-			if (pos.moveGivesCheck(m2, ci2))
+			if (ns_mate::evasionGivesCheck(pos, m2, ksq, directChecks))
 				goto NEXT_CHECK;
 
-			pos.doMove(m2, si2, ci2, false);
+			pos.doMoveNoCheck(m2, si2);
 
 			if (!pos.mateMoveIn1Ply()) {
 				// 詰んでないので、m2で詰みを逃れている。
@@ -249,7 +296,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 			}
 
 			pos.undoMove(m2);
-		} while ((m2 = move_picker2.nextLegal(pos, ci2.pinned)));
+		} while ((m2 = move_picker2.nextLegal(pos)));
 
 		// 盤面上ではすべての受けに対して詰んだ。
 		// m後の反復判定を遅延していた場合だけ、成功を確定する直前に走査する。
@@ -283,7 +330,7 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int draw_ply = INT_MAX) {
 	for (const auto& ml : ns_mate::CheckMovePicker<INCHECK>(pos, ci)) {
 		// 1手動かす
 		StateInfo state;
-		pos.doMove(ml.move, state, ci, true);
+		pos.doMoveCheck(ml.move, state, ci);
 
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
@@ -334,7 +381,7 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		// 1手動かす
 		StateInfo state;
-		pos.doMove(ml.move, state, ci, true);
+		pos.doMoveCheck(ml.move, state, ci);
 
 		// 千日手チェック
 		switch (pos.isDraw(16)) {
@@ -380,11 +427,11 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply)
 {
 	// AND節点
 
-	// 受け手の合法性は取り出すときに判定し、ci.pinnedを共有する。
+	// 受け手の合法性は取り出すときに判定し、計算済みのci.pinnedを再利用する。
 	const CheckInfo ci(pos);
-	ns_mate::EvasionMovePicker move_picker(pos);
-	for (Move m = move_picker.nextLegal(pos, ci.pinned); m;
-		m = move_picker.nextLegal(pos, ci.pinned)) {
+	ns_mate::EvasionMovePicker move_picker(pos, ci.pinned);
+	for (Move m = move_picker.nextLegal(pos); m;
+		m = move_picker.nextLegal(pos)) {
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << m.toUSI() << std::endl;
 		const bool givesCheck = pos.moveGivesCheck(m, ci);
 

@@ -105,6 +105,7 @@ TEST(Mate, EvasionPickerPreservesEagerOrder) {
     for (const char* sfen : {
         "k3r4/9/9/5G3/4K4/9/7b1/9/9 b G 1",
         "k3r4/9/9/5G3/4K4/9/9/9/9 b G 1",
+        "k3r4/9/9/9/9/9/6b2/5G3/4K4 b - 1", // 4hの金は角にピンされ、5hに合駒できない。
         "k3r4/9/9/5G3/4K4/1b7/7b1/9/9 b G 1", // 4e で後段に移り、残った玉の候補 6d も非合法。
         "k3r4/9/9/5G3/4K4/1b7/6b2/9/9 b G 1", // 両王手。6d は玉の移動先として非合法。
     }) {
@@ -115,12 +116,42 @@ TEST(Mate, EvasionPickerPreservesEagerOrder) {
 
         MoveList<Legal> eager(pos);
         ASSERT_FALSE(eager.end());
-        ns_mate::EvasionMovePicker picker(pos);
-        const Bitboard pinned = pos.pinnedBB();
-        for (; !eager.end(); ++eager)
-            ASSERT_EQ(eager.move().value(), picker.nextLegal(pos, pinned).value());
-        EXPECT_FALSE(picker.nextLegal(pos, pinned));
-        EXPECT_FALSE(picker.nextLegal(pos, pinned));
+        ns_mate::EvasionMovePicker picker(pos, pos.pinnedBB()), lazyPicker(pos);
+        for (; !eager.end(); ++eager) {
+            ASSERT_EQ(eager.move().value(), picker.nextLegal(pos).value());
+            ASSERT_EQ(eager.move().value(), lazyPicker.nextLegal(pos).value());
+        }
+        EXPECT_FALSE(lazyPicker.nextLegal(pos));
+        EXPECT_FALSE(picker.nextLegal(pos));
+        EXPECT_FALSE(picker.nextLegal(pos));
+    }
+}
+
+TEST(Mate, EvasionGivesCheck) {
+    initTable();
+    Position::initZobrist();
+
+    struct Case { const char* sfen; const char* move; bool givesCheck; };
+    for (const auto& c : {
+        Case{"4r4/9/8k/9/9/9/9/9/4K4 b R 1", "R*5c", true},
+        Case{"4r4/9/6p1k/9/9/9/9/9/4K4 b R 1", "R*5c", false},
+        Case{"4k4/9/9/9/9/9/K8/9/4R4 w r 1", "R*5g", true},
+        Case{"4rk3/9/9/9/9/9/9/9/4K4 b N 1", "N*5c", true},
+        Case{"4r4/9/5k3/3S5/9/9/9/9/4K4 b - 1", "6d5c+", true},
+        Case{"4r4/9/5k3/3S5/9/9/9/9/4K4 b - 1", "6d5c", false},
+        Case{"4k4/9/9/9/4K3r/9/9/9/4R4 b - 1", "5e6d", true},
+        Case{"4k4/9/9/9/4K3r/9/9/9/4R4 b - 1", "5e5f", false},
+    }) {
+        SCOPED_TRACE(c.move);
+        Position pos;
+        pos.set(c.sfen);
+        ASSERT_TRUE(pos.inCheck());
+        const Move move = usiToMove(pos, c.move);
+        ASSERT_TRUE(move);
+        ASSERT_EQ(c.givesCheck, pos.moveGivesCheck(move));
+        const Color kingColor = oppositeColor(pos.turn());
+        const Square ksq = pos.kingSquare(kingColor);
+        EXPECT_EQ(c.givesCheck, ns_mate::evasionGivesCheck(pos, move, ksq, ns_mate::directCheckPieceTypes(kingColor, ksq)));
     }
 }
 
@@ -242,6 +273,37 @@ TEST(PolicyValueCacheTest, ConcurrentAccess) {
     }
     for (auto& thread : threads)
         thread.join();
+}
+
+TEST(Position, DoMoveNoCheckUpdatesCheckHistory) {
+    initTable();
+    Position::initZobrist();
+
+    Position pos;
+    pos.set("4k4/9/3R5/9/9/9/9/9/4K4 b P 1");
+    StateInfo check, evasion, drop;
+    const Move rook = usiToMove(pos, "6c5c");
+    ASSERT_TRUE(rook);
+    pos.doMove(rook, check);
+    ASSERT_EQ(2, check.continuousCheck[Black]);
+
+    const Move king = usiToMove(pos, "5a4a");
+    ASSERT_TRUE(king);
+    pos.doMoveNoCheck(king, evasion);
+    EXPECT_FALSE(pos.inCheck());
+    EXPECT_EQ(2, evasion.continuousCheck[Black]);
+    EXPECT_EQ(0, evasion.continuousCheck[White]);
+
+    const auto key = pos.getKey();
+    const Move pawn = usiToMove(pos, "P*6f");
+    ASSERT_TRUE(pawn);
+    pos.doMoveNoCheck(pawn, drop);
+    EXPECT_FALSE(pos.inCheck());
+    EXPECT_EQ(0, drop.continuousCheck[Black]);
+    pos.undoMove(pawn);
+    EXPECT_EQ(key, pos.getKey());
+    pos.undoMove(king);
+    EXPECT_TRUE(pos.inCheck());
 }
 
 TEST(Position, moveIsDraw) {

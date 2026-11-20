@@ -377,6 +377,8 @@ public:
 
     void doMove(const Move move, StateInfo& newSt);
     void doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck);
+    void doMoveCheck(const Move move, StateInfo& newSt, const CheckInfo& ci);
+    void doMoveNoCheck(const Move move, StateInfo& newSt);
     void undoMove(const Move move);
 
     template <Color US> Move mateMoveIn1Ply();
@@ -418,6 +420,7 @@ public:
 
 private:
     void clear();
+    FORCE_INLINE void doMoveImpl(const Move& move, StateInfo& newSt, const CheckInfo* ci, bool moveIsCheck);
     void setPiece(const Piece piece, const Square sq) {
         const Color c = pieceToColor(piece);
         const PieceType pt = pieceToPieceType(piece);

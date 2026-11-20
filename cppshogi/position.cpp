@@ -339,7 +339,7 @@ void Position::doMove(const Move move, StateInfo& newSt) {
 }
 
 // 局面の更新
-void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck) {
+FORCE_INLINE void Position::doMoveImpl(const Move& move, StateInfo& newSt, const CheckInfo* ci, const bool moveIsCheck) {
     assert(isOK());
     assert(move);
     assert(&newSt != st_);
@@ -414,11 +414,11 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
 
         if (moveIsCheck) {
             // Direct checks
-            st_->checkersBB = ci.checkBB[ptTo] & setMaskBB(to);
+            st_->checkersBB = ci->checkBB[ptTo] & setMaskBB(to);
 
             // Discovery checks
             const Square ksq = kingSquare(oppositeColor(us));
-            if (isDiscoveredCheck(from, to, ksq, ci.dcBB)) {
+            if (isDiscoveredCheck(from, to, ksq, ci->dcBB)) {
                 switch (squareRelation(from, ksq)) {
                 case DirecMisc: assert(false); break; // 最適化の為のダミー
                 case DirecFile:
@@ -451,6 +451,20 @@ void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, co
     st_->hand = hand(turn());
 
     assert(isOK());
+}
+
+void Position::doMove(const Move move, StateInfo& newSt, const CheckInfo& ci, const bool moveIsCheck) {
+    doMoveImpl(move, newSt, &ci, moveIsCheck);
+}
+
+void Position::doMoveCheck(const Move move, StateInfo& newSt, const CheckInfo& ci) {
+    assert(moveGivesCheck(move, ci));
+    doMoveImpl(move, newSt, &ci, true);
+}
+
+void Position::doMoveNoCheck(const Move move, StateInfo& newSt) {
+    assert(!moveGivesCheck(move));
+    doMoveImpl(move, newSt, nullptr, false);
 }
 
 void Position::undoMove(const Move move) {
