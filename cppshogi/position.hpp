@@ -284,14 +284,12 @@ public:
 
     // turn() 側が pin されている Bitboard を返す。
     // checkersBB が更新されている必要がある。
-    Bitboard pinnedBB() const { return hiddenCheckers<true, BlockerSide::Us>(); }
+    Bitboard pinnedBB() const { return hiddenCheckers<true, true>(); }
     // 間の駒を動かすことで、turn() 側が空き王手が出来る駒のBitboardを返す。
     // checkersBB が更新されている必要はない。
     // BetweenIsUs == true  : 間の駒が自駒。
     // BetweenIsUs == false : 間の駒が敵駒。
-    template <bool BetweenIsUs = true> Bitboard discoveredCheckBB() const {
-        return hiddenCheckers<false, BetweenIsUs ? BlockerSide::Us : BlockerSide::Them>();
-    }
+    template <bool BetweenIsUs = true> Bitboard discoveredCheckBB() const { return hiddenCheckers<false, BetweenIsUs>(); }
 
     // toFile と同じ筋に us の歩がないなら true
     bool noPawns(const Color us, const File toFile) const { return !bbOf(Pawn, us).andIsAny(fileMask(toFile)); }
@@ -443,13 +441,12 @@ private:
     // 最後の手が何か覚えておけば、attackersTo() を使用しなくても良いはずで、処理が軽くなる。
     void findCheckers() { st_->checkersBB = attackersToExceptKing(oppositeColor(turn()), kingSquare(turn())); }
 
-    enum class BlockerSide { Us, Them };
-
     void xorBBs(const PieceType pt, const Square sq, const Color c);
     // turn() 側が
     // pin されて(して)いる駒の Bitboard を返す。
-    // Side は手番側を基準に間の駒の側を指定する。
-    template <bool FindPinned, BlockerSide Side> Bitboard hiddenCheckers() const {
+    // BetweenIsUs == true  : 間の駒が自駒。
+    // BetweenIsUs == false : 間の駒が敵駒。
+    template <bool FindPinned, bool BetweenIsUs> Bitboard hiddenCheckers() const {
         Bitboard result = allZeroBB();
         const Color us = turn();
         const Color them = oppositeColor(us);
@@ -471,7 +468,7 @@ private:
             // pin する遠隔駒と玉の間にある駒が1つで、かつ、引数の色のとき、その駒は(を) pin されて(して)いる。
             if (between
                 && between.isOneBit<false>()
-                && between.andIsAny(bbOf(Side == BlockerSide::Us ? us : them)))
+                && between.andIsAny(bbOf(BetweenIsUs ? us : them)))
             {
                 result |= between;
             }
