@@ -1,9 +1,11 @@
-﻿#include <unordered_set>
+﻿#include <type_traits>
+#include <unordered_set>
 
 #include "position.hpp"
 #include "move.hpp"
 #include "generateMoves.hpp"
 #include "dfpn.h"
+#include "mate.h"
 
 using namespace std;
 using namespace ns_dfpn;
@@ -22,6 +24,21 @@ void DfPn::dfpn_stop(const bool stop)
 // 詰将棋エンジン用のMovePicker
 namespace ns_dfpn {
 	constexpr size_t MaxCheckMoves = 91;
+
+	class EvasionCheckInfo {
+	public:
+		explicit EvasionCheckInfo(const Position& pos)
+			: ksq(pos.kingSquare(oppositeColor(pos.turn()))),
+			  directChecks(ns_mate::directCheckPieceTypes(oppositeColor(pos.turn()), ksq)) {}
+
+		bool givesCheck(const Position& pos, Move move) const {
+			return ns_mate::evasionGivesCheck(pos, move, ksq, directChecks);
+		}
+
+	private:
+		Square ksq;
+		const ns_mate::DirectCheckMasks& directChecks;
+	};
 
 	template <bool or_node>
 	class MovePicker {
@@ -331,19 +348,21 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		return;
 	}
 
+	// 指し手のある節点だけで、固定深さの読みと主探索の着手に使う王手情報を求める。
+	const std::conditional_t<or_node, CheckInfo, EvasionCheckInfo> ci(n);
+
 	// 新規節点で固定深さの探索を併用
 	if (entry.num_searched == 0) {
-		if (or_node) {
+		if constexpr (or_node) {
 			// 3手詰みチェック
 			StateInfo si;
 			StateInfo si2;
 
-			const CheckInfo ci(n);
 			for (const auto& ml : move_picker)
 			{
 				const Move& m = ml.move;
 
-				n.doMove(m, si, ci, true);
+				n.doMoveCheck(m, si, ci);
 
 				// 千日手のチェック
 				if (n.isDraw(16) == RepetitionWin) {
@@ -391,16 +410,16 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 					continue;
 				}
 
-				const CheckInfo ci2(n);
+				const EvasionCheckInfo ci2(n);
 				for (const auto& move : move_picker2)
 				{
 					const Move& m2 = move.move;
 
 					// この指し手で逆王手になるなら、不詰めとして扱う
-					if (n.moveGivesCheck(m2, ci2))
+					if (ci2.givesCheck(n, m2))
 						goto NEXT_CHECK;
 
-					n.doMove(m2, si2, ci2, false);
+					n.doMoveNoCheck(m2, si2);
 
 					if (n.mateMoveIn1Ply()) {
 						auto& entry1 = transposition_table.LookUp<true>(n);
@@ -441,16 +460,15 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			// 2手読みチェック
 			StateInfo si2;
 			// この局面ですべてのevasionを試す
-			const CheckInfo ci2(n);
 			for (const auto& move : move_picker)
 			{
 				const Move& m2 = move.move;
 
 				// この指し手で逆王手になるなら、不詰めとして扱う
-				if (n.moveGivesCheck(m2, ci2))
+				if (ci.givesCheck(n, m2))
 					goto NO_MATE;
 
-				n.doMove(m2, si2, ci2, false);
+				n.doMoveNoCheck(m2, si2);
 
 				if (const Move move = n.mateMoveIn1Ply()) {
 					auto& entry1 = transposition_table.LookUp<true>(n);
@@ -846,7 +864,12 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 		StateInfo state_info;
 		//cout << n.toSFEN() << "," << best_move.toUSI() << endl;
-		n.doMove(best_move, state_info);
+		if constexpr (or_node)
+			n.doMoveCheck(best_move, state_info, ci);
+		else if (ci.givesCheck(n, best_move))
+			n.doMoveCheck(best_move, state_info, CheckInfo(n));
+		else
+			n.doMoveNoCheck(best_move, state_info);
 		++searchedNode;
 		dfpn_inner<!or_node>(n, thpn_child, thdn_child/*, inc_flag*/, maxDepth, searchedNode);
 		n.undoMove(best_move);
