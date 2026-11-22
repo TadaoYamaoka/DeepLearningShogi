@@ -23,8 +23,6 @@ void DfPn::dfpn_stop(const bool stop)
 
 // 詰将棋エンジン用のMovePicker
 namespace ns_dfpn {
-	constexpr size_t MaxCheckMoves = 91;
-
 	class EvasionCheckInfo {
 	public:
 		explicit EvasionCheckInfo(const Position& pos)
@@ -40,36 +38,34 @@ namespace ns_dfpn {
 		const ns_mate::DirectCheckMasks& directChecks;
 	};
 
-	template <bool or_node>
-	class MovePicker {
+	class EvasionMoveList {
 	public:
-		explicit MovePicker(const Position& pos) {
-			if (or_node) {
-				last_ = generateMoves<CheckAll>(moveList_, pos);
-				if (pos.inCheck()) {
-					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
-					ExtMove* curr = moveList_;
-					while (curr != last_) {
-						if (!pos.moveIsPseudoLegal<false>(curr->move))
-							curr->move = (--last_)->move;
-						else
-							++curr;
-					}
+		explicit EvasionMoveList(const Position& pos) {
+			last_ = generateMoves<Evasion>(moveList_, pos);
+			// 盤上の玉以外の手が現れるまでピンの計算を遅らせる。
+			ExtMove* curr = moveList_;
+			while (curr != last_) {
+				const Move move = curr->move;
+				if (move.isDrop()) {
+					++curr;
+				} else if (move.pieceTypeFrom() != King) {
+					break;
+				} else if (ns_mate::kingMoveIsLegal(pos, move)) {
+					++curr;
+				} else {
+					curr->move = (--last_)->move;
 				}
 			}
-			else {
-				last_ = generateMoves<Evasion>(moveList_, pos);
-				// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
-				ExtMove* curr = moveList_;
+			if (curr != last_) {
 				const Bitboard pinned = pos.pinnedBB();
-				while (curr != last_) {
-					if (!pos.pseudoLegalMoveIsLegal<false, false>(curr->move, pinned))
+				do {
+					if (!ns_mate::generatedMoveIsLegal(pos, curr->move, pinned))
 						curr->move = (--last_)->move;
 					else
 						++curr;
-				}
+				} while (curr != last_);
 			}
-			assert(size() <= MaxCheckMoves);
+			assert(size() <= ns_mate::MaxCheckMoves);
 		}
 		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
 		ExtMove* begin() { return &moveList_[0]; }
@@ -77,9 +73,12 @@ namespace ns_dfpn {
 		bool empty() const { return size() == 0; }
 
 	private:
-		ExtMove moveList_[MaxCheckMoves];
+		ExtMove moveList_[ns_mate::MaxCheckMoves];
 		ExtMove* last_;
 	};
+
+	template <bool or_node>
+	using MovePicker = std::conditional_t<or_node, ns_mate::CheckMovePicker<false, /*FromPosition=*/true>, EvasionMoveList>;
 }
 
 // 置換表
@@ -598,7 +597,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		TranspositionTable::Cluster* entries;
 		uint32_t hash_high;
 		Hand hand;
-	} ttkeys[MaxCheckMoves];
+	} ttkeys[ns_mate::MaxCheckMoves];
 
 	for (const auto& move : move_picker) {
 		auto& ttkey = ttkeys[&move - move_picker.begin()];

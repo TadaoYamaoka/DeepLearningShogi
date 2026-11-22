@@ -2,7 +2,9 @@
 
 #include <cassert>
 #include <climits>
+#include <cstddef>
 #include <array>
+#include <type_traits>
 
 #include "position.hpp"
 #include "move.hpp"
@@ -26,15 +28,22 @@ bool mateMoveInEvenPly(Position& pos, int draw_ply = INT_MAX, OnHistoryDependenc
 
 // 詰み探索用の指し手picker
 namespace ns_mate {
-	const constexpr size_t MaxCheckMoves = 91;
+	constexpr size_t MaxCheckMoves = 91;
 
-	// 攻め側。王手生成とdoMove()で同じCheckInfoを共有する。
-	template <bool INCHECK>
+	// 固定深さ探索は着手用のCheckInfoを使い、DFPNは局面から王手状態を調べる。
+	template <bool INCHECK, bool FromPosition = false>
 	class CheckMovePicker {
+		static_assert(!FromPosition || !INCHECK);
+		using CheckInfoArg = std::conditional_t<FromPosition, std::nullptr_t, const CheckInfo&>;
+
 	public:
-		CheckMovePicker(const Position& pos, const CheckInfo& ci) {
-			last_ = generateCheckAllMoves(moveList_, pos, ci);
-			if (INCHECK) {
+		explicit CheckMovePicker(const Position& pos, CheckInfoArg ci = nullptr) {
+			if constexpr (FromPosition)
+				last_ = generateMoves<CheckAll>(moveList_, pos);
+			else
+				last_ = generateCheckAllMoves(moveList_, pos, ci);
+
+			if (INCHECK || (FromPosition && pos.inCheck())) {
 				ExtMove* curr = moveList_;
 				// 玉以外の候補が現れるまでは、遮断・捕獲先を求めない。
 				while (curr != last_ && curr->move.pieceTypeFrom() == King) {
@@ -78,6 +87,20 @@ namespace ns_mate {
 		ExtMove* last_;
 	};
 
+	inline bool kingMoveIsLegal(const Position& pos, const Move move) {
+		return !pos.attackersToIsAny(oppositeColor(pos.turn()), move.to());
+	}
+
+	// 回避手生成済みの候補なので、移動元の駒種は指し手から取得できる。
+	inline bool generatedMoveIsLegal(const Position& pos, const Move move, const Bitboard& pinned) {
+		if (move.isDrop())
+			return true;
+		assert(move.pieceTypeFrom() == pieceToPieceType(pos.piece(move.from())));
+		if (move.pieceTypeFrom() == King)
+			return kingMoveIsLegal(pos, move);
+		return !pos.isPinnedIllegal(move.from(), move.to(), pos.kingSquare(pos.turn()), pinned);
+	}
+
 	// 受け側。玉以外の応手は、従来の探索順で必要になってから生成する。
 	class EvasionMovePicker {
 	public:
@@ -117,20 +140,6 @@ namespace ns_mate {
 		}
 
 	private:
-		static bool kingMoveIsLegal(const Position& pos, const Move move) {
-			return !pos.attackersToIsAny(oppositeColor(pos.turn()), move.to());
-		}
-
-		// 回避手生成済みの候補なので、移動元の駒種は指し手から取得できる。
-		static bool generatedMoveIsLegal(const Position& pos, const Move move, const Bitboard& pinned) {
-			if (move.isDrop())
-				return true;
-			assert(move.pieceTypeFrom() == pieceToPieceType(pos.piece(move.from())));
-			if (move.pieceTypeFrom() == King)
-				return kingMoveIsLegal(pos, move);
-			return !pos.isPinnedIllegal(move.from(), move.to(), pos.kingSquare(pos.turn()), pinned);
-		}
-
 		ExtMove* curr_ = moveList_;
 		ExtMove* last_;
 		bool nonKingEvasionsPending_ = true;
