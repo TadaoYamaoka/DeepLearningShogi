@@ -1510,7 +1510,16 @@ UCTSearcher::UctSearch(Position* const pos, child_node_t* const parent, uct_node
 			pos->doMove(move, st, ci, pos->moveGivesCheck(move, ci));
 		}
 		else {
-			pos->doMove(move, st);
+			const Color them = oppositeColor(pos->turn());
+			const Square king = pos->kingSquare(them);
+			const auto& direct = ns_mate::directCheckPieceTypes(them, king);
+			// 遠隔王手の利きを移動元が遮るなら着手前から王手なので、一般の合法手にもこの判定を使える。
+			const bool givesCheck = ns_mate::evasionGivesCheck(*pos, move, king, direct);
+			assert(givesCheck == pos->moveGivesCheck(move));
+			if (givesCheck)
+				pos->doMoveCheck(move, st, CheckInfo(*pos));
+			else
+				pos->doMoveNoCheck(move, st);
 		}
 	};
 

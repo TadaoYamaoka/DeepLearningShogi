@@ -128,7 +128,7 @@ TEST(Mate, EvasionGivesCheck) {
     initTable();
     Position::initZobrist();
 
-    struct Case { const char* sfen; const char* move; bool givesCheck; };
+    struct Case { const char* sfen; const char* move; bool givesCheck; bool inCheck = true; };
     for (const auto& c : {
         Case{"4r4/9/8k/9/9/9/9/9/4K4 b R 1", "R*5c", true},
         Case{"4r4/9/6p1k/9/9/9/9/9/4K4 b R 1", "R*5c", false},
@@ -138,11 +138,12 @@ TEST(Mate, EvasionGivesCheck) {
         Case{"4r4/9/5k3/3S5/9/9/9/9/4K4 b - 1", "6d5c", false},
         Case{"4k4/9/9/9/4K3r/9/9/9/4R4 b - 1", "5e6d", true},
         Case{"4k4/9/9/9/4K3r/9/9/9/4R4 b - 1", "5e5f", false},
+        Case{"4k4/9/9/9/4S4/9/9/9/K3R4 b - 1", "5e4d", true, false}, // 自玉は王手されておらず、銀が動くと5iの飛車で開き王手。
     }) {
         SCOPED_TRACE(c.move);
         Position pos;
         pos.set(c.sfen);
-        ASSERT_TRUE(pos.inCheck());
+        ASSERT_EQ(c.inCheck, pos.inCheck());
         const Move move = usiToMove(pos, c.move);
         ASSERT_TRUE(move);
         ASSERT_EQ(c.givesCheck, pos.moveGivesCheck(move));
