@@ -92,6 +92,9 @@
     <ClInclude Include="mate.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Mate5RefutationCache.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="error_util.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

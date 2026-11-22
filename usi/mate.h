@@ -8,7 +8,21 @@
 #include "move.hpp"
 #include "generateMoves.hpp"
 
-template <int depth> bool mateMoveInEvenPly(Position& pos, const int draw_ply = INT_MAX);
+namespace ns_mate {
+	// 通常の探索は反復を判定する。履歴依存の通知だけを省く。
+	struct IgnoreHistoryDependency { void operator()() const {} };
+
+	template <class OnHistoryDependency>
+	FORCE_INLINE RepetitionType repetition(const Position& pos, OnHistoryDependency onHistoryDependency) {
+		const auto result = pos.isDraw(16);
+		if (result != NotRepetition)
+			onHistoryDependency();
+		return result;
+	}
+}
+
+template <int depth, class OnHistoryDependency = ns_mate::IgnoreHistoryDependency>
+bool mateMoveInEvenPly(Position& pos, int draw_ply = INT_MAX, OnHistoryDependency onHistoryDependency = {});
 
 // 詰み探索用の指し手picker
 namespace ns_mate {
@@ -166,8 +180,9 @@ namespace ns_mate {
 	};
 
 	// 攻め側の王手後。現在の手番は受け側。
-	FORCE_INLINE MateRepetitionAction repetitionAfterCheck(const Position& pos) {
-		switch (pos.isDraw(16)) {
+	template <class OnHistoryDependency = IgnoreHistoryDependency>
+	FORCE_INLINE MateRepetitionAction repetitionAfterCheck(const Position& pos, OnHistoryDependency onHistoryDependency = {}) {
+		switch (repetition(pos, onHistoryDependency)) {
 		case NotRepetition:
 		case RepetitionInferior:
 			return MateRepetitionAction::Continue;
@@ -184,8 +199,9 @@ namespace ns_mate {
 	}
 
 	// 受け側の着手後。現在の手番は攻め側。
-	FORCE_INLINE MateRepetitionAction repetitionAfterEvasion(const Position& pos) {
-		switch (pos.isDraw(16)) {
+	template <class OnHistoryDependency = IgnoreHistoryDependency>
+	FORCE_INLINE MateRepetitionAction repetitionAfterEvasion(const Position& pos, OnHistoryDependency onHistoryDependency = {}) {
+		switch (repetition(pos, onHistoryDependency)) {
 		case NotRepetition:
 		case RepetitionSuperior:
 			return MateRepetitionAction::Continue;
@@ -203,8 +219,8 @@ namespace ns_mate {
 }
 
 // 3手詰めチェック
-template <bool INCHECK>
-FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
+template <bool INCHECK, class OnHistoryDependency = ns_mate::IgnoreHistoryDependency>
+FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX, OnHistoryDependency onHistoryDependency = {})
 {
 	// OR節点
 
@@ -227,7 +243,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		// 反復判定を「盤面上で詰みが見つかった時」まで遅延する。
 		bool defer_check_repetition = false;
 		if (si.continuousCheck[pos.turn()] >= 4) {
-			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterCheck(pos);
+			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterCheck(pos, onHistoryDependency);
 			if (repetition == ns_mate::MateRepetitionAction::Success) {
 				pos.undoMove(m);
 				return true;
@@ -248,7 +264,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		if (!m2) {
 			// 盤面上は1手で詰んでいる。遅延していた反復判定があれば、ここでだけ実行する。
 			if (defer_check_repetition &&
-				ns_mate::repetitionAfterCheck(pos) == ns_mate::MateRepetitionAction::Failure) {
+				ns_mate::repetitionAfterCheck(pos, onHistoryDependency) == ns_mate::MateRepetitionAction::Failure) {
 				pos.undoMove(m);
 				continue;
 			}
@@ -282,7 +298,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 
 			// 盤面上の1手詰めが見つかった場合だけ反復履歴を走査する。
 			// m2は非王手なのでRepetitionWinは発生しないが、分類は一般の偶数手探索と揃える。
-			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterEvasion(pos);
+			const ns_mate::MateRepetitionAction repetition = ns_mate::repetitionAfterEvasion(pos, onHistoryDependency);
 			if (repetition == ns_mate::MateRepetitionAction::Failure) {
 				pos.undoMove(m2);
 				goto NEXT_CHECK;
@@ -294,7 +310,7 @@ FORCE_INLINE bool mateMoveIn3Ply(Position& pos, const int draw_ply = INT_MAX)
 		// 盤面上ではすべての受けに対して詰んだ。
 		// m後の反復判定を遅延していた場合だけ、成功を確定する直前に走査する。
 		if (defer_check_repetition &&
-			ns_mate::repetitionAfterCheck(pos) == ns_mate::MateRepetitionAction::Failure) {
+			ns_mate::repetitionAfterCheck(pos, onHistoryDependency) == ns_mate::MateRepetitionAction::Failure) {
 			pos.undoMove(m);
 			continue;
 		}
@@ -363,26 +379,17 @@ Move mateMoveInOddPlyReturnMove(Position& pos, const int draw_ply = INT_MAX) {
 	return Move::moveNone();
 }
 
-// 奇数手詰めチェック
-template <int depth, bool INCHECK = false>
-bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
-{
-	// OR節点
-
-	// 最大手数チェック
-	if (pos.gamePly() + 2 > draw_ply)
-		return false;
-
-	// すべての合法手について
-	const CheckInfo ci(pos);
-	for (const auto& ml : ns_mate::CheckMovePicker<INCHECK>(pos, ci)) {
+namespace ns_mate {
+template <int depth, bool INCHECK, class OnHistoryDependency>
+bool searchChecks(Position& pos, int draw_ply, const CheckInfo& ci, CheckMovePicker<INCHECK>& checks, OnHistoryDependency onHistoryDependency) {
+	for (const auto& ml : checks) {
 		//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 		// 1手動かす
 		StateInfo state;
 		pos.doMoveCheck(ml.move, state, ci);
 
 		// 千日手チェック
-		switch (pos.isDraw(16)) {
+		switch (repetition(pos, onHistoryDependency)) {
 		case NotRepetition: break;
 		case RepetitionLose: // 相手が負け
 		{
@@ -403,7 +410,7 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 
 		// 王手の場合
 		// 偶数手詰めチェック
-		if (mateMoveInEvenPly<depth - 1>(pos, draw_ply)) {
+		if (mateMoveInEvenPly<depth - 1>(pos, draw_ply, onHistoryDependency)) {
 			// 詰みが見つかった時点で終了
 			pos.undoMove(ml.move);
 			return true;
@@ -413,15 +420,27 @@ bool mateMoveInOddPly(Position& pos, const int draw_ply = INT_MAX)
 	}
 	return false;
 }
+}
 
-// 3手詰めの特殊化
-template <> FORCE_INLINE bool mateMoveInOddPly<3, false>(Position& pos, const int draw_ply) { return mateMoveIn3Ply<false>(pos, draw_ply); }
-template <> FORCE_INLINE bool mateMoveInOddPly<3, true>(Position& pos, const int draw_ply) { return mateMoveIn3Ply<true>(pos, draw_ply); }
+// 奇数手詰めチェック
+template <int depth, bool INCHECK = false, class OnHistoryDependency = ns_mate::IgnoreHistoryDependency>
+bool mateMoveInOddPly(Position& pos, int draw_ply = INT_MAX, OnHistoryDependency onHistoryDependency = {}) {
+	if constexpr (depth == 3) {
+		return mateMoveIn3Ply<INCHECK>(pos, draw_ply, onHistoryDependency);
+	}
+	else {
+		if (pos.gamePly() + 2 > draw_ply)
+			return false;
+		const CheckInfo ci(pos);
+		ns_mate::CheckMovePicker<INCHECK> checks(pos, ci);
+		return ns_mate::searchChecks<depth>(pos, draw_ply, ci, checks, onHistoryDependency);
+	}
+}
 
 // 偶数手詰めチェック
 // 手番側が王手されていること
-template <int depth>
-bool mateMoveInEvenPly(Position& pos, const int draw_ply)
+template <int depth, class OnHistoryDependency>
+bool mateMoveInEvenPly(Position& pos, const int draw_ply, OnHistoryDependency onHistoryDependency)
 {
 	// AND節点
 
@@ -436,13 +455,15 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply)
 
 		// 1手動かす
 		StateInfo state;
-		if (givesCheck)
+		if (givesCheck) {
+			onHistoryDependency();
 			pos.doMoveCheck(m, state, CheckInfo(pos));
+		}
 		else
 			pos.doMoveNoCheck(m, state);
 
 		// 千日手チェック
-		switch (pos.isDraw(16)) {
+		switch (ns_mate::repetition(pos, onHistoryDependency)) {
 		case NotRepetition: break;
 		case RepetitionWin: // 自分が勝ち
 		{
@@ -462,7 +483,7 @@ bool mateMoveInEvenPly(Position& pos, const int draw_ply)
 		}
 
 		// 奇数手詰めかどうか
-		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos, draw_ply) : !mateMoveInOddPly<depth - 1, false>(pos, draw_ply)) {
+		if (givesCheck ? !mateMoveInOddPly<depth - 1, true>(pos, draw_ply, onHistoryDependency) : !mateMoveInOddPly<depth - 1, false>(pos, draw_ply, onHistoryDependency)) {
 			// 偶数手詰めでない場合
 			// 詰みが見つからなかった時点で終了
 			pos.undoMove(m);

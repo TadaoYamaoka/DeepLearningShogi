@@ -24,7 +24,7 @@
 #include "UctSearch.h"
 #include "Node.h"
 #include "PolicyValueCache.h"
-#include "mate.h"
+#include "Mate5RefutationCache.h"
 #ifdef PV_MATE_SEARCH
 #include "PvMateSearch.h"
 #endif
@@ -370,6 +370,7 @@ public:
 #endif
 	}
 	UCTSearcher(UCTSearcher&& o) :
+		mate5Cache(std::move(o.mate5Cache)),
 		grp(o.grp),
 		thread_id(o.thread_id),
 		handle(o.handle),
@@ -422,6 +423,8 @@ public:
 				AllocateCudaHostBuffers();
 #endif
 				grp->InitGPU();
+				if constexpr (MATE_SEARCH_DEPTH == 5)
+					mate5Cache.emplace();
 
 				while (!term_th) {
 					this->ParallelUctSearch();
@@ -498,6 +501,14 @@ private:
 			checkCudaErrors(cudaFreeHost(y2));
 	}
 #endif
+
+	std::optional<Mate5RefutationCache> mate5Cache;
+	bool leafMate(Position& pos, int limit) {
+		if constexpr (MATE_SEARCH_DEPTH == 5)
+			return mate5Cache->mate(pos, limit);
+		else
+			return mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(pos, limit);
+	}
 
 	UCTSearcherGroup* grp;
 	// スレッド識別番号
@@ -1575,7 +1586,7 @@ UCTSearcher::UctSearch(Position* const pos, child_node_t* const parent, uct_node
 			// 詰みチェック
 			int isMate = 0;
 			if (!pos->inCheck()) {
-				if (mateMoveInOddPly<MATE_SEARCH_DEPTH, false>(*pos, draw_ply)) {
+				if (leafMate(*pos, draw_ply)) {
 					isMate = 1;
 				}
 				// 入玉勝ちかどうかを判定

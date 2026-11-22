@@ -308,6 +308,7 @@ public:
     }
 
     Bitboard checkersBB() const     { return st_->checkersBB; }
+    int continuousCheck(Color c) const { return st_->continuousCheck[c]; }
     Bitboard prevCheckersBB() const { return st_->previous->checkersBB; }
     // 王手が掛かっているか。
     bool inCheck() const            { return checkersBB().isAny(); }

@@ -10,7 +10,7 @@
 #include "python_module.h"
 #include "usi.hpp"
 #include "dfpn.h"
-#include "mate.h"
+#include "Mate5RefutationCache.h"
 #include "PolicyValueCache.h"
 #include "Node.h"
 
@@ -228,6 +228,75 @@ TEST(Mate, UnpromotedCountercheckWinsByRepetitionAfterPromotedCheckIsRefuted) {
     ASSERT_EQ(RepetitionLose, pos.isDraw(16));
     pos.undoMove(plain);
     EXPECT_TRUE(mateMoveIn3Ply<true>(pos));
+}
+
+TEST(Mate, LeafCacheSkipsSearchOnSecondVisit) {
+    initTable();
+    Position::initZobrist();
+    Position pos("4k4/9/9/9/9/9/9/9/4K4 b R 1", nullptr);
+    ASSERT_FALSE(mateMoveInOddPly<5>(pos));
+
+    Mate5RefutationCache cache;
+    int searches = 0;
+    const auto onSearch = [&] { ++searches; };
+    ASSERT_FALSE(cache.mate(pos, INT_MAX, onSearch));
+    ASSERT_EQ(1, searches);
+    EXPECT_FALSE(cache.mate(pos, INT_MAX, onSearch));
+#if defined(BAN_BLACK_REPETITION) || defined(BAN_WHITE_REPETITION)
+    EXPECT_EQ(2, searches);
+#else
+    EXPECT_EQ(1, searches);
+#endif
+}
+
+TEST(Mate, LeafCacheKeepsHistoryDependentRefutationLocal) {
+    initTable();
+    Position::initZobrist();
+    Position withHistory("3g1b2l/4Lp3/3+NK1ss1/7k1/1PP2bp2/1+n3ns2/g2G+pn1+p1/9/+p+r7 w rgs2l11p 290", nullptr);
+    StateInfo history[2];
+    int i = 0;
+    for (const char* usi : {"S*6b", "6c6b"}) {
+        const Move move = usiToMove(withHistory, usi);
+        ASSERT_TRUE(move);
+        withHistory.doMove(move, history[i++]);
+    }
+    Position withoutHistory("3g1b2l/3+NLp3/4K1ss1/7k1/1PP2bp2/1+n3ns2/g2G+pn1+p1/9/+p+r7 w Srg2l11p 292", nullptr);
+    ASSERT_EQ(withHistory.toSFEN(), withoutHistory.toSFEN());
+    ASSERT_FALSE(withHistory.inCheck());
+    ASSERT_FALSE(mateMoveInOddPly<5>(withHistory));
+    ASSERT_TRUE(mateMoveInOddPly<5>(withoutHistory));
+
+    Mate5RefutationCache cache;
+    EXPECT_FALSE(cache.mate(withHistory, INT_MAX));
+    EXPECT_TRUE(cache.mate(withoutHistory, INT_MAX));
+    EXPECT_FALSE(cache.mate(withHistory, INT_MAX));
+}
+
+TEST(Mate, LeafCacheRespectsRemainingPlies) {
+    initTable();
+    Position::initZobrist();
+    Position pos("l2gkg2l/2s3s2/p1nppp1pp/2p3p2/P4P1P1/4n3P/1PPPG1N2/1BKS2+s2/LN3+r3 w RBgl3p 72", nullptr);
+    ASSERT_FALSE(pos.inCheck());
+    ASSERT_FALSE(mateMoveInOddPly<5>(pos, pos.gamePly() + 3));
+    ASSERT_TRUE(mateMoveInOddPly<5>(pos));
+
+    Mate5RefutationCache cache;
+    EXPECT_FALSE(cache.mate(pos, pos.gamePly() + 3));
+    EXPECT_TRUE(cache.mate(pos, INT_MAX));
+    EXPECT_FALSE(cache.mate(pos, pos.gamePly() + 3));
+}
+
+TEST(Mate, LeafCacheDoesNotReuseFiveRemainingPliesAtSix) {
+    initTable();
+    Position::initZobrist();
+    Position pos("l2r2n+Pl/+P1g6/+LSk1p2p1/5pP1p/3SN1N2/1P1K1Pp1P/4P1G2/9/7RL b 2B2G2SN5Pp 129", nullptr);
+    ASSERT_FALSE(pos.inCheck());
+    const int ply = pos.gamePly();
+    ASSERT_FALSE(mateMoveInOddPly<5>(pos, ply + 5));
+    ASSERT_TRUE(mateMoveInOddPly<5>(pos, ply + 6));
+    Mate5RefutationCache cache;
+    EXPECT_FALSE(cache.mate(pos, ply + 5));
+    EXPECT_TRUE(cache.mate(pos, ply + 6));
 }
 
 TEST(Mate, AllMate5Positions) {
