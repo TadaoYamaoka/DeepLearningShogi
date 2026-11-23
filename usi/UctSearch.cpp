@@ -273,6 +273,7 @@ struct visitor_t {
 struct batch_element_t {
 	uct_node_t* node;
 	Color color;
+	int inference_row;
 	float* value_win;
 	Key key;
 };
@@ -352,6 +353,7 @@ public:
 #endif
 		current_policy_value_batch_index(0),
 		visitor_pool(policy_value_batch_maxsize) {
+		inference_keys.reserve(policy_value_batch_maxsize);
 		visitor_batch.reserve(policy_value_batch_maxsize);
 		trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
@@ -386,6 +388,7 @@ public:
 		policy_value_book_key(o.policy_value_book_key),
 #endif
 		current_policy_value_batch_index(o.current_policy_value_batch_index),
+		inference_keys(std::move(o.inference_keys)),
 		visitor_pool(move(o.visitor_pool)),
 		visitor_batch(move(o.visitor_batch)),
 		trajectories_batch_discarded(move(o.trajectories_batch_discarded)) {
@@ -531,6 +534,7 @@ private:
 	Key* policy_value_book_key;
 #endif
 	int current_policy_value_batch_index;
+	std::vector<Key> inference_keys;
 
 	// 各探索の開始時に更新し、このスレッドのルート着手だけで使用する。
 	std::optional<CheckInfo> root_check_info;
@@ -1228,9 +1232,8 @@ UCTSearcher::QueuingNode(const Position* const pos, uct_node_t* const node, floa
 	/* if (current_policy_value_batch_index >= policy_value_batch_maxsize) {
 		std::cout << "error" << std::endl;
 	}*/
-	Key key = 0;
+	const Key key = pos->getKey();
 	if (policy_value_cache.IsEnabled()) {
-		key = pos->getKey();
 		child_node_t* const uct_child = node->child.get();
 		if (policy_value_cache.Lookup(key, node->child_num, *value_win,
 			[uct_child](const size_t i, const float policy) { uct_child[i].nnrate = policy; })) {
@@ -1238,17 +1241,21 @@ UCTSearcher::QueuingNode(const Position* const pos, uct_node_t* const node, floa
 		}
 	}
 
-	// set all zero
+	// 同じバッチの同一局面は推論行を共有し、評価結果は各ノードへ返す。
+	const auto it = std::find(inference_keys.begin(), inference_keys.end(), key);
+	const int row = static_cast<int>(it - inference_keys.begin());
+	if (it == inference_keys.end()) {
 #ifdef ONNXRUNTIME
-	std::fill_n((DType*)features1[current_policy_value_batch_index], sizeof(features1_t) / sizeof(DType), _zero);
-	std::fill_n((DType*)features2[current_policy_value_batch_index], sizeof(features2_t) / sizeof(DType), _zero);
+		std::fill_n((DType*)features1[row], sizeof(features1_t) / sizeof(DType), _zero);
+		std::fill_n((DType*)features2[row], sizeof(features2_t) / sizeof(DType), _zero);
 #else
-	std::fill_n(features1[current_policy_value_batch_index], sizeof(packed_features1_t), 0);
-	std::fill_n(features2[current_policy_value_batch_index], sizeof(packed_features2_t), 0);
+		std::fill_n(features1[row], sizeof(packed_features1_t), 0);
+		std::fill_n(features2[row], sizeof(packed_features2_t), 0);
 #endif
-
-	make_input_features(*pos, features1[current_policy_value_batch_index], features2[current_policy_value_batch_index]);
-	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), value_win, key };
+		make_input_features(*pos, features1[row], features2[row]);
+		inference_keys.push_back(key);
+	}
+	policy_value_batch[current_policy_value_batch_index] = { node, pos->turn(), row, value_win, key };
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 	if (use_book_policy)
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -1347,7 +1354,6 @@ UCTSearcher::ParallelUctSearch()
 	// ルートノードを評価
 	LOCK_EXPAND;
 	if (!current_root->IsEvaled()) {
-		current_policy_value_batch_index = 0;
 		float value_win;
 		if (QueuingNode(pos_root, current_root, &value_win))
 			current_root->SetEvaled();
@@ -1370,7 +1376,6 @@ UCTSearcher::ParallelUctSearch()
 	do {
 		visitor_batch.clear();
 		trajectories_batch_discarded.clear();
-		current_policy_value_batch_index = 0;
 
 		// バッチサイズ分探索を繰り返す
 		int local_count = 0;
@@ -1808,12 +1813,13 @@ void UCTSearcher::EvalNode() {
 	const int policy_value_batch_size = current_policy_value_batch_index;
 
 	// predict
-	grp->nn_forward(thread_id, policy_value_batch_size, features1, features2, y1, y2);
+	grp->nn_forward(thread_id, static_cast<int>(inference_keys.size()), features1, features2, y1, y2);
 
 	const DType(*logits)[MAX_MOVE_LABEL_NUM * SquareNum] = reinterpret_cast<DType(*)[MAX_MOVE_LABEL_NUM * SquareNum]>(y1);
-	const DType *value = y2;
 
-	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+	for (int i = 0; i < policy_value_batch_size; ++i) {
+		const int row = policy_value_batch[i].inference_row;
+		const float value = static_cast<float>(y2[row]);
 		uct_node_t* const node = policy_value_batch[i].node;
 		const Color color = policy_value_batch[i].color;
 
@@ -1821,9 +1827,9 @@ void UCTSearcher::EvalNode() {
 		child_node_t* const uct_child = node->child.get();
 
 		// 合法手のlogitを着手確率に変換する。
-		softmax_temperature_with_normalize(uct_child, child_num, *logits, color);
+		softmax_temperature_with_normalize(uct_child, child_num, logits[row], color);
 
-		*policy_value_batch[i].value_win = (float)*value;
+		*policy_value_batch[i].value_win = value;
 
 #if defined(MAKE_BOOK) || defined(BOOK_POLICY)
 		if (use_book_policy) {
@@ -1855,7 +1861,7 @@ void UCTSearcher::EvalNode() {
 				}
 
 				// valueと定跡の評価値の加重平均
-				*policy_value_batch[i].value_win = (1.0f - alpha) * (float)*value + alpha * score_to_value(entries[0].score);
+				*policy_value_batch[i].value_win = (1.0f - alpha) * value + alpha * score_to_value(entries[0].score);
 			}
 		}
 #endif
@@ -1866,4 +1872,6 @@ void UCTSearcher::EvalNode() {
 				[uct_child](const size_t j) { return uct_child[j].nnrate; });
 		}
 	}
+	inference_keys.clear();
+	current_policy_value_batch_index = 0;
 }
