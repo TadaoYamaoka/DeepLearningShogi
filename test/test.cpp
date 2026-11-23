@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <stdexcept>
 #include <thread>
 #include <deque>
 
@@ -340,6 +341,12 @@ TEST(Mate, AllMate5Positions) {
     EXPECT_EQ(0u, failureCount) << "first failed position: " << firstFailure;
 }
 
+static Key nextKeyInCacheShard(Key key) {
+    const auto shard = std::hash<Key>{}(key) % 256;
+    do { ++key; } while (std::hash<Key>{}(key) % 256 != shard);
+    return key;
+}
+
 TEST(PolicyValueCacheTest, DisabledAndLruEviction) {
     PolicyValueCache cache;
     float value;
@@ -360,23 +367,59 @@ TEST(PolicyValueCacheTest, DisabledAndLruEviction) {
 
     // 256シャードの同一シャードに入るキーで、容量2のLRUを確認する。
     cache.SetCapacity(512);
+    const Key second = nextKeyInCacheShard(1);
+    const Key third = nextKeyInCacheShard(second);
     store(1, 0.1f, { 0.2f });
-    store(257, 0.3f, { 0.4f });
+    store(second, 0.3f, { 0.4f });
     ASSERT_TRUE(lookup(1, 1));
     EXPECT_FLOAT_EQ(0.1f, value);
-    store(513, 0.5f, { 0.6f });
+    store(third, 0.5f, { 0.6f });
     EXPECT_TRUE(lookup(1, 1));
-    EXPECT_FALSE(lookup(257, 1));
-    EXPECT_TRUE(lookup(513, 1));
+    EXPECT_FALSE(lookup(second, 1));
+    EXPECT_TRUE(lookup(third, 1));
 
     // 後発の同一局面の結果では上書きしない。
-    store(513, 0.7f, { 0.8f });
-    ASSERT_TRUE(lookup(513, 1));
+    store(third, 0.7f, { 0.8f });
+    ASSERT_TRUE(lookup(third, 1));
     EXPECT_FLOAT_EQ(0.5f, value);
     EXPECT_FLOAT_EQ(0.6f, policy[0]);
 
     cache.SetCapacity(0);
-    EXPECT_FALSE(lookup(513, 1));
+    EXPECT_FALSE(lookup(third, 1));
+}
+
+TEST(PolicyValueCacheTest, RehashPreservesEntriesAndLruOrder) {
+    constexpr size_t shardCapacity = 9;
+    PolicyValueCache cache;
+    cache.SetCapacity(256 * shardCapacity);
+    std::array<Key, shardCapacity + 1> keys{1};
+    for (size_t i = 1; i < keys.size(); ++i) {
+        // 同じシャードのバケット0に集め、8から16バケットへの拡張で0と8に分かれるようにする。
+        Key key = keys[i - 1];
+        do { key = nextKeyInCacheShard(key); } while (((key >> 8) & 15) != (i % 2) * 8);
+        keys[i] = key;
+    }
+    auto store = [&](size_t i) {
+        cache.Store(keys[i], float(i), 1, [i](size_t) { return float(i + 1); });
+    };
+    auto lookup = [&](size_t i) {
+        float value = -1, policy = -1;
+        const bool hit = cache.Lookup(keys[i], 1, value, [&](size_t, float p) { policy = p; });
+        if (hit) {
+            EXPECT_EQ(float(i), value);
+            EXPECT_EQ(float(i + 1), policy);
+        }
+        return hit;
+    };
+    for (size_t i = 0; i < shardCapacity; ++i)
+        store(i);
+    for (size_t i = 0; i < shardCapacity; ++i)
+        ASSERT_TRUE(lookup(i)) << i;
+
+    ASSERT_TRUE(lookup(0)); // 先に登録した0を参照したので、最古は1。
+    store(shardCapacity);
+    for (size_t i = 0; i < keys.size(); ++i)
+        EXPECT_EQ(i != 1, lookup(i)) << i;
 }
 
 TEST(PolicyValueCacheTest, RejectsDifferentPolicySize) {
@@ -390,6 +433,104 @@ TEST(PolicyValueCacheTest, RejectsDifferentPolicySize) {
     cache.Store(1, 0.4f, 1, [](const size_t) { return 0.5f; });
     ASSERT_TRUE(cache.Lookup(1, 1, value, [&policy](const size_t, const float p) { policy = p; }));
     EXPECT_FLOAT_EQ(0.4f, value);
+}
+
+TEST(PolicyValueCacheTest, SmallCapacitiesEvictOnlyInTheirShard) {
+    PolicyValueCache cache;
+    auto store = [&](Key k) { cache.Store(k, 0.5f, 0, [](size_t) { return 0.0f; }); };
+    float value;
+    auto hit = [&](Key k) { return cache.Lookup(k, 0, value, [](size_t, float) {}); };
+    Key other = 2;
+    while (std::hash<Key>{}(other) % 2 == std::hash<Key>{}(1) % 2) ++other;
+    const Key replacement = nextKeyInCacheShard(1);
+    for (size_t capacity : {1u, 2u}) {
+        cache.SetCapacity(capacity);
+        store(other);
+        store(1);
+        store(replacement);
+        EXPECT_FALSE(hit(1));
+        EXPECT_TRUE(hit(replacement));
+        EXPECT_EQ(capacity == 2, hit(other));
+    }
+}
+
+TEST(PolicyValueCacheTest, FailedStorePreservesCachedResult) {
+    PolicyValueCache cache;
+    cache.SetCapacity(1);
+    cache.Store(1, 0.5f, 1, [](size_t) { return 0.25f; });
+    for (Key key : {1u, 2u}) {
+        EXPECT_THROW(cache.Store(key, 0.0f, 2, [](size_t i) {
+            if (i == 1) throw std::runtime_error("policy");
+            return 0.0f;
+        }), std::runtime_error);
+        float value, policy;
+        ASSERT_TRUE(cache.Lookup(1, 1, value, [&](size_t, float p) { policy = p; }));
+        EXPECT_EQ(0.5f, value);
+        EXPECT_EQ(0.25f, policy);
+    }
+}
+
+TEST(PolicyValueCacheTest, StaleLookupAfterCapacityChange) {
+    PolicyValueCache cache;
+    cache.SetCapacity(512);
+    const Key first = 1;
+    const Key second = nextKeyInCacheShard(first);
+    const Key third = nextKeyInCacheShard(second);
+    auto store = [&](Key key) { cache.Store(key, 0.5f, 1, [](size_t) { return 1.0f; }); };
+    store(first);
+    store(second);
+    auto& shard = cache.GetShard(first);
+    cache.Store(second, 0.5f, 2, [](size_t) { return 1.0f; });
+    ASSERT_GT(shard.pending_policy.capacity(), 0u);
+    const auto index = shard.Find(first);
+    ASSERT_NE(PolicyValueCache::kNoEntry, index);
+    const auto generation = shard.entries[index].generation;
+
+    // Lookupの共有ロック解放とLRU更新の間に起こる状態変化を、順番を固定して再現する。
+    cache.SetCapacity(768);
+    EXPECT_EQ(0u, shard.entries.capacity());
+    EXPECT_EQ(0u, shard.buckets.capacity());
+    EXPECT_EQ(0u, shard.pending_policy.capacity());
+    shard.TouchIfCurrent(index, first, generation);
+    store(first);
+    store(second);
+    store(third);
+    ASSERT_EQ(index, shard.Find(first));
+    shard.TouchIfCurrent(index, first, generation);
+    store(nextKeyInCacheShard(third));
+    float value;
+    EXPECT_FALSE(cache.Lookup(first, 1, value, [](size_t, float) {}));
+    EXPECT_TRUE(cache.Lookup(second, 1, value, [](size_t, float) {}));
+}
+
+TEST(PolicyValueCacheTest, ConcurrentEvictionsReturnMatchingPolicy) {
+    PolicyValueCache cache;
+    cache.SetCapacity(512);
+    std::array<Key, 8> keys{1};
+    for (size_t i = 1; i < keys.size(); ++i)
+        keys[i] = nextKeyInCacheShard(keys[i - 1]);
+
+    std::atomic<bool> start{false};
+    std::vector<std::thread> threads;
+    for (size_t t = 0; t < keys.size(); ++t) {
+        threads.emplace_back([&, t] {
+            while (!start.load(std::memory_order_acquire)) std::this_thread::yield();
+            for (size_t i = 0; i < 2000; ++i) {
+                const auto id = (t + i) % keys.size();
+                const float expected = static_cast<float>(id);
+                cache.Store(keys[id], expected, 2, [=](size_t j) { return expected + j; });
+                float value, policy[2];
+                if (cache.Lookup(keys[id], 2, value, [&](size_t j, float p) { policy[j] = p; })) {
+                    ASSERT_EQ(expected, value);
+                    ASSERT_EQ(expected, policy[0]);
+                    ASSERT_EQ(expected + 1, policy[1]);
+                }
+            }
+        });
+    }
+    start.store(true, std::memory_order_release);
+    for (auto& thread : threads)
+        thread.join();
 }
 
 TEST(PolicyValueCacheTest, ConcurrentAccess) {
