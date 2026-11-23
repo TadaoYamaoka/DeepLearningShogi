@@ -287,6 +287,12 @@ void TranspositionTable::NewSearch() {
 
 static constexpr int kInfinitePnDn = 100000000;
 
+// 1+ε トリック (Pawlewicz & Lew, Computers and Games 2006)
+// 最善の子の閾値を 2番目の子の値 × (1 + ε) + 1 まで広げ、子の切り替え(再探索)を減らす(ε = 1/16)
+FORCE_INLINE int secondBestThreshold(const int second_best) {
+	return std::min(second_best + 1 + (second_best >> 4), kInfinitePnDn + 1);
+}
+
 // 王手の指し手が近接王手か
 FORCE_INLINE bool moveGivesNeighborCheck(const Position& pos, const Move& move)
 {
@@ -379,6 +385,13 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			// 3手詰みチェック
 			StateInfo si;
 			StateInfo si2;
+
+			// 各王手の子局面のクラスタを先読みし、下の置換表参照のメモリ待ちを重ねる
+			for (const auto& ml : move_picker) {
+				char* p = reinterpret_cast<char*>(&transposition_table.tt[n.getBoardKeyAfter(ml.move) & transposition_table.clusters_mask]);
+				prefetch(p);
+				prefetch(p + 64);
+			}
 
 			for (const auto& ml : move_picker)
 			{
@@ -473,7 +486,22 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 
 				if (entry2.num_searched == 0) {
 					entry2.num_searched = 1;
-					entry2.pn = static_cast<int>(move_picker2.size());
+					// 合駒の遅延展開に合わせて、同じ升への合駒は1手と数える(遅延した合駒があれば+1)
+					Bitboard drop_to = allZeroBB();
+					int num_moves = 0;
+					bool has_delayed = false;
+					for (const auto& ml2 : move_picker2) {
+						if (ml2.move.isDrop()) {
+							const Square to = ml2.move.to();
+							if (drop_to.isSet(to)) {
+								has_delayed = true;
+								continue;
+							}
+							drop_to.setBit(to);
+						}
+						++num_moves;
+					}
+					entry2.pn = num_moves + (has_delayed ? 1 : 0);
 					entry2.dn = static_cast<int>(move_picker2.size());
 				}
 			}
@@ -627,6 +655,39 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 		transposition_table.GetChildFirstEntry<or_node>(n, move, ttkey.entries, ttkey.hash_high, ttkey.hand);
 	}
 
+	// 合駒の遅延展開 (KomoringHeights の手法)
+	// 同じ升への合駒は先頭の1手だけを展開し、直前の合駒が詰んだら次の合駒を展開する。
+	// 無駄合の読みを後回しにし、遅らせた合駒が残っている間は証明数に1を加える。
+	bool delayed[ns_mate::MaxCheckMoves];
+	int next_drop[ns_mate::MaxCheckMoves];
+	int num_delayed = 0;
+	if constexpr (!or_node) {
+		Square drop_sq[8]; // 合駒の升は玉と飛び駒の間(最大7升)
+		int drop_tail[8];
+		int num_drop_sq = 0;
+		for (const auto& move : move_picker) {
+			const int i = static_cast<int>(&move - move_picker.begin());
+			delayed[i] = false;
+			next_drop[i] = -1;
+			if (!move.move.isDrop())
+				continue;
+			const Square to = move.move.to();
+			int k = 0;
+			while (k < num_drop_sq && drop_sq[k] != to) ++k;
+			if (k < num_drop_sq) {
+				next_drop[drop_tail[k]] = i;
+				drop_tail[k] = i;
+				delayed[i] = true;
+				++num_delayed;
+			}
+			else if (k < 8) {
+				drop_sq[k] = to;
+				drop_tail[k] = i;
+				++num_drop_sq;
+			}
+		}
+	}
+
 	while (searchedNode < maxSearchNode && !stop) {
 		++entry.num_searched;
 
@@ -752,7 +813,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				}
 			}
 			else {
-				thpn_child = std::min(thpn, second_best_pn + 1);
+				thpn_child = std::min(thpn, secondBestThreshold(second_best_pn));
 				thdn_child = std::min(thdn - entry.dn + best_dn, kInfinitePnDn);
 			}
 		}
@@ -775,8 +836,16 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			u32 rook = 0;
 			bool all_mate = true;
 			for (const auto& move : move_picker) {
-				const auto& ttkey = ttkeys[&move - move_picker.begin()];
+				const int idx = static_cast<int>(&move - move_picker.begin());
+				if (delayed[idx])
+					continue;
+				const auto& ttkey = ttkeys[idx];
 				const auto& child_entry = transposition_table.LookUpDirect(*ttkey.entries, ttkey.hash_high, ttkey.hand, n.gamePly() + 1);
+				// 合駒が詰んだら、同じ升への次の合駒を展開する(同じ升の合駒は後ろの添字に並ぶので、このループ内で評価される)
+				if (child_entry.pn == 0 && next_drop[idx] >= 0 && delayed[next_drop[idx]]) {
+					delayed[next_drop[idx]] = false;
+					--num_delayed;
+				}
 				if (all_mate) {
 					if (child_entry.pn == 0) {
 						const Hand& child_pp = child_entry.hand;
@@ -853,6 +922,9 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 				}
 			}
 			entry.pn = std::min(entry.pn, kInfinitePnDn);
+			// 展開を遅らせた合駒の分として証明数に1を加える
+			if (num_delayed > 0 && entry.pn < kInfinitePnDn)
+				++entry.pn;
 			if (entry.pn == 0) {
 				// 詰みの場合
 				//cout << n.toSFEN() << " and" << endl;
@@ -874,7 +946,7 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
             }
 			else {
 				thpn_child = std::min(thpn - entry.pn + best_pn, kInfinitePnDn);
-				thdn_child = std::min(thdn, second_best_dn + 1);
+				thdn_child = std::min(thdn, secondBestThreshold(second_best_dn));
 			}
 		}
 
