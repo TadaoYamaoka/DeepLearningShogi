@@ -1,6 +1,11 @@
 ﻿#include <type_traits>
 #include <unordered_set>
 
+#ifdef __linux__
+#include <new>
+#include <sys/mman.h>
+#endif
+
 #include "position.hpp"
 #include "move.hpp"
 #include "generateMoves.hpp"
@@ -247,8 +252,26 @@ void TranspositionTable::Resize(int64_t hash_size_mb) {
 		tt = nullptr;
 	}
 
+#ifdef __linux__
+	constexpr size_t hugePage = 2 * 1024 * 1024;
+	const size_t bytes = new_num_clusters * sizeof(Cluster);
+	tt_raw = std::calloc(1, bytes + hugePage - 1);
+	if (!tt_raw) {
+		num_clusters = 0;
+		clusters_mask = 0;
+		throw std::bad_alloc();
+	}
+	tt = reinterpret_cast<Cluster*>((reinterpret_cast<uintptr_t>(tt_raw) + hugePage - 1) & ~(hugePage - 1));
+	if (madvise(tt, bytes, MADV_HUGEPAGE) == 0) {
+		// 最初の探索でページ確保を待たないよう、初期化時に各ページに書き込む。
+		auto* p = reinterpret_cast<volatile unsigned char*>(tt);
+		for (size_t offset = 0; offset < bytes; offset += hugePage)
+			p[offset] = 0;
+	}
+#else
 	tt_raw = std::calloc(new_num_clusters * sizeof(Cluster) + CacheLineSize, 1);
 	tt = (Cluster*)((uintptr_t(tt_raw) + CacheLineSize - 1) & ~(CacheLineSize - 1));
+#endif
 	clusters_mask = num_clusters - 1;
 }
 
