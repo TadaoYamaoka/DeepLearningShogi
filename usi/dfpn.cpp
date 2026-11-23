@@ -386,6 +386,13 @@ void DfPn::dfpn_inner(Position& n, const int thpn, const int thdn/*, bool inc_fl
 			StateInfo si;
 			StateInfo si2;
 
+			// 各王手の子局面のクラスタを先読みし、下の置換表参照のメモリ待ちを重ねる
+			for (const auto& ml : move_picker) {
+				char* p = reinterpret_cast<char*>(&transposition_table.tt[n.getBoardKeyAfter(ml.move) & transposition_table.clusters_mask]);
+				prefetch(p);
+				prefetch(p + 64);
+			}
+
 			for (const auto& ml : move_picker)
 			{
 				const Move& m = ml.move;
